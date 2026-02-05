@@ -10,6 +10,12 @@ export const en = {
   },
 
   auth: {
+    welcome: {
+      title: 'Select your experience:',
+      subtitle: 'Please tell us a little bit more about yourself and who you are.',
+      user: { title: 'User', description: 'I need laundry & dry cleaning service.' },
+      courier: { title: 'Courier', description: 'I want to pick up and deliver laundry to customers.' },
+    },
     entryTitle: 'Auth',
     entrySubtitle: 'Phone login screen (placeholder)',
     phoneTitle: 'Phone',
@@ -53,5 +59,16 @@ export const en = {
   modal: {
     title: 'This is a modal',
     linkText: 'Go to home screen',
+  },
+
+  onboarding: {
+    slide1: {
+      title: 'Welcome to Auto Laundry',
+      subtitle: 'We make laundry simple. Get started in a few steps.',
+      next: 'Next',
+    },
+  },
+  onboardingLast: {
+    getStarted: 'Get started',
   },
 } as const;

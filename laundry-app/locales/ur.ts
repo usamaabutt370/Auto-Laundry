@@ -10,6 +10,12 @@ export const ur = {
   },
 
   auth: {
+    welcome: {
+      title: 'اپنا تجربہ منتخب کریں:',
+      subtitle: 'براہ کرم ہمیں اپنے بارے میں تھوڑا بتائیں کہ آپ کون ہیں۔',
+      user: { title: 'صارف', description: 'مجھے لانڈری اور ڈرائی کلیننگ سروس چاہیے۔' },
+      courier: { title: 'کورئیر', description: 'میں گاہکوں کو لانڈری اٹھانا اور پہنچانا چاہتا/چاہتی ہوں۔' },
+    },
     entryTitle: 'لاگ ان',
     entrySubtitle: 'فون لاگ ان اسکرین (پلیس ہولڈر)',
     phoneTitle: 'فون',
@@ -53,5 +59,16 @@ export const ur = {
   modal: {
     title: 'یہ ایک موڈل ہے',
     linkText: 'ہوم اسکرین پر جائیں',
+  },
+
+  onboarding: {
+    slide1: {
+      title: 'آٹو لانڈری میں خوش آمدید',
+      subtitle: 'ہم لانڈری آسان بناتے ہیں۔ چند مراحل میں شروع کریں۔',
+      next: 'اگلا',
+    },
+  },
+  onboardingLast: {
+    getStarted: 'شروع کریں',
   },
 } as const;

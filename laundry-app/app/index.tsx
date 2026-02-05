@@ -2,20 +2,26 @@ import { Redirect } from 'expo-router';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { useAuth } from '@/contexts/auth-context';
+import { useOnboardingComplete } from '@/hooks/use-onboarding-complete';
 
 /**
- * Root entry: redirects to (auth), (customer), or (partner) based on auth state.
- * Keeps navigation in sync with session and role.
+ * Root entry: redirects to onboarding, auth, or app based on state.
+ * Flow: onboarding (first time) → auth → customer/partner.
  */
 export default function IndexScreen() {
+  const { hasCompleted: onboardingComplete } = useOnboardingComplete();
   const { isLoading, isAuthenticated, role } = useAuth();
 
-  if (isLoading) {
+  if (onboardingComplete === null || isLoading) {
     return (
       <View style={styles.centered}>
         <ActivityIndicator size="large" />
       </View>
     );
+  }
+
+  if (onboardingComplete) {
+    return <Redirect href="/(onboarding)" />;
   }
 
   if (!isAuthenticated) {
