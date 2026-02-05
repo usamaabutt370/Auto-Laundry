@@ -10,7 +10,15 @@ This is an [Expo](https://expo.dev) project created with [`create-expo-app`](htt
    npm install
    ```
 
-2. Start the app
+2. Copy environment variables (required for Supabase auth/data)
+
+   ```bash
+   cp .env.example .env
+   ```
+
+   Edit `.env` and add your values. **Get the real Supabase URL and anon key from Developer B** (or from the [Supabase dashboard](https://supabase.com/dashboard) once the project exists). The app reads these via `constants/env.ts`.
+
+3. Start the app
 
    ```bash
    npx expo start

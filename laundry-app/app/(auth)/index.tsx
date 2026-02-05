@@ -1,17 +1,15 @@
-import { Link } from 'expo-router';
 import { StyleSheet } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { strings } from '@/constants/strings';
 
-export default function ModalScreen() {
+/** Placeholder: will be replaced by phone number login screen. */
+export default function AuthScreen() {
   return (
     <ThemedView style={styles.container}>
-      <ThemedText type="title">{strings.modal.title}</ThemedText>
-      <Link href="/" dismissTo style={styles.link}>
-        <ThemedText type="link">{strings.modal.linkText}</ThemedText>
-      </Link>
+      <ThemedText type="title">{strings.auth.entryTitle}</ThemedText>
+      <ThemedText>{strings.auth.entrySubtitle}</ThemedText>
     </ThemedView>
   );
 }
@@ -19,12 +17,9 @@ export default function ModalScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    alignItems: 'center',
     justifyContent: 'center',
-    padding: 20,
-  },
-  link: {
-    marginTop: 15,
-    paddingVertical: 15,
+    alignItems: 'center',
+    gap: 12,
+    padding: 24,
   },
 });

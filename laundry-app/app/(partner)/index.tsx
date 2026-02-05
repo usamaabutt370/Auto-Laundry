@@ -1,17 +1,15 @@
-import { Link } from 'expo-router';
 import { StyleSheet } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { strings } from '@/constants/strings';
 
-export default function ModalScreen() {
+/** Laundry partner dashboard – orders and earnings (placeholder). */
+export default function PartnerHomeScreen() {
   return (
     <ThemedView style={styles.container}>
-      <ThemedText type="title">{strings.modal.title}</ThemedText>
-      <Link href="/" dismissTo style={styles.link}>
-        <ThemedText type="link">{strings.modal.linkText}</ThemedText>
-      </Link>
+      <ThemedText type="title">{strings.partner.dashboardTitle}</ThemedText>
+      <ThemedText>{strings.partner.dashboardSubtitle}</ThemedText>
     </ThemedView>
   );
 }
@@ -19,12 +17,9 @@ export default function ModalScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    alignItems: 'center',
     justifyContent: 'center',
-    padding: 20,
-  },
-  link: {
-    marginTop: 15,
-    paddingVertical: 15,
+    alignItems: 'center',
+    gap: 12,
+    padding: 24,
   },
 });
