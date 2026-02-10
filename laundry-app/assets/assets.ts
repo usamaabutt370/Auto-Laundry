@@ -6,5 +6,7 @@ export const assets = {
   },
   icons: {
     user_icon: require("./icons/user-icon.png"),
+    google_icon: require("./icons/google-icon.png"),
+    facebook_icon: require("./icons/fb-icon.png"),
   },
 };

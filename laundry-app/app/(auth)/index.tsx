@@ -1,6 +1,6 @@
-import { Redirect } from 'expo-router';
+import { Redirect } from "expo-router";
 
-/** Auth entry: always show welcome (Select your experience) first, then phone/OTP/role. */
+/** Auth entry: welcome first, then login → OTP → role-select. */
 export default function AuthIndexScreen() {
   return <Redirect href="/(auth)/welcome" />;
 }

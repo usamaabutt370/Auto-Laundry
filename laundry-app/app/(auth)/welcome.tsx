@@ -2,9 +2,6 @@ import { useRouter } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
-
-import { IconSymbol } from "@/components/ui/icon-symbol";
-import { OnboardingColors } from "@/constants/onboarding-theme";
 import { strings } from "@/constants/strings";
 import { theme } from "@/constants/theme";
 import { Spacer } from "@/components";
@@ -20,11 +17,11 @@ export default function WelcomeScreen() {
   const s = strings.auth.welcome;
 
   const handleSelectUser = () => {
-    router.push("/(auth)/phone");
+    router.push("/(auth)/login");
   };
 
   const handleSelectCourier = () => {
-    router.push("/(auth)/phone");
+    router.push("/(auth)/login");
   };
 
   return (
