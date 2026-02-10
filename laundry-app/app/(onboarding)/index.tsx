@@ -1,5 +1,5 @@
-import { useRouter } from 'expo-router';
-import { useRef, useState } from 'react';
+import { useRouter } from "expo-router";
+import { useRef, useState } from "react";
 import {
   Dimensions,
   NativeSyntheticEvent,
@@ -9,60 +9,66 @@ import {
   StyleSheet,
   Text,
   View,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { StatusBar } from 'expo-status-bar';
+  Image,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { StatusBar } from "expo-status-bar";
+import { Spacer, ThemedText, ThemedView } from "@/components";
+import { OnboardingColors } from "@/constants/onboarding-theme";
+import { strings } from "@/constants/strings";
+import { useOnboardingComplete } from "@/hooks/use-onboarding-complete";
+import { theme } from "@/constants/theme";
+import { assets } from "@/assets/assets";
+import { IconSymbol } from "@/components/ui/icon-symbol";
 
-import { OnboardingColors } from '@/constants/onboarding-theme';
-import { strings } from '@/constants/strings';
-import { useOnboardingComplete } from '@/hooks/use-onboarding-complete';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const TOTAL_SLIDES = 3;
 
-/** New onboarding slide 1: Welcome to Auto Laundry intro */
-function Slide1Intro({ onNext }: { onNext: () => void }) {
+/** Slide 1 */
+function Slide1Intro() {
   const s = strings.onboarding.slide1;
   return (
-    <View style={styles.slide}>
-      <Text style={styles.title}>{s.title}</Text>
-      <Text style={styles.subtitle}>{s.subtitle}</Text>
-      <Pressable
-        style={({ pressed }) => [styles.primaryButton, pressed && styles.buttonPressed]}
-        onPress={onNext}
-        accessibilityRole="button"
-        accessibilityLabel={s.next}>
-        <Text style={styles.primaryButtonText}>{s.next}</Text>
-      </Pressable>
-    </View>
+    <ThemedView style={styles.slide}>
+      <ThemedView style={styles.imageContainer}>
+        <Image source={assets.onboarding.slide1} style={styles.image} />
+      </ThemedView>
+      <Spacer.Column numberOfSpaces={30} />
+      <ThemedText style={styles.title}>{s.title}</ThemedText>
+      <Spacer.Column numberOfSpaces={10} />
+      <ThemedText style={styles.subtitle}>{s.subtitle}</ThemedText>
+    </ThemedView>
   );
 }
 
-/** Placeholder for slide 2 (you can replace with real content) */
+/** Slide 2 */
 function Slide2Placeholder() {
+  const s = strings.onboarding.slide2;
   return (
-    <View style={styles.slide}>
-      <Text style={styles.placeholderTitle}>How it works</Text>
-      <Text style={styles.placeholderSub}>Slide 2 – coming next</Text>
-    </View>
+    <ThemedView style={styles.slide}>
+      <ThemedView style={styles.imageContainer}>
+        <Image source={assets.onboarding.slide2} style={styles.image} />
+      </ThemedView>
+      <Spacer.Column numberOfSpaces={30} />
+      <ThemedText style={styles.title}>{s.title}</ThemedText>
+      <Spacer.Column numberOfSpaces={10} />
+      <ThemedText style={styles.subtitle}>{s.subtitle}</ThemedText>
+    </ThemedView>
   );
 }
 
-/** Last slide: Get started → complete onboarding and go to auth (welcome screen) */
-function Slide3GetStarted({ onGetStarted }: { onGetStarted: () => void }) {
-  const s = strings.onboardingLast;
+/** Last slide */
+function Slide3GetStarted() {
+  const s = strings.onboarding.slide3;
   return (
-    <View style={styles.slide}>
-      <Text style={styles.placeholderTitle}>You’re all set</Text>
-      <Text style={styles.placeholderSub}>Choose your experience on the next screen.</Text>
-      <Pressable
-        style={({ pressed }) => [styles.primaryButton, pressed && styles.buttonPressed]}
-        onPress={onGetStarted}
-        accessibilityRole="button"
-        accessibilityLabel={s.getStarted}>
-        <Text style={styles.primaryButtonText}>{s.getStarted}</Text>
-      </Pressable>
-    </View>
+    <ThemedView style={styles.slide}>
+      <ThemedView style={styles.imageContainer}>
+        <Image source={assets.onboarding.slide3} style={styles.image} />
+      </ThemedView>
+      <Spacer.Column numberOfSpaces={30} />
+      <ThemedText style={styles.title}>{s.title}</ThemedText>
+      <Spacer.Column numberOfSpaces={10} />
+      <ThemedText style={styles.subtitle}>{s.subtitle}</ThemedText>
+    </ThemedView>
   );
 }
 
@@ -88,11 +94,25 @@ export default function OnboardingScreen() {
 
   const handleGetStarted = async () => {
     await setCompleted();
-    router.replace('/(auth)');
+    router.replace("/(auth)");
   };
 
+  const handleSkip = () => {
+    handleGetStarted();
+  };
+
+  const handleNext = () => {
+    if (currentIndex < TOTAL_SLIDES - 1) {
+      goToNextSlide();
+    } else {
+      handleGetStarted();
+    }
+  };
+
+  const s = strings.onboarding;
+
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={["top"]}>
       <StatusBar style="dark" />
       <ScrollView
         ref={scrollRef}
@@ -101,19 +121,57 @@ export default function OnboardingScreen() {
         showsHorizontalScrollIndicator={false}
         onMomentumScrollEnd={handleScroll}
         bounces={false}
-        style={styles.scroll}>
-        <Slide1Intro onNext={goToNextSlide} />
+        style={styles.scroll}
+      >
+        <Slide1Intro />
         <Slide2Placeholder />
-        <Slide3GetStarted onGetStarted={handleGetStarted} />
+        <Slide3GetStarted />
       </ScrollView>
 
-      <View style={styles.dots}>
-        {Array.from({ length: TOTAL_SLIDES }).map((_, i) => (
-          <View
-            key={i}
-            style={[styles.dot, i === currentIndex ? styles.dotActive : styles.dotInactive]}
+      <View style={styles.bottomBar}>
+        <Pressable
+          onPress={handleSkip}
+          style={({ pressed }) => [
+            styles.skipButton,
+            pressed && styles.pressed,
+          ]}
+          accessibilityRole="button"
+          accessibilityLabel={s.skip}
+        >
+          <Text style={styles.skipText}>{s.skip}</Text>
+        </Pressable>
+
+        <View style={styles.dots}>
+          {Array.from({ length: TOTAL_SLIDES }).map((_, i) => (
+            <View
+              key={i}
+              style={[
+                styles.dot,
+                i === currentIndex ? styles.dotActive : styles.dotInactive,
+              ]}
+            />
+          ))}
+        </View>
+
+        <Pressable
+          onPress={handleNext}
+          style={({ pressed }) => [
+            styles.nextButton,
+            pressed && styles.pressed,
+          ]}
+          accessibilityRole="button"
+          accessibilityLabel={
+            currentIndex < TOTAL_SLIDES - 1
+              ? strings.onboarding.slide1.next
+              : strings.onboarding.slide3.next
+          }
+        >
+          <IconSymbol
+            name="chevron.right"
+            size={20}
+            color={theme.colors.white}
           />
-        ))}
+        </Pressable>
       </View>
     </SafeAreaView>
   );
@@ -122,7 +180,17 @@ export default function OnboardingScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: OnboardingColors.background,
+    backgroundColor: theme.colors.background,
+  },
+  imageContainer: {
+    height: 300,
+    resizeMode: "contain",
+    backgroundColor: "transparent",
+  },
+  image: {
+    width: "100%",
+    height: "100%",
+    resizeMode: "contain",
   },
   scroll: {
     flex: 1,
@@ -131,64 +199,82 @@ const styles = StyleSheet.create({
     width: SCREEN_WIDTH,
     flex: 1,
     paddingHorizontal: 24,
-    paddingTop: 56,
-    justifyContent: 'flex-start',
+    paddingTop: 100,
+    justifyContent: "flex-start",
+    backgroundColor: theme.colors.background,
   },
   title: {
-    fontSize: 26,
-    fontWeight: '700',
-    color: OnboardingColors.textPrimary,
-    marginBottom: 12,
+    fontSize: 20,
+    fontWeight: "700",
+    color: theme.colors.white,
+    textAlign: "center",
+    backgroundColor: "transparent",
+    lineHeight: 24,
   },
   subtitle: {
-    fontSize: 16,
-    color: OnboardingColors.textSecondary,
+    fontSize: 14,
+    color: theme.colors.white,
     lineHeight: 24,
-    marginBottom: 40,
-  },
-  primaryButton: {
-    alignSelf: 'flex-start',
-    backgroundColor: OnboardingColors.dotActive,
-    paddingVertical: 14,
-    paddingHorizontal: 28,
-    borderRadius: 12,
-  },
-  buttonPressed: {
-    opacity: 0.9,
-  },
-  primaryButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#fff',
+    textAlign: "center",
+    backgroundColor: "transparent",
   },
   placeholderTitle: {
     fontSize: 22,
-    fontWeight: '600',
-    color: OnboardingColors.textPrimary,
+    fontWeight: "600",
+    color: theme.colors.white,
   },
   placeholderSub: {
     fontSize: 16,
-    color: OnboardingColors.textSecondary,
+    color: theme.colors.white,
     marginTop: 8,
     marginBottom: 40,
   },
+  bottomBar: {
+    height: 100,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    backgroundColor: "transparent",
+  },
+  skipButton: {
+    padding: 8,
+  },
+  skipText: {
+    fontSize: 16,
+    color: theme.colors.white,
+    fontWeight: "500",
+  },
+  pressed: {
+    opacity: 0.8,
+  },
   dots: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 24,
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 10,
   },
   dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    borderRadius: 100,
   },
   dotActive: {
-    backgroundColor: OnboardingColors.dotActive,
-    width: 24,
+    width: 10,
+    height: 10,
+    backgroundColor: theme.colors.white,
+    borderWidth: 2,
+    borderColor: theme.colors.white,
   },
   dotInactive: {
-    backgroundColor: OnboardingColors.dotInactive,
+    width: 8,
+    height: 8,
+    backgroundColor: theme.colors.backgroundLight,
+  },
+  nextButton: {
+    width: 45,
+    height: 45,
+    borderRadius: 100,
+    backgroundColor: theme.colors.backgroundLight,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });
