@@ -1,14 +1,23 @@
-import { createClient, type Session } from '@supabase/supabase-js';
+import { createClient, type Session } from "@supabase/supabase-js";
+import { Platform } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
-import { env } from '@/constants/env';
+import { env } from "@/constants/env";
 
 /**
- * Supabase client for auth and data. Uses URL and anon key from .env (via app.config.js extra).
- * Auth/data calls will fail until Developer B provides real keys and they are set in .env.
+ * Supabase client for auth and data. URL and anon key come from your .env
+ * (EXPO_PUBLIC_SUPABASE_URL, EXPO_PUBLIC_SUPABASE_ANON_KEY) via app.config.js → constants/env.
  */
 export const supabase =
   env.supabaseUrl && env.supabaseAnonKey
-    ? createClient(env.supabaseUrl, env.supabaseAnonKey)
+    ? createClient(env.supabaseUrl, env.supabaseAnonKey, {
+        auth: {
+          ...(Platform.OS !== "web" ? { storage: AsyncStorage } : {}),
+          autoRefreshToken: true,
+          persistSession: true,
+          detectSessionInUrl: false,
+        },
+      })
     : (null as unknown as ReturnType<typeof createClient>);
 
 /** True when .env has Supabase URL and anon key (real auth/data available). */
@@ -17,7 +26,9 @@ export function isSupabaseConfigured(): boolean {
 }
 
 /** Get current session. Returns null if Supabase is not configured or no session. */
-export async function getSession(): Promise<{ data: { session: Session | null } }> {
+export async function getSession(): Promise<{
+  data: { session: Session | null };
+}> {
   if (!supabase) return { data: { session: null } };
   return supabase.auth.getSession();
 }
