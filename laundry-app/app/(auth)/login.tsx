@@ -242,6 +242,7 @@ const styles = StyleSheet.create({
   },
   passwordRow: {
     marginBottom: 8,
+    backgroundColor: "transparent",
   },
   passwordInputSpacing: {
     marginBottom: 6,
@@ -275,6 +276,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "center",
     gap: 24,
+    backgroundColor: "transparent",
   },
   socialCircle: {
     width: 56,
@@ -300,6 +302,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: 32,
     gap: 6,
+    backgroundColor: "transparent",
   },
   noAccount: {
     fontSize: 15,
