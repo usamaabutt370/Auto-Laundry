@@ -16,25 +16,31 @@ import { assets } from "@/assets/assets";
 import { Image } from "expo-image";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
-export default function LoginScreen() {
-  const router = useRouter();
-  const s = strings.auth.login;
+const c = theme.colors;
 
+export default function SignUpScreen() {
+  const router = useRouter();
+  const s = strings.auth.signUpScreen;
+
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [mobileNumber, setMobileNumber] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  const handleSignIn = () => {
-    // TODO: Supabase sign in
-    router.push("/(auth)/otp");
+  const handleContinue = () => {
+    // TODO: Supabase sign up
+    router.push("/(auth)/login");
   };
-  const handleForgotPassword = () => {
-    router.push("/(auth)/reset-password");
-  };
-  const handleSignUp = () => {
-    router.push("/(auth)/sign-up");
-  };
+  const handleSignIn = () => router.replace("/(auth)/login");
   const handleFacebook = () => {};
   const handleGoogle = () => {};
+
+  const inputProps = {
+    borderColor: "rgba(255,255,255,0.5)",
+    focusUnderlineColor: c.backgroundLight,
+    containerStyle: styles.inputSpacing,
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
@@ -53,12 +59,12 @@ export default function LoginScreen() {
             <MaterialCommunityIcons
               name="arrow-left"
               size={24}
-              color={theme.colors.white}
+              color={c.white}
             />
           </Pressable>
-          {/* <ThemedText style={styles.headerTitle}>
-            {strings.auth.signIn}
-          </ThemedText> */}
+          {/* <ThemedView style={styles.headerTitleWrap}>
+            <ThemedText style={styles.headerTitle}>{s.title}</ThemedText>
+          </ThemedView> */}
         </ThemedView>
 
         <ScrollView
@@ -69,62 +75,68 @@ export default function LoginScreen() {
         >
           <Spacer.Column numberOfSpaces={10} />
           <ThemedView style={styles.headingContainer}>
-            <ThemedText style={styles.headingTitle}>{s.heading}</ThemedText>
+            <ThemedText style={styles.headingTitle}>
+              {strings.auth.signUpScreen.title}
+            </ThemedText>
           </ThemedView>
-          <Spacer.Column numberOfSpaces={5} />
-          <ThemedText style={styles.title}>{s.title}</ThemedText>
-          <Spacer.Column numberOfSpaces={5} />
+          <Spacer.Column numberOfSpaces={10} />
           <ThemedText style={styles.subtitle}>{s.subtitle}</ThemedText>
-          <Spacer.Column numberOfSpaces={5} />
-
+          <Spacer.Column numberOfSpaces={4} />
+          <Input
+            placeholder={s.firstName}
+            value={firstName}
+            onChangeText={setFirstName}
+            autoCapitalize="words"
+            {...inputProps}
+          />
+          <Spacer.Column numberOfSpaces={1} />
+          <Input
+            placeholder={s.lastName}
+            value={lastName}
+            onChangeText={setLastName}
+            autoCapitalize="words"
+            {...inputProps}
+          />
+          <Spacer.Column numberOfSpaces={1} />
           <Input
             variant="phone"
             placeholder={s.mobileNumber}
             value={mobileNumber}
             onChangeText={setMobileNumber}
-            containerStyle={styles.inputSpacing}
-            borderColor="rgba(255,255,255,0.5)"
-            focusUnderlineColor={theme.colors.backgroundLight}
+            {...inputProps}
           />
           <Spacer.Column numberOfSpaces={1} />
-
-          <ThemedView style={styles.passwordRow}>
-            <Input
-              placeholder={s.password}
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-              containerStyle={styles.passwordInputSpacing}
-              borderColor="rgba(255,255,255,0.5)"
-              focusUnderlineColor={theme.colors.backgroundLight}
-            />
-            <Pressable
-              onPress={handleForgotPassword}
-              style={({ pressed }) => [pressed && styles.pressed]}
-              accessibilityRole="button"
-              accessibilityLabel={s.forgotPassword}
-            >
-              <ThemedText style={styles.forgotPassword}>
-                {s.forgotPassword}
-              </ThemedText>
-            </Pressable>
-          </ThemedView>
-
+          <Input
+            placeholder={s.email}
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            {...inputProps}
+          />
+          <Spacer.Column numberOfSpaces={1} />
+          <Input
+            placeholder={s.password}
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            {...inputProps}
+          />
+          <Spacer.Column numberOfSpaces={1} />
           <Pressable
-            onPress={handleSignIn}
+            onPress={handleContinue}
             style={({ pressed }) => [
-              styles.signInButton,
+              styles.continueButton,
               pressed && styles.pressed,
             ]}
             accessibilityRole="button"
-            accessibilityLabel={s.signInButton}
+            accessibilityLabel={s.continue}
           >
-            <ThemedText style={styles.signInButtonText}>
-              {s.signInButton}
+            <ThemedText style={styles.continueButtonText}>
+              {s.continue}
             </ThemedText>
           </Pressable>
-
-          <ThemedText style={styles.orText}>{s.orSignInWithSocial}</ThemedText>
+          <ThemedText style={styles.orText}>{s.orSignUpWithSocial}</ThemedText>
           <ThemedView style={styles.socialButtons}>
             <Pressable
               onPress={handleFacebook}
@@ -134,11 +146,11 @@ export default function LoginScreen() {
                 pressed && styles.pressed,
               ]}
               accessibilityRole="button"
-              accessibilityLabel="Sign in with Facebook"
+              accessibilityLabel="Sign up with Facebook"
             >
               <Image
                 source={assets.icons.facebook_icon}
-                style={styles.googleIcon}
+                style={styles.socialIcon}
               />
             </Pressable>
             <Pressable
@@ -149,25 +161,23 @@ export default function LoginScreen() {
                 pressed && styles.pressed,
               ]}
               accessibilityRole="button"
-              accessibilityLabel="Sign in with Google"
+              accessibilityLabel="Sign up with Google"
             >
               <Image
                 source={assets.icons.google_icon}
-                style={styles.googleIcon}
+                style={styles.socialIcon}
               />
-              {/* <MaterialCommunityIcons name="google" size={28} color="#4285F4" /> */}
             </Pressable>
           </ThemedView>
-
           <ThemedView style={styles.footer}>
-            <ThemedText style={styles.noAccount}>{s.noAccount}</ThemedText>
+            <ThemedText style={styles.haveAccount}>{s.haveAccount}</ThemedText>
             <Pressable
-              onPress={handleSignUp}
+              onPress={handleSignIn}
               style={({ pressed }) => [pressed && styles.pressed]}
               accessibilityRole="button"
-              accessibilityLabel={s.signUp}
+              accessibilityLabel={s.signIn}
             >
-              <ThemedText style={styles.signUpLink}>{s.signUp}</ThemedText>
+              <ThemedText style={styles.signInLink}>{s.signIn}</ThemedText>
             </Pressable>
           </ThemedView>
         </ScrollView>
@@ -179,7 +189,7 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
+    backgroundColor: c.background,
   },
   keyboardView: {
     flex: 1,
@@ -193,6 +203,12 @@ const styles = StyleSheet.create({
   backBtn: {
     padding: 4,
     marginRight: 12,
+    backgroundColor: "transparent",
+  },
+  headerTitleWrap: {
+    flex: 1,
+    justifyContent: "center",
+    backgroundColor: "transparent",
   },
   pressed: {
     opacity: 0.8,
@@ -200,7 +216,8 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: "700",
-    color: theme.colors.white,
+    color: c.white,
+    backgroundColor: "transparent",
   },
   scroll: {
     flex: 1,
@@ -220,56 +237,37 @@ const styles = StyleSheet.create({
     backgroundColor: "transparent",
     textAlign: "center",
   },
-  title: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: theme.colors.white,
-    marginTop: 24,
-    marginBottom: 8,
-    backgroundColor: "transparent",
-    textAlign: "center",
-  },
   subtitle: {
     fontSize: 14,
-    color: theme.colors.white,
-    marginBottom: 28,
-    textAlign: "center",
+    color: c.white,
+    lineHeight: 20,
+    marginBottom: 4,
     backgroundColor: "transparent",
   },
   inputSpacing: {
     marginBottom: 14,
-    backgroundColor: "transparent",
   },
-  passwordRow: {
-    marginBottom: 8,
-  },
-  passwordInputSpacing: {
-    marginBottom: 6,
-  },
-  forgotPassword: {
-    fontSize: 14,
-    color: theme.colors.backgroundLight,
-    alignSelf: "flex-end",
-    marginBottom: 20,
-  },
-  signInButton: {
+  continueButton: {
     height: 52,
     borderRadius: 26,
-    backgroundColor: theme.colors.backgroundLight,
+    backgroundColor: c.backgroundLight,
     alignItems: "center",
     justifyContent: "center",
+    marginTop: 8,
     marginBottom: 28,
   },
-  signInButtonText: {
+  continueButtonText: {
     fontSize: 17,
     fontWeight: "700",
-    color: theme.colors.white,
+    color: c.white,
+    backgroundColor: "transparent",
   },
   orText: {
     fontSize: 15,
-    color: theme.colors.white,
+    color: c.white,
     textAlign: "center",
     marginBottom: 20,
+    backgroundColor: "transparent",
   },
   socialButtons: {
     flexDirection: "row",
@@ -283,16 +281,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  socialIcon: {
+    width: 28,
+    height: 28,
+    resizeMode: "contain",
+  },
   facebookCircle: {
     backgroundColor: "#1877f2",
   },
   googleCircle: {
-    backgroundColor: theme.colors.white,
-  },
-  googleIcon: {
-    width: 28,
-    height: 28,
-    resizeMode: "contain",
+    backgroundColor: c.white,
   },
   footer: {
     flexDirection: "row",
@@ -301,13 +299,15 @@ const styles = StyleSheet.create({
     marginTop: 32,
     gap: 6,
   },
-  noAccount: {
+  haveAccount: {
     fontSize: 15,
-    color: theme.colors.white,
+    color: c.white,
+    backgroundColor: "transparent",
   },
-  signUpLink: {
+  signInLink: {
     fontSize: 15,
     fontWeight: "700",
-    color: theme.colors.backgroundLight,
+    color: c.backgroundLight,
+    backgroundColor: "transparent",
   },
 });

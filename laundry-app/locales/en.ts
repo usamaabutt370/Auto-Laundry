@@ -38,10 +38,43 @@ export const en = {
       noAccount: "Don't have an account?",
       signUp: "SIGN UP",
     },
+    signUpScreen: {
+      title: "Sign Up",
+      subtitle:
+        "Make sure to enter your mobile number to enable 2-step verification.",
+      firstName: "First Name",
+      lastName: "Last Name",
+      mobileNumber: "Mobile Number",
+      email: "Email",
+      password: "Password",
+      continue: "Continue",
+      orSignUpWithSocial: "Or, Sign up with social",
+      haveAccount: "Have an account?",
+      signIn: "SIGN IN",
+    },
     phoneTitle: "Phone",
     phoneSubtitle: "Phone number login (placeholder)",
     otpTitle: "Verify OTP",
     otpSubtitle: "OTP verification (placeholder)",
+    otp: {
+      title: "Verification",
+      subtitle: "We've texted you with a code to verify your phone number",
+      continue: "Continue",
+      didntReceiveCode: "Didn't receive a code?",
+      resend: "RESEND",
+    },
+    resetPassword: {
+      title: "Reset Password",
+      subtitle:
+        "After you've reset your password you will receive a code on your mobile number to confirm the account",
+      newPassword: "New Password",
+      confirmPassword: "Confirm Password",
+      continue: "Continue",
+      errorPasswordMismatch: "Passwords do not match",
+      errorPasswordTooShort: "Password must be at least 6 characters",
+      successMessage:
+        "Password updated. You will receive a verification code shortly.",
+    },
     roleSelectTitle: "Choose role",
     roleSelectSubtitle: "Select how you want to use the app (placeholder)",
     roles: {
