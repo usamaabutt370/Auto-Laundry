@@ -1,89 +1,204 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
+import { Image } from "expo-image";
+import { ThemedText } from "@/components/themed-text";
+import { strings } from "@/constants/strings";
+import { theme } from "@/constants/theme";
+import { assets } from "@/assets/assets";
+import { Pressable, StyleSheet, TextInput, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { strings } from '@/constants/strings';
-import { Link } from 'expo-router';
+const c = theme.colors;
 
 export default function CustomerHomeScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">{strings.customer.home.welcome}</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">{strings.customer.home.subtitle}</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(customer)/index.tsx</ThemedText> to see
-          changes. Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+  const s = strings.customer.home;
+  const tabBarHeight = useBottomTabBarHeight();
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
+  return (
+    <View style={styles.container}>
+      {/* Map area (placeholder – can replace with react-native-maps later) */}
+      <View style={styles.mapArea} />
+
+      {/* Header overlay */}
+      <SafeAreaView style={styles.header} edges={["top"]}>
+        <Pressable
+          onPress={() => {}}
+          style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
+          accessibilityRole="button"
+          accessibilityLabel="Menu"
+        >
+          <Image source={assets.icons.order_icon} style={styles.headerIcon} />
+        </Pressable>
+        <View style={styles.addressInputWrap}>
+          <TextInput
+            placeholder={s.addressPlaceholder}
+            placeholderTextColor={c.gray50}
+            style={styles.addressInput}
+            editable
+            returnKeyType="done"
+          />
+          <Pressable
+            onPress={() => {}}
+            style={({ pressed }) => [
+              styles.locationIconInside,
+              pressed && styles.pressed,
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel="Current location"
+          >
+            <Image
+              source={assets.icons.location_icon}
+              style={styles.locationIconImage}
+            />
+          </Pressable>
+        </View>
+      </SafeAreaView>
+
+      {/* Service selection card (bottom sheet style) */}
+      <View
+        style={[styles.serviceCard, { bottom: Math.max(0, tabBarHeight - 18) }]}
+      >
+        <ThemedText style={styles.serviceCardTitle}>
+          {s.chooseService}
         </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+        <View style={styles.serviceButtons}>
+          <Pressable
+            onPress={() => {}}
+            style={({ pressed }) => [
+              styles.serviceBtn,
+              pressed && styles.pressed,
+            ]}
+          >
+            <Image
+              source={assets.icons.dropoff_icon}
+              style={styles.serviceBtnIcon}
+            />
+            <ThemedText style={styles.serviceBtnText}>{s.dropOff}</ThemedText>
+          </Pressable>
+          <Pressable
+            onPress={() => {}}
+            style={({ pressed }) => [
+              styles.serviceBtn,
+              pressed && styles.pressed,
+            ]}
+          >
+            <Image
+              source={assets.icons.scooter_icon}
+              style={styles.serviceBtnIcon}
+            />
+            <ThemedText style={styles.serviceBtnText}>
+              {s.pickUpDelivery}
+            </ThemedText>
+          </Pressable>
+        </View>
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  container: {
+    flex: 1,
+    backgroundColor: "#E5E7EB",
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  mapArea: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "#D1D5DB",
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
+  header: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    gap: 12,
+  },
+  iconBtn: {
+    padding: 8,
+  },
+  pressed: {
+    opacity: 0.7,
+  },
+  addressInputWrap: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: c.white,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    paddingRight: 12,
+  },
+  addressInput: {
+    flex: 1,
+    height: "100%",
+    paddingHorizontal: 16,
+    paddingRight: 8,
+    fontSize: 15,
+    color: theme.colors.themeBlack,
+  },
+  locationIconInside: {
+    padding: 8,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  locationIconImage: {
+    width: 24,
+    height: 24,
+    tintColor: c.background,
+  },
+  headerIcon: {
+    width: 24,
+    height: 24,
+    tintColor: c.background,
+  },
+  serviceCard: {
+    position: "absolute",
     bottom: 0,
     left: 0,
-    position: 'absolute',
+    right: 0,
+    backgroundColor: c.background,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 24,
+    paddingTop: 24,
+    paddingBottom: 24,
+  },
+  serviceCardTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: c.white,
+    textAlign: "center",
+    marginBottom: 20,
+  },
+  serviceButtons: {
+    flexDirection: "row",
+    gap: 16,
+    marginBottom: 16,
+  },
+  serviceBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    height: 56,
+    borderRadius: 14,
+    backgroundColor: c.background,
+    borderWidth: 1,
+    borderColor: c.white,
+  },
+  serviceBtnIcon: {
+    width: 28,
+    height: 28,
+    tintColor: c.white,
+  },
+  serviceBtnText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: c.white,
   },
 });

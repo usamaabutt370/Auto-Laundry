@@ -85,6 +85,8 @@ export const ur = {
   tabs: {
     customer: {
       home: "ہوم",
+      order: "آرڈر",
+      profile: "پروفائل",
       explore: "دریافت",
     },
     partner: {
@@ -96,6 +98,10 @@ export const ur = {
     home: {
       welcome: "خوش آمدید!",
       subtitle: "گاہک ہوم",
+      addressPlaceholder: "1465 5th Avenue APt 5C",
+      chooseService: "اپنی سروس منتخب کریں",
+      dropOff: "ڈراپ آف",
+      pickUpDelivery: "پک اپ / ڈیلیوری",
     },
     explore: {
       title: "دریافت",

@@ -30,7 +30,7 @@ export default function OtpScreen() {
     const code = digits.join("");
     if (code.length === OTP_LENGTH) {
       // TODO: verify OTP with Supabase
-      router.push("/(auth)/role-select");
+      router.replace("/(customer)");
     }
   };
   const handleResend = () => {

@@ -86,6 +86,8 @@ export const en = {
   tabs: {
     customer: {
       home: "Home",
+      order: "Order",
+      profile: "Profile",
       explore: "Explore",
     },
     partner: {
@@ -97,6 +99,10 @@ export const en = {
     home: {
       welcome: "Welcome!",
       subtitle: "Customer home",
+      addressPlaceholder: "1465 5th Avenue APt 5C",
+      chooseService: "Choose your service",
+      dropOff: "Drop off",
+      pickUpDelivery: "Pick up / Delivery",
     },
     explore: {
       title: "Explore",
