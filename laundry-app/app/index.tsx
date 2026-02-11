@@ -1,8 +1,8 @@
-import { Redirect } from 'expo-router';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { Redirect } from "expo-router";
+import { ActivityIndicator, StyleSheet, View } from "react-native";
 
-import { useAuth } from '@/contexts/auth-context';
-import { useOnboardingComplete } from '@/hooks/use-onboarding-complete';
+import { useAuth } from "@/contexts/auth-context";
+import { useOnboardingComplete } from "@/hooks/use-onboarding-complete";
 
 /**
  * Root entry: redirects to onboarding, auth, or app based on state.
@@ -20,7 +20,7 @@ export default function IndexScreen() {
     );
   }
 
-  if (onboardingComplete) {
+  if (!onboardingComplete) {
     return <Redirect href="/(onboarding)" />;
   }
 
@@ -28,7 +28,7 @@ export default function IndexScreen() {
     return <Redirect href="/(auth)" />;
   }
 
-  if (role === 'partner') {
+  if (role === "partner") {
     return <Redirect href="/(partner)" />;
   }
 
@@ -39,7 +39,7 @@ export default function IndexScreen() {
 const styles = StyleSheet.create({
   centered: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
 });

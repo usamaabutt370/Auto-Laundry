@@ -3,72 +3,137 @@
  */
 export const ur = {
   common: {
-    loading: 'لوڈ ہو رہا ہے...',
-    error: 'کچھ غلط ہو گیا',
-    modal: 'موڈل',
-    goToHome: 'ہوم اسکرین پر جائیں',
+    loading: "لوڈ ہو رہا ہے...",
+    error: "کچھ غلط ہو گیا",
+    modal: "موڈل",
+    goToHome: "ہوم اسکرین پر جائیں",
   },
 
   auth: {
     welcome: {
-      title: 'اپنا تجربہ منتخب کریں:',
-      subtitle: 'براہ کرم ہمیں اپنے بارے میں تھوڑا بتائیں کہ آپ کون ہیں۔',
-      user: { title: 'صارف', description: 'مجھے لانڈری اور ڈرائی کلیننگ سروس چاہیے۔' },
-      courier: { title: 'کورئیر', description: 'میں گاہکوں کو لانڈری اٹھانا اور پہنچانا چاہتا/چاہتی ہوں۔' },
+      title: "خوش آمدید!",
+      subtitle:
+        "براہ کرم سائن اپ کریں اور ہمیں بتائیں کہ آپ کون ہیں اور آپ کو کون سی سروسز چاہیے۔",
+      user: {
+        title: "گاہک",
+        description: "میں لانڈری اور ڈرائی کلیننگ سروسز تلاش کر رہا/رہی ہوں۔",
+      },
+      courier: {
+        title: "لانڈری سروس فراہم کرنے والا",
+        description: "میں لانڈری اور ڈرائی کلیننگ سروسز فراہم کرتا/کرتی ہوں۔",
+      },
     },
-    entryTitle: 'لاگ ان',
-    entrySubtitle: 'فون لاگ ان اسکرین (پلیس ہولڈر)',
-    phoneTitle: 'فون',
-    phoneSubtitle: 'فون نمبر لاگ ان (پلیس ہولڈر)',
-    otpTitle: 'او ٹی پی کی تصدیق کریں',
-    otpSubtitle: 'او ٹی پی تصدیق (پلیس ہولڈر)',
-    roleSelectTitle: 'کردار منتخب کریں',
-    roleSelectSubtitle: 'انتخاب کریں کہ آپ ایپ کیسے استعمال کریں گے (پلیس ہولڈر)',
+    entryTitle: "لاگ ان",
+    entrySubtitle: "فون لاگ ان اسکرین (پلیس ہولڈر)",
+    signIn: "سائن ان",
+    login: {
+      title: "لانڈری کو ایک نئے انداز میں دیکھیں",
+      subtitle: "اپنے اکاؤنٹ میں سائن ان کریں",
+      mobileNumber: "موبائل نمبر",
+      password: "پاس ورڈ",
+      forgotPassword: "پاس ورڈ بھول گئے؟",
+      signInButton: "سائن ان",
+      orSignInWithSocial: "یا سوشل سے سائن ان کریں",
+      noAccount: "اکاؤنٹ نہیں ہے؟",
+      signUp: "سائن اپ",
+    },
+    signUpScreen: {
+      title: "سائن اپ",
+      subtitle: "2-step verification کے لیے اپنا موبائل نمبر ضرور درج کریں۔",
+      firstName: "پہلا نام",
+      lastName: "آخری نام",
+      mobileNumber: "موبائل نمبر",
+      email: "ای میل",
+      password: "پاس ورڈ",
+      continue: "جاری رکھیں",
+      orSignUpWithSocial: "یا سوشل سے سائن اپ کریں",
+      haveAccount: "پہلے سے اکاؤنٹ ہے؟",
+      signIn: "سائن ان",
+    },
+    phoneTitle: "فون",
+    phoneSubtitle: "فون نمبر لاگ ان (پلیس ہولڈر)",
+    otpTitle: "او ٹی پی کی تصدیق کریں",
+    otpSubtitle: "او ٹی پی تصدیق (پلیس ہولڈر)",
+    otp: {
+      title: "تصدیق",
+      subtitle: "ہم نے آپ کے فون نمبر کی تصدیق کے لیے ایک کوڈ بھیجا ہے۔",
+      continue: "جاری رکھیں",
+      didntReceiveCode: "کوڈ موصول نہیں ہوا؟",
+      resend: "دوبارہ بھیجیں",
+    },
+    resetPassword: {
+      title: "پاس ورڈ ری سیٹ کریں",
+      subtitle:
+        "پاس ورڈ ری سیٹ کرنے کے بعد اکاؤنٹ کی تصدیق کے لیے آپ کے موبائل نمبر پر ایک کوڈ بھیجا جائے گا۔",
+      newPassword: "نیا پاس ورڈ",
+      confirmPassword: "پاس ورڈ کی تصدیق کریں",
+      continue: "جاری رکھیں",
+      errorPasswordMismatch: "پاس ورڈ مماثل نہیں ہیں",
+      errorPasswordTooShort: "پاس ورڈ کم از کم 6 حروف کا ہونا چاہیے",
+      successMessage:
+        "پاس ورڈ اپڈیٹ ہو گیا۔ جلد ہی آپ کو تصدیقی کوڈ موصول ہوگا۔",
+    },
+    roleSelectTitle: "کردار منتخب کریں",
+    roleSelectSubtitle:
+      "انتخاب کریں کہ آپ ایپ کیسے استعمال کریں گے (پلیس ہولڈر)",
     roles: {
-      customer: 'گاہک',
-      partner: 'لانڈری پارٹنر',
+      customer: "گاہک",
+      partner: "لانڈری پارٹنر",
     } as const,
   },
 
   tabs: {
     customer: {
-      home: 'ہوم',
-      explore: 'دریافت',
+      home: "ہوم",
+      explore: "دریافت",
     },
     partner: {
-      orders: 'آرڈرز',
+      orders: "آرڈرز",
     },
   },
 
   customer: {
     home: {
-      welcome: 'خوش آمدید!',
-      subtitle: 'گاہک ہوم',
+      welcome: "خوش آمدید!",
+      subtitle: "گاہک ہوم",
     },
     explore: {
-      title: 'دریافت',
-      intro: 'شروع کرنے کے لیے اس ایپ میں مثال کوڈ شامل ہے۔',
+      title: "دریافت",
+      intro: "شروع کرنے کے لیے اس ایپ میں مثال کوڈ شامل ہے۔",
     },
   },
 
   partner: {
-    dashboardTitle: 'پارٹنر ڈیش بورڈ',
-    dashboardSubtitle: 'آنے والے آرڈرز اور کمائی (پلیس ہولڈر)',
+    dashboardTitle: "پارٹنر ڈیش بورڈ",
+    dashboardSubtitle: "آنے والے آرڈرز اور کمائی (پلیس ہولڈر)",
   },
 
   modal: {
-    title: 'یہ ایک موڈل ہے',
-    linkText: 'ہوم اسکرین پر جائیں',
+    title: "یہ ایک موڈل ہے",
+    linkText: "ہوم اسکرین پر جائیں",
   },
 
   onboarding: {
+    skip: "چھوڑیں",
     slide1: {
-      title: 'آٹو لانڈری میں خوش آمدید',
-      subtitle: 'ہم لانڈری آسان بناتے ہیں۔ چند مراحل میں شروع کریں۔',
-      next: 'اگلا',
+      title: "بہترین لانڈری سہولیات تلاش کریں",
+      subtitle:
+        "ہماری فہرست میں براؤز کریں اور اپنی پسند کا لانڈرومیٹ/ڈرائی کلینر منتخب کریں۔",
+      next: "اگلا",
+    },
+    slide2: {
+      title: "پک اپ شیڈول کریں",
+      subtitle:
+        "آسانی سے پک اپ کا وقت طے کریں، اپنا آرڈر ٹریک کریں، اور راستے میں نوٹیفکیشنز وصول کریں۔",
+      next: "اگلا",
+    },
+    slide3: {
+      title: "بروقت ڈیلیوری حاصل کریں",
+      subtitle: "آرام سے بیٹھیں اور صاف لانڈری اپنے دروازے پر وصول کریں۔",
+      next: "شروع کریں",
     },
   },
   onboardingLast: {
-    getStarted: 'شروع کریں',
+    getStarted: "شروع کریں",
   },
 } as const;
