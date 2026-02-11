@@ -14,5 +14,10 @@ export const assets = {
     scooter_icon: require("./icons/scooter-icon.png"),
     dropoff_icon: require("./icons/dropoff-icon.png"),
     location_icon: require("./icons/location-icon.png"),
+    recurring_icon: require("./icons/recurring-icon.png"),
+    setting_icon: require("./icons/setting-icon.png"),
+    msg_icon: require("./icons/msg-icon.png"),
+    faq_icon: require("./icons/faq-icon.png"),
+    logout_icon: require("./icons/logout-icon.png"),
   },
 };

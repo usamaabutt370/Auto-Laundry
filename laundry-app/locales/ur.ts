@@ -94,6 +94,15 @@ export const ur = {
     },
   },
 
+  sidebar: {
+    recurringOptions: "دہرائی کے اختیارات",
+    preferences: "ترجیحات",
+    settings: "ترتیبات",
+    contactSupport: "سپورٹ سے رابطہ کریں",
+    faq: "عمومی سوالات",
+    signOut: "سائن آؤٹ",
+  },
+
   customer: {
     home: {
       welcome: "خوش آمدید!",
@@ -106,6 +115,14 @@ export const ur = {
     explore: {
       title: "دریافت",
       intro: "شروع کرنے کے لیے اس ایپ میں مثال کوڈ شامل ہے۔",
+    },
+    recurring: {
+      title: "دہرائی کے اختیارات",
+      weekly: "ہفتہ وار",
+      biWeekly: "دو ہفتہ وار",
+      threeWeeks: "3 ہفتے",
+      monthly: "ماہانہ",
+      active: "فعال",
     },
   },
 

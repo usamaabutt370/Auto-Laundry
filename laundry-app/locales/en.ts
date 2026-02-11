@@ -95,6 +95,15 @@ export const en = {
     },
   },
 
+  sidebar: {
+    recurringOptions: "Recurring options",
+    preferences: "Preferences",
+    settings: "Settings",
+    contactSupport: "Contact support",
+    faq: "FAQ",
+    signOut: "Sign Out",
+  },
+
   customer: {
     home: {
       welcome: "Welcome!",
@@ -107,6 +116,14 @@ export const en = {
     explore: {
       title: "Explore",
       intro: "This app includes example code to help you get started.",
+    },
+    recurring: {
+      title: "Recurring Options",
+      weekly: "Weekly",
+      biWeekly: "Bi - Weekly",
+      threeWeeks: "3 Weeks",
+      monthly: "Monthly",
+      active: "Active",
     },
   },
 
