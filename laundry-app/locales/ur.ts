@@ -124,6 +124,20 @@ export const ur = {
       monthly: "ماہانہ",
       active: "فعال",
     },
+    settings: {
+      title: "ترتیبات",
+      language: "زبان",
+      english: "انگریزی",
+      urdu: "اردو",
+      notifications: "نوٹیفکیشنز",
+      recurringReminder: "دہرائی کے اختیارات کی یاد دہانی",
+      reminder6h: "6 گھنٹے",
+      reminder12h: "12 گھنٹے",
+      reminder24h: "24 گھنٹے",
+      mileRadius: "میل رداس",
+      mapSearchRadius: "نقشہ تلاش کا رداس",
+      mile: "میل",
+    },
   },
 
   partner: {

@@ -5,3 +5,4 @@ export { ThemedView } from "./themed-view";
 export { ExternalLink } from "./external-link";
 export { Collapsible } from "./ui/collapsible";
 export { Input } from "./ui/input";
+export { MapSearchRadiusSlider } from "./map-search-radius-slider";

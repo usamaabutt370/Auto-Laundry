@@ -125,6 +125,20 @@ export const en = {
       monthly: "Monthly",
       active: "Active",
     },
+    settings: {
+      title: "Settings",
+      language: "Language",
+      english: "English",
+      urdu: "Urdu",
+      notifications: "Notifications",
+      recurringReminder: "Recurring Options Reminder",
+      reminder6h: "6 Hours",
+      reminder12h: "12 Hours",
+      reminder24h: "24 Hours",
+      mileRadius: "Mile Radius",
+      mapSearchRadius: "Map Search Radius",
+      mile: "mi",
+    },
   },
 
   partner: {

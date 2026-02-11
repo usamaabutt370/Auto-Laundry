@@ -91,8 +91,7 @@ export function Sidebar() {
       console.log("preferences");
       // TODO: Preferences logic
     } else if (id === "settings") {
-      console.log("settings");
-      // TODO: Settings logic
+      router.push("/(customer)/settings");
     } else if (id === "contact") {
       console.log("contact");
       // TODO: Contact support logic
