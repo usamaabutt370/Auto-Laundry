@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import {
   Pressable,
   StyleSheet,
+  Text,
   TextInput,
   type TextInputProps,
   View,
@@ -68,6 +69,11 @@ export function Input({
   return (
     <View style={[styles.wrapper, containerStyle]}>
       <View style={styles.inputRow}>
+        {isPhone && (
+          <View pointerEvents="none" style={styles.phonePrefix}>
+            <Text style={styles.phonePrefixText}>+92</Text>
+          </View>
+        )}
         <TextInput
           style={[
             styles.input,
@@ -76,6 +82,7 @@ export function Input({
               borderColor: borderColor ?? "rgba(255,255,255,0.4)",
               color: textColor ?? theme.colors.white,
               paddingRight: showPasswordToggle ? PASSWORD_ICON_PADDING : 20,
+              paddingLeft: isPhone ? 56 : 20,
             },
             editable === false && styles.inputDisabled,
             style,
@@ -152,5 +159,18 @@ const styles = StyleSheet.create({
     bottom: 12,
     height: 2,
     borderRadius: 1,
+  },
+  phonePrefix: {
+    position: "absolute",
+    left: 26,
+    top: 0,
+    bottom: 0,
+    justifyContent: "center",
+    zIndex: 1,
+  },
+  phonePrefixText: {
+    color: theme.colors.white,
+    fontSize: 15,
+    opacity: 0.9,
   },
 });

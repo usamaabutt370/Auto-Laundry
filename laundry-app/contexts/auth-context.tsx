@@ -1,12 +1,19 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import type { Session } from '@supabase/supabase-js';
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+import type { Session } from "@supabase/supabase-js";
 
-import { getSession, onAuthStateChange, supabase } from '@/lib/supabase';
-import type { UserRole } from '@/types/user';
+import { getSession, onAuthStateChange, supabase } from "@/lib/supabase";
+import type { UserRole } from "@/types/user";
 
 export interface AuthState {
   session: Session | null;
-  user: Session['user'] | null;
+  user: Session["user"] | null;
   role: UserRole | null;
   isLoading: boolean;
   isAuthenticated: boolean;
@@ -89,6 +96,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 export function useAuth(): AuthState {
   const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuth must be used within AuthProvider');
+  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
   return ctx;
 }

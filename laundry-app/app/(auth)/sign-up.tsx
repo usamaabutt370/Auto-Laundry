@@ -1,11 +1,13 @@
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import {
+  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
   ScrollView,
   StyleSheet,
+  Text,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
@@ -15,6 +17,8 @@ import { strings } from "@/constants/strings";
 import { assets } from "@/assets/assets";
 import { Image } from "expo-image";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { supabase, isSupabaseConfigured } from "@/lib/supabase";
+import { requestPhoneOtp } from "@/lib/phone-otp";
 
 const c = theme.colors;
 
@@ -27,10 +31,118 @@ export default function SignUpScreen() {
   const [mobileNumber, setMobileNumber] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [errors, setErrors] = useState<{
+    firstName?: string;
+    lastName?: string;
+    mobileNumber?: string;
+    email?: string;
+    password?: string;
+  }>({});
 
-  const handleContinue = () => {
-    // TODO: Supabase sign up
-    router.push("/(auth)/login");
+  const handleMobileChange = (raw: string) => {
+    // Keep only digits
+    let digits = raw.replace(/\D/g, "");
+    // Drop any leading 0 (we want numbers like 3xxxxxxxxx)
+    if (digits.startsWith("0")) {
+      digits = digits.slice(1);
+    }
+    // Limit to 10 digits max
+    if (digits.length > 10) {
+      digits = digits.slice(0, 10);
+    }
+    setMobileNumber(digits);
+    setErrors((prev) => ({ ...prev, mobileNumber: undefined }));
+  };
+
+  const handleContinue = async () => {
+    if (!isSupabaseConfigured()) {
+      Alert.alert(
+        "Configuration error",
+        "Supabase is not configured. Please add your Supabase URL and anon key to the environment."
+      );
+      return;
+    }
+
+    const nextErrors: typeof errors = {};
+    if (!firstName) nextErrors.firstName = "First name is required.";
+    if (!lastName) nextErrors.lastName = "Last name is required.";
+    if (!mobileNumber) nextErrors.mobileNumber = "Mobile number is required.";
+    if (!email) nextErrors.email = "Email is required.";
+    if (!password) nextErrors.password = "Password is required.";
+
+    if (mobileNumber && mobileNumber.length !== 10) {
+      nextErrors.mobileNumber =
+        "Enter a valid 10-digit Pakistani mobile number (without the leading 0).";
+    }
+
+    if (Object.keys(nextErrors).length > 0) {
+      setErrors(nextErrors);
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const fullName = `${firstName} ${lastName}`.trim();
+
+      // Normalize Pakistan phone number: user types 306xxxxxxx, we store +92306xxxxxxx
+      const normalizedPhone = `+92${mobileNumber.replace(/^0+/, "")}`;
+
+      // 1) Create auth user with email + password (no email OTP).
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: fullName,
+            first_name: firstName,
+            last_name: lastName,
+            phone: normalizedPhone,
+          },
+        },
+      });
+
+      if (error) {
+        Alert.alert("Sign up failed", error.message);
+        return;
+      }
+
+      const user = data.user;
+
+      // 2) Create/update profile row to map phone → email for phone-login later.
+      if (user) {
+        try {
+          await supabase.from("profiles").upsert(
+            {
+              id: user.id,
+              email,
+              phone: normalizedPhone,
+              full_name: fullName,
+              first_name: firstName,
+              last_name: lastName,
+            },
+            { onConflict: "id" }
+          );
+        } catch {
+          // Ignore profile errors for now; auth account is still created.
+        }
+      }
+
+      // 3) Request a phone OTP (stub for now, real SMS later).
+      await requestPhoneOtp(normalizedPhone);
+
+      // 4) Go to phone OTP screen. We pass the phone so future verification logic has it.
+      router.push({
+        pathname: "/(auth)/otp",
+        params: { phone: normalizedPhone },
+      });
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : "Something went wrong. Please try again.";
+      Alert.alert("Sign up error", message);
+    } finally {
+      setIsLoading(false);
+    }
   };
   const handleSignIn = () => router.replace("/(auth)/login");
   const handleFacebook = () => {};
@@ -89,6 +201,9 @@ export default function SignUpScreen() {
             autoCapitalize="words"
             {...inputProps}
           />
+          {errors.firstName && (
+            <Text style={styles.errorText}>{errors.firstName}</Text>
+          )}
           <Spacer.Column numberOfSpaces={1} />
           <Input
             placeholder={s.lastName}
@@ -97,14 +212,20 @@ export default function SignUpScreen() {
             autoCapitalize="words"
             {...inputProps}
           />
+          {errors.lastName && (
+            <Text style={styles.errorText}>{errors.lastName}</Text>
+          )}
           <Spacer.Column numberOfSpaces={1} />
           <Input
             variant="phone"
             placeholder={s.mobileNumber}
             value={mobileNumber}
-            onChangeText={setMobileNumber}
+            onChangeText={handleMobileChange}
             {...inputProps}
           />
+          {errors.mobileNumber && (
+            <Text style={styles.errorText}>{errors.mobileNumber}</Text>
+          )}
           <Spacer.Column numberOfSpaces={1} />
           <Input
             placeholder={s.email}
@@ -114,6 +235,7 @@ export default function SignUpScreen() {
             autoCapitalize="none"
             {...inputProps}
           />
+          {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
           <Spacer.Column numberOfSpaces={1} />
           <Input
             placeholder={s.password}
@@ -122,18 +244,23 @@ export default function SignUpScreen() {
             secureTextEntry
             {...inputProps}
           />
+          {errors.password && (
+            <Text style={styles.errorText}>{errors.password}</Text>
+          )}
           <Spacer.Column numberOfSpaces={1} />
           <Pressable
             onPress={handleContinue}
             style={({ pressed }) => [
               styles.continueButton,
               pressed && styles.pressed,
+              isLoading && styles.continueButtonDisabled,
             ]}
             accessibilityRole="button"
             accessibilityLabel={s.continue}
+            disabled={isLoading}
           >
             <ThemedText style={styles.continueButtonText}>
-              {s.continue}
+              {isLoading ? "Creating account..." : s.continue}
             </ThemedText>
           </Pressable>
           <ThemedText style={styles.orText}>{s.orSignUpWithSocial}</ThemedText>
@@ -247,6 +374,12 @@ const styles = StyleSheet.create({
   inputSpacing: {
     marginBottom: 14,
   },
+  errorText: {
+    color: "#ffb3b3",
+    fontSize: 12,
+    marginTop: -8,
+    marginBottom: 4,
+  },
   continueButton: {
     height: 52,
     borderRadius: 26,
@@ -261,6 +394,9 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: c.white,
     backgroundColor: "transparent",
+  },
+  continueButtonDisabled: {
+    opacity: 0.7,
   },
   orText: {
     fontSize: 15,
