@@ -85,6 +85,8 @@ export const ur = {
   tabs: {
     customer: {
       home: "ہوم",
+      order: "آرڈر",
+      profile: "پروفائل",
       explore: "دریافت",
     },
     partner: {
@@ -92,14 +94,84 @@ export const ur = {
     },
   },
 
+  sidebar: {
+    recurringOptions: "دہرائی کے اختیارات",
+    preferences: "ترجیحات",
+    settings: "ترتیبات",
+    contactSupport: "سپورٹ سے رابطہ کریں",
+    faq: "عمومی سوالات",
+    signOut: "سائن آؤٹ",
+  },
+
   customer: {
     home: {
       welcome: "خوش آمدید!",
       subtitle: "گاہک ہوم",
+      addressPlaceholder: "1465 5th Avenue APt 5C",
+      chooseService: "اپنی سروس منتخب کریں",
+      dropOff: "ڈراپ آف",
+      pickUpDelivery: "پک اپ / ڈیلیوری",
     },
     explore: {
       title: "دریافت",
       intro: "شروع کرنے کے لیے اس ایپ میں مثال کوڈ شامل ہے۔",
+    },
+    recurring: {
+      title: "دہرائی کے اختیارات",
+      weekly: "ہفتہ وار",
+      biWeekly: "دو ہفتہ وار",
+      threeWeeks: "3 ہفتے",
+      monthly: "ماہانہ",
+      active: "فعال",
+    },
+    settings: {
+      title: "ترتیبات",
+      language: "زبان",
+      english: "انگریزی",
+      urdu: "اردو",
+      notifications: "نوٹیفکیشنز",
+      recurringReminder: "دہرائی کے اختیارات کی یاد دہانی",
+      reminder6h: "6 گھنٹے",
+      reminder12h: "12 گھنٹے",
+      reminder24h: "24 گھنٹے",
+      mileRadius: "میل رداس",
+      mapSearchRadius: "نقشہ تلاش کا رداس",
+      mile: "میل",
+    },
+    contactSupport: {
+      title: "سپورٹ سے رابطہ کریں",
+      question: "کوئی مسئلہ؟ تجاویز؟",
+      support: "سپورٹ",
+      feedback: "رائے",
+      placeholder: "اپنا مسئلہ یا تجویز بیان کریں۔",
+      orEmailUs: "یا ہمیں ای میل کریں :",
+      email: "info@getbubblesapp.com",
+      send: "بھیجیں",
+    },
+    faq: {
+      title: "عمومی سوالات",
+      items: [
+        {
+          question: "Bubble میں کیسے نیویگیٹ کریں؟",
+          answer:
+            "Nulla porttitor accumsan tincidunt. Pellentesque in ipsum id orci porta dapibus. Curabitur non nulla sit amet nisl tempus convallis quis ac lectus.",
+        },
+        {
+          question: "کیا میں اپنی ٹیم میں نیا کورئیر شامل کر سکتا ہوں؟",
+          answer:
+            "Vestibulum ac diam sit amet quam vehicula elementum sed sit amet dui. Donec rutrum congue leo eget malesuada.",
+        },
+        {
+          question: "زبان کہاں تبدیل کریں؟",
+          answer:
+            "سائیڈبار سے ترتیبات پر جائیں، پھر زبان کے سیکشن میں اپنی پسندیدہ زبان منتخب کریں۔",
+        },
+        {
+          question: "کیا میں اپنی ٹیم میں نیا ممبر شامل کر سکتا ہوں؟",
+          answer:
+            "آپ اپنے پروفائل یا ترتیبات سے نئے ٹیم ممبرز شامل کر سکتے ہیں۔ ٹیم مینجمنٹ میں مدد کے لیے سپورٹ سے رابطہ کریں۔",
+        },
+      ],
     },
   },
 

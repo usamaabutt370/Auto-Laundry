@@ -86,6 +86,8 @@ export const en = {
   tabs: {
     customer: {
       home: "Home",
+      order: "Order",
+      profile: "Profile",
       explore: "Explore",
     },
     partner: {
@@ -93,14 +95,84 @@ export const en = {
     },
   },
 
+  sidebar: {
+    recurringOptions: "Recurring options",
+    preferences: "Preferences",
+    settings: "Settings",
+    contactSupport: "Contact support",
+    faq: "FAQ",
+    signOut: "Sign Out",
+  },
+
   customer: {
     home: {
       welcome: "Welcome!",
       subtitle: "Customer home",
+      addressPlaceholder: "1465 5th Avenue APt 5C",
+      chooseService: "Choose your service",
+      dropOff: "Drop off",
+      pickUpDelivery: "Pick up / Delivery",
     },
     explore: {
       title: "Explore",
       intro: "This app includes example code to help you get started.",
+    },
+    recurring: {
+      title: "Recurring Options",
+      weekly: "Weekly",
+      biWeekly: "Bi - Weekly",
+      threeWeeks: "3 Weeks",
+      monthly: "Monthly",
+      active: "Active",
+    },
+    settings: {
+      title: "Settings",
+      language: "Language",
+      english: "English",
+      urdu: "Urdu",
+      notifications: "Notifications",
+      recurringReminder: "Recurring Options Reminder",
+      reminder6h: "6 Hours",
+      reminder12h: "12 Hours",
+      reminder24h: "24 Hours",
+      mileRadius: "Mile Radius",
+      mapSearchRadius: "Map Search Radius",
+      mile: "mi",
+    },
+    contactSupport: {
+      title: "Contact Support",
+      question: "Any Issue? Suggestions?",
+      support: "Support",
+      feedback: "Feedback",
+      placeholder: "Describe your problem or suggestion.",
+      orEmailUs: "Or email us at :",
+      email: "info@getbubblesapp.com",
+      send: "Send",
+    },
+    faq: {
+      title: "FAQ",
+      items: [
+        {
+          question: "How to Navigate in Bubble?",
+          answer:
+            "Nulla porttitor accumsan tincidunt. Pellentesque in ipsum id orci porta dapibus. Curabitur non nulla sit amet nisl tempus convallis quis ac lectus. Mauris blandit aliquet elit, eget tincidunt nibh pulvinar a. Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia curae.",
+        },
+        {
+          question: "Can I add a new Courier to my team?",
+          answer:
+            "Vestibulum ac diam sit amet quam vehicula elementum sed sit amet dui. Donec rutrum congue leo eget malesuada. Cras ultricies ligula sed magna dictum porta.",
+        },
+        {
+          question: "Where to change the language?",
+          answer:
+            "Go to Settings from the sidebar, then select your preferred language under the Language section.",
+        },
+        {
+          question: "Can I add a new member to my team?",
+          answer:
+            "You can add new team members from your profile or settings. Contact support if you need assistance with team management.",
+        },
+      ],
     },
   },
 
