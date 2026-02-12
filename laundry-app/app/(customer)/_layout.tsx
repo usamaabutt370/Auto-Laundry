@@ -16,6 +16,8 @@ export default function CustomerLayout() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="recurring" />
         <Stack.Screen name="settings" />
+        <Stack.Screen name="contact-support" />
+        <Stack.Screen name="faq" />
       </Stack>
     </SidebarProvider>
   );

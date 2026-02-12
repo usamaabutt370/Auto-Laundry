@@ -93,11 +93,9 @@ export function Sidebar() {
     } else if (id === "settings") {
       router.push("/(customer)/settings");
     } else if (id === "contact") {
-      console.log("contact");
-      // TODO: Contact support logic
+      router.push("/(customer)/contact-support");
     } else if (id === "faq") {
-      console.log("faq");
-      // TODO: FAQ logic
+      router.push("/(customer)/faq");
     } else if (id === "signout") {
       console.log("signout");
       // TODO: Sign out logic

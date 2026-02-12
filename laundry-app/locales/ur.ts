@@ -138,6 +138,41 @@ export const ur = {
       mapSearchRadius: "نقشہ تلاش کا رداس",
       mile: "میل",
     },
+    contactSupport: {
+      title: "سپورٹ سے رابطہ کریں",
+      question: "کوئی مسئلہ؟ تجاویز؟",
+      support: "سپورٹ",
+      feedback: "رائے",
+      placeholder: "اپنا مسئلہ یا تجویز بیان کریں۔",
+      orEmailUs: "یا ہمیں ای میل کریں :",
+      email: "info@getbubblesapp.com",
+      send: "بھیجیں",
+    },
+    faq: {
+      title: "عمومی سوالات",
+      items: [
+        {
+          question: "Bubble میں کیسے نیویگیٹ کریں؟",
+          answer:
+            "Nulla porttitor accumsan tincidunt. Pellentesque in ipsum id orci porta dapibus. Curabitur non nulla sit amet nisl tempus convallis quis ac lectus.",
+        },
+        {
+          question: "کیا میں اپنی ٹیم میں نیا کورئیر شامل کر سکتا ہوں؟",
+          answer:
+            "Vestibulum ac diam sit amet quam vehicula elementum sed sit amet dui. Donec rutrum congue leo eget malesuada.",
+        },
+        {
+          question: "زبان کہاں تبدیل کریں؟",
+          answer:
+            "سائیڈبار سے ترتیبات پر جائیں، پھر زبان کے سیکشن میں اپنی پسندیدہ زبان منتخب کریں۔",
+        },
+        {
+          question: "کیا میں اپنی ٹیم میں نیا ممبر شامل کر سکتا ہوں؟",
+          answer:
+            "آپ اپنے پروفائل یا ترتیبات سے نئے ٹیم ممبرز شامل کر سکتے ہیں۔ ٹیم مینجمنٹ میں مدد کے لیے سپورٹ سے رابطہ کریں۔",
+        },
+      ],
+    },
   },
 
   partner: {

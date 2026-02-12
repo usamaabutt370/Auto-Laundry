@@ -6,6 +6,7 @@ const colors = {
   backgroundLight: "#78b2cb",
   blue900: "#347488",
   blue600: "#B8D4DE",
+  blue500: "#D1E8F0",
   black: "#000000",
   white: "#ffffff",
   themeWhite: "#F9FAFB",
