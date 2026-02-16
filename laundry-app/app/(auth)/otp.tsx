@@ -1,5 +1,5 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useRef, useState } from "react";
 import {
   KeyboardAvoidingView,
@@ -14,6 +14,7 @@ import { StatusBar } from "expo-status-bar";
 import { Spacer, ThemedText, ThemedView } from "@/components";
 import { theme } from "@/constants/theme";
 import { strings } from "@/constants/strings";
+import { verifyPhoneOtp } from "@/lib/phone-otp";
 
 const c = theme.colors;
 const OTP_LENGTH = 4;
@@ -22,15 +23,34 @@ export default function OtpScreen() {
   const router = useRouter();
   const s = strings.auth.otp;
 
-  const [digits, setDigits] = useState<string[]>(["", "", "", ""]);
+  const { phone } = useLocalSearchParams<{ phone?: string }>();
+
+  const [digits, setDigits] = useState<string[]>(Array(OTP_LENGTH).fill(""));
   const inputRefs = useRef<(TextInput | null)[]>([]);
+  const [isVerifying, setIsVerifying] = useState(false);
 
   const handleBack = () => router.back();
-  const handleContinue = () => {
+  const handleContinue = async () => {
     const code = digits.join("");
-    if (code.length === OTP_LENGTH) {
-      // TODO: verify OTP with Supabase
+    if (code.length !== OTP_LENGTH) return;
+
+    setIsVerifying(true);
+    try {
+      const { success, errorMessage } = await verifyPhoneOtp(
+        String(phone ?? ""),
+        code
+      );
+
+      // For now verifyPhoneOtp always succeeds; later it will check a real backend.
+      if (!success) {
+        // Optional: show a toast / alert once you have an error message.
+        console.warn("Phone OTP verification failed:", errorMessage);
+        return;
+      }
+
       router.replace("/(customer)");
+    } finally {
+      setIsVerifying(false);
     }
   };
   const handleResend = () => {
@@ -124,14 +144,15 @@ export default function OtpScreen() {
             style={({ pressed }) => [
               styles.continueButton,
               pressed && styles.pressed,
-              otpCode.length !== OTP_LENGTH && styles.continueButtonDisabled,
+              (otpCode.length !== OTP_LENGTH || isVerifying) &&
+                styles.continueButtonDisabled,
             ]}
-            disabled={otpCode.length !== OTP_LENGTH}
+            disabled={otpCode.length !== OTP_LENGTH || isVerifying}
             accessibilityRole="button"
             accessibilityLabel={s.continue}
           >
             <ThemedText style={styles.continueButtonText}>
-              {s.continue}
+              {isVerifying ? "Verifying..." : s.continue}
             </ThemedText>
           </Pressable>
 

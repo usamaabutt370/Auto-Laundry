@@ -1,11 +1,13 @@
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import {
+  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
   ScrollView,
   StyleSheet,
+  Text,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
@@ -15,6 +17,7 @@ import { strings } from "@/constants/strings";
 import { assets } from "@/assets/assets";
 import { Image } from "expo-image";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -22,10 +25,96 @@ export default function LoginScreen() {
 
   const [mobileNumber, setMobileNumber] = useState("");
   const [password, setPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [errors, setErrors] = useState<{
+    mobileNumber?: string;
+    password?: string;
+  }>({});
 
-  const handleSignIn = () => {
-    // TODO: Supabase sign in
-    router.push("/(auth)/otp");
+  const handleMobileChange = (raw: string) => {
+    let digits = raw.replace(/\D/g, "");
+    if (digits.startsWith("0")) {
+      digits = digits.slice(1);
+    }
+    if (digits.length > 10) {
+      digits = digits.slice(0, 10);
+    }
+    setMobileNumber(digits);
+    setErrors((prev) => ({ ...prev, mobileNumber: undefined }));
+  };
+
+  const handleSignIn = async () => {
+    if (!isSupabaseConfigured()) {
+      Alert.alert(
+        "Configuration error",
+        "Supabase is not configured. Please add your Supabase URL and anon key to the environment."
+      );
+      return;
+    }
+
+    const nextErrors: typeof errors = {};
+    if (!mobileNumber) {
+      nextErrors.mobileNumber = "Mobile number is required.";
+    } else if (mobileNumber.length !== 10) {
+      nextErrors.mobileNumber =
+        "Enter a valid 10-digit Pakistani mobile number (without the leading 0).";
+    }
+
+    if (!password) {
+      nextErrors.password = "Password is required.";
+    }
+
+    if (Object.keys(nextErrors).length > 0) {
+      setErrors(nextErrors);
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      // Normalize to the same Pakistan format we store: +92306xxxxxxx
+      const normalizedPhone = `+92${mobileNumber.replace(/^0+/, "")}`;
+
+      // 1) Look up email by phone number from profiles.
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("email")
+        .eq("phone", normalizedPhone)
+        .maybeSingle();
+
+      if (profileError) {
+        throw profileError;
+      }
+      if (!profile?.email) {
+        Alert.alert(
+          "Account not found",
+          "We couldn’t find an account with that phone number. Please check it or sign up first."
+        );
+        return;
+      }
+
+      // 2) Sign in to Supabase with resolved email + password.
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: profile.email,
+        password,
+      });
+
+      if (signInError) {
+        Alert.alert("Sign in failed", signInError.message);
+        return;
+      }
+
+      // Auth state change listener (AuthProvider) has the session;
+      // go directly to the customer area instead of bouncing through root.
+      router.replace("/(customer)");
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Something went wrong. Please try again.";
+      Alert.alert("Sign in error", message);
+    } finally {
+      setIsLoading(false);
+    }
   };
   const handleForgotPassword = () => {
     router.push("/(auth)/reset-password");
@@ -81,11 +170,14 @@ export default function LoginScreen() {
             variant="phone"
             placeholder={s.mobileNumber}
             value={mobileNumber}
-            onChangeText={setMobileNumber}
+            onChangeText={handleMobileChange}
             containerStyle={styles.inputSpacing}
             borderColor="rgba(255,255,255,0.5)"
             focusUnderlineColor={theme.colors.backgroundLight}
           />
+          {errors.mobileNumber && (
+            <Text style={styles.errorText}>{errors.mobileNumber}</Text>
+          )}
           <Spacer.Column numberOfSpaces={1} />
 
           <ThemedView style={styles.passwordRow}>
@@ -98,6 +190,9 @@ export default function LoginScreen() {
               borderColor="rgba(255,255,255,0.5)"
               focusUnderlineColor={theme.colors.backgroundLight}
             />
+            {errors.password && (
+              <Text style={styles.errorText}>{errors.password}</Text>
+            )}
             <Pressable
               onPress={handleForgotPassword}
               style={({ pressed }) => [pressed && styles.pressed]}
@@ -115,12 +210,14 @@ export default function LoginScreen() {
             style={({ pressed }) => [
               styles.signInButton,
               pressed && styles.pressed,
+              isLoading && styles.signInButtonDisabled,
             ]}
             accessibilityRole="button"
             accessibilityLabel={s.signInButton}
+            disabled={isLoading}
           >
             <ThemedText style={styles.signInButtonText}>
-              {s.signInButton}
+              {isLoading ? "Signing in..." : s.signInButton}
             </ThemedText>
           </Pressable>
 
@@ -240,6 +337,12 @@ const styles = StyleSheet.create({
     marginBottom: 14,
     backgroundColor: "transparent",
   },
+  errorText: {
+    color: "#ffb3b3",
+    fontSize: 12,
+    marginTop: -8,
+    marginBottom: 4,
+  },
   passwordRow: {
     marginBottom: 8,
     backgroundColor: "transparent",
@@ -265,6 +368,9 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: "700",
     color: theme.colors.white,
+  },
+  signInButtonDisabled: {
+    opacity: 0.7,
   },
   orText: {
     fontSize: 15,
