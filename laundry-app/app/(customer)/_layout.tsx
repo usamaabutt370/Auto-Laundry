@@ -18,6 +18,7 @@ export default function CustomerLayout() {
         <Stack.Screen name="settings" />
         <Stack.Screen name="contact-support" />
         <Stack.Screen name="faq" />
+        <Stack.Screen name="edit-profile" />
       </Stack>
     </SidebarProvider>
   );
