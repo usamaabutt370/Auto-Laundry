@@ -78,7 +78,8 @@ export const ur = {
       "انتخاب کریں کہ آپ ایپ کیسے استعمال کریں گے (پلیس ہولڈر)",
     roles: {
       customer: "گاہک",
-      partner: "لانڈری پارٹنر",
+      partner: "لانڈرر",
+      launderer: "لانڈرر",
     } as const,
   },
 
@@ -91,6 +92,7 @@ export const ur = {
     },
     partner: {
       orders: "آرڈرز",
+      profile: "پروفائل",
     },
   },
 
@@ -176,8 +178,18 @@ export const ur = {
   },
 
   partner: {
-    dashboardTitle: "پارٹنر ڈیش بورڈ",
+    dashboardTitle: "لانڈرر ڈیش بورڈ",
     dashboardSubtitle: "آنے والے آرڈرز اور کمائی (پلیس ہولڈر)",
+    useAppAsLaunderer: "ایپ بطور لانڈرر استعمال کریں",
+    onboarding: {
+      step1Title: "کاروباری تفصیلات",
+      step1Subtitle: "اپنے لانڈری کاروبار کے بارے میں بتائیں۔",
+      step2Title: "سروسز",
+      step2Subtitle: "آپ کون سی سروسز پیش کرتے ہیں؟",
+      next: "اگلا",
+      complete: "مکمل کریں",
+      back: "واپس",
+    },
   },
 
   modal: {

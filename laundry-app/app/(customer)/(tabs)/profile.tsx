@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Image,
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   View,
 } from "react-native";
@@ -13,8 +15,10 @@ import { useRouter, useFocusEffect } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 import { theme } from "@/constants/theme";
+import { useAuth } from "@/contexts/auth-context";
 import { avatarUrlWithCacheBuster } from "@/lib/avatar";
 import { getSession, isSupabaseConfigured, supabase } from "@/lib/supabase";
+import type { UserRole } from "@/types/user";
 import { assets } from "@/assets/assets";
 
 const c = theme.colors;
@@ -31,6 +35,7 @@ type ProfileRow = {
   date_of_birth?: string | null;
   image_url?: string | null;
   updated_at?: string | null;
+  role?: string | null;
 };
 
 /** Format YYYY-MM-DD to DD/MM/YYYY for display */
@@ -42,9 +47,13 @@ function formatDateDisplay(iso: string | null | undefined): string {
 
 export default function CustomerProfileScreen() {
   const router = useRouter();
+  const { user, refreshRole } = useAuth();
   const [activeTab, setActiveTab] = useState<ProfileTabId>("profile");
   const [profile, setProfile] = useState<ProfileRow | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isUpdatingRole, setIsUpdatingRole] = useState(false);
+  /** Optimistic switch state so user sees ON before navigation; null = use profile.role */
+  const [roleSwitchValue, setRoleSwitchValue] = useState<boolean | null>(null);
 
   const loadProfile = useCallback(async () => {
     if (!isSupabaseConfigured()) {
@@ -73,12 +82,13 @@ export default function CustomerProfileScreen() {
         date_of_birth: null,
         image_url: null,
         updated_at: null,
+        role: "customer",
       };
 
       const { data, error } = await supabase
         .from("profiles")
         .select(
-          "first_name,last_name,email,phone,full_name,address,date_of_birth,image_url,updated_at",
+          "first_name,last_name,email,phone,full_name,address,date_of_birth,image_url,updated_at,role",
         )
         .eq("id", user.id)
         .maybeSingle<ProfileRow>();
@@ -100,9 +110,12 @@ export default function CustomerProfileScreen() {
           date_of_birth: data.date_of_birth ?? fallback.date_of_birth,
           image_url: data.image_url ?? fallback.image_url ?? null,
           updated_at: data.updated_at ?? fallback.updated_at ?? null,
+          role: data.role ?? fallback.role ?? "customer",
         });
+        setRoleSwitchValue(null);
       } else {
         setProfile(fallback);
+        setRoleSwitchValue(null);
       }
     } catch {
       setProfile(null);
@@ -121,6 +134,40 @@ export default function CustomerProfileScreen() {
       loadProfile();
     }, [loadProfile]),
   );
+
+  const handleRoleToggle = useCallback(
+    async (value: boolean) => {
+      if (!user?.id || !isSupabaseConfigured() || isUpdatingRole) return;
+      const newRole: UserRole = value ? "launderer" : "customer";
+      setRoleSwitchValue(value);
+      setIsUpdatingRole(true);
+      try {
+        const { error } = await supabase
+          .from("profiles")
+          .update({
+            role: newRole,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", user.id);
+        if (error) throw error;
+        await refreshRole();
+        const delayMs = 320;
+        await new Promise((r) => setTimeout(r, delayMs));
+        router.replace(value ? "/(partner)/onboarding" : "/(customer)");
+      } catch (err) {
+        setRoleSwitchValue(!value);
+        const message =
+          err instanceof Error ? err.message : "Could not update role.";
+        Alert.alert("Error", message);
+      } finally {
+        setIsUpdatingRole(false);
+      }
+    },
+    [user?.id, isUpdatingRole, refreshRole, router],
+  );
+
+  const isPartnerSwitchOn =
+    roleSwitchValue !== null ? roleSwitchValue : profile?.role === "launderer";
 
   const firstName = profile?.first_name ?? "";
   const lastName = profile?.last_name ?? "";
@@ -190,7 +237,12 @@ export default function CustomerProfileScreen() {
         <View style={styles.headerSection}>
           <View style={styles.avatarWrap}>
             <Image
-              key={avatarUrlWithCacheBuster(profile?.image_url, profile?.updated_at) ?? "placeholder"}
+              key={
+                avatarUrlWithCacheBuster(
+                  profile?.image_url,
+                  profile?.updated_at,
+                ) ?? "placeholder"
+              }
               source={
                 profile?.image_url
                   ? {
@@ -243,6 +295,25 @@ export default function CustomerProfileScreen() {
             <View style={styles.detailBlock}>
               <Text style={styles.detailLabel}>Phone Number</Text>
               <Text style={styles.detailValue}>{phone || "-"}</Text>
+            </View>
+
+            <View style={styles.roleCard}>
+              <View style={styles.roleRow}>
+                <Text style={styles.roleLabel}>Become a launderer</Text>
+                <View style={styles.switchWrap}>
+                  <Switch
+                    value={isPartnerSwitchOn}
+                    onValueChange={handleRoleToggle}
+                    disabled={isUpdatingRole}
+                    trackColor={{ false: c.blue900, true: c.blue600 }}
+                    thumbColor={c.white}
+                    ios_backgroundColor={c.backgroundLight}
+                  />
+                </View>
+              </View>
+              <Text style={styles.roleHint}>
+                Offer laundry services and manage orders as a launderer.
+              </Text>
             </View>
           </View>
         ) : activeTab === "qr" ? (
@@ -393,6 +464,32 @@ const styles = StyleSheet.create({
   },
   detailBlock: {
     gap: 4,
+  },
+  roleCard: {
+    marginTop: 20,
+    paddingTop: 20,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255,255,255,0.12)",
+    gap: 10,
+  },
+  roleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  roleLabel: {
+    fontSize: 17,
+    color: c.white,
+    fontWeight: "700",
+    flex: 1,
+  },
+  switchWrap: {
+    transform: [{ scale: 1.12 }],
+  },
+  roleHint: {
+    fontSize: 13,
+    color: c.blue500,
+    lineHeight: 18,
   },
   detailLabel: {
     fontSize: 13,

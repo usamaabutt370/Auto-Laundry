@@ -17,6 +17,8 @@ export interface AuthState {
   role: UserRole | null;
   isLoading: boolean;
   isAuthenticated: boolean;
+  /** Call after updating profiles.role so the app reflects the new role and can redirect. */
+  refreshRole: () => Promise<void>;
 }
 
 const defaultState: AuthState = {
@@ -25,17 +27,25 @@ const defaultState: AuthState = {
   role: null,
   isLoading: true,
   isAuthenticated: false,
+  refreshRole: async () => {},
 };
 
 const AuthContext = createContext<AuthState | null>(null);
 
-/** Load role from backend (e.g. profiles.role or partners table). Until backend is ready, returns null. */
-async function fetchUserRole(_userId: string): Promise<UserRole | null> {
+const VALID_ROLES: UserRole[] = ["customer", "launderer"];
+
+/** Load role from profiles.role. Defaults to customer when missing or invalid. */
+async function fetchUserRole(userId: string): Promise<UserRole | null> {
   if (!supabase) return null;
-  // TODO: Developer B – fetch from profiles or partners table, e.g.:
-  // const { data } = await supabase.from('profiles').select('role').eq('id', userId).single();
-  // return data?.role ?? null;
-  return null;
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", userId)
+    .maybeSingle<{ role: string | null }>();
+  if (error || !data?.role || !VALID_ROLES.includes(data.role as UserRole)) {
+    return "customer";
+  }
+  return data.role as UserRole;
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -80,6 +90,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, [loadRole]);
 
+  const refreshRole = useCallback(async () => {
+    if (session?.user?.id) {
+      await loadRole(session.user.id);
+    }
+  }, [session?.user?.id, loadRole]);
+
   const value = useMemo<AuthState>(
     () => ({
       session,
@@ -87,8 +103,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       role,
       isLoading,
       isAuthenticated: Boolean(session),
+      refreshRole,
     }),
-    [session, role, isLoading]
+    [session, role, isLoading, refreshRole]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -79,7 +79,8 @@ export const en = {
     roleSelectSubtitle: "Select how you want to use the app (placeholder)",
     roles: {
       customer: "Customer",
-      partner: "Laundry Partner",
+      partner: "Launderer",
+      launderer: "Launderer",
     } as const,
   },
 
@@ -92,6 +93,7 @@ export const en = {
     },
     partner: {
       orders: "Orders",
+      profile: "Profile",
     },
   },
 
@@ -177,8 +179,18 @@ export const en = {
   },
 
   partner: {
-    dashboardTitle: "Partner dashboard",
+    dashboardTitle: "Launderer dashboard",
     dashboardSubtitle: "Incoming orders and earnings (placeholder)",
+    useAppAsLaunderer: "Use app as launderer",
+    onboarding: {
+      step1Title: "Business details",
+      step1Subtitle: "Tell us about your laundry business.",
+      step2Title: "Services",
+      step2Subtitle: "What services do you offer?",
+      next: "Next",
+      complete: "Complete",
+      back: "Back",
+    },
   },
 
   modal: {

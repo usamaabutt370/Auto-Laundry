@@ -28,8 +28,8 @@ export default function IndexScreen() {
     return <Redirect href="/(auth)" />;
   }
 
-  if (role === "partner") {
-    return <Redirect href="/(partner)" />;
+  if (role === "launderer") {
+    return <Redirect href="/(partner)/(tabs)" />;
   }
 
   // Default to customer when logged in (role can be null until backend returns it)
