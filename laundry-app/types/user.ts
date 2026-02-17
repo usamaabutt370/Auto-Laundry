@@ -1,7 +1,7 @@
 /**
  * User roles supported by the app. Align with backend (Supabase profiles/partners).
  */
-export type UserRole = 'customer' | 'partner';
+export type UserRole = 'customer' | 'launderer';
 
 /**
  * Minimal user profile as returned from the backend (e.g. profiles table).

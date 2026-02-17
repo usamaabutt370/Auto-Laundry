@@ -20,4 +20,7 @@ export const assets = {
     faq_icon: require("./icons/faq-icon.png"),
     logout_icon: require("./icons/logout-icon.png"),
   },
+  images: {
+    profile_placeholder: require("./images/profile-placeholder.png"),
+  },
 };

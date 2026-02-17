@@ -42,3 +42,6 @@ app-example
 # generated native folders
 /ios
 /android
+
+# Supabase CLI local link state (re-create with: supabase link --project-ref $(cat supabase/PROJECT_REF))
+supabase/.temp/
