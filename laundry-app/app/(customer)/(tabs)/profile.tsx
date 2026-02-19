@@ -17,13 +17,14 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { theme } from "@/constants/theme";
 import { useAuth } from "@/contexts/auth-context";
 import { avatarUrlWithCacheBuster } from "@/lib/avatar";
+import { getPaymentMethod, type PaymentMethod } from "@/lib/payment-storage";
 import { getSession, isSupabaseConfigured, supabase } from "@/lib/supabase";
 import type { UserRole } from "@/types/user";
 import { assets } from "@/assets/assets";
 
 const c = theme.colors;
 
-type ProfileTabId = "qr" | "profile" | "payment";
+type ProfileTabId = "profile" | "payment";
 
 type ProfileRow = {
   first_name: string | null;
@@ -54,6 +55,9 @@ export default function CustomerProfileScreen() {
   const [isUpdatingRole, setIsUpdatingRole] = useState(false);
   /** Optimistic switch state so user sees ON before navigation; null = use profile.role */
   const [roleSwitchValue, setRoleSwitchValue] = useState<boolean | null>(null);
+  const [paymentDetails, setPaymentDetails] = useState<PaymentMethod | null>(
+    null,
+  );
 
   const loadProfile = useCallback(async () => {
     if (!isSupabaseConfigured()) {
@@ -132,6 +136,7 @@ export default function CustomerProfileScreen() {
   useFocusEffect(
     useCallback(() => {
       loadProfile();
+      getPaymentMethod().then(setPaymentDetails);
     }, [loadProfile]),
   );
 
@@ -222,10 +227,16 @@ export default function CustomerProfileScreen() {
           </View>
         </View>
 
-        {/* Avatar + Edit */}
+        {/* Edit: profile when on Profile tab, payment when on Payment tab */}
         <Pressable
           style={styles.editBtn}
-          onPress={() => router.push("/(customer)/edit-profile")}
+          onPress={() => {
+            if (activeTab === "payment") {
+              router.push("/(customer)/edit-profile?mode=payment");
+            } else {
+              router.push("/(customer)/edit-profile");
+            }
+          }}
         >
           <MaterialCommunityIcons
             name="cog-outline"
@@ -316,19 +327,70 @@ export default function CustomerProfileScreen() {
               </Text>
             </View>
           </View>
-        ) : activeTab === "qr" ? (
-          <View style={styles.placeholderCard}>
-            <Text style={styles.placeholderLabel}>QR Code</Text>
-            <Text style={styles.placeholderText}>
-              Your QR code will appear here.
-            </Text>
-          </View>
         ) : (
-          <View style={styles.placeholderCard}>
-            <Text style={styles.placeholderLabel}>Payment</Text>
-            <Text style={styles.placeholderText}>
-              Add your preferred payment methods here.
-            </Text>
+          <View style={styles.paymentCard}>
+            <View style={styles.paymentDetailBlock}>
+              <Text style={styles.paymentDetailLabel}>
+                Full Name on Credit Card
+              </Text>
+              <Text
+                style={[
+                  paymentDetails?.cardName
+                    ? styles.paymentDetailValue
+                    : styles.paymentDetailValuePlaceholder,
+                ]}
+              >
+                {paymentDetails?.cardName || "Usama Butt"}
+              </Text>
+            </View>
+            <View style={styles.paymentDetailBlock}>
+              <Text style={styles.paymentDetailLabel}>Credit Card Number</Text>
+              <Text
+                style={[
+                  paymentDetails?.cardNumberLast4
+                    ? styles.paymentDetailValue
+                    : styles.paymentDetailValuePlaceholder,
+                ]}
+              >
+                {paymentDetails?.cardNumberLast4
+                  ? `•••• •••• •••• ${paymentDetails.cardNumberLast4}`
+                  : "•••• •••• •••• ••••"}
+              </Text>
+            </View>
+            <View style={styles.paymentDetailRow}>
+              <View style={styles.paymentDetailBlock}>
+                <Text style={styles.paymentDetailLabel}>Expiration Date</Text>
+                <Text
+                  style={[
+                    paymentDetails?.cardName
+                      ? styles.paymentDetailValue
+                      : styles.paymentDetailValuePlaceholder,
+                  ]}
+                >
+                  {paymentDetails?.expiration || "MM/YY"}
+                </Text>
+              </View>
+              <View style={styles.paymentDetailBlock}>
+                <Text style={styles.paymentDetailLabel}>CVV</Text>
+                <Text
+                  style={[
+                    paymentDetails?.cvv
+                      ? styles.paymentDetailValue
+                      : styles.paymentDetailValuePlaceholder,
+                  ]}
+                >
+                  {paymentDetails?.cvv || "•••"}
+                </Text>
+              </View>
+            </View>
+            <View style={styles.paymentDetailBlock}>
+              <Text style={styles.paymentDetailLabel}>
+                Use same address from Profile
+              </Text>
+              <Text style={styles.paymentDetailValue}>
+                {profile?.address || "—"}
+              </Text>
+            </View>
           </View>
         )}
 
@@ -500,6 +562,57 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: c.white,
     fontWeight: "600",
+  },
+  paymentCard: {
+    paddingVertical: 24,
+    paddingHorizontal: 20,
+    borderRadius: 16,
+    backgroundColor: c.blue900,
+    marginBottom: 24,
+    gap: 20,
+  },
+  paymentDetailBlock: {
+    gap: 4,
+  },
+  paymentDetailRow: {
+    flexDirection: "row",
+    gap: 16,
+  },
+  paymentDetailRowThree: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  paymentDetailColThird: {
+    flex: 1,
+  },
+  paymentDetailLabel: {
+    fontSize: 13,
+    color: "rgba(255,255,255,0.7)",
+    marginBottom: 2,
+  },
+  paymentDetailValue: {
+    fontSize: 17,
+    color: c.white,
+    fontWeight: "700",
+  },
+  paymentDetailValuePlaceholder: {
+    fontSize: 17,
+    color: "rgba(255,255,255,0.2)",
+    fontWeight: "700",
+  },
+  paymentEmpty: {
+    paddingVertical: 16,
+    alignItems: "center",
+    gap: 8,
+  },
+  paymentEmptyText: {
+    fontSize: 16,
+    color: c.white,
+    fontWeight: "600",
+  },
+  paymentEmptyHint: {
+    fontSize: 14,
+    color: c.blue500,
   },
   placeholderCard: {
     paddingVertical: 24,

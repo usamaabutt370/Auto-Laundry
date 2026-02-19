@@ -11,13 +11,14 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import * as FileSystem from "expo-file-system";
 import * as ImagePicker from "expo-image-picker";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 import { theme } from "@/constants/theme";
 import { avatarUrlWithCacheBuster } from "@/lib/avatar";
+import { getPaymentMethod, setPaymentMethod } from "@/lib/payment-storage";
 import { getSession, isSupabaseConfigured, supabase } from "@/lib/supabase";
 
 const c = theme.colors;
@@ -39,6 +40,9 @@ type ProfileRow = {
 
 export default function EditProfileScreen() {
   const router = useRouter();
+  const { mode } = useLocalSearchParams<{ mode?: string }>();
+  const isPaymentMode = mode === "payment";
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [firstName, setFirstName] = useState("");
@@ -53,6 +57,16 @@ export default function EditProfileScreen() {
   /** Local URI from picker – shown immediately so user sees selected image before upload finishes */
   const [localImageUri, setLocalImageUri] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
+
+  const [cardName, setCardName] = useState("");
+  const [cardNumber, setCardNumber] = useState("");
+  const [expiration, setExpiration] = useState("");
+  const [cvv, setCvv] = useState("");
+  const [useSameAddress, setUseSameAddress] = useState(false);
+  const [billingAddress, setBillingAddress] = useState("");
+  const [zipCode, setZipCode] = useState("");
+  const [state, setState] = useState("");
+  const [country, setCountry] = useState("");
 
   const loadProfile = useCallback(async () => {
     if (!isSupabaseConfigured()) {
@@ -103,9 +117,56 @@ export default function EditProfileScreen() {
     }
   }, []);
 
+  const loadPayment = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [stored, profileData] = await Promise.all([
+        getPaymentMethod(),
+        isSupabaseConfigured()
+          ? getSession().then(async ({ data }) => {
+              const user = data.session?.user;
+              if (!user || !supabase) return null;
+              const { data: row } = await supabase
+                .from("profiles")
+                .select("address, image_url, updated_at")
+                .eq("id", user.id)
+                .maybeSingle<{
+                  address: string | null;
+                  image_url: string | null;
+                  updated_at: string | null;
+                }>();
+              return row;
+            })
+          : Promise.resolve(null),
+      ]);
+      if (stored) {
+        setCardName(stored.cardName ?? "");
+        setCardNumber("");
+        setExpiration(stored.expiration ?? "");
+        setBillingAddress(stored.address ?? "");
+        setZipCode(stored.zipCode ?? "");
+        setState(stored.state ?? "");
+        setCountry(stored.country ?? "");
+      }
+      if (profileData) {
+        setAddress(profileData.address ?? "");
+        setImageUrl(profileData.image_url ?? null);
+        setProfileUpdatedAt(profileData.updated_at ?? null);
+      }
+    } catch {
+      // leave form as-is
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
-    loadProfile();
-  }, [loadProfile]);
+    if (isPaymentMode) {
+      loadPayment();
+    } else {
+      loadProfile();
+    }
+  }, [isPaymentMode, loadProfile, loadPayment]);
 
   const save = useCallback(async () => {
     if (!isSupabaseConfigured()) return;
@@ -138,8 +199,7 @@ export default function EditProfileScreen() {
         first_name: firstName.trim() || null,
         last_name: lastName.trim() || null,
         full_name:
-          [firstName.trim(), lastName.trim()].filter(Boolean).join(" ") ||
-          null,
+          [firstName.trim(), lastName.trim()].filter(Boolean).join(" ") || null,
         address: address.trim() || null,
         date_of_birth: dateOfBirth.trim() || null,
         email: emailVal,
@@ -148,10 +208,9 @@ export default function EditProfileScreen() {
         updated_at: now,
       };
 
-      const { error } = await supabase.from("profiles").upsert(
-        upsertPayload,
-        { onConflict: "id" },
-      );
+      const { error } = await supabase
+        .from("profiles")
+        .upsert(upsertPayload, { onConflict: "id" });
 
       if (error) {
         Alert.alert(
@@ -174,7 +233,50 @@ export default function EditProfileScreen() {
     } finally {
       setSaving(false);
     }
-  }, [firstName, lastName, address, dateOfBirth, email, phone, imageUrl, router]);
+  }, [
+    firstName,
+    lastName,
+    address,
+    dateOfBirth,
+    email,
+    phone,
+    imageUrl,
+    router,
+  ]);
+
+  const savePayment = useCallback(async () => {
+    setSaving(true);
+    try {
+      const last4 = cardNumber.replace(/\D/g, "").slice(-4);
+      await setPaymentMethod({
+        cardName: cardName.trim(),
+        cardNumberLast4: last4 || "****",
+        cardNumberFull: cardNumber.replace(/\D/g, "").slice(0, 16),
+        expiration: expiration.trim(),
+        cvv: cvv.trim(),
+        address: billingAddress.trim(),
+        zipCode: zipCode.trim(),
+        state: state.trim(),
+        country: country.trim(),
+      });
+      router.replace("/(customer)/(tabs)/profile");
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Could not save payment method.";
+      Alert.alert("Error", message);
+    } finally {
+      setSaving(false);
+    }
+  }, [
+    cardName,
+    cardNumber,
+    expiration,
+    billingAddress,
+    zipCode,
+    state,
+    country,
+    router,
+  ]);
 
   const pickAndUploadImage = useCallback(async () => {
     if (!isSupabaseConfigured() || !supabase) return;
@@ -204,8 +306,7 @@ export default function EditProfileScreen() {
 
     const uri = result.assets[0].uri;
     const lower = uri.toLowerCase();
-    const isJpeg =
-      lower.endsWith(".jpg") || lower.endsWith(".jpeg");
+    const isJpeg = lower.endsWith(".jpg") || lower.endsWith(".jpeg");
     const ext = isJpeg ? "jpg" : "png";
     const contentType = isJpeg ? "image/jpeg" : "image/png";
 
@@ -272,135 +373,321 @@ export default function EditProfileScreen() {
         </Pressable>
 
         <View style={styles.segmentWrap}>
-          <Text style={styles.segmentTitle}>Profile</Text>
+          <Text style={styles.segmentTitle}>
+            {isPaymentMode ? "Payment" : "Profile"}
+          </Text>
         </View>
 
-        <Pressable
-          style={styles.avatarWrap}
-          onPress={pickAndUploadImage}
-          disabled={uploadingImage}
-        >
-          {localImageUri || imageUrl ? (
-            <Image
-              key={
-                localImageUri
-                  ? `local:${localImageUri}`
-                  : avatarUrlWithCacheBuster(imageUrl, profileUpdatedAt) ?? "server"
-              }
-              source={{
-                uri:
-                  localImageUri ??
-                  (imageUrl
-                    ? (avatarUrlWithCacheBuster(imageUrl, profileUpdatedAt) ??
-                      imageUrl)
-                    : undefined),
-              }}
-              style={styles.avatar}
-              resizeMode="cover"
-            />
-          ) : (
-            <View style={styles.avatarPlaceholder}>
-              {uploadingImage ? (
-                <ActivityIndicator color={c.blue500} size="small" />
+        <View style={styles.avatarWrap}>
+          {isPaymentMode ? (
+            <>
+              {imageUrl ? (
+                <Image
+                  key={
+                    avatarUrlWithCacheBuster(imageUrl, profileUpdatedAt) ??
+                    "server"
+                  }
+                  source={{
+                    uri:
+                      avatarUrlWithCacheBuster(imageUrl, profileUpdatedAt) ??
+                      imageUrl,
+                  }}
+                  style={styles.avatar}
+                  resizeMode="cover"
+                />
               ) : (
-                <>
+                <View style={styles.avatarPlaceholder}>
                   <MaterialCommunityIcons
                     name="account"
                     size={48}
                     color={c.blue500}
                   />
-                  <Text style={styles.addPhotoLabel}>Add photo</Text>
-                </>
+                </View>
               )}
-            </View>
+            </>
+          ) : (
+            <Pressable
+              style={StyleSheet.absoluteFill}
+              onPress={pickAndUploadImage}
+              disabled={uploadingImage}
+            >
+              {localImageUri || imageUrl ? (
+                <Image
+                  key={
+                    localImageUri
+                      ? `local:${localImageUri}`
+                      : (avatarUrlWithCacheBuster(imageUrl, profileUpdatedAt) ??
+                        "server")
+                  }
+                  source={{
+                    uri:
+                      localImageUri ??
+                      (imageUrl
+                        ? (avatarUrlWithCacheBuster(
+                            imageUrl,
+                            profileUpdatedAt,
+                          ) ?? imageUrl)
+                        : undefined),
+                  }}
+                  style={styles.avatar}
+                  resizeMode="cover"
+                />
+              ) : (
+                <View style={styles.avatarPlaceholder}>
+                  {uploadingImage ? (
+                    <ActivityIndicator color={c.blue500} size="small" />
+                  ) : (
+                    <>
+                      <MaterialCommunityIcons
+                        name="account"
+                        size={48}
+                        color={c.blue500}
+                      />
+                      <Text style={styles.addPhotoLabel}>Add photo</Text>
+                    </>
+                  )}
+                </View>
+              )}
+            </Pressable>
           )}
-        </Pressable>
-
-        <View style={styles.form}>
-          <View style={styles.row}>
-            <View style={styles.field}>
-              <Text style={styles.label}>First Name</Text>
-              <TextInput
-                style={styles.input}
-                value={firstName}
-                onChangeText={setFirstName}
-                placeholder="First name"
-                placeholderTextColor={c.blue500}
-                autoCapitalize="words"
-              />
-            </View>
-            <View style={styles.field}>
-              <Text style={styles.label}>Last Name</Text>
-              <TextInput
-                style={styles.input}
-                value={lastName}
-                onChangeText={setLastName}
-                placeholder="Last name"
-                placeholderTextColor={c.blue500}
-                autoCapitalize="words"
-              />
-            </View>
-          </View>
-
-          <View style={styles.field}>
-            <Text style={styles.label}>Address</Text>
-            <TextInput
-              style={styles.input}
-              value={address}
-              onChangeText={setAddress}
-              placeholder="Address"
-              placeholderTextColor={c.blue500}
-            />
-          </View>
-
-          <View style={styles.field}>
-            <Text style={styles.label}>Date of Birth</Text>
-            <TextInput
-              style={styles.input}
-              value={dateOfBirth}
-              onChangeText={setDateOfBirth}
-              placeholder="YYYY-MM-DD"
-              placeholderTextColor={c.blue500}
-            />
-          </View>
-
-          <View style={styles.field}>
-            <Text style={styles.label}>Email</Text>
-            <TextInput
-              style={styles.input}
-              value={email}
-              onChangeText={setEmail}
-              placeholder="Email"
-              placeholderTextColor={c.blue500}
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
-          </View>
-
-          <View style={styles.field}>
-            <Text style={styles.label}>Phone</Text>
-            <TextInput
-              style={styles.input}
-              value={phone}
-              onChangeText={setPhone}
-              placeholder="Phone"
-              placeholderTextColor={c.blue500}
-              keyboardType="phone-pad"
-            />
-          </View>
-
-          <Pressable
-            style={({ pressed }) => [styles.saveBtn, pressed && styles.pressed]}
-            onPress={save}
-            disabled={saving}
-          >
-            {saving ? (
-              <ActivityIndicator color={c.background} size="small" />
-            ) : (
-              <Text style={styles.saveLabel}>Save</Text>
-            )}
-          </Pressable>
         </View>
+
+        {isPaymentMode ? (
+          <View style={styles.paymentForm}>
+            <View style={styles.field}>
+              <Text style={styles.label}>Full Name on Credit Card</Text>
+              <TextInput
+                style={styles.input}
+                value={cardName}
+                onChangeText={setCardName}
+                placeholder="John Doe"
+                placeholderTextColor={c.blue500}
+                autoCapitalize="words"
+              />
+            </View>
+            <View style={styles.field}>
+              <Text style={styles.label}>Credit Card Number</Text>
+              <TextInput
+                style={styles.input}
+                value={cardNumber}
+                onChangeText={(t) =>
+                  setCardNumber(
+                    t
+                      .replace(/\D/g, "")
+                      .replace(/(\d{4})(?=\d)/g, "$1 ")
+                      .slice(0, 19),
+                  )
+                }
+                placeholder="8654 2154 8125 4780"
+                placeholderTextColor={c.blue500}
+                keyboardType="number-pad"
+                maxLength={19}
+              />
+            </View>
+            <View style={styles.row}>
+              <View style={styles.field}>
+                <Text style={styles.label}>Expiration Date</Text>
+                <TextInput
+                  style={styles.input}
+                  value={expiration}
+                  onChangeText={(t) => {
+                    const v = t.replace(/\D/g, "").slice(0, 4);
+                    if (v.length >= 2)
+                      setExpiration(`${v.slice(0, 2)}/${v.slice(2)}`);
+                    else setExpiration(v);
+                  }}
+                  placeholder="MM/YY"
+                  placeholderTextColor={c.blue500}
+                  keyboardType="number-pad"
+                  maxLength={5}
+                />
+              </View>
+              <View style={styles.field}>
+                <Text style={styles.label}>CVV</Text>
+                <TextInput
+                  style={styles.input}
+                  value={cvv}
+                  onChangeText={(t) => setCvv(t.replace(/\D/g, "").slice(0, 4))}
+                  placeholder="998"
+                  placeholderTextColor={c.blue500}
+                  keyboardType="number-pad"
+                  maxLength={4}
+                />
+              </View>
+            </View>
+            <Pressable
+              style={styles.checkboxRow}
+              onPress={() => {
+                const next = !useSameAddress;
+                setUseSameAddress(next);
+                if (next && address) setBillingAddress(address);
+              }}
+            >
+              <MaterialCommunityIcons
+                name={
+                  useSameAddress ? "checkbox-marked" : "checkbox-blank-outline"
+                }
+                size={24}
+                color={c.blue500}
+              />
+              <Text style={styles.checkboxLabel}>
+                Use same address from Profile
+              </Text>
+            </Pressable>
+            <View style={styles.field}>
+              <Text style={styles.label}>Address</Text>
+              <TextInput
+                style={styles.input}
+                value={billingAddress}
+                onChangeText={setBillingAddress}
+                placeholder="Street address"
+                placeholderTextColor={c.blue500}
+                editable={!useSameAddress}
+              />
+            </View>
+            <View style={styles.rowThree}>
+              <View style={styles.fieldThird}>
+                <Text style={styles.label}>Zip Code</Text>
+                <TextInput
+                  style={styles.input}
+                  value={zipCode}
+                  onChangeText={(t) =>
+                    setZipCode(t.replace(/\D/g, "").slice(0, 10))
+                  }
+                  placeholder="10001"
+                  placeholderTextColor={c.blue500}
+                  keyboardType="number-pad"
+                />
+              </View>
+              <View style={styles.fieldThird}>
+                <Text style={styles.label}>State</Text>
+                <TextInput
+                  style={styles.input}
+                  value={state}
+                  onChangeText={setState}
+                  placeholder="NY"
+                  placeholderTextColor={c.blue500}
+                  autoCapitalize="characters"
+                  maxLength={2}
+                />
+              </View>
+              <View style={styles.fieldThird}>
+                <Text style={styles.label}>Country</Text>
+                <TextInput
+                  style={styles.input}
+                  value={country}
+                  onChangeText={setCountry}
+                  placeholder="USA"
+                  placeholderTextColor={c.blue500}
+                  autoCapitalize="characters"
+                />
+              </View>
+            </View>
+            <Pressable
+              style={({ pressed }) => [
+                styles.saveBtn,
+                pressed && styles.pressed,
+              ]}
+              onPress={savePayment}
+              disabled={saving}
+            >
+              {saving ? (
+                <ActivityIndicator color={c.background} size="small" />
+              ) : (
+                <Text style={styles.saveLabel}>Save</Text>
+              )}
+            </Pressable>
+          </View>
+        ) : (
+          <View style={styles.form}>
+            <View style={styles.row}>
+              <View style={styles.field}>
+                <Text style={styles.label}>First Name</Text>
+                <TextInput
+                  style={styles.input}
+                  value={firstName}
+                  onChangeText={setFirstName}
+                  placeholder="First name"
+                  placeholderTextColor={c.blue500}
+                  autoCapitalize="words"
+                />
+              </View>
+              <View style={styles.field}>
+                <Text style={styles.label}>Last Name</Text>
+                <TextInput
+                  style={styles.input}
+                  value={lastName}
+                  onChangeText={setLastName}
+                  placeholder="Last name"
+                  placeholderTextColor={c.blue500}
+                  autoCapitalize="words"
+                />
+              </View>
+            </View>
+
+            <View style={styles.field}>
+              <Text style={styles.label}>Address</Text>
+              <TextInput
+                style={styles.input}
+                value={address}
+                onChangeText={setAddress}
+                placeholder="Address"
+                placeholderTextColor={c.blue500}
+              />
+            </View>
+
+            <View style={styles.field}>
+              <Text style={styles.label}>Date of Birth</Text>
+              <TextInput
+                style={styles.input}
+                value={dateOfBirth}
+                onChangeText={setDateOfBirth}
+                placeholder="YYYY-MM-DD"
+                placeholderTextColor={c.blue500}
+              />
+            </View>
+
+            <View style={styles.field}>
+              <Text style={styles.label}>Email</Text>
+              <TextInput
+                style={styles.input}
+                value={email}
+                onChangeText={setEmail}
+                placeholder="Email"
+                placeholderTextColor={c.blue500}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+            </View>
+
+            <View style={styles.field}>
+              <Text style={styles.label}>Phone</Text>
+              <TextInput
+                style={styles.input}
+                value={phone}
+                onChangeText={setPhone}
+                placeholder="Phone"
+                placeholderTextColor={c.blue500}
+                keyboardType="phone-pad"
+              />
+            </View>
+
+            <Pressable
+              style={({ pressed }) => [
+                styles.saveBtn,
+                pressed && styles.pressed,
+              ]}
+              onPress={save}
+              disabled={saving}
+            >
+              {saving ? (
+                <ActivityIndicator color={c.background} size="small" />
+              ) : (
+                <Text style={styles.saveLabel}>Save</Text>
+              )}
+            </Pressable>
+          </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -471,9 +758,30 @@ const styles = StyleSheet.create({
   form: {
     gap: 20,
   },
+  paymentForm: {
+    marginTop: 20,
+    gap: 20,
+  },
   row: {
     flexDirection: "row",
     gap: 16,
+  },
+  rowThree: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  fieldThird: {
+    flex: 1,
+    gap: 6,
+  },
+  checkboxRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  checkboxLabel: {
+    fontSize: 14,
+    color: c.white,
   },
   field: {
     flex: 1,
