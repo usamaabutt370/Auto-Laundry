@@ -1,5 +1,6 @@
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import { Image } from "expo-image";
 import { ThemedText } from "@/components/themed-text";
 import { strings } from "@/constants/strings";
@@ -12,6 +13,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 const c = theme.colors;
 
 export default function CustomerHomeScreen() {
+  const router = useRouter();
   const s = strings.customer.home;
   const tabBarHeight = useBottomTabBarHeight();
   const { open: openSidebar } = useSidebar();
@@ -78,7 +80,7 @@ export default function CustomerHomeScreen() {
             <ThemedText style={styles.serviceBtnText}>{s.dropOff}</ThemedText>
           </Pressable>
           <Pressable
-            onPress={() => {}}
+            onPress={() => router.push("/(customer)/pickup-services")}
             style={({ pressed }) => [
               styles.serviceBtn,
               pressed && styles.pressed,

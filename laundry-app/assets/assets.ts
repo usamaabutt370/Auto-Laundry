@@ -19,6 +19,9 @@ export const assets = {
     msg_icon: require("./icons/msg-icon.png"),
     faq_icon: require("./icons/faq-icon.png"),
     logout_icon: require("./icons/logout-icon.png"),
+    menu_icon: require("./icons/menu-icon.png"),
+    clock_icon: require("./icons/clock-icon.png"),
+    info_icon_fill: require("./icons/info-icon-fill.png"),
   },
   images: {
     profile_placeholder: require("./images/profile-placeholder.png"),
