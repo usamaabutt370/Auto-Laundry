@@ -20,7 +20,7 @@ const SERVICES: {
 }[] = [
   { id: "washAndFold", labelKey: "washAndFold" },
   { id: "dryCleaning", labelKey: "dryCleaning" },
-  { id: "tailoring", labelKey: "tailoring" },
+  // { id: "tailoring", labelKey: "tailoring" },
 ];
 
 export default function PickupServicesScreen() {

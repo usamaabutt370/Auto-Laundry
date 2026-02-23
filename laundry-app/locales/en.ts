@@ -131,6 +131,10 @@ export const en = {
       sortedByCleaner: "Sorted by cleaner",
       itemizedByUser: "Itemized by User",
     },
+    dryCleanItemize: {
+      title: "Dry Cleaning - Itemize",
+      continue: "Continue",
+    },
     bags: {
       title: "Bags",
       heading: "Enter number of bags to Wash & Fold",
@@ -159,6 +163,23 @@ export const en = {
       instructions: "Instructions",
       instructionsPlaceholder: "Add Specific details on your items",
       confirm: "Confirm",
+    },
+    scheduleDelivery: {
+      title: "Delivery Schedule",
+      today: "Today",
+      time: "Time",
+      timeSlotPlaceholder: "11am - 12pm",
+      tomorrow: "Tomorrow",
+      instructions: "Instructions",
+      instructionsPlaceholder: "Add Specific details on your items",
+      confirm: "Confirm",
+    },
+    orderSummary: {
+      title: "Order Summary",
+      service: "Service",
+      orderNumber: "Order Number",
+      estimatedTotal: "Estimated Total",
+      submitOrder: "Submit Order",
     },
     explore: {
       title: "Explore",

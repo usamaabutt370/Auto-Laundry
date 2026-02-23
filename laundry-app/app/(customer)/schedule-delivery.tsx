@@ -126,7 +126,7 @@ const YEAR_OPTIONS = Array.from({ length: 15 }, (_, i) => CURRENT_YEAR - 1 + i);
 
 export default function SchedulePickupScreen() {
   const router = useRouter();
-  const s = strings.customer.schedulePickup;
+  const s = strings.customer.scheduleDelivery;
   const [instructions, setInstructions] = useState("");
   const [selectedTimeSlotIndex, setSelectedTimeSlotIndex] = useState(3); // 11am - 12pm
   const [timePickerVisible, setTimePickerVisible] = useState(false);
@@ -175,7 +175,7 @@ export default function SchedulePickupScreen() {
   };
 
   const handleConfirm = () => {
-    router.push("/(customer)/schedule-delivery");
+    router.push("/(customer)/order-summary");
   };
 
   return (

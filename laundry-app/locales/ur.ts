@@ -131,6 +131,10 @@ export const ur = {
       sortedByCleaner: "کلینر کے ذریعہ ترتیب دیا گیا",
       itemizedByUser: "صارف کے ذریعہ تفصیلات",
     },
+    dryCleanItemize: {
+      title: "ڈرائی کلیننگ - آئٹمائز",
+      continue: "جاری رکھیں",
+    },
     bags: {
       title: "بیگز",
       heading: "واش اینڈ فولڈ کے لیے بیگز کی تعداد درج کریں",
@@ -159,6 +163,23 @@ export const ur = {
       instructions: "ہدایات",
       instructionsPlaceholder: "اپنی اشیاء کی تفصیلات شامل کریں",
       confirm: "تصدیق",
+    },
+    scheduleDelivery: {
+      title: "ڈیلیوری شیڈول",
+      today: "آج",
+      time: "وقت",
+      timeSlotPlaceholder: "11am - 12pm",
+      tomorrow: "کل",
+      instructions: "ہدایات",
+      instructionsPlaceholder: "اپنی اشیاء کی تفصیلات شامل کریں",
+      confirm: "تصدیق",
+    },
+    orderSummary: {
+      title: "آرڈر خلاصہ",
+      service: "سروس",
+      orderNumber: "آرڈر نمبر",
+      estimatedTotal: "تخمینی کل",
+      submitOrder: "آرڈر جمع کرائیں",
     },
     explore: {
       title: "دریافت",

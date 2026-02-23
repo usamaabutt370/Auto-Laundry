@@ -68,7 +68,14 @@ export default function DryCleanOptionsScreen() {
             return (
               <Pressable
                 key={id}
-                onPress={() => setSelectedId(id)}
+                onPress={() => {
+                  setSelectedId(id);
+                  if (id === "sortedByCleaner") {
+                    router.push("/(customer)/dry-clean-detail");
+                  } else if (id === "itemizedByUser") {
+                    router.push("/(customer)/dry-clean-itemized-by-user");
+                  }
+                }}
                 style={({ pressed }) => [
                   styles.optionPill,
                   isSelected
