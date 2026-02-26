@@ -1,4 +1,12 @@
+import { assets } from "@/assets/assets";
+import { Input, Spacer, ThemedText, ThemedView } from "@/components";
+import { strings } from "@/constants/strings";
+import { theme } from "@/constants/theme";
+import { isSupabaseConfigured, supabase } from "@/lib/supabase";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { Image } from "expo-image";
 import { useRouter } from "expo-router";
+import { StatusBar } from "expo-status-bar";
 import { useState } from "react";
 import {
   Alert,
@@ -10,14 +18,6 @@ import {
   Text,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { StatusBar } from "expo-status-bar";
-import { Input, Spacer, ThemedText, ThemedView } from "@/components";
-import { theme } from "@/constants/theme";
-import { strings } from "@/constants/strings";
-import { assets } from "@/assets/assets";
-import { Image } from "expo-image";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -47,7 +47,7 @@ export default function LoginScreen() {
     if (!isSupabaseConfigured()) {
       Alert.alert(
         "Configuration error",
-        "Supabase is not configured. Please add your Supabase URL and anon key to the environment."
+        "Supabase is not configured. Please add your Supabase URL and anon key to the environment.",
       );
       return;
     }
@@ -87,7 +87,7 @@ export default function LoginScreen() {
       if (!profile?.email) {
         Alert.alert(
           "Account not found",
-          "We couldn’t find an account with that phone number. Please check it or sign up first."
+          "We couldn’t find an account with that phone number. Please check it or sign up first.",
         );
         return;
       }

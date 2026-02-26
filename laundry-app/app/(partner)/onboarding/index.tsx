@@ -1,33 +1,61 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
+import { useState } from "react";
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 import { theme } from "@/constants/theme";
-import { strings } from "@/constants/strings";
+import { useLocale } from "@/contexts/locale-context";
+import { getStrings } from "@/locales";
 
 const c = theme.colors;
-const s = strings.partner.onboarding;
+const fs = theme.fontSize;
 
 export default function PartnerOnboardingStep1() {
   const router = useRouter();
+  const { locale } = useLocale();
+  const s = getStrings(locale).partner.onboarding;
+
+  const [businessName, setBusinessName] = useState("");
+  const [businessDescription, setBusinessDescription] = useState("");
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
+      <View style={styles.headerRow}>
+        <Text style={styles.title}>{s.step1Title}</Text>
+        <Text style={styles.subtitle}>{s.step1Subtitle}</Text>
+      </View>
+
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.header}>
-          <Text style={styles.title}>{s.step1Title}</Text>
-          <Text style={styles.subtitle}>{s.step1Subtitle}</Text>
-        </View>
-        <View style={styles.placeholder}>
-          <Text style={styles.placeholderText}>
-            Business name, address, and contact (placeholder – add form later)
-          </Text>
-        </View>
+        <TextInput
+          style={styles.input}
+          placeholder={s.businessNamePlaceholder}
+          placeholderTextColor={c.blue500}
+          value={businessName}
+          onChangeText={setBusinessName}
+        />
+        <TextInput
+          style={[styles.input, styles.descriptionInput]}
+          placeholder={s.businessDescriptionPlaceholder}
+          placeholderTextColor={c.blue500}
+          value={businessDescription}
+          onChangeText={setBusinessDescription}
+          multiline
+          numberOfLines={4}
+          textAlignVertical="top"
+        />
         <Pressable
           style={({ pressed }) => [styles.nextBtn, pressed && styles.pressed]}
           onPress={() => router.push("/(partner)/onboarding/step2")}
@@ -36,7 +64,7 @@ export default function PartnerOnboardingStep1() {
           <MaterialCommunityIcons
             name="arrow-right"
             size={20}
-            color={c.background}
+            color={c.white}
           />
         </Pressable>
       </ScrollView>
@@ -49,52 +77,60 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: c.background,
   },
-  scroll: {
-    flex: 1,
-  },
-  content: {
+  headerRow: {
     paddingHorizontal: 24,
-    paddingTop: 24,
-    paddingBottom: 40,
-  },
-  header: {
-    marginBottom: 28,
+    paddingTop: 8,
+    paddingBottom: 20,
   },
   title: {
-    fontSize: 22,
+    fontSize: fs.titleNormal,
     fontWeight: "700",
     color: c.white,
     marginBottom: 8,
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: fs.smallText,
     color: c.blue500,
   },
-  placeholder: {
+  scroll: {
+    flex: 1,
+  },
+  content: {
+    paddingHorizontal: 24,
+    paddingBottom: 40,
+  },
+  input: {
     backgroundColor: c.blue900,
     borderRadius: 12,
-    padding: 20,
-    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: c.outline,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    fontSize: fs.smallText,
+    color: c.white,
+    marginBottom: 16,
   },
-  placeholderText: {
-    fontSize: 14,
-    color: c.blue500,
+  descriptionInput: {
+    minHeight: 100,
+    paddingTop: 14,
   },
   nextBtn: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    backgroundColor: c.blue500,
+    backgroundColor: c.lightBlue,
     paddingVertical: 14,
-    borderRadius: 12,
+    paddingHorizontal: 24,
+    borderRadius: 999,
+    marginTop: 8,
   },
   nextLabel: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: c.background,
+    fontSize: fs.smallText,
+    fontWeight: "600",
+    color: c.white,
   },
   pressed: {
-    opacity: 0.8,
+    opacity: 0.85,
   },
 });

@@ -153,7 +153,7 @@ export default function CustomerProfileScreen() {
         await refreshRole();
         const delayMs = 320;
         await new Promise((r) => setTimeout(r, delayMs));
-        router.replace(value ? "/(partner)/onboarding" : "/(customer)");
+        router.replace(value ? "/(partner)" : "/(customer)");
       } catch (err) {
         setRoleSwitchValue(!value);
         const message =

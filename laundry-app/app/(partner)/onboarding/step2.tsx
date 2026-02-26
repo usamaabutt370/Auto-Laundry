@@ -1,12 +1,13 @@
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
 
-import { theme } from "@/constants/theme";
 import { strings } from "@/constants/strings";
+import { theme } from "@/constants/theme";
 
 const c = theme.colors;
+const fs = theme.fontSize;
 const s = strings.partner.onboarding;
 
 export default function PartnerOnboardingStep2() {
@@ -23,10 +24,7 @@ export default function PartnerOnboardingStep2() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <Pressable
-          style={styles.backBtn}
-          onPress={() => router.back()}
-        >
+        <Pressable style={styles.backBtn} onPress={() => router.back()}>
           <MaterialCommunityIcons
             name="arrow-left"
             size={24}
@@ -44,15 +42,14 @@ export default function PartnerOnboardingStep2() {
           </Text>
         </View>
         <Pressable
-          style={({ pressed }) => [styles.completeBtn, pressed && styles.pressed]}
+          style={({ pressed }) => [
+            styles.completeBtn,
+            pressed && styles.pressed,
+          ]}
           onPress={handleComplete}
         >
           <Text style={styles.completeLabel}>{s.complete}</Text>
-          <MaterialCommunityIcons
-            name="check"
-            size={20}
-            color={c.background}
-          />
+          <MaterialCommunityIcons name="check" size={20} color={c.background} />
         </Pressable>
       </ScrollView>
     </SafeAreaView>
@@ -79,21 +76,21 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   backLabel: {
-    fontSize: 16,
-    color: c.blue500,
+    fontSize: fs.smallText,
     fontWeight: "600",
+    color: c.blue500,
   },
   header: {
     marginBottom: 28,
   },
   title: {
-    fontSize: 22,
+    fontSize: fs.titleMedium,
     fontWeight: "700",
     color: c.white,
     marginBottom: 8,
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: fs.smallText,
     color: c.blue500,
   },
   placeholder: {
@@ -103,7 +100,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   placeholderText: {
-    fontSize: 14,
+    fontSize: fs.xSmallText,
     color: c.blue500,
   },
   completeBtn: {
@@ -116,7 +113,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   completeLabel: {
-    fontSize: 16,
+    fontSize: fs.smallText,
     fontWeight: "700",
     color: c.background,
   },

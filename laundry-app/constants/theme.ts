@@ -4,9 +4,14 @@ import { Dimensions, Platform } from "react-native";
 const colors = {
   background: "#3b7f95",
   backgroundLight: "#78b2cb",
+  backgroundDark: "#128197",
   blue900: "#347488",
   blue600: "#B8D4DE",
   blue500: "#D1E8F0",
+  /** Light blue for filled buttons / accents (e.g. Add Service) */
+  lightBlue: "#65B4CE",
+  /** Outline color for bordered elements (e.g. Edit/Remove Service button) */
+  outline: "#ABE9FE",
   black: "#000000",
   white: "#ffffff",
   themeWhite: "#F9FAFB",
