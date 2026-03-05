@@ -1,8 +1,9 @@
-import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { OnboardingActionButton } from "@/components/onboarding-action-button";
+import { PartnerHeader } from "@/components/partner-header";
 import { theme } from "@/constants/theme";
 import { useLocale } from "@/contexts/locale-context";
 import { useSidebar } from "@/contexts/sidebar-context";
@@ -28,36 +29,25 @@ export default function PartnerDashboardScreen() {
   return (
     <View style={styles.container}>
       <SafeAreaView edges={["top"]} style={styles.safeArea}>
-        <View style={styles.headerRow}>
-          <Pressable
-            onPress={openSidebar}
-            style={({ pressed }) => [styles.menuBtn, pressed && styles.pressed]}
-            accessibilityRole="button"
-            accessibilityLabel="Menu"
-          >
-            <MaterialCommunityIcons name="menu" size={28} color={c.white} />
-          </Pressable>
-          <Text style={styles.headerTitle}>{s.title}</Text>
-        </View>
+        <PartnerHeader
+          title={s.title}
+          subtitle={s.projectionsSubtitle}
+          leftIcon="menu"
+          onLeftPress={openSidebar}
+          leftAccessibilityLabel="Menu"
+        />
       </SafeAreaView>
 
       <View style={styles.placeholderWrap}>
         <View style={styles.placeholderCard}>
           <Text style={styles.placeholderTitle}>{s.placeholderTitle}</Text>
           <Text style={styles.placeholderMessage}>{s.placeholderMessage}</Text>
-          <Pressable
+          <OnboardingActionButton
+            label={s.placeholderButton}
+            rightIcon="arrow-right"
             onPress={handleGoToOnboarding}
-            style={({ pressed }) => [
-              styles.placeholderButton,
-              pressed && styles.pressed,
-            ]}
-            accessibilityRole="button"
             accessibilityLabel={s.placeholderButton}
-          >
-            <Text style={styles.placeholderButtonText}>
-              {s.placeholderButtonWithArrow}
-            </Text>
-          </Pressable>
+          />
         </View>
       </View>
     </View>
@@ -69,41 +59,27 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: c.background,
   },
-  pressed: {
-    opacity: 0.85,
-  },
   safeArea: {
-    paddingHorizontal: 20,
     paddingBottom: 12,
-  },
-  headerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  menuBtn: {
-    padding: 8,
-    marginRight: 12,
-  },
-  headerTitle: {
-    flex: 1,
-    fontSize: fs.titleMedium,
-    fontWeight: "700",
-    color: c.white,
   },
   placeholderWrap: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: 24,
+    alignSelf: "stretch",
   },
   placeholderCard: {
     width: "100%",
     maxWidth: 400,
+    minHeight: 400,
     backgroundColor: c.blue900,
     borderRadius: 16,
     padding: 28,
     borderWidth: 1,
     borderColor: c.outline,
+    alignItems: "center",
+    justifyContent: "center",
   },
   placeholderTitle: {
     fontSize: fs.titleMedium,
@@ -118,18 +94,5 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     marginBottom: 24,
     textAlign: "center",
-  },
-  placeholderButton: {
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: c.lightBlue,
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    borderRadius: 999,
-  },
-  placeholderButtonText: {
-    fontSize: fs.smallText,
-    fontWeight: "600",
-    color: c.white,
   },
 });

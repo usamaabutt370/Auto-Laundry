@@ -1,16 +1,10 @@
-import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import {
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { OnboardingActionButton } from "@/components/onboarding-action-button";
+import { PartnerHeader } from "@/components/partner-header";
 import { theme } from "@/constants/theme";
 import { useLocale } from "@/contexts/locale-context";
 import { getStrings } from "@/locales";
@@ -26,12 +20,18 @@ export default function PartnerOnboardingStep1() {
   const [businessName, setBusinessName] = useState("");
   const [businessDescription, setBusinessDescription] = useState("");
 
+  const canGoNext =
+    businessName.trim().length > 0 && businessDescription.trim().length > 0;
+
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
-      <View style={styles.headerRow}>
-        <Text style={styles.title}>{s.step1Title}</Text>
-        <Text style={styles.subtitle}>{s.step1Subtitle}</Text>
-      </View>
+      <PartnerHeader
+        title={s.step1Title}
+        subtitle={s.step1Subtitle}
+        leftIcon="arrow-left"
+        onLeftPress={() => router.back()}
+        leftAccessibilityLabel={s.back}
+      />
 
       <ScrollView
         style={styles.scroll}
@@ -56,17 +56,14 @@ export default function PartnerOnboardingStep1() {
           numberOfLines={4}
           textAlignVertical="top"
         />
-        <Pressable
-          style={({ pressed }) => [styles.nextBtn, pressed && styles.pressed]}
+        <OnboardingActionButton
+          label={s.next}
+          rightIcon="arrow-right"
           onPress={() => router.push("/(partner)/onboarding/step2")}
-        >
-          <Text style={styles.nextLabel}>{s.next}</Text>
-          <MaterialCommunityIcons
-            name="arrow-right"
-            size={20}
-            color={c.white}
-          />
-        </Pressable>
+          disabled={!canGoNext}
+          style={styles.nextBtn}
+          accessibilityLabel={s.next}
+        />
       </ScrollView>
     </SafeAreaView>
   );
@@ -77,21 +74,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: c.background,
   },
-  headerRow: {
-    paddingHorizontal: 24,
-    paddingTop: 8,
-    paddingBottom: 20,
-  },
-  title: {
-    fontSize: fs.titleNormal,
-    fontWeight: "700",
-    color: c.white,
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: fs.smallText,
-    color: c.blue500,
-  },
   scroll: {
     flex: 1,
   },
@@ -101,36 +83,20 @@ const styles = StyleSheet.create({
   },
   input: {
     backgroundColor: c.blue900,
-    borderRadius: 12,
+    borderRadius: 30,
     borderWidth: 1,
     borderColor: c.outline,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
+    paddingVertical: 17,
+    paddingHorizontal: 20,
     fontSize: fs.smallText,
     color: c.white,
     marginBottom: 16,
   },
   descriptionInput: {
-    minHeight: 100,
+    minHeight: 150,
     paddingTop: 14,
   },
   nextBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    backgroundColor: c.lightBlue,
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    borderRadius: 999,
     marginTop: 8,
-  },
-  nextLabel: {
-    fontSize: fs.smallText,
-    fontWeight: "600",
-    color: c.white,
-  },
-  pressed: {
-    opacity: 0.85,
   },
 });

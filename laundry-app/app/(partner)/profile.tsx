@@ -43,7 +43,9 @@ export default function PartnerProfileScreen() {
           .eq("id", user.id);
         if (error) throw error;
         await refreshRole();
-        router.replace("/(customer)");
+        const delayMs = 320;
+        await new Promise((r) => setTimeout(r, delayMs));
+        router.replace("/(customer)/(tabs)");
       } catch (err) {
         const message =
           err instanceof Error ? err.message : "Could not update role.";

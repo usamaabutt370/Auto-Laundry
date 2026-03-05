@@ -3,54 +3,104 @@ import { useRouter } from "expo-router";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { strings } from "@/constants/strings";
+import { OnboardingActionButton } from "@/components/onboarding-action-button";
+import { PartnerHeader } from "@/components/partner-header";
 import { theme } from "@/constants/theme";
+import { useLocale } from "@/contexts/locale-context";
+import { getStrings } from "@/locales";
 
 const c = theme.colors;
 const fs = theme.fontSize;
-const s = strings.partner.onboarding;
+
+const SERVICE_KEYS = ["washAndFold", "dryCleaning", "tailoring"] as const;
+type ServiceKey = (typeof SERVICE_KEYS)[number];
+
+function getServiceLabel(
+  s: ReturnType<typeof getStrings>["partner"]["settings"],
+  key: ServiceKey,
+): string {
+  switch (key) {
+    case "washAndFold":
+      return s.categoryWashAndFold;
+    case "dryCleaning":
+      return s.categoryDryCleaning;
+    case "tailoring":
+      return s.categoryTailoring;
+    default:
+      return key;
+  }
+}
 
 export default function PartnerOnboardingStep2() {
   const router = useRouter();
+  const { locale } = useLocale();
+  const onboardingStrings = getStrings(locale).partner.onboarding;
+  const settingsStrings = getStrings(locale).partner.settings;
 
-  const handleComplete = () => {
-    router.replace("/(partner)/(tabs)");
+  const handleServicePress = (key: ServiceKey) => {
+    if (key === "washAndFold") {
+      router.push({
+        pathname: "/(partner)/onboarding/step3",
+        params: { service: key },
+      });
+    } else {
+      router.push({
+        pathname: "/(partner)/onboarding/service-other",
+        params: { service: key },
+      });
+    }
   };
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
+      <PartnerHeader
+        title={onboardingStrings.step2Title}
+        subtitle={onboardingStrings.step2Subtitle}
+        leftIcon="arrow-left"
+        onLeftPress={() => router.back()}
+        rightIcon="tune-variant"
+        onRightPress={() => {}}
+        leftAccessibilityLabel={onboardingStrings.back}
+        rightAccessibilityLabel="Settings"
+      />
+
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <Pressable style={styles.backBtn} onPress={() => router.back()}>
-          <MaterialCommunityIcons
-            name="arrow-left"
-            size={24}
-            color={c.blue500}
-          />
-          <Text style={styles.backLabel}>{s.back}</Text>
-        </Pressable>
-        <View style={styles.header}>
-          <Text style={styles.title}>{s.step2Title}</Text>
-          <Text style={styles.subtitle}>{s.step2Subtitle}</Text>
-        </View>
-        <View style={styles.placeholder}>
-          <Text style={styles.placeholderText}>
-            Services offered (placeholder – add form later)
-          </Text>
-        </View>
-        <Pressable
-          style={({ pressed }) => [
-            styles.completeBtn,
-            pressed && styles.pressed,
-          ]}
-          onPress={handleComplete}
-        >
-          <Text style={styles.completeLabel}>{s.complete}</Text>
-          <MaterialCommunityIcons name="check" size={20} color={c.background} />
-        </Pressable>
+        <Text style={styles.heading}>{onboardingStrings.chooseServicesHeading}</Text>
+
+        {SERVICE_KEYS.map((key) => (
+          <Pressable
+            key={key}
+            onPress={() => handleServicePress(key)}
+            style={({ pressed }) => [
+              styles.serviceCard,
+              styles.serviceCardUnselected,
+              pressed && styles.pressed,
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel={getServiceLabel(settingsStrings, key)}
+          >
+            <Text style={styles.serviceLabel}>
+              {getServiceLabel(settingsStrings, key)}
+            </Text>
+            <MaterialCommunityIcons
+              name="chevron-right"
+              size={24}
+              color={c.white}
+            />
+          </Pressable>
+        ))}
+
+        <OnboardingActionButton
+          label={onboardingStrings.finish}
+          rightIcon="arrow-right"
+          onPress={() => router.replace("/(partner)/(tabs)")}
+          style={styles.finishBtn}
+          accessibilityLabel={onboardingStrings.finish}
+        />
       </ScrollView>
     </SafeAreaView>
   );
@@ -61,63 +111,43 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: c.background,
   },
+  pressed: {
+    opacity: 0.85,
+  },
   scroll: {
     flex: 1,
   },
   content: {
     paddingHorizontal: 24,
-    paddingTop: 12,
+    paddingTop: 24,
     paddingBottom: 40,
   },
-  backBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 24,
-  },
-  backLabel: {
+  heading: {
     fontSize: fs.smallText,
     fontWeight: "600",
-    color: c.blue500,
-  },
-  header: {
-    marginBottom: 28,
-  },
-  title: {
-    fontSize: fs.titleMedium,
-    fontWeight: "700",
     color: c.white,
-    marginBottom: 8,
+    marginBottom: 20,
   },
-  subtitle: {
-    fontSize: fs.smallText,
-    color: c.blue500,
-  },
-  placeholder: {
-    backgroundColor: c.blue900,
-    borderRadius: 12,
-    padding: 20,
-    marginBottom: 24,
-  },
-  placeholderText: {
-    fontSize: fs.xSmallText,
-    color: c.blue500,
-  },
-  completeBtn: {
+  serviceCard: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    backgroundColor: c.blue500,
-    paddingVertical: 14,
-    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    borderRadius: 25,
+    marginBottom: 12,
+    borderWidth: 1,
   },
-  completeLabel: {
+  serviceCardUnselected: {
+    backgroundColor: c.blue900,
+    borderColor: c.outline,
+  },
+  serviceLabel: {
     fontSize: fs.smallText,
-    fontWeight: "700",
-    color: c.background,
+    fontWeight: "500",
+    color: c.white,
+    flex: 1,
   },
-  pressed: {
-    opacity: 0.8,
+  finishBtn: {
+    marginTop: 28,
   },
 });

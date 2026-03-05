@@ -4,6 +4,11 @@ import { PartnerSidebar } from "@/components/partner-sidebar";
 import { MerchantServicesProvider } from "@/contexts/merchant-services-context";
 import { SidebarProvider } from "@/contexts/sidebar-context";
 
+/** Ensure "/(partner)" opens the Dashboard (index), not Orders or (tabs). */
+export const unstable_settings = {
+  initialRouteName: "index",
+};
+
 /**
  * Partner area: Dashboard (index) with sidebar, plus Order, Settings, Profile, Support, FAQ.
  * Onboarding when first becoming a launderer. Root redirects partners to (partner) = Dashboard.
@@ -14,7 +19,10 @@ export default function PartnerLayout() {
     <SidebarProvider>
       <MerchantServicesProvider>
         <PartnerSidebar />
-        <Stack screenOptions={{ headerShown: false }}>
+        <Stack
+          screenOptions={{ headerShown: false }}
+          initialRouteName="index"
+        >
           <Stack.Screen name="index" />
           <Stack.Screen name="order" />
           <Stack.Screen name="settings" />
