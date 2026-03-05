@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { OnboardingActionButton } from "@/components/onboarding-action-button";
+import { AppButton } from "@/components/ui/button";
 import { PartnerHeader } from "@/components/partner-header";
 import { theme } from "@/constants/theme";
 import { useLocale } from "@/contexts/locale-context";
@@ -76,10 +76,10 @@ export default function PartnerOnboardingStep3() {
     pricePerKg.trim().length > 0 &&
     pricePerItem.trim().length > 0;
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (serviceKey == null || !canSave) return;
     const name = getServiceLabel(settingsStrings, serviceKey);
-    addService({
+    await addService({
       name,
       priceDisplay: pricePerBag.trim(),
       category: name,
@@ -176,10 +176,12 @@ export default function PartnerOnboardingStep3() {
           />
         </View>
 
-        <OnboardingActionButton
+        <AppButton
           label={settingsStrings.save}
-          rightIcon="check"
           onPress={handleSave}
+          variant="filled"
+          rightIcon="check"
+          fullWidth
           disabled={!canSave}
           style={styles.saveBtn}
           accessibilityLabel={settingsStrings.save}

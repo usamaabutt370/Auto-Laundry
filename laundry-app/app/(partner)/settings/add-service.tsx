@@ -15,6 +15,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { LanguageSelector } from "@/components/language-selector";
+import { PartnerHeader } from "@/components/partner-header";
 import { ServicePricingCard } from "@/components/service-pricing-card";
 import { AppButton } from "@/components/ui/button";
 import { theme } from "@/constants/theme";
@@ -85,22 +86,13 @@ export default function AddServiceScreen() {
   return (
     <View style={styles.container}>
       <SafeAreaView edges={["top"]} style={styles.safeArea}>
-        <View style={styles.header}>
-          <Pressable
-            onPress={() => router.back()}
-            style={({ pressed }) => [styles.backBtn, pressed && styles.pressed]}
-            accessibilityRole="button"
-            accessibilityLabel="Go back"
-          >
-            <MaterialCommunityIcons
-              name="arrow-left"
-              size={24}
-              color={c.white}
-            />
-          </Pressable>
-          <Text style={styles.title}>{s.merchantServices}</Text>
-          <LanguageSelector />
-        </View>
+        <PartnerHeader
+          title={s.merchantServices}
+          leftIcon="arrow-left"
+          onLeftPress={() => router.back()}
+          rightElement={<LanguageSelector />}
+          leftAccessibilityLabel="Go back"
+        />
       </SafeAreaView>
 
       <KeyboardAvoidingView
@@ -238,22 +230,6 @@ const styles = StyleSheet.create({
   },
   safeArea: {
     marginBottom: 20,
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-  },
-  backBtn: {
-    padding: 8,
-    marginRight: 12,
-  },
-  title: {
-    flex: 1,
-    fontSize: fs.titleMedium,
-    fontWeight: "700",
-    color: c.white,
   },
   keyboard: {
     flex: 1,

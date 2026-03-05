@@ -24,6 +24,8 @@ export interface AppButtonProps {
   variant?: AppButtonVariant;
   /** Optional icon name (MaterialCommunityIcons), e.g. "plus", "pencil". */
   leftIcon?: React.ComponentProps<typeof MaterialCommunityIcons>["name"];
+  /** Optional icon after the label, e.g. "arrow-right", "check". */
+  rightIcon?: React.ComponentProps<typeof MaterialCommunityIcons>["name"];
   /** When true, button grows to fill available space (e.g. in a row with flex: 1). */
   fullWidth?: boolean;
   /** Optional container style. */
@@ -43,6 +45,7 @@ export function AppButton({
   onPress,
   variant = "filled",
   leftIcon,
+  rightIcon,
   fullWidth = false,
   style,
   accessibilityLabel,
@@ -73,7 +76,7 @@ export function AppButton({
           name={leftIcon}
           size={22}
           color={iconColor}
-          style={styles.icon}
+          style={styles.iconLeft}
         />
       )}
       <Text
@@ -83,6 +86,14 @@ export function AppButton({
       >
         {label}
       </Text>
+      {rightIcon != null && (
+        <MaterialCommunityIcons
+          name={rightIcon}
+          size={20}
+          color={iconColor}
+          style={styles.iconRight}
+        />
+      )}
     </Pressable>
   );
 }
@@ -116,8 +127,11 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     lineHeight: 24,
   },
-  icon: {
+  iconLeft: {
     marginRight: 0,
+  },
+  iconRight: {
+    marginLeft: 0,
   },
   pressed: {
     opacity: 0.8,

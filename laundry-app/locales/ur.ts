@@ -272,6 +272,7 @@ export const ur = {
       pricePlaceholder: "مثلاً $28.79 یا $1.49 per lb",
       pricePlaceholderPerBag: "مثلاً $10.00 یا $1.49 فی بستہ",
       cancel: "منسوخ کریں",
+      loading: "لوڈ ہو رہا ہے…",
       noServices: "ابھی کوئی سروس نہیں۔ شامل کرنے کے لیے سروس شامل کریں پر ٹیپ کریں۔",
       category: "زمرہ",
       categoryPlaceholder: "زمرہ منتخب کریں",

@@ -15,14 +15,15 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { AppButton } from "@/components/ui/button";
 import { LanguageSelector } from "@/components/language-selector";
+import { PartnerHeader } from "@/components/partner-header";
 import { ServicePricingCard } from "@/components/service-pricing-card";
+import { AppButton } from "@/components/ui/button";
 import { theme } from "@/constants/theme";
 import { useLocale } from "@/contexts/locale-context";
 import { useMerchantServices } from "@/contexts/merchant-services-context";
-import type { ServiceItem } from "@/types/merchant-services";
 import { getStrings } from "@/locales";
+import type { ServiceItem } from "@/types/merchant-services";
 
 const c = theme.colors;
 const fs = theme.fontSize;
@@ -84,22 +85,13 @@ export default function EditServiceScreen() {
   return (
     <View style={styles.container}>
       <SafeAreaView edges={["top"]} style={styles.safeArea}>
-        <View style={styles.header}>
-          <Pressable
-            onPress={() => router.back()}
-            style={({ pressed }) => [styles.backBtn, pressed && styles.pressed]}
-            accessibilityRole="button"
-            accessibilityLabel="Go back"
-          >
-            <MaterialCommunityIcons
-              name="arrow-left"
-              size={24}
-              color={c.white}
-            />
-          </Pressable>
-          <Text style={styles.title}>{s.merchantServices}</Text>
-          <LanguageSelector />
-        </View>
+        <PartnerHeader
+          title={s.merchantServices}
+          leftIcon="arrow-left"
+          onLeftPress={() => router.back()}
+          rightElement={<LanguageSelector />}
+          leftAccessibilityLabel="Go back"
+        />
       </SafeAreaView>
 
       <ScrollView
@@ -166,18 +158,16 @@ export default function EditServiceScreen() {
             </View>
           ))
         )}
-
-        <View style={styles.buttonRow}>
-          <View style={styles.buttonRowSpacer} />
-          <AppButton
-            label={s.save}
-            onPress={handleSave}
-            variant="filled"
-            style={styles.saveBtnWrap}
-          />
-          <View style={styles.buttonRowSpacer} />
-        </View>
       </ScrollView>
+
+      <SafeAreaView edges={["bottom"]} style={styles.saveButtonWrap}>
+        <AppButton
+          label={s.save}
+          onPress={handleSave}
+          variant="filled"
+          fullWidth
+        />
+      </SafeAreaView>
 
       <Modal
         visible={modalVisible}
@@ -252,28 +242,12 @@ const styles = StyleSheet.create({
   safeArea: {
     marginBottom: 20,
   },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-  },
-  backBtn: {
-    padding: 8,
-    marginRight: 12,
-  },
-  title: {
-    flex: 1,
-    fontSize: fs.titleMedium,
-    fontWeight: "700",
-    color: c.white,
-  },
   scroll: {
     flex: 1,
   },
   scrollContent: {
     paddingHorizontal: 24,
-    paddingBottom: 40,
+    paddingBottom: 24,
   },
   tableHeader: {
     flexDirection: "row",
@@ -317,19 +291,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   iconBtn: {
-    padding: 8,
+    padding: 6,
   },
-  buttonRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    marginTop: 28,
-  },
-  buttonRowSpacer: {
-    flex: 1,
-  },
-  saveBtnWrap: {
-    flex: 2,
+  saveButtonWrap: {
+    paddingHorizontal: 24,
+    paddingTop: 16,
+    backgroundColor: c.background,
+    paddingBottom: "40%",
   },
   modalOverlay: {
     flex: 1,

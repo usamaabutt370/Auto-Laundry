@@ -1,13 +1,15 @@
 import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { OnboardingActionButton } from "@/components/onboarding-action-button";
+import { AppButton } from "@/components/ui/button";
 import { PartnerHeader } from "@/components/partner-header";
 import { theme } from "@/constants/theme";
 import { useLocale } from "@/contexts/locale-context";
+import { useAuth } from "@/contexts/auth-context";
 import { getStrings } from "@/locales";
+import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
 const c = theme.colors;
 const fs = theme.fontSize;
@@ -15,13 +17,45 @@ const fs = theme.fontSize;
 export default function PartnerOnboardingStep1() {
   const router = useRouter();
   const { locale } = useLocale();
+  const { user } = useAuth();
   const s = getStrings(locale).partner.onboarding;
 
   const [businessName, setBusinessName] = useState("");
   const [businessDescription, setBusinessDescription] = useState("");
 
+  useEffect(() => {
+    if (!isSupabaseConfigured() || !supabase || !user?.id) return;
+    supabase
+      .from("partner_profiles")
+      .select("business_name, business_description")
+      .eq("id", user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) {
+          setBusinessName(data.business_name ?? "");
+          setBusinessDescription(data.business_description ?? "");
+        }
+      });
+  }, [user?.id]);
+
   const canGoNext =
     businessName.trim().length > 0 && businessDescription.trim().length > 0;
+
+  const handleNext = useCallback(async () => {
+    if (!canGoNext) return;
+    if (isSupabaseConfigured() && supabase && user?.id) {
+      await supabase.from("partner_profiles").upsert(
+        {
+          id: user.id,
+          business_name: businessName.trim(),
+          business_description: businessDescription.trim(),
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "id" }
+      );
+    }
+    router.push("/(partner)/onboarding/step2");
+  }, [canGoNext, user?.id, businessName, businessDescription]);
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
@@ -56,10 +90,12 @@ export default function PartnerOnboardingStep1() {
           numberOfLines={4}
           textAlignVertical="top"
         />
-        <OnboardingActionButton
+        <AppButton
           label={s.next}
+          onPress={handleNext}
+          variant="filled"
           rightIcon="arrow-right"
-          onPress={() => router.push("/(partner)/onboarding/step2")}
+          fullWidth
           disabled={!canGoNext}
           style={styles.nextBtn}
           accessibilityLabel={s.next}

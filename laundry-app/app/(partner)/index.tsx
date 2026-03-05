@@ -2,7 +2,7 @@ import { useRouter } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { OnboardingActionButton } from "@/components/onboarding-action-button";
+import { AppButton } from "@/components/ui/button";
 import { PartnerHeader } from "@/components/partner-header";
 import { theme } from "@/constants/theme";
 import { useLocale } from "@/contexts/locale-context";
@@ -42,10 +42,12 @@ export default function PartnerDashboardScreen() {
         <View style={styles.placeholderCard}>
           <Text style={styles.placeholderTitle}>{s.placeholderTitle}</Text>
           <Text style={styles.placeholderMessage}>{s.placeholderMessage}</Text>
-          <OnboardingActionButton
+          <AppButton
             label={s.placeholderButton}
-            rightIcon="arrow-right"
             onPress={handleGoToOnboarding}
+            variant="filled"
+            rightIcon="arrow-right"
+            style={styles.dashboardBtn}
             accessibilityLabel={s.placeholderButton}
           />
         </View>
@@ -94,5 +96,9 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     marginBottom: 24,
     textAlign: "center",
+  },
+  dashboardBtn: {
+    alignSelf: "stretch",
+    marginHorizontal: 32,
   },
 });

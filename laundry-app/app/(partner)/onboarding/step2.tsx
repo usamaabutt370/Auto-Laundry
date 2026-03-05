@@ -3,7 +3,7 @@ import { useRouter } from "expo-router";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { OnboardingActionButton } from "@/components/onboarding-action-button";
+import { AppButton } from "@/components/ui/button";
 import { PartnerHeader } from "@/components/partner-header";
 import { theme } from "@/constants/theme";
 import { useLocale } from "@/contexts/locale-context";
@@ -94,10 +94,12 @@ export default function PartnerOnboardingStep2() {
           </Pressable>
         ))}
 
-        <OnboardingActionButton
+        <AppButton
           label={onboardingStrings.finish}
+          onPress={() => router.replace("/(partner)")}
+          variant="filled"
           rightIcon="arrow-right"
-          onPress={() => router.replace("/(partner)/(tabs)")}
+          fullWidth
           style={styles.finishBtn}
           accessibilityLabel={onboardingStrings.finish}
         />

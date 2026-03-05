@@ -241,7 +241,8 @@ export const en = {
       sectionNumberOfBags: "Number of bags",
       sectionWeight: "Weight",
       sectionItems: "Items",
-      otherServiceComingSoon: "This service has a different pricing flow. We'll add it in a future update.",
+      otherServiceComingSoon:
+        "This service has a different pricing flow. We'll add it in a future update.",
       itemizeTitleSuffix: " - Itemize",
       continue: "Continue",
       dryCleaningItemCoat: "Coat",
@@ -274,6 +275,7 @@ export const en = {
       pricePlaceholderPerBag: "e.g. $10.00 or $1.49 per bag",
 
       cancel: "Cancel",
+      loading: "Loading…",
       noServices: "No services yet. Tap Add Service to add one.",
       category: "Category",
       categoryPlaceholder: "Select category",

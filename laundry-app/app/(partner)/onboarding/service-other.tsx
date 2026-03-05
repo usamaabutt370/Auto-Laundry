@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { OnboardingActionButton } from "@/components/onboarding-action-button";
+import { AppButton } from "@/components/ui/button";
 import { PartnerHeader } from "@/components/partner-header";
 import { theme } from "@/constants/theme";
 import { useLocale } from "@/contexts/locale-context";
@@ -115,20 +115,20 @@ export default function ServiceOtherScreen() {
     itemKeys.length > 0 &&
     itemKeys.every((key) => prices[key]?.trim().length > 0);
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     if (serviceKey == null || !canContinue) return;
     const serviceName = getServiceLabel(settingsStrings, serviceKey);
-    itemKeys.forEach((itemKey) => {
+    for (const itemKey of itemKeys) {
       const itemName = getItemLabel(onboardingStrings, itemKey);
       const price = prices[itemKey]?.trim() ?? "";
       if (price) {
-        addService({
+        await addService({
           name: `${serviceName} - ${itemName}`,
           priceDisplay: price,
           category: serviceName,
         });
       }
-    });
+    }
     router.back();
   };
 
@@ -181,10 +181,12 @@ export default function ServiceOtherScreen() {
           </View>
         ))}
 
-        <OnboardingActionButton
+        <AppButton
           label={onboardingStrings.continue}
-          rightIcon="arrow-right"
           onPress={handleContinue}
+          variant="filled"
+          rightIcon="arrow-right"
+          fullWidth
           disabled={!canContinue}
           style={styles.continueBtn}
           accessibilityLabel={onboardingStrings.continue}

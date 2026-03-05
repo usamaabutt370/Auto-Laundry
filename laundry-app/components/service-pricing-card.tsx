@@ -42,7 +42,7 @@ export function ServicePricingCard({
     <View style={[styles.card, containerStyle]}>
       <View style={styles.info}>
         <View style={styles.leftHalf}>
-          <Text style={styles.title} numberOfLines={1}>
+          <Text style={styles.title} numberOfLines={2}>
             {title}
           </Text>
         </View>
@@ -125,11 +125,11 @@ const styles = StyleSheet.create({
   actions: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    marginLeft: 12,
+    gap: 2,
+    marginLeft: 8,
   },
   iconBtn: {
-    padding: 8,
+    padding: 6,
   },
   pressed: {
     opacity: 0.8,

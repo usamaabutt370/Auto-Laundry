@@ -1,10 +1,10 @@
-import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AppButton } from "@/components/ui/button";
 import { LanguageSelector } from "@/components/language-selector";
+import { PartnerHeader } from "@/components/partner-header";
 import { ServicePricingCard } from "@/components/service-pricing-card";
 import { theme } from "@/constants/theme";
 import { useLocale } from "@/contexts/locale-context";
@@ -19,27 +19,18 @@ export default function SettingsIndexScreen() {
   const router = useRouter();
   const { locale } = useLocale();
   const s = getStrings(locale).partner.settings;
-  const { services } = useMerchantServices();
+  const { services, isLoadingServices } = useMerchantServices();
 
   return (
     <View style={styles.container}>
       <SafeAreaView edges={["top"]} style={styles.safeArea}>
-        <View style={styles.header}>
-          <Pressable
-            onPress={() => router.back()}
-            style={({ pressed }) => [styles.backBtn, pressed && styles.pressed]}
-            accessibilityRole="button"
-            accessibilityLabel="Go back"
-          >
-            <MaterialCommunityIcons
-              name="arrow-left"
-              size={24}
-              color={c.white}
-            />
-          </Pressable>
-          <Text style={styles.title}>{s.merchantServices}</Text>
-          <LanguageSelector />
-        </View>
+        <PartnerHeader
+          title={s.merchantServices}
+          leftIcon="arrow-left"
+          onLeftPress={() => router.back()}
+          rightElement={<LanguageSelector />}
+          leftAccessibilityLabel="Go back"
+        />
       </SafeAreaView>
 
       <ScrollView
@@ -58,7 +49,9 @@ export default function SettingsIndexScreen() {
           </View>
         ) : null}
 
-        {services.length === 0 ? (
+        {isLoadingServices ? (
+          <Text style={styles.emptyText}>{s.loading}</Text>
+        ) : services.length === 0 ? (
           <Text style={styles.emptyText}>{s.noServices}</Text>
         ) : (
           services.map((item) => (
@@ -96,27 +89,8 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: c.background,
   },
-  pressed: {
-    opacity: 0.8,
-  },
   safeArea: {
     marginBottom: 20,
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-  },
-  backBtn: {
-    padding: 8,
-    marginRight: 12,
-  },
-  title: {
-    flex: 1,
-    fontSize: fs.titleMedium,
-    fontWeight: "700",
-    color: c.white,
   },
   scroll: {
     flex: 1,

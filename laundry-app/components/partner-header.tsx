@@ -25,6 +25,8 @@ export interface PartnerHeaderProps {
   rightIcon?: IconName | null;
   /** Called when right icon is pressed. Only used when rightIcon is set. */
   onRightPress?: () => void;
+  /** Optional custom content for the right slot (e.g. LanguageSelector). When set, rightIcon is ignored. */
+  rightElement?: React.ReactNode;
   /** Accessibility label for left button. */
   leftAccessibilityLabel?: string;
   /** Accessibility label for right button. */
@@ -43,11 +45,12 @@ export function PartnerHeader({
   onLeftPress,
   rightIcon = null,
   onRightPress,
+  rightElement,
   leftAccessibilityLabel,
   rightAccessibilityLabel,
 }: PartnerHeaderProps) {
   const showSubtitle = subtitle != null && subtitle.length > 0;
-  const showRightIcon = rightIcon != null && rightIcon.length > 0;
+  const showRightIcon = rightElement == null && rightIcon != null && rightIcon.length > 0;
 
   return (
     <View style={styles.container}>
@@ -72,22 +75,26 @@ export function PartnerHeader({
           {title}
         </Text>
 
-        <View style={[styles.slot, styles.slotRight]}>
-          {showRightIcon ? (
-            <Pressable
-              onPress={onRightPress ?? (() => {})}
-              style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
-              hitSlop={HIT_SLOP}
-              accessibilityRole="button"
-              accessibilityLabel={rightAccessibilityLabel}
-            >
-              <MaterialCommunityIcons
-                name={rightIcon}
-                size={ICON_SIZE}
-                color={c.white}
-              />
-            </Pressable>
-          ) : null}
+        <View style={[styles.slot, rightElement != null ? styles.slotRightElement : styles.slotRight]}>
+          {rightElement != null
+            ? rightElement
+            : showRightIcon
+              ? (
+                <Pressable
+                  onPress={onRightPress ?? (() => {})}
+                  style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
+                  hitSlop={HIT_SLOP}
+                  accessibilityRole="button"
+                  accessibilityLabel={rightAccessibilityLabel}
+                >
+                  <MaterialCommunityIcons
+                    name={rightIcon}
+                    size={ICON_SIZE}
+                    color={c.white}
+                  />
+                </Pressable>
+                )
+              : null}
         </View>
       </View>
 
@@ -126,6 +133,12 @@ const styles = StyleSheet.create({
   },
   slotRight: {
     alignItems: "flex-end",
+  },
+  slotRightElement: {
+    alignItems: "flex-end",
+    minWidth: ICON_SIZE + 16,
+    width: undefined,
+    flex: 0,
   },
   iconBtn: {
     padding: 8,
