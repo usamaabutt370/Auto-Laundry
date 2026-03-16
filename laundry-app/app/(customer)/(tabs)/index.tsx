@@ -80,7 +80,7 @@ export default function CustomerHomeScreen() {
             <ThemedText style={styles.serviceBtnText}>{s.dropOff}</ThemedText>
           </Pressable>
           <Pressable
-            onPress={() => router.push("/(customer)/pickup-services")}
+            onPress={() => router.push("/(customer)/pick-launderer")}
             style={({ pressed }) => [
               styles.serviceBtn,
               pressed && styles.pressed,

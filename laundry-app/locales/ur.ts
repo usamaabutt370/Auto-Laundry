@@ -114,6 +114,15 @@ export const ur = {
       dropOff: "ڈراپ آف",
       pickUpDelivery: "پک اپ / ڈیلیوری",
     },
+    pickLaunderer: {
+      title: "پک اپ اور ڈیلیوری",
+      addressPlaceholder: "1465 5th Avenue APt 5C",
+    },
+    laundererDetail: {
+      title: "لانڈرومیٹ کی تفصیل",
+      perPound: "فی پاؤنڈ",
+      select: "منتخب کریں",
+    },
     pickupServices: {
       title: "پک اپ سروسز",
       today: "آج",
