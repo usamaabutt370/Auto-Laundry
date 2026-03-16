@@ -1,25 +1,14 @@
-import { StyleSheet } from "react-native";
+import { useEffect } from "react";
+import { useRouter } from "expo-router";
 
-import { ThemedText } from "@/components/themed-text";
-import { ThemedView } from "@/components/themed-view";
-import { strings } from "@/constants/strings";
-
-/** Laundry partner dashboard – orders and earnings (placeholder). */
-export default function PartnerHomeScreen() {
-  return (
-    <ThemedView style={styles.container}>
-      <ThemedText type="title">{strings.partner.dashboardTitle}</ThemedText>
-      <ThemedText>{strings.partner.dashboardSubtitle}</ThemedText>
-    </ThemedView>
-  );
+/** Partner tabs "Orders" entry: show the main Launderer Dashboard instead of the old placeholder. */
+export default function PartnerTabsIndexScreen() {
+  const router = useRouter();
+  useEffect(() => {
+    const t = setTimeout(() => {
+      router.replace("/(partner)");
+    }, 0);
+    return () => clearTimeout(t);
+  }, [router]);
+  return null;
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 12,
-    padding: 24,
-  },
-});

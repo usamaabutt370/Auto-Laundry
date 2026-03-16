@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 import {
   Alert,
+  Pressable,
   ScrollView,
   StyleSheet,
   Switch,
@@ -9,7 +10,9 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 
+import { LanguageSelector } from "@/components/language-selector";
 import { theme } from "@/constants/theme";
 import { useAuth } from "@/contexts/auth-context";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
@@ -56,13 +59,23 @@ export default function PartnerProfileScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
+      <View style={styles.topRow}>
+        <Pressable
+          onPress={() => router.back()}
+          style={({ pressed }) => [styles.backBtn, pressed && styles.pressed]}
+        >
+          <MaterialCommunityIcons name="arrow-left" size={24} color={c.white} />
+          <Text style={styles.backLabel}>Back</Text>
+        </Pressable>
+        <LanguageSelector />
+      </View>
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
-          <Text style={styles.title}>{strings.tabs.partner.profile}</Text>
+          <Text style={styles.title}>{strings.partner.sidebar.profile}</Text>
           <Text style={styles.subtitle}>{s.dashboardSubtitle}</Text>
         </View>
 
@@ -71,7 +84,7 @@ export default function PartnerProfileScreen() {
             <Text style={styles.roleLabel}>{s.useAppAsLaunderer}</Text>
             <Switch
               value={true}
-              onValueChange={(value) => handleRoleToggle(value)}
+              onValueChange={handleRoleToggle}
               disabled={isUpdatingRole}
               trackColor={{ false: c.blue900, true: c.blue500 }}
               thumbColor={c.white}
@@ -91,12 +104,33 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: c.background,
   },
+  topRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  backBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+    gap: 8,
+  },
+  backLabel: {
+    fontSize: fs.smallText,
+    fontWeight: "500",
+    color: c.white,
+  },
+  pressed: {
+    opacity: 0.8,
+  },
   scroll: {
     flex: 1,
   },
   content: {
     paddingHorizontal: 24,
-    paddingTop: 24,
     paddingBottom: 40,
   },
   header: {

@@ -5,6 +5,8 @@ export default function PartnerOnboardingLayout() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="index" />
       <Stack.Screen name="step2" />
+      <Stack.Screen name="step3" />
+      <Stack.Screen name="service-other" />
     </Stack>
   );
 }

@@ -1,44 +1,98 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useCallback, useEffect, useState } from "react";
+import { ScrollView, StyleSheet, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
+import { FormTextInput } from "@/components/form-text-input";
+import { AppButton } from "@/components/ui/button";
+import { PartnerHeader } from "@/components/partner-header";
 import { theme } from "@/constants/theme";
-import { strings } from "@/constants/strings";
-
-const c = theme.colors;
-const s = strings.partner.onboarding;
+import { useLocale } from "@/contexts/locale-context";
+import { useAuth } from "@/contexts/auth-context";
+import { getStrings } from "@/locales";
+import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
 export default function PartnerOnboardingStep1() {
   const router = useRouter();
+  const { locale } = useLocale();
+  const { user } = useAuth();
+  const s = getStrings(locale).partner.onboarding;
+
+  const [businessName, setBusinessName] = useState("");
+  const [businessDescription, setBusinessDescription] = useState("");
+
+  useEffect(() => {
+    if (!isSupabaseConfigured() || !supabase || !user?.id) return;
+    supabase
+      .from("partner_profiles")
+      .select("business_name, business_description")
+      .eq("id", user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) {
+          setBusinessName(data.business_name ?? "");
+          setBusinessDescription(data.business_description ?? "");
+        }
+      });
+  }, [user?.id]);
+
+  const canGoNext =
+    businessName.trim().length > 0 && businessDescription.trim().length > 0;
+
+  const handleNext = useCallback(async () => {
+    if (!canGoNext) return;
+    if (isSupabaseConfigured() && supabase && user?.id) {
+      await supabase.from("partner_profiles").upsert(
+        {
+          id: user.id,
+          business_name: businessName.trim(),
+          business_description: businessDescription.trim(),
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "id" }
+      );
+    }
+    router.push("/(partner)/onboarding/step2");
+  }, [canGoNext, user?.id, businessName, businessDescription]);
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
+      <PartnerHeader
+        title={s.step1Title}
+        subtitle={s.step1Subtitle}
+        leftIcon="arrow-left"
+        onLeftPress={() => router.back()}
+        leftAccessibilityLabel={s.back}
+      />
+
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.header}>
-          <Text style={styles.title}>{s.step1Title}</Text>
-          <Text style={styles.subtitle}>{s.step1Subtitle}</Text>
-        </View>
-        <View style={styles.placeholder}>
-          <Text style={styles.placeholderText}>
-            Business name, address, and contact (placeholder – add form later)
-          </Text>
-        </View>
-        <Pressable
-          style={({ pressed }) => [styles.nextBtn, pressed && styles.pressed]}
-          onPress={() => router.push("/(partner)/onboarding/step2")}
-        >
-          <Text style={styles.nextLabel}>{s.next}</Text>
-          <MaterialCommunityIcons
-            name="arrow-right"
-            size={20}
-            color={c.background}
-          />
-        </Pressable>
+        <FormTextInput
+          placeholder={s.businessNamePlaceholder}
+          value={businessName}
+          onChangeText={setBusinessName}
+        />
+        <FormTextInput
+          placeholder={s.businessDescriptionPlaceholder}
+          value={businessDescription}
+          onChangeText={setBusinessDescription}
+          multiline
+          numberOfLines={4}
+        />
+        <AppButton
+          label={s.next}
+          onPress={handleNext}
+          variant="filled"
+          rightIcon="arrow-right"
+          fullWidth
+          disabled={!canGoNext}
+          style={styles.nextBtn}
+          accessibilityLabel={s.next}
+        />
       </ScrollView>
     </SafeAreaView>
   );
@@ -47,54 +101,16 @@ export default function PartnerOnboardingStep1() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: c.background,
+    backgroundColor: theme.colors.background,
   },
   scroll: {
     flex: 1,
   },
   content: {
     paddingHorizontal: 24,
-    paddingTop: 24,
     paddingBottom: 40,
   },
-  header: {
-    marginBottom: 28,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: "700",
-    color: c.white,
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: c.blue500,
-  },
-  placeholder: {
-    backgroundColor: c.blue900,
-    borderRadius: 12,
-    padding: 20,
-    marginBottom: 24,
-  },
-  placeholderText: {
-    fontSize: 14,
-    color: c.blue500,
-  },
   nextBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    backgroundColor: c.blue500,
-    paddingVertical: 14,
-    borderRadius: 12,
-  },
-  nextLabel: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: c.background,
-  },
-  pressed: {
-    opacity: 0.8,
+    marginTop: 8,
   },
 });
