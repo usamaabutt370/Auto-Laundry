@@ -115,6 +115,15 @@ export const en = {
       dropOff: "Drop off",
       pickUpDelivery: "Pick up / Delivery",
     },
+    pickLaunderer: {
+      title: "Pick Up & Delivery",
+      addressPlaceholder: "1465 5th Avenue APt 5C",
+    },
+    laundererDetail: {
+      title: "Laundromat Detailed",
+      perPound: "per Pound",
+      select: "Select",
+    },
     pickupServices: {
       title: "Pickup Services",
       today: "Today",
