@@ -9,32 +9,43 @@ import {
 } from "react-native";
 
 import { theme } from "@/constants/theme";
-import {
-  LOCALE_LABELS,
-  useLocale,
-} from "@/contexts/locale-context";
-import type { LocaleCode } from "@/locales";
-import { SUPPORTED_LOCALES } from "@/locales";
+import { useLocale } from "@/contexts/locale-context";
+import { getStrings } from "@/locales";
 
 const c = theme.colors;
 const fs = theme.fontSize;
 
-export interface LanguageSelectorProps {
-  /** Optional style for the trigger button container (e.g. for header layout). */
+export type DashboardPeriod = "week" | "month" | "year";
+
+export interface DashboardPeriodSelectorProps {
+  value: DashboardPeriod;
+  onValueChange: (period: DashboardPeriod) => void;
   style?: ViewStyle;
 }
 
+const PERIODS: DashboardPeriod[] = ["week", "month", "year"];
+
 /**
- * Reusable language selector for any screen. Shows current locale (English/Urdu);
- * on press opens a dropdown to switch. Uses theme colors.
- * Use: import { LanguageSelector } from "@/components"; then <LanguageSelector /> (or with style prop).
+ * Period filter for dashboard (Week / Month / Year). Styled like LanguageSelector
+ * on Merchant Services screen: pill trigger, modal dropdown with options.
  */
-export function LanguageSelector({ style: customStyle }: LanguageSelectorProps = {}) {
-  const { locale, setLocale } = useLocale();
+export function DashboardPeriodSelector({
+  value,
+  onValueChange,
+  style: customStyle,
+}: DashboardPeriodSelectorProps) {
+  const { locale } = useLocale();
+  const s = getStrings(locale).partner.dashboard;
   const [visible, setVisible] = useState(false);
 
-  const handleSelect = (code: LocaleCode) => {
-    setLocale(code);
+  const labels: Record<DashboardPeriod, string> = {
+    week: s.week,
+    month: s.month,
+    year: s.year,
+  };
+
+  const handleSelect = (period: DashboardPeriod) => {
+    onValueChange(period);
     setVisible(false);
   };
 
@@ -48,11 +59,11 @@ export function LanguageSelector({ style: customStyle }: LanguageSelectorProps =
           customStyle,
         ]}
         accessibilityRole="button"
-        accessibilityLabel={`Language: ${LOCALE_LABELS[locale]}`}
-        accessibilityHint="Opens language options"
+        accessibilityLabel={`Period: ${labels[value]}`}
+        accessibilityHint="Filter progress by Week, Month or Year"
       >
         <Text style={styles.triggerText} numberOfLines={1}>
-          {LOCALE_LABELS[locale]}
+          {labels[value]}
         </Text>
         <MaterialCommunityIcons
           name="chevron-down"
@@ -72,18 +83,18 @@ export function LanguageSelector({ style: customStyle }: LanguageSelectorProps =
           onPress={() => setVisible(false)}
         >
           <Pressable style={styles.dropdown} onPress={() => {}}>
-            {SUPPORTED_LOCALES.map((code) => (
+            {PERIODS.map((period) => (
               <Pressable
-                key={code}
-                onPress={() => handleSelect(code)}
+                key={period}
+                onPress={() => handleSelect(period)}
                 style={({ pressed }) => [
                   styles.option,
-                  code === locale && styles.optionSelected,
+                  period === value && styles.optionSelected,
                   pressed && styles.pressed,
                 ]}
               >
-                <Text style={styles.optionText}>{LOCALE_LABELS[code]}</Text>
-                {code === locale && (
+                <Text style={styles.optionText}>{labels[period]}</Text>
+                {period === value && (
                   <MaterialCommunityIcons
                     name="check"
                     size={20}

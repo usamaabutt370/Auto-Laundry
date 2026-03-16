@@ -202,26 +202,20 @@ export default function EditServiceScreen() {
                 keyboardType="default"
               />
               <View style={styles.modalActions}>
-                <Pressable
+                <AppButton
+                  label={s.cancel}
                   onPress={closeModal}
-                  style={({ pressed }) => [
-                    styles.modalBtn,
-                    styles.cancelBtn,
-                    pressed && styles.pressed,
-                  ]}
-                >
-                  <Text style={styles.cancelBtnText}>{s.cancel}</Text>
-                </Pressable>
-                <Pressable
+                  variant="outline"
+                  fullWidth
+                  style={styles.modalActionBtn}
+                />
+                <AppButton
+                  label={s.save}
                   onPress={handleSaveForm}
-                  style={({ pressed }) => [
-                    styles.modalBtn,
-                    styles.saveModalBtn,
-                    pressed && styles.pressed,
-                  ]}
-                >
-                  <Text style={styles.saveModalBtnText}>{s.save}</Text>
-                </Pressable>
+                  variant="filled"
+                  fullWidth
+                  style={styles.modalActionBtn}
+                />
               </View>
             </Pressable>
           </KeyboardAvoidingView>
@@ -301,7 +295,7 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
+    backgroundColor: c.modalOverlay,
     justifyContent: "center",
     alignItems: "center",
     padding: 24,
@@ -315,7 +309,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 24,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.15)",
+    borderColor: c.modalBorder,
   },
   modalTitle: {
     fontSize: fs.titleMedium,
@@ -337,29 +331,7 @@ const styles = StyleSheet.create({
     gap: 12,
     marginTop: 8,
   },
-  modalBtn: {
+  modalActionBtn: {
     flex: 1,
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  cancelBtn: {
-    backgroundColor: "transparent",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.4)",
-  },
-  cancelBtnText: {
-    fontSize: fs.smallText,
-    fontWeight: "600",
-    color: c.white,
-  },
-  saveModalBtn: {
-    backgroundColor: c.blue500,
-  },
-  saveModalBtnText: {
-    fontSize: fs.smallText,
-    fontWeight: "700",
-    color: c.background,
   },
 });

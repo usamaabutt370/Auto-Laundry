@@ -8,10 +8,16 @@ const colors = {
   blue900: "#347488",
   blue600: "#B8D4DE",
   blue500: "#D1E8F0",
-  /** Light blue for filled buttons / accents (e.g. Add Service) */
-  lightBlue: "#65B4CE",
+  /** Light blue for filled/primary buttons (Continue, Add) – matches screenshot #64B5D9 */
+  lightBlue: "#64B5D9",
+  /** Very light blue border for filled buttons (screenshot #A0D0E9) */
+  filledButtonBorder: "#A0D0E9",
   /** Outline color for bordered elements (e.g. Edit/Remove Service button) */
   outline: "#ABE9FE",
+  /** Modal overlay (theme background with opacity) */
+  modalOverlay: "rgba(59, 127, 149, 0.88)",
+  /** Modal card border (subtle light border) */
+  modalBorder: "rgba(255, 255, 255, 0.2)",
   black: "#000000",
   white: "#ffffff",
   themeWhite: "#F9FAFB",

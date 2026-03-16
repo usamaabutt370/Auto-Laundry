@@ -160,7 +160,7 @@ const styles = StyleSheet.create({
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "#000",
+    backgroundColor: theme.colors.background,
   },
   sidebar: {
     position: "absolute",

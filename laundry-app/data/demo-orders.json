@@ -1,0 +1,112 @@
+[
+  {
+    "id": "1",
+    "customerName": "Marie Pierson",
+    "initial": "M",
+    "date": "April 6th",
+    "time": "10am",
+    "type": "pickup",
+    "rightIcon": "scooter",
+    "status": "orders",
+    "monthKey": "april"
+  },
+  {
+    "id": "2",
+    "customerName": "Marie Pierson",
+    "initial": "M",
+    "date": "April 6th",
+    "time": "10am",
+    "type": "pickup",
+    "rightIcon": "bag",
+    "status": "orders",
+    "monthKey": "april"
+  },
+  {
+    "id": "3",
+    "customerName": "John Smith",
+    "initial": "J",
+    "date": "April 8th",
+    "time": "2pm",
+    "type": "pickup",
+    "rightIcon": "scooter",
+    "status": "orders",
+    "monthKey": "april"
+  },
+  {
+    "id": "4",
+    "customerName": "Alex Lee",
+    "initial": "A",
+    "date": "January 12th",
+    "time": "9am",
+    "type": "pickup",
+    "rightIcon": "bag",
+    "status": "assigned",
+    "monthKey": "january"
+  },
+  {
+    "id": "5",
+    "customerName": "Sam Carter",
+    "initial": "S",
+    "date": "January 14th",
+    "time": "11am",
+    "type": "delivery",
+    "rightIcon": "scooter",
+    "status": "assigned",
+    "monthKey": "january"
+  },
+  {
+    "id": "6",
+    "customerName": "Chris Evans",
+    "initial": "C",
+    "date": "March 3rd",
+    "time": "3pm",
+    "type": "pickup",
+    "rightIcon": "bag",
+    "status": "assigned",
+    "monthKey": "march"
+  },
+  {
+    "id": "7",
+    "customerName": "Dana White",
+    "initial": "D",
+    "date": "February 1st",
+    "time": "10am",
+    "type": "pickup",
+    "rightIcon": "scooter",
+    "status": "completed",
+    "monthKey": "february"
+  },
+  {
+    "id": "8",
+    "customerName": "Pat Brown",
+    "initial": "P",
+    "date": "February 15th",
+    "time": "1pm",
+    "type": "pickup",
+    "rightIcon": "bag",
+    "status": "completed",
+    "monthKey": "february"
+  },
+  {
+    "id": "9",
+    "customerName": "Taylor Reed",
+    "initial": "T",
+    "date": "March 20th",
+    "time": "4pm",
+    "type": "delivery",
+    "rightIcon": "scooter",
+    "status": "completed",
+    "monthKey": "march"
+  },
+  {
+    "id": "10",
+    "customerName": "Jordan Mills",
+    "initial": "J",
+    "date": "April 1st",
+    "time": "8am",
+    "type": "pickup",
+    "rightIcon": "bag",
+    "status": "completed",
+    "monthKey": "april"
+  }
+]

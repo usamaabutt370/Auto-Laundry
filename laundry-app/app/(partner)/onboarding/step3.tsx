@@ -1,15 +1,9 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
-import {
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { FormTextInput } from "@/components/form-text-input";
 import { AppButton } from "@/components/ui/button";
 import { PartnerHeader } from "@/components/partner-header";
 import { theme } from "@/constants/theme";
@@ -58,7 +52,7 @@ export default function PartnerOnboardingStep3() {
   const { locale } = useLocale();
   const onboardingStrings = getStrings(locale).partner.onboarding;
   const settingsStrings = getStrings(locale).partner.settings;
-  const { addService } = useMerchantServices();
+  const { addService, washAndFoldPricing, setWashAndFoldPricing } = useMerchantServices();
 
   const serviceKey = useMemo(
     () =>
@@ -66,9 +60,10 @@ export default function PartnerOnboardingStep3() {
     [params],
   );
 
-  const [pricePerBag, setPricePerBag] = useState("");
-  const [pricePerKg, setPricePerKg] = useState("");
-  const [pricePerItem, setPricePerItem] = useState("");
+  const r = washAndFoldPricing?.rows ?? [];
+  const [pricePerBag, setPricePerBag] = useState(r[0]?.value ?? "");
+  const [pricePerKg, setPricePerKg] = useState(r[1]?.value ?? "");
+  const [pricePerItem, setPricePerItem] = useState(r[2]?.value ?? "");
 
   const canSave =
     serviceKey != null &&
@@ -77,8 +72,19 @@ export default function PartnerOnboardingStep3() {
     pricePerItem.trim().length > 0;
 
   const handleSave = async () => {
-    if (serviceKey == null || !canSave) return;
+    if (serviceKey == null) return;
+    if (!canSave) {
+      router.back();
+      return;
+    }
     const name = getServiceLabel(settingsStrings, serviceKey);
+    setWashAndFoldPricing({
+      rows: [
+        { label: onboardingStrings.pricePerBagLabel, value: pricePerBag.trim() },
+        { label: onboardingStrings.pricePerKgLabel, value: pricePerKg.trim() },
+        { label: onboardingStrings.pricePerItemLabel, value: pricePerItem.trim() },
+      ],
+    });
     await addService({
       name,
       priceDisplay: pricePerBag.trim(),
@@ -110,10 +116,7 @@ export default function PartnerOnboardingStep3() {
         title={serviceName}
         leftIcon="arrow-left"
         onLeftPress={() => router.back()}
-        rightIcon="tune-variant"
-        onRightPress={() => {}}
         leftAccessibilityLabel={onboardingStrings.back}
-        rightAccessibilityLabel="Settings"
       />
 
       <ScrollView
@@ -122,59 +125,41 @@ export default function PartnerOnboardingStep3() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Price per bag – for merchant service */}
+        {/* Price per bag – same pill input as Business Detail */}
         <Text style={styles.sectionHeading}>
           {onboardingStrings.pricePerBagLabel}
         </Text>
-        <View style={styles.card}>
-          <TextInput
-            style={styles.input}
-            placeholder={onboardingStrings.enterPricePerBagPlaceholder}
-            placeholderTextColor={c.blue500}
-            value={pricePerBag ?? ""}
-            onChangeText={(t) => setPricePerBag(allowDecimalOnly(t))}
-            keyboardType="decimal-pad"
-            editable
-            {...(Platform.OS === "android" && { includeFontPadding: false })}
-          />
-        </View>
+        <FormTextInput
+          placeholder={onboardingStrings.enterPricePerBagPlaceholder}
+          value={pricePerBag ?? ""}
+          onChangeText={(t) => setPricePerBag(allowDecimalOnly(t))}
+          keyboardType="decimal-pad"
+          editable
+        />
 
         {/* Price per KG */}
         <Text style={styles.sectionHeading}>
           {onboardingStrings.pricePerKgLabel}
         </Text>
-        <View style={styles.card}>
-          <View style={styles.weightRow}>
-            <TextInput
-              style={[styles.input, styles.weightInput]}
-              placeholder={onboardingStrings.enterPricePerBagPlaceholder}
-              placeholderTextColor={c.blue500}
-              value={pricePerKg ?? ""}
-              onChangeText={(t) => setPricePerKg(allowDecimalOnly(t))}
-              keyboardType="decimal-pad"
-              editable
-              {...(Platform.OS === "android" && { includeFontPadding: false })}
-            />
-            <Text style={styles.unit}>{onboardingStrings.weightUnitKg}</Text>
-          </View>
-        </View>
+        <FormTextInput
+          placeholder={onboardingStrings.enterPricePerBagPlaceholder}
+          value={pricePerKg ?? ""}
+          onChangeText={(t) => setPricePerKg(allowDecimalOnly(t))}
+          keyboardType="decimal-pad"
+          editable
+        />
 
         {/* Price per Item */}
         <Text style={styles.sectionHeading}>
           {onboardingStrings.pricePerItemLabel}
         </Text>
-        <View style={styles.card}>
-          <TextInput
-            style={styles.input}
-            placeholder={onboardingStrings.enterPricePerBagPlaceholder}
-            placeholderTextColor={c.blue500}
-            value={pricePerItem ?? ""}
-            onChangeText={(t) => setPricePerItem(allowDecimalOnly(t))}
-            keyboardType="decimal-pad"
-            editable
-            {...(Platform.OS === "android" && { includeFontPadding: false })}
-          />
-        </View>
+        <FormTextInput
+          placeholder={onboardingStrings.enterPricePerBagPlaceholder}
+          value={pricePerItem ?? ""}
+          onChangeText={(t) => setPricePerItem(allowDecimalOnly(t))}
+          keyboardType="decimal-pad"
+          editable
+        />
 
         <AppButton
           label={settingsStrings.save}
@@ -182,7 +167,6 @@ export default function PartnerOnboardingStep3() {
           variant="filled"
           rightIcon="check"
           fullWidth
-          disabled={!canSave}
           style={styles.saveBtn}
           accessibilityLabel={settingsStrings.save}
         />
@@ -209,38 +193,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: c.white,
     marginBottom: 10,
-  },
-  card: {
-    backgroundColor: c.blue900,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: c.outline,
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    marginBottom: 20,
-  },
-  input: {
-    backgroundColor: c.background,
-    borderRadius: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    fontSize: fs.xSmallText,
-    color: c.white,
-    minHeight: 48,
-    height: 48,
-  },
-  weightRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  weightInput: {
-    flex: 1,
-  },
-  unit: {
-    fontSize: fs.smallText,
-    fontWeight: "500",
-    color: c.white,
   },
   saveBtn: {
     marginTop: 24,

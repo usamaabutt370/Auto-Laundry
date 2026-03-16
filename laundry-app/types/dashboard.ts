@@ -36,3 +36,16 @@ export const ZERO_DASHBOARD_DATA: LaundererDashboardData = {
   balance: 0,
   chartValues: [0, 0, 0, 0, 0, 0, 0],
 };
+
+/** Demo data for dashboard UI/chart preview until backend is wired. */
+export const DEMO_DASHBOARD_DATA: LaundererDashboardData = {
+  numberOfUsers: 504,
+  dropOff: { total: 32, washAndFold: 25, dryCleaning: 5, tailoring: 2 },
+  delivery: { total: 85, washAndFold: 50, dryCleaning: 20, tailoring: 15 },
+  totalIncome: 7240,
+  dropOffIncome: 2890,
+  deliveryIncome: 3359,
+  balance: 27240,
+  /** Mon–Sun sample trend for chart. */
+  chartValues: [3200, 4800, 4100, 6200, 5500, 7200, 6400],
+};

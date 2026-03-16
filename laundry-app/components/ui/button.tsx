@@ -13,14 +13,14 @@ import { theme } from "@/constants/theme";
 const c = theme.colors;
 const fs = theme.fontSize;
 
-export type AppButtonVariant = "filled" | "outline";
+export type AppButtonVariant = "filled" | "outline" | "placeholder";
 
 export interface AppButtonProps {
   /** Button label. */
   label: string;
   /** Press handler. */
   onPress: () => void;
-  /** "filled" = light blue background; "outline" = transparent with outline border. */
+  /** "filled" = light blue background; "outline" = transparent with outline border; "placeholder" = dashboard/placeholder style (blue500 bg, dark text). */
   variant?: AppButtonVariant;
   /** Optional icon name (MaterialCommunityIcons), e.g. "plus", "pencil". */
   leftIcon?: React.ComponentProps<typeof MaterialCommunityIcons>["name"];
@@ -52,8 +52,13 @@ export function AppButton({
   disabled = false,
 }: AppButtonProps) {
   const isFilled = variant === "filled";
-  const iconColor = isFilled ? c.white : c.outline;
-  const textColor = isFilled ? c.white : c.outline;
+  const isPlaceholder = variant === "placeholder";
+  const iconColor = isPlaceholder
+    ? c.background
+    : isFilled
+      ? c.white
+      : c.outline;
+  const textColor = isPlaceholder ? c.background : isFilled ? c.white : c.outline;
 
   return (
     <Pressable
@@ -61,7 +66,11 @@ export function AppButton({
       disabled={disabled}
       style={({ pressed }) => [
         styles.base,
-        isFilled ? styles.filled : styles.outline,
+        isPlaceholder
+          ? styles.placeholder
+          : isFilled
+            ? styles.filled
+            : styles.outline,
         fullWidth && styles.fullWidth,
         pressed && styles.pressed,
         disabled && styles.disabled,
@@ -115,10 +124,16 @@ const styles = StyleSheet.create({
   filled: {
     backgroundColor: c.lightBlue,
     borderWidth: 1,
-    borderColor: c.outline,
+    borderColor: c.filledButtonBorder,
   },
   outline: {
     backgroundColor: "transparent",
+    borderWidth: 1,
+    borderColor: c.outline,
+  },
+  /** Dashboard placeholder / card primary action: blue500 bg, dark text. */
+  placeholder: {
+    backgroundColor: c.blue500,
     borderWidth: 1,
     borderColor: c.outline,
   },

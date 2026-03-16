@@ -267,7 +267,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
+    borderColor: c.modalBorder,
   },
   categoryTouch: {
     flexDirection: "row",
@@ -309,18 +309,18 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
+    backgroundColor: c.modalOverlay,
     justifyContent: "center",
     alignItems: "center",
     padding: 24,
   },
   modalContent: {
     backgroundColor: c.blue900,
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: 20,
+    padding: 20,
     minWidth: 240,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.15)",
+    borderColor: c.modalBorder,
   },
   modalOption: {
     paddingVertical: 14,

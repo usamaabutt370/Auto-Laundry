@@ -55,6 +55,14 @@ export function PartnerHeader({
   return (
     <View style={styles.container}>
       <View style={styles.row}>
+        {/* Title is absolutely centered across the full width */}
+        <View style={styles.titleWrap} pointerEvents="none">
+          <Text style={styles.title} numberOfLines={1}>
+            {title}
+          </Text>
+        </View>
+
+        {/* Left and right sit on top of the centered title */}
         <View style={styles.slot}>
           <Pressable
             onPress={onLeftPress}
@@ -71,11 +79,9 @@ export function PartnerHeader({
           </Pressable>
         </View>
 
-        <Text style={styles.title} numberOfLines={1}>
-          {title}
-        </Text>
+        <View style={styles.spacer} />
 
-        <View style={[styles.slot, rightElement != null ? styles.slotRightElement : styles.slotRight]}>
+        <View style={[styles.slotRight, rightElement != null && styles.slotRightElement]}>
           {rightElement != null
             ? rightElement
             : showRightIcon
@@ -117,6 +123,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 12,
   },
+  titleWrap: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 60,
+  },
+  title: {
+    fontSize: fs.titleMedium,
+    fontWeight: "700",
+    color: c.white,
+    textAlign: "center",
+  },
   subtitleWrap: {
     paddingHorizontal: 20,
     paddingTop: 4,
@@ -127,28 +145,20 @@ const styles = StyleSheet.create({
     color: c.blue500,
   },
   slot: {
-    width: ICON_SIZE + 16,
-    alignItems: "flex-start",
-    justifyContent: "center",
+    zIndex: 1,
+  },
+  spacer: {
+    flex: 1,
   },
   slotRight: {
     alignItems: "flex-end",
+    zIndex: 1,
   },
   slotRightElement: {
-    alignItems: "flex-end",
     minWidth: ICON_SIZE + 16,
-    width: undefined,
-    flex: 0,
   },
   iconBtn: {
     padding: 8,
-  },
-  title: {
-    flex: 1,
-    fontSize: fs.titleMedium,
-    fontWeight: "700",
-    color: c.white,
-    textAlign: "center",
   },
   pressed: {
     opacity: 0.85,

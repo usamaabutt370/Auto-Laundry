@@ -1,8 +1,9 @@
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { FormTextInput } from "@/components/form-text-input";
 import { AppButton } from "@/components/ui/button";
 import { PartnerHeader } from "@/components/partner-header";
 import { theme } from "@/constants/theme";
@@ -10,9 +11,6 @@ import { useLocale } from "@/contexts/locale-context";
 import { useAuth } from "@/contexts/auth-context";
 import { getStrings } from "@/locales";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
-
-const c = theme.colors;
-const fs = theme.fontSize;
 
 export default function PartnerOnboardingStep1() {
   const router = useRouter();
@@ -73,22 +71,17 @@ export default function PartnerOnboardingStep1() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <TextInput
-          style={styles.input}
+        <FormTextInput
           placeholder={s.businessNamePlaceholder}
-          placeholderTextColor={c.blue500}
           value={businessName}
           onChangeText={setBusinessName}
         />
-        <TextInput
-          style={[styles.input, styles.descriptionInput]}
+        <FormTextInput
           placeholder={s.businessDescriptionPlaceholder}
-          placeholderTextColor={c.blue500}
           value={businessDescription}
           onChangeText={setBusinessDescription}
           multiline
           numberOfLines={4}
-          textAlignVertical="top"
         />
         <AppButton
           label={s.next}
@@ -108,7 +101,7 @@ export default function PartnerOnboardingStep1() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: c.background,
+    backgroundColor: theme.colors.background,
   },
   scroll: {
     flex: 1,
@@ -116,21 +109,6 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 24,
     paddingBottom: 40,
-  },
-  input: {
-    backgroundColor: c.blue900,
-    borderRadius: 30,
-    borderWidth: 1,
-    borderColor: c.outline,
-    paddingVertical: 17,
-    paddingHorizontal: 20,
-    fontSize: fs.smallText,
-    color: c.white,
-    marginBottom: 16,
-  },
-  descriptionInput: {
-    minHeight: 150,
-    paddingTop: 14,
   },
   nextBtn: {
     marginTop: 8,

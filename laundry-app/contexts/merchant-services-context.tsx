@@ -12,9 +12,41 @@ import { generateServiceId } from "@/types/merchant-services";
 import { useAuth } from "@/contexts/auth-context";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
+/** Dynamic row (label + value) from the screen where user sets prices. Used for onboarding price cards. */
+export interface ServicePricingRow {
+  label: string;
+  value: string;
+}
+
+/** Per-service pricing: list of rows (labels from the price-setting screen). */
+export interface ServicePricing {
+  rows: ServicePricingRow[];
+}
+
+export type ServicePricingKey = "washAndFold" | "dryCleaning" | "tailoring";
+
+/** Persisted items list + prices for Dry Cleaning / Tailoring so removals and additions survive navigation. */
+export interface ItemizeState {
+  items: { id: string; label: string }[];
+  prices: Record<string, string>;
+}
+
 interface MerchantServicesContextValue {
   services: ServiceItem[];
   isLoadingServices: boolean;
+  /** Set when user saves prices on onboarding. Shown on step2 for each service. */
+  washAndFoldPricing: ServicePricing | null;
+  setWashAndFoldPricing: (pricing: ServicePricing | null) => void;
+  /** Pricing for dry cleaning and tailoring (same card as Wash & Fold). */
+  dryCleaningPricing: ServicePricing | null;
+  setDryCleaningPricing: (pricing: ServicePricing | null) => void;
+  tailoringPricing: ServicePricing | null;
+  setTailoringPricing: (pricing: ServicePricing | null) => void;
+  /** Persisted item list + prices for service-other so removed/added items persist when navigating back. */
+  dryCleaningItemizeState: ItemizeState | null;
+  setDryCleaningItemizeState: (state: ItemizeState | null) => void;
+  tailoringItemizeState: ItemizeState | null;
+  setTailoringItemizeState: (state: ItemizeState | null) => void;
   addService: (item: Omit<ServiceItem, "id">) => void | Promise<void>;
   updateService: (id: string, updates: Partial<Omit<ServiceItem, "id">>) => void;
   removeService: (id: string) => void;
@@ -42,6 +74,11 @@ export function MerchantServicesProvider({ children }: { children: React.ReactNo
   const { user } = useAuth();
   const [services, setServices] = useState<ServiceItem[]>([]);
   const [isLoadingServices, setIsLoadingServices] = useState(true);
+  const [washAndFoldPricing, setWashAndFoldPricing] = useState<ServicePricing | null>(null);
+  const [dryCleaningPricing, setDryCleaningPricing] = useState<ServicePricing | null>(null);
+  const [tailoringPricing, setTailoringPricing] = useState<ServicePricing | null>(null);
+  const [dryCleaningItemizeState, setDryCleaningItemizeState] = useState<ItemizeState | null>(null);
+  const [tailoringItemizeState, setTailoringItemizeState] = useState<ItemizeState | null>(null);
 
   const fetchServices = useCallback(async () => {
     if (!supabase || !user?.id) {
@@ -141,13 +178,35 @@ export function MerchantServicesProvider({ children }: { children: React.ReactNo
     () => ({
       services,
       isLoadingServices,
+      washAndFoldPricing,
+      setWashAndFoldPricing,
+      dryCleaningPricing,
+      setDryCleaningPricing,
+      tailoringPricing,
+      setTailoringPricing,
+      dryCleaningItemizeState,
+      setDryCleaningItemizeState,
+      tailoringItemizeState,
+      setTailoringItemizeState,
       addService,
       updateService,
       removeService,
       setServices,
       refreshServices: fetchServices,
     }),
-    [services, isLoadingServices, addService, updateService, removeService, fetchServices]
+    [
+      services,
+      isLoadingServices,
+      washAndFoldPricing,
+      dryCleaningPricing,
+      tailoringPricing,
+      dryCleaningItemizeState,
+      tailoringItemizeState,
+      addService,
+      updateService,
+      removeService,
+      fetchServices,
+    ]
   );
 
   return (

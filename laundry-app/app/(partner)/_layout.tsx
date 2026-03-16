@@ -25,6 +25,7 @@ export default function PartnerLayout() {
         >
           <Stack.Screen name="index" />
           <Stack.Screen name="order" />
+          <Stack.Screen name="order-detail" />
           <Stack.Screen name="settings" />
         <Stack.Screen name="profile" />
         <Stack.Screen name="support" />
