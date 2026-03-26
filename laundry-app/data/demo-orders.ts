@@ -1,6 +1,6 @@
 import type { OrderCardRightIcon } from "@/components/order-card";
 
-/** Status used for filter: Orders (new), Assigned, Completed. */
+/** Status used for filter: Orders (new), In-Progress, Completed. */
 export type DemoOrderStatus = "orders" | "assigned" | "completed";
 
 /** Month key for filtering – matches demo-orders.json monthKey. */

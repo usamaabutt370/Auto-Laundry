@@ -1,7 +1,9 @@
 import { useRouter } from "expo-router";
-import { ScrollView, StyleSheet, Text } from "react-native";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { FormTextInput } from "@/components/form-text-input";
 import { PartnerHeader } from "@/components/partner-header";
 import {
   ServiceNoPricesButton,
@@ -12,6 +14,7 @@ import { theme } from "@/constants/theme";
 import { useLocale } from "@/contexts/locale-context";
 import { useMerchantServices } from "@/contexts/merchant-services-context";
 import { getStrings } from "@/locales";
+import { allowDecimalOnly } from "@/utils/input-filter";
 
 const c = theme.colors;
 const fs = theme.fontSize;
@@ -66,6 +69,10 @@ export function PartnerServicesScreen({ mode }: PartnerServicesScreenProps) {
     washAndFoldPricing,
     dryCleaningPricing,
     tailoringPricing,
+    pickupDeliveryPricing,
+    setPickupDeliveryPricing,
+    savePickupDeliveryPricing,
+    isSavingPickupDeliveryPricing,
   } = useMerchantServices();
   const onboardingStrings = getStrings(locale).partner.onboarding;
   const settingsStrings = getStrings(locale).partner.settings;
@@ -97,6 +104,15 @@ export function PartnerServicesScreen({ mode }: PartnerServicesScreenProps) {
 
   const handleFinish = () => {
     router.replace("/(partner)");
+  };
+
+  const handleSaveSettings = async () => {
+    const ok = await savePickupDeliveryPricing();
+    if (ok) {
+      Alert.alert("Saved", "Pickup and delivery settings have been saved.");
+      return;
+    }
+    Alert.alert("Error", "Could not save settings. Please try again.");
   };
 
   return (
@@ -145,6 +161,57 @@ export function PartnerServicesScreen({ mode }: PartnerServicesScreenProps) {
           );
         })}
 
+        <View style={styles.pickupWrap}>
+          <Pressable
+            style={({ pressed }) => [
+              styles.checkboxRow,
+              pressed && styles.checkboxRowPressed,
+            ]}
+            onPress={() =>
+              setPickupDeliveryPricing((prev) => ({
+                ...prev,
+                enabled: !prev.enabled,
+              }))
+            }
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: pickupDeliveryPricing.enabled }}
+            accessibilityLabel={onboardingStrings.includePickupDelivery}
+          >
+            <View
+              style={[
+                styles.roundCheckbox,
+                pickupDeliveryPricing.enabled && styles.roundCheckboxChecked,
+              ]}
+            >
+              {pickupDeliveryPricing.enabled ? (
+                <MaterialCommunityIcons name="check" size={14} color={c.background} />
+              ) : null}
+            </View>
+            <Text style={styles.checkboxLabel}>
+              {onboardingStrings.includePickupDelivery}
+            </Text>
+          </Pressable>
+
+          {pickupDeliveryPricing.enabled && (
+            <View style={styles.pickupAmountWrap}>
+              <Text style={styles.pickupAmountLabel}>
+                {onboardingStrings.pickupDeliveryAmountLabel}
+              </Text>
+              <FormTextInput
+                value={pickupDeliveryPricing.amount}
+                onChangeText={(t) =>
+                  setPickupDeliveryPricing((prev) => ({
+                    ...prev,
+                    amount: allowDecimalOnly(t),
+                  }))
+                }
+                placeholder={onboardingStrings.pickupDeliveryAmountPlaceholder}
+                keyboardType="decimal-pad"
+              />
+            </View>
+          )}
+        </View>
+
         {isOnboarding && (
           <AppButton
             label={onboardingStrings.finish}
@@ -154,6 +221,18 @@ export function PartnerServicesScreen({ mode }: PartnerServicesScreenProps) {
             fullWidth
             style={styles.finishBtn}
             accessibilityLabel={onboardingStrings.finish}
+          />
+        )}
+        {!isOnboarding && (
+          <AppButton
+            label={settingsStrings.save}
+            onPress={handleSaveSettings}
+            variant="filled"
+            rightIcon="check"
+            fullWidth
+            disabled={isSavingPickupDeliveryPricing}
+            style={styles.finishBtn}
+            accessibilityLabel={settingsStrings.save}
           />
         )}
       </ScrollView>
@@ -182,5 +261,44 @@ const styles = StyleSheet.create({
   },
   finishBtn: {
     marginTop: 28,
+  },
+  pickupWrap: {
+    marginTop: 18,
+  },
+  checkboxRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  checkboxRowPressed: {
+    opacity: 0.85,
+  },
+  roundCheckbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 1.5,
+    borderColor: c.blue500,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "transparent",
+  },
+  roundCheckboxChecked: {
+    backgroundColor: c.blue500,
+    borderColor: c.blue500,
+  },
+  checkboxLabel: {
+    fontSize: fs.smallText,
+    fontWeight: "500",
+    color: c.white,
+    flex: 1,
+  },
+  pickupAmountWrap: {
+    marginTop: 14,
+    gap: 8,
+  },
+  pickupAmountLabel: {
+    fontSize: fs.descText,
+    color: c.blue500,
   },
 });

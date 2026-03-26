@@ -158,8 +158,8 @@ export default function CustomerProfileScreen() {
         await refreshRole();
         const delayMs = 320;
         await new Promise((r) => setTimeout(r, delayMs));
-        // Always land on partner dashboard (index), not tabs or other screens
-        router.replace(value ? "/(partner)" : "/(customer)");
+        // Keep partner switch deterministic by targeting dashboard directly.
+        router.replace(value ? "/(partner)/dashboard" : "/(customer)");
       } catch (err) {
         setRoleSwitchValue(!value);
         const message =

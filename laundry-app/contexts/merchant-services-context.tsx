@@ -25,6 +25,12 @@ export interface ServicePricing {
 
 export type ServicePricingKey = "washAndFold" | "dryCleaning" | "tailoring";
 
+/** Optional pickup + delivery add-on pricing shared across onboarding and settings services screen. */
+export interface PickupDeliveryPricing {
+  enabled: boolean;
+  amount: string;
+}
+
 /** Persisted items list + prices for Dry Cleaning / Tailoring so removals and additions survive navigation. */
 export interface ItemizeState {
   items: { id: string; label: string }[];
@@ -47,6 +53,10 @@ interface MerchantServicesContextValue {
   setDryCleaningItemizeState: (state: ItemizeState | null) => void;
   tailoringItemizeState: ItemizeState | null;
   setTailoringItemizeState: (state: ItemizeState | null) => void;
+  pickupDeliveryPricing: PickupDeliveryPricing;
+  setPickupDeliveryPricing: React.Dispatch<React.SetStateAction<PickupDeliveryPricing>>;
+  savePickupDeliveryPricing: () => Promise<boolean>;
+  isSavingPickupDeliveryPricing: boolean;
   addService: (item: Omit<ServiceItem, "id">) => void | Promise<void>;
   updateService: (id: string, updates: Partial<Omit<ServiceItem, "id">>) => void;
   removeService: (id: string) => void;
@@ -79,10 +89,16 @@ export function MerchantServicesProvider({ children }: { children: React.ReactNo
   const [tailoringPricing, setTailoringPricing] = useState<ServicePricing | null>(null);
   const [dryCleaningItemizeState, setDryCleaningItemizeState] = useState<ItemizeState | null>(null);
   const [tailoringItemizeState, setTailoringItemizeState] = useState<ItemizeState | null>(null);
+  const [pickupDeliveryPricing, setPickupDeliveryPricing] = useState<PickupDeliveryPricing>({
+    enabled: false,
+    amount: "",
+  });
+  const [isSavingPickupDeliveryPricing, setIsSavingPickupDeliveryPricing] = useState(false);
 
   const fetchServices = useCallback(async () => {
     if (!supabase || !user?.id) {
       setServices([]);
+      setPickupDeliveryPricing({ enabled: false, amount: "" });
       setIsLoadingServices(false);
       return;
     }
@@ -97,8 +113,38 @@ export function MerchantServicesProvider({ children }: { children: React.ReactNo
     } else {
       setServices((data ?? []).map(mapRowToServiceItem));
     }
+
+    const { data: partnerProfileData } = await supabase
+      .from("partner_profiles")
+      .select("pickup_delivery_enabled,pickup_delivery_amount")
+      .eq("id", user.id)
+      .maybeSingle<{ pickup_delivery_enabled: boolean | null; pickup_delivery_amount: string | null }>();
+
+    setPickupDeliveryPricing({
+      enabled: Boolean(partnerProfileData?.pickup_delivery_enabled),
+      amount: partnerProfileData?.pickup_delivery_amount ?? "",
+    });
+
     setIsLoadingServices(false);
   }, [user?.id]);
+
+  const savePickupDeliveryPricing = useCallback(async () => {
+    if (!isSupabaseConfigured() || !supabase || !user?.id) {
+      return false;
+    }
+    setIsSavingPickupDeliveryPricing(true);
+    const { error } = await supabase.from("partner_profiles").upsert(
+      {
+        id: user.id,
+        pickup_delivery_enabled: pickupDeliveryPricing.enabled,
+        pickup_delivery_amount: pickupDeliveryPricing.amount.trim(),
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "id" }
+    );
+    setIsSavingPickupDeliveryPricing(false);
+    return !error;
+  }, [user?.id, pickupDeliveryPricing.enabled, pickupDeliveryPricing.amount]);
 
   useEffect(() => {
     fetchServices();
@@ -188,6 +234,10 @@ export function MerchantServicesProvider({ children }: { children: React.ReactNo
       setDryCleaningItemizeState,
       tailoringItemizeState,
       setTailoringItemizeState,
+      pickupDeliveryPricing,
+      setPickupDeliveryPricing,
+      savePickupDeliveryPricing,
+      isSavingPickupDeliveryPricing,
       addService,
       updateService,
       removeService,
@@ -202,6 +252,9 @@ export function MerchantServicesProvider({ children }: { children: React.ReactNo
       tailoringPricing,
       dryCleaningItemizeState,
       tailoringItemizeState,
+      pickupDeliveryPricing,
+      savePickupDeliveryPricing,
+      isSavingPickupDeliveryPricing,
       addService,
       updateService,
       removeService,

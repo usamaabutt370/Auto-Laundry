@@ -24,7 +24,7 @@
       }
     ],
     "specialInstructionsPlaceholder": "Please be careful with some of the items in my bag",
-    "confirmButtonLabel": "Confirm Assignment"
+    "confirmButtonLabel": "Confirm Order"
   },
   "2": {
     "orderId": "2",
@@ -51,7 +51,7 @@
       }
     ],
     "specialInstructionsPlaceholder": "Add special instructions here",
-    "confirmButtonLabel": "Confirm Assignment"
+    "confirmButtonLabel": "Confirm Order"
   },
   "3": {
     "orderId": "3",
@@ -78,12 +78,12 @@
       }
     ],
     "specialInstructionsPlaceholder": "Leave at door if not home",
-    "confirmButtonLabel": "Confirm Assignment"
+    "confirmButtonLabel": "Confirm Order"
   },
   "4": {
     "orderId": "4",
     "orderNumber": "THI3468LA",
-    "status": "Assigned",
+    "status": "In-Progress",
     "clientName": "Alex Lee",
     "clientInitial": "A",
     "phone": "+1-555-111-2222",
@@ -95,12 +95,12 @@
     "courier": "Not Yet Assigned",
     "bags": [{"id": "bag1", "label": "Bag #1", "service": "Wash & Fold", "weight": "12 lb", "numItems": "18", "preferences": "Standard", "estimatedPrice": "22"}],
     "specialInstructionsPlaceholder": "Add special instructions",
-    "confirmButtonLabel": "Confirm Assignment"
+    "confirmButtonLabel": "Confirm Order"
   },
   "5": {
     "orderId": "5",
     "orderNumber": "THI3469LA",
-    "status": "Assigned",
+    "status": "In-Progress",
     "clientName": "Sam Carter",
     "clientInitial": "S",
     "phone": "+1-555-333-4444",
@@ -112,12 +112,12 @@
     "courier": "Not Yet Assigned",
     "bags": [{"id": "bag1", "label": "Bag #1", "service": "Dry Cleaning", "weight": "5 lb", "numItems": "8", "preferences": "Delicate", "estimatedPrice": "35"}],
     "specialInstructionsPlaceholder": "Add special instructions",
-    "confirmButtonLabel": "Confirm Assignment"
+    "confirmButtonLabel": "Confirm Order"
   },
   "6": {
     "orderId": "6",
     "orderNumber": "THI3470LA",
-    "status": "Assigned",
+    "status": "In-Progress",
     "clientName": "Chris Evans",
     "clientInitial": "C",
     "phone": "+1-555-555-6666",
@@ -129,7 +129,7 @@
     "courier": "Not Yet Assigned",
     "bags": [{"id": "bag1", "label": "Bag #1", "service": "Wash & Fold", "weight": "20 lb", "numItems": "30", "preferences": "Tide, Warm", "estimatedPrice": "38"}],
     "specialInstructionsPlaceholder": "Add special instructions",
-    "confirmButtonLabel": "Confirm Assignment"
+    "confirmButtonLabel": "Confirm Order"
   },
   "7": {
     "orderId": "7",
@@ -146,7 +146,7 @@
     "courier": "Courier #12",
     "bags": [{"id": "bag1", "label": "Bag #1", "service": "Wash & Fold", "weight": "10 lb", "numItems": "15", "preferences": "Standard", "estimatedPrice": "20"}],
     "specialInstructionsPlaceholder": "Add special instructions",
-    "confirmButtonLabel": "Confirm Assignment"
+    "confirmButtonLabel": "Confirm Order"
   },
   "8": {
     "orderId": "8",
@@ -163,7 +163,7 @@
     "courier": "Courier #08",
     "bags": [{"id": "bag1", "label": "Bag #1", "service": "Dry Cleaning", "weight": "6 lb", "numItems": "10", "preferences": "Cold", "estimatedPrice": "42"}],
     "specialInstructionsPlaceholder": "Add special instructions",
-    "confirmButtonLabel": "Confirm Assignment"
+    "confirmButtonLabel": "Confirm Order"
   },
   "9": {
     "orderId": "9",
@@ -180,7 +180,7 @@
     "courier": "Courier #15",
     "bags": [{"id": "bag1", "label": "Bag #1", "service": "Wash & Fold", "weight": "18 lb", "numItems": "25", "preferences": "Speed Wash", "estimatedPrice": "32"}],
     "specialInstructionsPlaceholder": "Add special instructions",
-    "confirmButtonLabel": "Confirm Assignment"
+    "confirmButtonLabel": "Confirm Order"
   },
   "10": {
     "orderId": "10",
@@ -197,6 +197,6 @@
     "courier": "Courier #22",
     "bags": [{"id": "bag1", "label": "Bag #1", "service": "Wash & Fold", "weight": "14 lb", "numItems": "20", "preferences": "Standard", "estimatedPrice": "26"}],
     "specialInstructionsPlaceholder": "Add special instructions",
-    "confirmButtonLabel": "Confirm Assignment"
+    "confirmButtonLabel": "Confirm Order"
   }
 }
