@@ -14,6 +14,7 @@ const colors = {
   background: "#3b7f95",
   backgroundLight: "#78b2cb",
   backgroundDark: "#128197",
+  sidebarBackground: "#08758B",
   blue900: "#347488",
   blue600: "#B8D4DE",
   blue500: "#D1E8F0",
