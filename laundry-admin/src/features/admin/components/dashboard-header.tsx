@@ -19,8 +19,8 @@ export function DashboardHeader({
     <header className="flex items-end justify-between gap-4">
       <div>
         <h1
-          className="text-[30px]"
-          style={{ color: theme.colors.themeWhite, fontWeight: theme.fontWeights.medium }}
+          className="text-[20px] sm:text-[22px]"
+          style={{ color: theme.colors.white, fontWeight: theme.fontWeights.bold }}
         >
           {title}
         </h1>

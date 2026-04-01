@@ -12,8 +12,8 @@ export function DashboardOverviewCard({
   value,
   items,
 }: DashboardOverviewCardProps) {
-  const borderColor = "rgba(160, 208, 233, 0.55)";
-  const textSoft = "rgba(233, 247, 252, 0.85)";
+  const borderColor = theme.colors.outline;
+  const textSoft = theme.colors.white;
   const circleColor = theme.colors.outline;
 
   return (
@@ -45,10 +45,10 @@ export function DashboardOverviewCard({
         {items.map((item) => (
           <p
             key={item}
-            className="flex items-center gap-2 text-[14px]"
+            className="flex items-center gap-2 text-[15px] font-bold"
             style={{ color: textSoft }}
           >
-            <Image src="/icons/service-bullet.svg" alt="" width={12} height={12} />
+            <Image src="/icons/service-bullet.svg" alt="" width={14} height={14} />
             {item}
           </p>
         ))}

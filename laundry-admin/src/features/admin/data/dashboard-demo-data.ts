@@ -15,6 +15,8 @@ export type DashboardDemoData = {
   userCount: number;
   timeFilter: "Week" | "Month" | "Year";
   overviewCards: DashboardOverviewMetric[];
+  summaryCards: { id: string; label: string; value: string }[];
+  balance: { amount: string; labels: string[]; points: number[] };
 };
 
 const DEMO_DASHBOARD_DATA: DashboardDemoData = {
@@ -43,6 +45,16 @@ const DEMO_DASHBOARD_DATA: DashboardDemoData = {
       ],
     },
   ],
+  summaryCards: [
+    { id: "total-income", label: "Total Income", value: "$7,240" },
+    { id: "drop-off", label: "Drop Off", value: "$2,890" },
+    { id: "delivery", label: "Delivery", value: "$3,359" },
+  ],
+  balance: {
+    amount: "$27,240",
+    labels: ["M", "T", "W", "T", "F", "S", "S"],
+    points: [120, 210, 145, 235, 315, 250, 245],
+  },
 };
 
 export async function fetchDashboardDemoData(): Promise<DashboardDemoData> {
