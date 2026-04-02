@@ -4,7 +4,7 @@ export default function PaymentsPage() {
   return (
     <PageShell
       title="Payments"
-      description="Track transactions, settlements, and payment statuses."
+      description="Monitor payouts, refunds, and card activity for Auto laundry orders and partner settlements."
     />
   );
 }

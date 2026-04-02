@@ -3,6 +3,7 @@ import { DashboardHeader } from "@/features/admin/components/dashboard-header";
 import { DashboardOverviewCard } from "@/features/admin/components/dashboard-overview-card";
 import { DashboardSummaryCard } from "@/features/admin/components/dashboard-summary-card";
 import { fetchDashboardDemoData } from "@/features/admin/data/dashboard-demo-data";
+import { PRODUCT_NAME } from "@/lib/branding";
 import { theme } from "@/lib/theme/theme";
 
 export default async function DashboardPage() {
@@ -11,8 +12,9 @@ export default async function DashboardPage() {
   return (
     <section className="flex flex-col gap-4 sm:gap-5">
       <DashboardHeader
+        eyebrow={PRODUCT_NAME}
         title={data.title}
-        subtitle={`Number of Users : ${data.userCount}`}
+        subtitle={`Number of users: ${data.userCount}`}
         actionLabel={data.timeFilter}
       />
 

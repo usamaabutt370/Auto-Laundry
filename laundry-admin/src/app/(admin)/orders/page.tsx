@@ -1,10 +1,8 @@
-import { PageShell } from "@/features/admin/components/page-shell";
+import { OrdersList } from "@/features/admin/components/orders-list";
+import { fetchOrdersDemoData } from "@/features/admin/data/orders-demo-data";
 
-export default function OrdersPage() {
-  return (
-    <PageShell
-      title="Orders"
-      description="Manage customer orders, status updates, and assignments."
-    />
-  );
+export default async function OrdersPage() {
+  const orders = await fetchOrdersDemoData();
+
+  return <OrdersList orders={orders} />;
 }

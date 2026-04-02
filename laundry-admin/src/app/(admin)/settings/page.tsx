@@ -4,7 +4,7 @@ export default function SettingsPage() {
   return (
     <PageShell
       title="Settings"
-      description="Configure admin preferences, notifications, and system values."
+      description="Configure notifications, service areas, fees, and other Auto laundry admin preferences."
     />
   );
 }

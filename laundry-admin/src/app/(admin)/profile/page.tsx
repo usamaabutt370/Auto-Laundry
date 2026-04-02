@@ -4,7 +4,7 @@ export default function ProfilePage() {
   return (
     <PageShell
       title="Profile"
-      description="View and update your admin profile details."
+      description="Manage your Auto laundry admin account name, email, and notification preferences."
     />
   );
 }

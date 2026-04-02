@@ -1,6 +1,7 @@
 "use client";
 
 import { ConfirmModal } from "@/components/ui/confirm-modal";
+import { PRODUCT_NAME } from "@/lib/branding";
 import { theme } from "@/lib/theme/theme";
 import Image from "next/image";
 import Link from "next/link";
@@ -8,15 +9,23 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 
 const menuItems = [
-  { href: "/dashboard", label: "Dashboard", iconSrc: "/icons/file-checked.svg", iconSize: 20 },
-  { href: "/orders", label: "Orders", iconSrc: "/icons/file-checked.svg", iconSize: 20 },
-  { href: "/users", label: "Users", iconSrc: "/icons/support.svg", iconSize: 20 },
-  { href: "/partner-kyc", label: "Partner KYC", iconSrc: "/icons/file-checked.svg", iconSize: 20 },
-  { href: "/subscriptions", label: "Subscriptions", iconSrc: "/icons/support.svg", iconSize: 20 },
-  { href: "/disputes", label: "Disputes", iconSrc: "/icons/faq.svg", iconSize: 20 },
-  { href: "/settings", label: "Settings", iconSrc: "/icons/setting.svg", iconSize: 22 },
-  { href: "/login", label: "Logout", iconSrc: "/icons/faq.svg", iconSize: 20 },
+  { href: "/dashboard", label: "Dashboard", iconSrc: "/icons/file-checked.svg", iconSize: 16 },
+  { href: "/orders", label: "Orders", iconSrc: "/icons/file-checked.svg", iconSize: 16 },
+  { href: "/users", label: "Users", iconSrc: "/icons/file-checked.svg", iconSize: 16 },
+  { href: "/partner-kyc", label: "Partner KYC", iconSrc: "/icons/file-checked.svg", iconSize: 16 },
+  { href: "/payments", label: "Payments", iconSrc: "/icons/file-checked.svg", iconSize: 16 },
+  { href: "/subscriptions", label: "Subscriptions", iconSrc: "/icons/file-checked.svg", iconSize: 16 },
+  { href: "/disputes", label: "Disputes", iconSrc: "/icons/file-checked.svg", iconSize: 16 },
+  { href: "/profile", label: "Profile", iconSrc: "/icons/file-checked.svg", iconSize: 16 },
+  { href: "/settings", label: "Settings", iconSrc: "/icons/file-checked.svg", iconSize: 16 },
+  { href: "/login", label: "Logout", iconSrc: "/icons/file-checked.svg", iconSize: 16 },
 ];
+
+function navItemIsActive(pathname: string, href: string): boolean {
+  if (pathname === href) return true;
+  if (href !== "/" && pathname.startsWith(`${href}/`)) return true;
+  return false;
+}
 
 function SidebarImageIcon({ src, size }: { src: string; size: number }) {
   return (
@@ -55,40 +64,40 @@ export function AdminSidebar() {
               className="text-[15px] leading-5 sm:text-[16px] lg:text-[18px]"
               style={{ color: theme.colors.themeWhite, fontWeight: theme.fontWeights.medium }}
             >
-              Kelly Burke
+              {PRODUCT_NAME}
             </p>
-            <p className="hidden text-[11px] leading-4 text-white/70 sm:block">info@gmail.com</p>
+            <p className="hidden text-[11px] leading-4 text-white/70 sm:block">Admin console</p>
           </div>
         </div>
-        <button
-          type="button"
-          className="flex h-8 w-8 items-center justify-center rounded-full border border-white/12 bg-white/6"
+        <Link
+          href="/settings"
+          className="flex h-8 w-8 items-center justify-center rounded-full border border-white/12 bg-white/6 transition hover:bg-white/10"
           aria-label="Settings"
         >
           <SidebarImageIcon src="/icons/setting.svg" size={16} />
-        </button>
+        </Link>
       </div>
 
-      <p className="mb-2 mt-2 px-2 text-[15px] font-bold text-white/90 lg:mt-3 lg:text-[18px]">
+      <p className="mb-2 mt-2 px-2 text-[12px] font-bold text-white/90 sm:text-[13px] lg:mt-3 lg:text-[14px]">
         Menu
       </p>
 
-      <nav className="grid grid-cols-3 gap-2 border-t border-white/8 pt-2 sm:grid-cols-6 lg:grid-cols-1 lg:gap-1.5">
+      <nav className="grid max-h-[min(52vh,420px)] grid-cols-3 gap-2 overflow-y-auto overflow-x-hidden border-t border-white/8 pt-2 [-webkit-overflow-scrolling:touch] sm:grid-cols-4 md:grid-cols-5 lg:max-h-[calc(100dvh-220px)] lg:grid-cols-1 lg:gap-1.5">
         {menuItems.map((item) => {
-          const isActive = pathname === item.href;
+          const isActive = navItemIsActive(pathname, item.href);
           const content = (
             <>
-              <span className="relative flex h-10 w-10 items-center justify-center lg:h-12 lg:w-12">
+              <span className="relative flex h-8 w-8 items-center justify-center lg:h-9 lg:w-9">
                 {isActive ? (
                   <span
                     aria-hidden
-                    className="absolute left-0 top-0 h-10 w-10 rounded-xl lg:h-12 lg:w-12"
+                    className="absolute left-0 top-0 h-8 w-8 rounded-lg lg:h-9 lg:w-9"
                     style={{ backgroundColor: "rgba(255,255,255,0.95)" }}
                   />
                 ) : null}
                 <span
-                  className={`relative flex h-10 w-10 items-center justify-center rounded-xl lg:h-12 lg:w-12 ${
-                    isActive ? "translate-x-[3px]" : ""
+                  className={`relative flex h-8 w-8 items-center justify-center rounded-lg lg:h-9 lg:w-9 ${
+                    isActive ? "translate-x-[2px]" : ""
                   }`}
                   style={{ backgroundColor: "#128197" }}
                 >
@@ -96,7 +105,7 @@ export function AdminSidebar() {
                 </span>
               </span>
               <span
-                className="text-[12px] leading-none sm:text-[13px] lg:text-[18px]"
+                className="text-[11px] leading-tight sm:text-[12px] lg:text-[14px]"
                 style={{ color: isActive ? "rgba(249,250,251,0.98)" : "rgba(232,246,252,0.75)" }}
               >
                 {item.label}

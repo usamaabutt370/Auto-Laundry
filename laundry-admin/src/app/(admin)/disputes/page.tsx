@@ -4,7 +4,7 @@ export default function DisputesPage() {
   return (
     <PageShell
       title="Disputes"
-      description="Track, investigate, and resolve order disputes raised by customers or partners."
+      description="Investigate and resolve disputes about damaged items, missed pickups, or billing for laundry orders."
     />
   );
 }

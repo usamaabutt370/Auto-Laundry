@@ -4,7 +4,7 @@ export default function SubscriptionsPage() {
   return (
     <PageShell
       title="Subscriptions"
-      description="Manage partner plans, renewals, and subscription validity."
+      description="Manage partner subscription plans, billing cycles, and plan limits for the platform."
     />
   );
 }
