@@ -44,7 +44,8 @@ function parseServiceKey(
 
 /**
  * Service detail: set pricing and details for one selected service.
- * Title = selected service name. Sections: Price per bag, Price per KG, Price per Item. Save adds to merchant services and goes back.
+ * Title = selected service name. Sections: Price per bag, Price per KG, Price per Item.
+ * Save only updates onboarding draft; DB write happens on Step 2 Finish.
  */
 export default function PartnerOnboardingStep3() {
   const router = useRouter();
@@ -52,7 +53,7 @@ export default function PartnerOnboardingStep3() {
   const { locale } = useLocale();
   const onboardingStrings = getStrings(locale).partner.onboarding;
   const settingsStrings = getStrings(locale).partner.settings;
-  const { addService, washAndFoldPricing, setWashAndFoldPricing } = useMerchantServices();
+  const { washAndFoldPricing, setWashAndFoldPricing } = useMerchantServices();
 
   const serviceKey = useMemo(
     () =>
@@ -77,18 +78,12 @@ export default function PartnerOnboardingStep3() {
       router.back();
       return;
     }
-    const name = getServiceLabel(settingsStrings, serviceKey);
     setWashAndFoldPricing({
       rows: [
         { label: onboardingStrings.pricePerBagLabel, value: pricePerBag.trim() },
         { label: onboardingStrings.pricePerKgLabel, value: pricePerKg.trim() },
         { label: onboardingStrings.pricePerItemLabel, value: pricePerItem.trim() },
       ],
-    });
-    await addService({
-      name,
-      priceDisplay: pricePerBag.trim(),
-      category: name,
     });
     router.back();
   };

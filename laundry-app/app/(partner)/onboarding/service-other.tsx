@@ -96,7 +96,7 @@ function parseServiceKey(
 
 /**
  * Dry Cleaning / Tailoring - Itemize: list of items with name + price only (no quantity).
- * Continue saves each item to merchant services and goes back.
+ * Continue saves draft state only; DB write happens on Step 2 Finish.
  */
 export default function ServiceOtherScreen() {
   const router = useRouter();
@@ -105,7 +105,6 @@ export default function ServiceOtherScreen() {
   const onboardingStrings = getStrings(locale).partner.onboarding;
   const settingsStrings = getStrings(locale).partner.settings;
   const {
-    addService,
     setDryCleaningPricing,
     setTailoringPricing,
     dryCleaningItemizeState,
@@ -239,17 +238,6 @@ export default function ServiceOtherScreen() {
       value: prices[item.id]?.trim() ?? "",
     }));
     const pricingWithRows = { rows };
-
-    for (const item of items) {
-      const price = prices[item.id]?.trim() ?? "";
-      if (price) {
-        await addService({
-          name: `${serviceName} - ${item.label}`,
-          priceDisplay: price,
-          category: serviceName,
-        });
-      }
-    }
 
     if (serviceKey === "dryCleaning") {
       setDryCleaningPricing(pricingWithRows);

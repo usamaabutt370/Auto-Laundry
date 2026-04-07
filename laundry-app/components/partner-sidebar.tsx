@@ -36,8 +36,12 @@ type ProfileRow = {
   first_name: string | null;
   last_name: string | null;
   email: string | null;
-  image_url?: string | null;
-  updated_at?: string | null;
+};
+
+type PartnerProfileRow = {
+  business_name: string | null;
+  image_url: string | null;
+  updated_at: string | null;
 };
 
 const MENU_ITEMS: {
@@ -93,15 +97,24 @@ export function PartnerSidebar() {
   const overlayOpacity = useSharedValue(0);
 
   const [profile, setProfile] = useState<ProfileRow | null>(null);
+  const [partnerProfile, setPartnerProfile] = useState<PartnerProfileRow | null>(null);
 
   const loadProfile = useCallback(async () => {
     if (!user?.id || !isSupabaseConfigured()) return;
-    const { data } = await supabase
-      .from("profiles")
-      .select("first_name,last_name,email,image_url,updated_at")
-      .eq("id", user.id)
-      .maybeSingle<ProfileRow>();
-    if (data) setProfile(data);
+    const [{ data: pData }, { data: partnerData }] = await Promise.all([
+      supabase
+        .from("profiles")
+        .select("first_name,last_name,email")
+        .eq("id", user.id)
+        .maybeSingle<ProfileRow>(),
+      supabase
+        .from("partner_profiles")
+        .select("business_name,image_url,updated_at")
+        .eq("id", user.id)
+        .maybeSingle<PartnerProfileRow>(),
+    ]);
+    if (pData) setProfile(pData);
+    setPartnerProfile(partnerData ?? null);
   }, [user?.id]);
 
   useEffect(() => {
@@ -146,12 +159,13 @@ export function PartnerSidebar() {
   };
 
   const displayName =
-    profile?.first_name || profile?.last_name
+    partnerProfile?.business_name?.trim() ||
+    (profile?.first_name || profile?.last_name
       ? [profile.first_name, profile.last_name].filter(Boolean).join(" ")
-      : "Launderer";
+      : "Launderer");
   const displayEmail = profile?.email || user?.email || "—";
-  const avatarUrl = profile?.image_url
-    ? avatarUrlWithCacheBuster(profile.image_url, profile.updated_at)
+  const avatarUrl = partnerProfile?.image_url
+    ? avatarUrlWithCacheBuster(partnerProfile.image_url, partnerProfile.updated_at)
     : undefined;
 
   const isActive = (id: string) => {
@@ -265,9 +279,7 @@ export function PartnerSidebar() {
           <AppButton
             label={strings.partner.dashboard.placeholderButton}
             onPress={handleStartOnboarding}
-            variant="placeholder"
-            rightIcon="arrow-right"
-            fullWidth
+            variant="outline"
             style={styles.onboardingBtn}
             accessibilityLabel={strings.partner.dashboard.placeholderButton}
           />
@@ -358,7 +370,12 @@ const styles = StyleSheet.create({
     color: theme.colors.background,
     fontWeight: "600",
   },
+  /** Bordered outline button; never use `fullWidth` here — `flex: 1` stretches the whole sidebar column. */
   onboardingBtn: {
-    marginTop: 14,
+    marginTop: 12,
+    alignSelf: "stretch",
+    borderRadius: 10,
+    minHeight: 44,
+    paddingVertical: 10,
   },
 });
