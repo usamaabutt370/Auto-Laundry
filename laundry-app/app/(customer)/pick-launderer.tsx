@@ -1,6 +1,8 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import { useCallback, useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -14,44 +16,48 @@ import { Image } from "expo-image";
 import { assets } from "@/assets/assets";
 import { strings } from "@/constants/strings";
 import { theme } from "@/constants/theme";
-import { LAUNDERERS, type Launderer } from "@/constants/launderers";
+import { avatarUrlWithCacheBuster } from "@/lib/avatar";
+import {
+  fetchPickupPartners,
+  type PartnerPublicRow,
+} from "@/lib/partner-discovery";
 
 const c = theme.colors;
 
-const ONBOARDING_IMAGES: Record<"slide1" | "slide2" | "slide3", number> = {
-  slide1: assets.onboarding.slide1,
-  slide2: assets.onboarding.slide2,
-  slide3: assets.onboarding.slide3,
-};
+const PLACEHOLDER_RATING = 4.5;
+const DISTANCE_PLACEHOLDER = "—";
 
 function LaundererCard({
-  launderer,
+  partner,
   onPress,
 }: {
-  launderer: Launderer;
+  partner: PartnerPublicRow;
   onPress: () => void;
 }) {
-  const imageSource = ONBOARDING_IMAGES[launderer.imageKey];
+  const imageUri = avatarUrlWithCacheBuster(partner.image_url, partner.updated_at);
+  const hours =
+    partner.available_time?.trim() || strings.customer.pickLaunderer.hoursPlaceholder;
+  const phone = partner.phone_number?.trim() || "—";
+
   return (
     <Pressable
       onPress={onPress}
       style={({ pressed }) => [styles.card, pressed && styles.pressed]}
     >
-      <Image source={imageSource} style={styles.cardImage} />
+      {imageUri ? (
+        <Image source={{ uri: imageUri }} style={styles.cardImage} contentFit="cover" />
+      ) : (
+        <Image source={assets.onboarding.slide1} style={styles.cardImage} />
+      )}
       <View style={styles.cardBody}>
         <View style={styles.ratingRow}>
           {[1, 2, 3, 4, 5].map((i) => (
-            <MaterialCommunityIcons
-              key={i}
-              name="star"
-              size={16}
-              color="#EAB308"
-            />
+            <MaterialCommunityIcons key={i} name="star" size={16} color="#EAB308" />
           ))}
-          <Text style={styles.ratingText}>({launderer.rating})</Text>
+          <Text style={styles.ratingText}>({PLACEHOLDER_RATING})</Text>
         </View>
         <Text style={styles.cardName} numberOfLines={1}>
-          {launderer.name}
+          {partner.business_name.trim()}
         </Text>
         <View style={styles.infoRow}>
           <MaterialCommunityIcons
@@ -60,7 +66,7 @@ function LaundererCard({
             color={c.white}
             opacity={0.5}
           />
-          <Text style={styles.infoText}>{launderer.phoneNumber}</Text>
+          <Text style={styles.infoText}>{phone}</Text>
         </View>
         <View style={styles.infoRow}>
           <MaterialCommunityIcons
@@ -69,7 +75,7 @@ function LaundererCard({
             color={c.white}
             opacity={0.5}
           />
-          <Text style={styles.infoText}>{launderer.openingHours}</Text>
+          <Text style={styles.infoText}>{hours}</Text>
         </View>
         <View style={styles.infoRow}>
           <MaterialCommunityIcons
@@ -78,7 +84,7 @@ function LaundererCard({
             color={c.white}
             opacity={0.5}
           />
-          <Text style={styles.infoText}>{launderer.distance}</Text>
+          <Text style={styles.infoText}>{DISTANCE_PLACEHOLDER}</Text>
         </View>
         <View style={styles.infoRow}>
           <MaterialCommunityIcons
@@ -88,7 +94,7 @@ function LaundererCard({
             opacity={0.5}
           />
           <Text style={styles.infoText} numberOfLines={2}>
-            {launderer.address}
+            {partner.address?.trim() || "—"}
           </Text>
         </View>
       </View>
@@ -99,6 +105,26 @@ function LaundererCard({
 export default function PickLaundererScreen() {
   const router = useRouter();
   const s = strings.customer.pickLaunderer;
+  const [partners, setPartners] = useState<PartnerPublicRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    const { data, error: err } = await fetchPickupPartners();
+    if (err) {
+      setError(err);
+      setPartners([]);
+    } else {
+      setPartners(data ?? []);
+    }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   return (
     <View style={styles.container}>
@@ -112,10 +138,7 @@ export default function PickLaundererScreen() {
           <MaterialCommunityIcons name="arrow-left" size={24} color={c.white} />
         </Pressable>
         <View style={styles.addressWrap}>
-          <Image
-            source={assets.icons.location_icon}
-            style={styles.addressIcon}
-          />
+          <Image source={assets.icons.location_icon} style={styles.addressIcon} />
           <TextInput
             placeholder={s.addressPlaceholder}
             placeholderTextColor={c.gray50}
@@ -126,39 +149,50 @@ export default function PickLaundererScreen() {
           />
         </View>
         <Pressable
-          style={({ pressed }) => [
-            styles.headerRight,
-            pressed && styles.pressed,
-          ]}
+          style={({ pressed }) => [styles.headerRight, pressed && styles.pressed]}
           accessibilityRole="button"
           accessibilityLabel="Filter"
         >
-          <Image
-            source={assets.icons.menu_icon}
-            style={styles.headerRightIcon}
-          />
+          <Image source={assets.icons.menu_icon} style={styles.headerRightIcon} />
         </Pressable>
       </SafeAreaView>
       <Text style={styles.screenTitle}>{s.title}</Text>
 
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {LAUNDERERS.map((launderer) => (
-          <LaundererCard
-            key={launderer.id}
-            launderer={launderer}
-            onPress={() =>
-              router.push({
-                pathname: "/(customer)/launderer-detail",
-                params: { id: launderer.id },
-              })
-            }
-          />
-        ))}
-      </ScrollView>
+      {loading ? (
+        <View style={styles.centerBlock}>
+          <ActivityIndicator color={c.white} size="small" />
+        </View>
+      ) : error ? (
+        <View style={styles.centerBlock}>
+          <Text style={styles.errorText}>{error}</Text>
+          <Pressable onPress={load} style={styles.retryBtn}>
+            <Text style={styles.retryText}>{s.retry}</Text>
+          </Pressable>
+        </View>
+      ) : partners.length === 0 ? (
+        <View style={styles.centerBlock}>
+          <Text style={styles.emptyText}>{s.emptyList}</Text>
+        </View>
+      ) : (
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {partners.map((partner) => (
+            <LaundererCard
+              key={partner.id}
+              partner={partner}
+              onPress={() =>
+                router.push({
+                  pathname: "/(customer)/launderer-detail",
+                  params: { id: partner.id },
+                })
+              }
+            />
+          ))}
+        </ScrollView>
+      )}
     </View>
   );
 }
@@ -215,6 +249,32 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 40,
     gap: 16,
+  },
+  centerBlock: {
+    flex: 1,
+    paddingHorizontal: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 12,
+  },
+  errorText: {
+    color: "#FFB3B3",
+    fontSize: 14,
+    textAlign: "center",
+  },
+  emptyText: {
+    color: c.blue500,
+    fontSize: 15,
+    textAlign: "center",
+  },
+  retryBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+  },
+  retryText: {
+    color: c.lightBlue,
+    fontSize: 15,
+    fontWeight: "600",
   },
   card: {
     flexDirection: "row",

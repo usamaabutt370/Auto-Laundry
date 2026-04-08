@@ -118,7 +118,12 @@ export const en = {
     pickLaunderer: {
       title: "Pick Up & Delivery",
       addressPlaceholder: "1465 5th Avenue APt 5C",
+      hoursPlaceholder: "Hours not set",
+      emptyList:
+        "No launderers are available for pickup yet. Complete partner onboarding with pickup enabled to appear here.",
+      retry: "Retry",
     },
+    partnerPickupLinePrefix: "Pickup & delivery:",
     laundererDetail: {
       title: "Laundromat Detailed",
       perPound: "per Pound",

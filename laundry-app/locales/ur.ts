@@ -117,7 +117,12 @@ export const ur = {
     pickLaunderer: {
       title: "پک اپ اور ڈیلیوری",
       addressPlaceholder: "1465 5th Avenue APt 5C",
+      hoursPlaceholder: "اوقات متعین نہیں",
+      emptyList:
+        "ابھی پک اپ کے لیے کوئی لانڈرر دستیاب نہیں۔ یہاں نظر آنے کے لیے پارٹنر آن بورڈنگ مکمل کریں۔",
+      retry: "دوبارہ کوشش",
     },
+    partnerPickupLinePrefix: "پک اپ اور ڈیلیوری:",
     laundererDetail: {
       title: "لانڈرومیٹ کی تفصیل",
       perPound: "فی پاؤنڈ",
