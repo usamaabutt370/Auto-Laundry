@@ -454,8 +454,6 @@ export default function PartnerOnboardingStep1() {
           placeholder={s.addressPlaceholder}
           value={address}
           onChangeText={setAddress}
-          multiline
-          numberOfLines={3}
         />
         {submitAttempted && isAddressMissing ? (
           <Text style={styles.errorText}>

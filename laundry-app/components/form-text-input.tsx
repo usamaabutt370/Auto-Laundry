@@ -59,7 +59,7 @@ export function FormTextInput({
 
   const input = (
     <TextInput
-      style={[inputStyle, rightElement && styles.inputInRow]}
+      style={[inputStyle, rightElement ? styles.inputInRow : undefined]}
       placeholderTextColor={placeholderTextColor}
       multiline={multiline}
       numberOfLines={multiline ? numberOfLines : undefined}
