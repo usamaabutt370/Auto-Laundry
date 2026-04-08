@@ -1,10 +1,8 @@
-import { PageShell } from "@/features/admin/components/page-shell";
+import { DisputesList } from "@/features/admin/components/disputes-list";
+import { fetchDisputesDemoData } from "@/features/admin/data/disputes-demo-data";
 
-export default function DisputesPage() {
-  return (
-    <PageShell
-      title="Disputes"
-      description="Investigate and resolve disputes about damaged items, missed pickups, or billing for laundry orders."
-    />
-  );
+export default async function DisputesPage() {
+  const disputes = await fetchDisputesDemoData();
+
+  return <DisputesList disputes={disputes} />;
 }

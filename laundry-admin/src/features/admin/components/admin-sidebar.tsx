@@ -82,7 +82,7 @@ export function AdminSidebar() {
         Menu
       </p>
 
-      <nav className="grid max-h-[min(52vh,420px)] grid-cols-3 gap-2 overflow-y-auto overflow-x-hidden border-t border-white/8 pt-2 [-webkit-overflow-scrolling:touch] sm:grid-cols-4 md:grid-cols-5 lg:max-h-[calc(100dvh-220px)] lg:grid-cols-1 lg:gap-1.5">
+      <nav className="scrollbar-hidden grid max-h-[min(52vh,420px)] grid-cols-3 gap-2 overflow-y-auto overflow-x-hidden border-t border-white/8 pt-2 [-webkit-overflow-scrolling:touch] sm:grid-cols-4 md:grid-cols-5 lg:max-h-[calc(100dvh-220px)] lg:grid-cols-1 lg:gap-1.5">
         {menuItems.map((item) => {
           const isActive = navItemIsActive(pathname, item.href);
           const content = (

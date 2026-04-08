@@ -37,11 +37,10 @@ const SERVICE_DOT: Record<ShippingService, string> = {
   Express: "#fb7185",
 };
 
-const statusPillClass =
-  "order-status-pill-select border text-[11px] font-semibold sm:text-xs";
+const statusPillClass = "admin-status-pill border text-[11px] font-semibold sm:text-xs";
 
 const tableGridClass =
-  "grid grid-cols-[minmax(72px,0.65fr)_minmax(80px,0.7fr)_minmax(104px,0.85fr)_minmax(40px,0.35fr)_minmax(100px,0.95fr)_minmax(100px,0.95fr)_minmax(92px,0.85fr)_minmax(64px,0.55fr)_minmax(120px,1fr)] items-center gap-x-2 gap-y-1 sm:gap-x-3";
+  "grid grid-cols-[minmax(84px,0.8fr)_minmax(120px,1fr)_minmax(120px,1fr)_minmax(140px,1.2fr)_minmax(92px,0.8fr)_minmax(80px,0.7fr)_minmax(140px,1.2fr)_minmax(100px,0.85fr)] items-center gap-x-3 gap-y-1 sm:gap-x-4";
 
 function matchesQuery(order: AdminOrder, q: string): boolean {
   const s = q.trim().toLowerCase();
@@ -141,7 +140,7 @@ export function OrdersList({ orders }: OrdersListProps) {
           id="orders-status-filter"
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
-          className="min-h-[44px] w-full cursor-pointer rounded-xl border px-3 py-2.5 text-[13px] font-medium text-white outline-none sm:w-[min(100%,200px)]"
+          className="admin-filter-select min-h-[44px] w-full cursor-pointer rounded-xl border py-2.5 pl-3 text-[13px] font-medium text-white outline-none sm:w-[min(100%,200px)]"
           style={{
             borderColor: theme.colors.outline,
             backgroundColor: theme.colors.sidebarBackground,
@@ -157,10 +156,10 @@ export function OrdersList({ orders }: OrdersListProps) {
       </div>
 
       <div
-        className="hidden min-w-0 overflow-x-auto rounded-xl border md:block [-webkit-overflow-scrolling:touch]"
+        className="scrollbar-hidden hidden min-w-0 overflow-x-auto rounded-xl border md:block [-webkit-overflow-scrolling:touch]"
         style={{ borderColor: theme.colors.outline, backgroundColor: theme.colors.sidebarBackground }}
       >
-        <div className="min-w-[1280px]">
+        <div className="min-w-[1120px]">
           <div
             className={`sticky top-0 z-[1] ${tableGridClass} border-b px-3 py-3 text-[11px] font-bold uppercase tracking-wide text-white/70 sm:px-4 sm:text-xs`}
             style={{
@@ -168,15 +167,14 @@ export function OrdersList({ orders }: OrdersListProps) {
               backgroundColor: theme.colors.sidebarBackground,
             }}
           >
-            <span className="text-left">Order ID</span>
-            <span className="text-left">Order #</span>
-            <span className="text-right">Status</span>
-            <span className="text-right">Items</span>
+            <span className="text-left">Order</span>
             <span className="text-left">Customer</span>
             <span className="text-left">Partner</span>
             <span className="text-left">Service</span>
+            <span className="text-left">Delivery Type</span>
             <span className="text-right">Total</span>
             <span className="text-left">Tracking</span>
+            <span className="text-right">Status</span>
           </div>
           {pagedOrders.length === 0 ? (
             <div className="px-4 py-10 text-center text-sm text-white/60">No orders match your search or filters.</div>
@@ -190,25 +188,14 @@ export function OrdersList({ orders }: OrdersListProps) {
                 style={{ borderColor: "rgba(255,255,255,0.12)" }}
               >
                 <span className="font-semibold leading-snug tabular-nums">{order.id}</span>
-                <span className="tabular-nums leading-snug">{order.orderNumber}</span>
-                <div className="flex justify-end">
-                  <span
-                    className={`${statusPillClass} inline-flex rounded-full px-2.5 py-1`}
-                    style={{
-                      backgroundColor: pill.bg,
-                      color: pill.fg,
-                      borderColor: pill.border,
-                    }}
-                  >
-                    {order.status}
-                  </span>
-                </div>
-                <span className="text-right tabular-nums">{order.itemCount}</span>
                 <span className="min-w-0 truncate text-left" title={order.customer}>
                   {order.customer}
                 </span>
                 <span className="min-w-0 truncate text-left" title={order.partner}>
                   {order.partner}
+                </span>
+                <span className="min-w-0 truncate text-left" title={order.items}>
+                  {order.items}
                 </span>
                 <span className="flex min-w-0 items-center gap-1.5 truncate text-left" title={order.shippingService}>
                   <span
@@ -221,6 +208,18 @@ export function OrdersList({ orders }: OrdersListProps) {
                 <span className="min-w-0 truncate font-mono text-[11px] tabular-nums text-white/80 sm:text-xs" title={order.trackingCode}>
                   {order.trackingCode}
                 </span>
+                <div className="flex justify-end">
+                  <span
+                    className={`${statusPillClass} inline-flex rounded-full py-1 pl-2.5 pr-3`}
+                    style={{
+                      backgroundColor: pill.bg,
+                      color: pill.fg,
+                      borderColor: pill.border,
+                    }}
+                  >
+                    {order.status}
+                  </span>
+                </div>
               </div>
             );
           })}
@@ -253,7 +252,7 @@ export function OrdersList({ orders }: OrdersListProps) {
               </div>
               <div className="mt-3 flex flex-wrap items-center gap-2">
                 <span
-                  className={`${statusPillClass} inline-flex rounded-full px-3 py-1.5`}
+                  className={`${statusPillClass} inline-flex rounded-full py-1.5 pl-3 pr-3.5`}
                   style={{
                     backgroundColor: pill.bg,
                     color: pill.fg,

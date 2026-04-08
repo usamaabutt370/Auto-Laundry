@@ -1,10 +1,5 @@
-import { PageShell } from "@/features/admin/components/page-shell";
+import { AdminSettings } from "@/features/admin/components/admin-settings";
 
 export default function SettingsPage() {
-  return (
-    <PageShell
-      title="Settings"
-      description="Configure notifications, service areas, fees, and other Auto laundry admin preferences."
-    />
-  );
+  return <AdminSettings />;
 }

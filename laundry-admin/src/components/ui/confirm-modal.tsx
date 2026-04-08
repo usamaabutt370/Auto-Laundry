@@ -75,11 +75,11 @@ export function ConfirmModal({
           </p>
         ) : null}
 
-        <div className="mt-5 flex flex-col gap-2.5 sm:mt-6 sm:flex-row sm:flex-row-reverse sm:justify-end">
+        <div className="mt-5 grid grid-cols-1 gap-2.5 sm:mt-6 sm:grid-cols-2">
           <button
             type="button"
             onClick={onConfirm}
-            className="h-10 w-full rounded-full border px-5 text-[15px] font-semibold text-white sm:h-11 sm:text-base"
+            className="h-10 w-full whitespace-nowrap rounded-full border px-5 text-center text-[15px] font-semibold leading-none text-white sm:h-11 sm:text-base"
             style={{
               borderColor: theme.colors.filledButtonBorder,
               backgroundColor: theme.colors.secondary,
@@ -91,7 +91,7 @@ export function ConfirmModal({
             type="button"
             onClick={onCancel}
             autoFocus
-            className="h-10 w-full rounded-full border px-5 text-[15px] font-semibold text-white sm:h-11 sm:text-base"
+            className="h-10 w-full whitespace-nowrap rounded-full border px-5 text-center text-[15px] font-semibold leading-none text-white sm:h-11 sm:text-base"
             style={{
               borderColor: "rgba(255,255,255,0.35)",
               backgroundColor: "transparent",

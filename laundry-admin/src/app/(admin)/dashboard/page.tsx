@@ -3,8 +3,15 @@ import { DashboardHeader } from "@/features/admin/components/dashboard-header";
 import { DashboardOverviewCard } from "@/features/admin/components/dashboard-overview-card";
 import { DashboardSummaryCard } from "@/features/admin/components/dashboard-summary-card";
 import { fetchDashboardDemoData } from "@/features/admin/data/dashboard-demo-data";
-import { PRODUCT_NAME } from "@/lib/branding";
 import { theme } from "@/lib/theme/theme";
+
+function parseCurrency(value: string): number {
+  return Number(value.replace(/[^0-9.-]/g, "")) || 0;
+}
+
+function formatCurrency(value: number): string {
+  return `$${value.toLocaleString("en-US")}`;
+}
 
 export default async function DashboardPage() {
   const data = await fetchDashboardDemoData();
@@ -12,22 +19,11 @@ export default async function DashboardPage() {
   return (
     <section className="flex flex-col gap-4 sm:gap-5">
       <DashboardHeader
-        eyebrow={PRODUCT_NAME}
+        eyebrow={undefined}
         title={data.title}
-        subtitle={`Number of users: ${data.userCount}`}
+        subtitle=""
         actionLabel={data.timeFilter}
       />
-
-      <div className="grid shrink-0 gap-3 xl:grid-cols-2">
-        {data.overviewCards.map((card) => (
-          <DashboardOverviewCard
-            key={card.id}
-            title={card.title}
-            value={String(card.total)}
-            items={card.services.map((service) => `${service.label}: ${service.count}`)}
-          />
-        ))}
-      </div>
 
       <section className="flex flex-col gap-3">
         <h2
@@ -41,6 +37,31 @@ export default async function DashboardPage() {
             <DashboardSummaryCard key={item.id} label={item.label} amount={item.value} />
           ))}
         </div>
+      </section>
+
+      <div className="grid shrink-0 gap-3 xl:grid-cols-2">
+        {data.overviewCards.map((card) => (
+          (() => {
+            const summaryMatch = data.summaryCards.find((item) => item.id === card.id);
+            // Partner earnings are a payout share, not the admin summary revenue figure.
+            const partnerEarningAmount = summaryMatch ? Math.round(parseCurrency(summaryMatch.value) * 0.7) : 0;
+            const earningsPoint = summaryMatch ? [`Total partner earnings: ${formatCurrency(partnerEarningAmount)}`] : [];
+            return (
+          <DashboardOverviewCard
+            key={card.id}
+            title={card.title}
+            value={String(card.total)}
+            items={[
+              ...card.services.map((service) => `${service.label}: ${service.count}`),
+              ...earningsPoint,
+            ]}
+          />
+            );
+          })()
+        ))}
+      </div>
+
+      <section className="flex flex-col gap-3">
         <DashboardBalanceCard
           amount={data.balance.amount}
           labels={data.balance.labels}

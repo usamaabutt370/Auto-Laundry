@@ -1,10 +1,8 @@
-import { PageShell } from "@/features/admin/components/page-shell";
+import { PartnerKycList } from "@/features/admin/components/partner-kyc-list";
+import { fetchPartnerKycDemoData } from "@/features/admin/data/partner-kyc-demo-data";
 
-export default function PartnerKycPage() {
-  return (
-    <PageShell
-      title="Partner KYC"
-      description="Review partner onboarding documents and approve or reject verification requests."
-    />
-  );
+export default async function PartnerKycPage() {
+  const partners = await fetchPartnerKycDemoData();
+
+  return <PartnerKycList partners={partners} />;
 }

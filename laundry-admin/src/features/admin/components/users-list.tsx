@@ -24,7 +24,7 @@ const FILTERS: { key: StatusFilter; label: string }[] = [
   { key: "Blocked", label: "Blocked" },
 ];
 
-const statusPillClass = "order-status-pill-select border text-[11px] font-semibold sm:text-xs";
+const statusPillClass = "admin-status-pill border text-[11px] font-semibold sm:text-xs";
 
 const tableGridClass =
   "grid grid-cols-[minmax(128px,1.1fr)_minmax(200px,1.55fr)_minmax(136px,1fr)_minmax(132px,1fr)_80px_minmax(96px,0.9fr)] items-center gap-x-3 gap-y-1 sm:gap-x-4";
@@ -111,7 +111,7 @@ export function UsersList({ users }: UsersListProps) {
 
       {/* Tablet/desktop: horizontal scroll so columns never crush */}
       <div
-        className="hidden min-w-0 overflow-x-auto rounded-xl border md:block [-webkit-overflow-scrolling:touch]"
+        className="scrollbar-hidden hidden min-w-0 overflow-x-auto rounded-xl border md:block [-webkit-overflow-scrolling:touch]"
         style={{ borderColor: theme.colors.outline, backgroundColor: theme.colors.sidebarBackground }}
       >
         <div className="min-w-[920px]">
@@ -147,7 +147,7 @@ export function UsersList({ users }: UsersListProps) {
               <span className="whitespace-nowrap text-left tabular-nums">{user.phone}</span>
               <div className="flex w-full min-w-[120px] max-w-[160px] items-center justify-start">
                 <span
-                  className={`${statusPillClass} inline-flex rounded-full px-2.5 py-1`}
+                  className={`${statusPillClass} inline-flex rounded-full py-1 pl-2.5 pr-3`}
                   style={{
                     backgroundColor: statusPillMap[user.status].bg,
                     color: statusPillMap[user.status].fg,
@@ -194,7 +194,7 @@ export function UsersList({ users }: UsersListProps) {
                 Status
               </span>
               <span
-                className={`${statusPillClass} inline-flex w-fit rounded-full px-3 py-1.5`}
+                className={`${statusPillClass} inline-flex w-fit rounded-full py-1.5 pl-3 pr-3.5`}
                 style={{
                   backgroundColor: statusPillMap[user.status].bg,
                   color: statusPillMap[user.status].fg,

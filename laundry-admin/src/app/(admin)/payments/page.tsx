@@ -1,10 +1,8 @@
-import { PageShell } from "@/features/admin/components/page-shell";
+import { PaymentsList } from "@/features/admin/components/payments-list";
+import { fetchPaymentsDemoData } from "@/features/admin/data/payments-demo-data";
 
-export default function PaymentsPage() {
-  return (
-    <PageShell
-      title="Payments"
-      description="Monitor payouts, refunds, and card activity for Auto laundry orders and partner settlements."
-    />
-  );
+export default async function PaymentsPage() {
+  const payments = await fetchPaymentsDemoData();
+
+  return <PaymentsList payments={payments} />;
 }

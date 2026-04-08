@@ -394,7 +394,22 @@ export type AdminPartnerKyc = {
   submittedAt: string;
   /** Short labels for demo (real app would link to stored files). */
   documentsSummary: string;
+  /** Services this partner offers (shown in Admin review modal). */
+  services: string[];
 };
+
+const LAUNDRY_SERVICE_POOL = [
+  "Wash & fold",
+  "Dry cleaning",
+  "Ironing / pressing",
+  "Stain treatment",
+  "Pickup & delivery",
+  "Express same-day",
+  "Commercial / bulk",
+  "Alterations & tailoring",
+  "Shoe cleaning",
+  "Bedding & household",
+] as const;
 
 const SEEDED_PARTNER_KYC: AdminPartnerKyc[] = [
   {
@@ -406,6 +421,7 @@ const SEEDED_PARTNER_KYC: AdminPartnerKyc[] = [
     status: "Pending",
     submittedAt: "2026-04-01",
     documentsSummary: "Gov ID · Business license · Bank (last 4)",
+    services: ["Wash & fold", "Dry cleaning", "Pickup & delivery", "Express same-day"],
   },
   {
     id: "KYC-24002",
@@ -416,6 +432,7 @@ const SEEDED_PARTNER_KYC: AdminPartnerKyc[] = [
     status: "Approved",
     submittedAt: "2026-03-28",
     documentsSummary: "Gov ID · Tax ID · Bank (last 4)",
+    services: ["Wash & fold", "Dry cleaning", "Ironing / pressing", "Pickup & delivery", "Commercial / bulk"],
   },
   {
     id: "KYC-24003",
@@ -426,6 +443,7 @@ const SEEDED_PARTNER_KYC: AdminPartnerKyc[] = [
     status: "Pending",
     submittedAt: "2026-04-02",
     documentsSummary: "Gov ID · Utility bill · Bank (last 4)",
+    services: ["Wash & fold", "Dry cleaning", "Stain treatment"],
   },
   {
     id: "KYC-24004",
@@ -436,6 +454,7 @@ const SEEDED_PARTNER_KYC: AdminPartnerKyc[] = [
     status: "Rejected",
     submittedAt: "2026-03-15",
     documentsSummary: "Gov ID (expired) · Business license",
+    services: ["Wash & fold", "Pickup & delivery"],
   },
   {
     id: "KYC-24005",
@@ -446,6 +465,14 @@ const SEEDED_PARTNER_KYC: AdminPartnerKyc[] = [
     status: "Pending",
     submittedAt: "2026-04-02",
     documentsSummary: "Gov ID · Business license · Insurance",
+    services: [
+      "Wash & fold",
+      "Dry cleaning",
+      "Ironing / pressing",
+      "Pickup & delivery",
+      "Alterations & tailoring",
+      "Bedding & household",
+    ],
   },
   {
     id: "KYC-24006",
@@ -456,6 +483,7 @@ const SEEDED_PARTNER_KYC: AdminPartnerKyc[] = [
     status: "Approved",
     submittedAt: "2026-03-20",
     documentsSummary: "Gov ID · Bank · W-9",
+    services: ["Wash & fold", "Dry cleaning", "Pickup & delivery", "Shoe cleaning"],
   },
 ];
 
@@ -465,6 +493,16 @@ const EXTRA_PARTNER_KYC: AdminPartnerKyc[] = Array.from({ length: 18 }, (_, inde
   const status = statuses[index % 3];
   const month = 1 + (index % 12);
   const day = 1 + (index % 28);
+  const serviceCount = 3 + (index % 5);
+  const services: string[] = [];
+  const seen = new Set<string>();
+  for (let i = 0; i < serviceCount && seen.size < LAUNDRY_SERVICE_POOL.length; i++) {
+    const s = LAUNDRY_SERVICE_POOL[(index + i) % LAUNDRY_SERVICE_POOL.length];
+    if (!seen.has(s)) {
+      seen.add(s);
+      services.push(s);
+    }
+  }
   return {
     id: `KYC-${n}`,
     partnerName: `Partner Contact ${index + 1}`,
@@ -474,6 +512,7 @@ const EXTRA_PARTNER_KYC: AdminPartnerKyc[] = Array.from({ length: 18 }, (_, inde
     status,
     submittedAt: `2026-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`,
     documentsSummary: index % 2 === 0 ? "Gov ID · Business license" : "Gov ID · Bank (last 4) · Insurance",
+    services,
   };
 });
 
@@ -482,6 +521,11 @@ const DEMO_PARTNER_KYC: AdminPartnerKyc[] = [...SEEDED_PARTNER_KYC, ...EXTRA_PAR
 export async function fetchPartnerKycDemoData(): Promise<AdminPartnerKyc[]> {
   await new Promise((resolve) => setTimeout(resolve, 95));
   return DEMO_PARTNER_KYC;
+}
+
+export async function fetchPartnerKycById(id: string): Promise<AdminPartnerKyc | null> {
+  await new Promise((resolve) => setTimeout(resolve, 60));
+  return DEMO_PARTNER_KYC.find((partner) => partner.id === id) ?? null;
 }
 
 // -----------------------------
@@ -530,5 +574,277 @@ export async function fetchDashboardDemoData(): Promise<DashboardDemoData> {
   // Mimic real API latency so UI behavior stays realistic.
   await new Promise((resolve) => setTimeout(resolve, 120));
   return DEMO_DASHBOARD_DATA;
+}
+
+// -----------------------------
+// Payments demo data
+// -----------------------------
+
+export type PaymentStatus = "Succeeded" | "Pending" | "Failed" | "Refunded";
+
+export type PaymentKind = "Customer charge" | "Partner payout" | "Refund" | "Adjustment";
+
+export type AdminPayment = {
+  id: string;
+  orderId: string;
+  customer: string;
+  kind: PaymentKind;
+  amount: string;
+  method: string;
+  status: PaymentStatus;
+  createdAt: string;
+};
+
+const PAYMENT_STATUSES: PaymentStatus[] = ["Succeeded", "Pending", "Failed", "Refunded"];
+
+const PAYMENT_KINDS: PaymentKind[] = ["Customer charge", "Partner payout", "Refund", "Adjustment"];
+
+const PAYMENT_METHODS = [
+  "Visa ·••• 4242",
+  "Mastercard ·••• 8891",
+  "Apple Pay",
+  "Google Pay",
+  "ACH ·••• 7721",
+  "Bank transfer",
+];
+
+const SEEDED_PAYMENTS: AdminPayment[] = [
+  {
+    id: "PAY-88001",
+    orderId: "ORD-24001",
+    customer: "Olivia Brown",
+    kind: "Customer charge",
+    amount: "$48.00",
+    method: "Visa ·••• 4242",
+    status: "Succeeded",
+    createdAt: "2026-04-01",
+  },
+  {
+    id: "PAY-88002",
+    orderId: "ORD-24002",
+    customer: "Ethan Walker",
+    kind: "Customer charge",
+    amount: "$62.50",
+    method: "Apple Pay",
+    status: "Pending",
+    createdAt: "2026-04-02",
+  },
+  {
+    id: "PAY-88003",
+    orderId: "—",
+    customer: "HomeFresh Laundry",
+    kind: "Partner payout",
+    amount: "$1,240.00",
+    method: "ACH ·••• 7721",
+    status: "Succeeded",
+    createdAt: "2026-04-02",
+  },
+  {
+    id: "PAY-88004",
+    orderId: "ORD-23988",
+    customer: "Sophia Carter",
+    kind: "Refund",
+    amount: "-$18.00",
+    method: "Visa ·••• 4242",
+    status: "Refunded",
+    createdAt: "2026-03-30",
+  },
+  {
+    id: "PAY-88005",
+    orderId: "ORD-24004",
+    customer: "Liam Johnson",
+    kind: "Customer charge",
+    amount: "$35.00",
+    method: "Mastercard ·••• 8891",
+    status: "Failed",
+    createdAt: "2026-04-03",
+  },
+  {
+    id: "PAY-88006",
+    orderId: "—",
+    customer: "Sparkle Wash Co.",
+    kind: "Partner payout",
+    amount: "$890.50",
+    method: "Bank transfer",
+    status: "Pending",
+    createdAt: "2026-04-03",
+  },
+];
+
+const EXTRA_PAYMENTS: AdminPayment[] = Array.from({ length: 38 }, (_, index) => {
+  const n = 88007 + index;
+  const month = 1 + (index % 12);
+  const day = 1 + (index % 28);
+  const status = PAYMENT_STATUSES[index % PAYMENT_STATUSES.length];
+  const kind = PAYMENT_KINDS[index % PAYMENT_KINDS.length];
+  const base = 12 + (index % 200);
+  const cents = (index * 13) % 100;
+  const isPartner = kind === "Partner payout";
+  const orderId = isPartner ? "—" : `ORD-${24010 + (index % 40)}`;
+
+  return {
+    id: `PAY-${n}`,
+    orderId,
+    customer: isPartner ? randomFrom(PARTNERS, index + 1) : randomFrom(CUSTOMERS, index + 2),
+    kind,
+    amount: kind === "Refund" ? `-$${Math.min(base, 99)}.${String(cents).padStart(2, "0")}` : `$${base}.${String(cents).padStart(2, "0")}`,
+    method: randomFrom(PAYMENT_METHODS, index + 5),
+    status,
+    createdAt: `2026-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`,
+  };
+});
+
+const DEMO_PAYMENTS: AdminPayment[] = [...SEEDED_PAYMENTS, ...EXTRA_PAYMENTS];
+
+export async function fetchPaymentsDemoData(): Promise<AdminPayment[]> {
+  await new Promise((resolve) => setTimeout(resolve, 85));
+  return DEMO_PAYMENTS;
+}
+
+// -----------------------------
+// Disputes demo data
+// -----------------------------
+
+export type DisputeStatus = "Open" | "Under review" | "Resolved" | "Closed";
+
+export type DisputeCategory =
+  | "Damaged items"
+  | "Missed pickup"
+  | "Billing"
+  | "Delivery delay"
+  | "Wrong items"
+  | "Other";
+
+export type AdminDispute = {
+  id: string;
+  orderId: string;
+  customer: string;
+  partner: string;
+  category: DisputeCategory;
+  summary: string;
+  status: DisputeStatus;
+  openedAt: string;
+  updatedAt: string;
+};
+
+const DISPUTE_STATUSES: DisputeStatus[] = ["Open", "Under review", "Resolved", "Closed"];
+
+const DISPUTE_CATEGORIES: DisputeCategory[] = [
+  "Damaged items",
+  "Missed pickup",
+  "Billing",
+  "Delivery delay",
+  "Wrong items",
+  "Other",
+];
+
+const DISPUTE_SUMMARIES = [
+  "Silk blouse returned with discoloration",
+  "Driver never arrived for scheduled pickup",
+  "Charged twice for same order",
+  "Delivery arrived one day late",
+  "Received someone else's garments",
+  "Refund requested but not received",
+  "Pressing damage on dress shirt",
+  "No-show pickup window — no call",
+  "Incorrect weight on invoice",
+  "Express order missed deadline",
+];
+
+const SEEDED_DISPUTES: AdminDispute[] = [
+  {
+    id: "DSP-10001",
+    orderId: "ORD-24001",
+    customer: "Olivia Brown",
+    partner: "Sparkle Wash Co.",
+    category: "Damaged items",
+    summary: "Silk blouse returned with discoloration",
+    status: "Under review",
+    openedAt: "2026-04-01",
+    updatedAt: "2026-04-02",
+  },
+  {
+    id: "DSP-10002",
+    orderId: "ORD-23995",
+    customer: "Ethan Walker",
+    partner: "HomeFresh Laundry",
+    category: "Missed pickup",
+    summary: "Driver never arrived for scheduled pickup",
+    status: "Open",
+    openedAt: "2026-04-02",
+    updatedAt: "2026-04-02",
+  },
+  {
+    id: "DSP-10003",
+    orderId: "ORD-24008",
+    customer: "Sophia Carter",
+    partner: "Sparkle Wash Co.",
+    category: "Billing",
+    summary: "Charged twice for same order",
+    status: "Open",
+    openedAt: "2026-04-02",
+    updatedAt: "2026-04-02",
+  },
+  {
+    id: "DSP-10004",
+    orderId: "ORD-23970",
+    customer: "Liam Johnson",
+    partner: "QuickPress",
+    category: "Delivery delay",
+    summary: "Express order missed deadline",
+    status: "Resolved",
+    openedAt: "2026-03-28",
+    updatedAt: "2026-03-31",
+  },
+  {
+    id: "DSP-10005",
+    orderId: "ORD-24012",
+    customer: "Ava Wilson",
+    partner: "City Suds",
+    category: "Wrong items",
+    summary: "Received someone else's garments",
+    status: "Closed",
+    openedAt: "2026-03-20",
+    updatedAt: "2026-03-25",
+  },
+  {
+    id: "DSP-10006",
+    orderId: "ORD-24003",
+    customer: "Mia Garcia",
+    partner: "Blue Tide",
+    category: "Other",
+    summary: "Refund requested but not received",
+    status: "Under review",
+    openedAt: "2026-04-03",
+    updatedAt: "2026-04-03",
+  },
+];
+
+const EXTRA_DISPUTES: AdminDispute[] = Array.from({ length: 34 }, (_, index) => {
+  const n = 10007 + index;
+  const month = 1 + (index % 12);
+  const day = 1 + (index % 28);
+  const status = DISPUTE_STATUSES[index % DISPUTE_STATUSES.length];
+  const category = DISPUTE_CATEGORIES[index % DISPUTE_CATEGORIES.length];
+  const summary = randomFrom(DISPUTE_SUMMARIES, index + 3);
+
+  return {
+    id: `DSP-${n}`,
+    orderId: `ORD-${23950 + (index % 55)}`,
+    customer: randomFrom(CUSTOMERS, index + 1),
+    partner: randomFrom(PARTNERS, index + 7),
+    category,
+    summary,
+    status,
+    openedAt: `2026-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`,
+    updatedAt: `2026-${String(Math.min(12, month + (index % 2))).padStart(2, "0")}-${String(Math.min(28, day + (index % 3))).padStart(2, "0")}`,
+  };
+});
+
+const DEMO_DISPUTES: AdminDispute[] = [...SEEDED_DISPUTES, ...EXTRA_DISPUTES];
+
+export async function fetchDisputesDemoData(): Promise<AdminDispute[]> {
+  await new Promise((resolve) => setTimeout(resolve, 80));
+  return DEMO_DISPUTES;
 }
 
