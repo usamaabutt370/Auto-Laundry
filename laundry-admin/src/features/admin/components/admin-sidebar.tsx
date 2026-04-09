@@ -16,7 +16,6 @@ const menuItems = [
   { href: "/payments", label: "Payments", iconSrc: "/icons/file-checked.svg", iconSize: 16 },
   { href: "/subscriptions", label: "Subscriptions", iconSrc: "/icons/file-checked.svg", iconSize: 16 },
   { href: "/disputes", label: "Disputes", iconSrc: "/icons/file-checked.svg", iconSize: 16 },
-  { href: "/profile", label: "Profile", iconSrc: "/icons/file-checked.svg", iconSize: 16 },
   { href: "/settings", label: "Settings", iconSrc: "/icons/file-checked.svg", iconSize: 16 },
   { href: "/login", label: "Logout", iconSrc: "/icons/file-checked.svg", iconSize: 16 },
 ];
