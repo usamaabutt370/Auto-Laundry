@@ -1,2 +1,9 @@
-export type { AdminPayment, PaymentKind, PaymentStatus } from "./demo-backend";
+export type {
+  AdminPayment,
+  EscrowStatus,
+  PaymentKind,
+  PaymentStatus,
+  PaymentTiming,
+  PayoutStatus,
+} from "./demo-backend";
 export { fetchPaymentsDemoData } from "./demo-backend";

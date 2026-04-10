@@ -581,23 +581,43 @@ export async function fetchDashboardDemoData(): Promise<DashboardDemoData> {
 // -----------------------------
 
 export type PaymentStatus = "Succeeded" | "Pending" | "Failed" | "Refunded";
+export type PaymentTiming = "Paid at order" | "Paid at completion";
+export type EscrowStatus = "Awaiting payment" | "In escrow" | "Ready for payout" | "Released" | "Refunded" | "Failed";
+export type PayoutStatus = "Not ready" | "Ready" | "Sent" | "On hold" | "Failed";
+export type PaymentMethodType = "Card" | "Wallet" | "Bank";
 
-export type PaymentKind = "Customer charge" | "Partner payout" | "Refund" | "Adjustment";
+export type PaymentKind = "Escrow charge" | "Settlement charge" | "Partner payout" | "Refund" | "Adjustment";
 
 export type AdminPayment = {
   id: string;
   orderId: string;
   customer: string;
+  partner: string;
   kind: PaymentKind;
   amount: string;
+  grossAmount: string;
+  commissionRate: number;
+  commissionAmount: string;
+  partnerNet: string;
   method: string;
+  methodType: PaymentMethodType;
   status: PaymentStatus;
+  paymentTiming: PaymentTiming;
+  escrowStatus: EscrowStatus;
+  payoutStatus: PayoutStatus;
   createdAt: string;
+  updatedAt: string;
+  orderCompletedAt: string | null;
+  payoutProcessedAt: string | null;
+  disputeId: string | null;
 };
 
 const PAYMENT_STATUSES: PaymentStatus[] = ["Succeeded", "Pending", "Failed", "Refunded"];
 
-const PAYMENT_KINDS: PaymentKind[] = ["Customer charge", "Partner payout", "Refund", "Adjustment"];
+const PAYMENT_TIMINGS: PaymentTiming[] = ["Paid at order", "Paid at completion"];
+const ESCROW_STATUSES: EscrowStatus[] = ["Awaiting payment", "In escrow", "Ready for payout", "Released", "Refunded", "Failed"];
+const PAYOUT_STATUSES: PayoutStatus[] = ["Not ready", "Ready", "Sent", "On hold", "Failed"];
+const PAYMENT_METHOD_TYPES: PaymentMethodType[] = ["Card", "Wallet", "Bank"];
 
 const PAYMENT_METHODS = [
   "Visa ·••• 4242",
@@ -608,66 +628,189 @@ const PAYMENT_METHODS = [
   "Bank transfer",
 ];
 
+function parseCurrency(value: string): number {
+  const n = Number(value.replace(/[^0-9.-]/g, ""));
+  return Number.isFinite(n) ? n : 0;
+}
+
+function toCurrency(value: number): string {
+  return `$${value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+function addDays(isoDate: string, deltaDays: number): string {
+  const d = new Date(`${isoDate}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + deltaDays);
+  return d.toISOString().slice(0, 10);
+}
+
+function buildPaymentRecord(input: {
+  id: string;
+  orderId: string;
+  customer: string;
+  partner: string;
+  gross: number;
+  method: string;
+  methodType: PaymentMethodType;
+  paymentTiming: PaymentTiming;
+  escrowStatus: EscrowStatus;
+  payoutStatus: PayoutStatus;
+  status: PaymentStatus;
+  createdAt: string;
+  updatedAt: string;
+  orderCompletedAt: string | null;
+  payoutProcessedAt: string | null;
+  disputeId?: string | null;
+}): AdminPayment {
+  const commissionRate = 0.1;
+  const commissionAmount = input.gross > 0 ? Math.round(input.gross * commissionRate * 100) / 100 : 0;
+  const partnerNet = input.gross > 0 ? Math.round((input.gross - commissionAmount) * 100) / 100 : 0;
+  const kind: PaymentKind =
+    input.status === "Refunded"
+      ? "Refund"
+      : input.paymentTiming === "Paid at completion"
+        ? "Settlement charge"
+        : "Escrow charge";
+
+  return {
+    id: input.id,
+    orderId: input.orderId,
+    customer: input.customer,
+    partner: input.partner,
+    kind,
+    amount: toCurrency(input.gross),
+    grossAmount: toCurrency(input.gross),
+    commissionRate,
+    commissionAmount: toCurrency(commissionAmount),
+    partnerNet: toCurrency(partnerNet),
+    method: input.method,
+    methodType: input.methodType,
+    status: input.status,
+    paymentTiming: input.paymentTiming,
+    escrowStatus: input.escrowStatus,
+    payoutStatus: input.payoutStatus,
+    createdAt: input.createdAt,
+    updatedAt: input.updatedAt,
+    orderCompletedAt: input.orderCompletedAt,
+    payoutProcessedAt: input.payoutProcessedAt,
+    disputeId: input.disputeId ?? null,
+  };
+}
+
 const SEEDED_PAYMENTS: AdminPayment[] = [
   {
-    id: "PAY-88001",
-    orderId: "ORD-24001",
-    customer: "Olivia Brown",
-    kind: "Customer charge",
-    amount: "$48.00",
-    method: "Visa ·••• 4242",
-    status: "Succeeded",
-    createdAt: "2026-04-01",
+    ...buildPaymentRecord({
+      id: "PAY-88001",
+      orderId: "ORD-24001",
+      customer: "Olivia Brown",
+      partner: "Sparkle Wash Co.",
+      gross: 48,
+      method: "Visa ·••• 4242",
+      methodType: "Card",
+      paymentTiming: "Paid at order",
+      escrowStatus: "Released",
+      payoutStatus: "Sent",
+      status: "Succeeded",
+      createdAt: "2026-04-01",
+      updatedAt: "2026-04-03",
+      orderCompletedAt: "2026-04-02",
+      payoutProcessedAt: "2026-04-03",
+    }),
   },
   {
-    id: "PAY-88002",
-    orderId: "ORD-24002",
-    customer: "Ethan Walker",
-    kind: "Customer charge",
-    amount: "$62.50",
-    method: "Apple Pay",
-    status: "Pending",
-    createdAt: "2026-04-02",
+    ...buildPaymentRecord({
+      id: "PAY-88002",
+      orderId: "ORD-24002",
+      customer: "Ethan Walker",
+      partner: "HomeFresh Laundry",
+      gross: 62.5,
+      method: "Apple Pay",
+      methodType: "Wallet",
+      paymentTiming: "Paid at order",
+      escrowStatus: "In escrow",
+      payoutStatus: "Not ready",
+      status: "Pending",
+      createdAt: "2026-04-02",
+      updatedAt: "2026-04-03",
+      orderCompletedAt: null,
+      payoutProcessedAt: null,
+    }),
   },
   {
-    id: "PAY-88003",
-    orderId: "—",
-    customer: "HomeFresh Laundry",
-    kind: "Partner payout",
-    amount: "$1,240.00",
-    method: "ACH ·••• 7721",
-    status: "Succeeded",
-    createdAt: "2026-04-02",
+    ...buildPaymentRecord({
+      id: "PAY-88003",
+      orderId: "ORD-24003",
+      customer: "Sophia Carter",
+      partner: "HomeFresh Laundry",
+      gross: 28,
+      method: "ACH ·••• 7721",
+      methodType: "Bank",
+      paymentTiming: "Paid at completion",
+      escrowStatus: "Released",
+      payoutStatus: "Sent",
+      status: "Succeeded",
+      createdAt: "2026-04-02",
+      updatedAt: "2026-04-02",
+      orderCompletedAt: "2026-04-02",
+      payoutProcessedAt: "2026-04-02",
+    }),
   },
   {
-    id: "PAY-88004",
-    orderId: "ORD-23988",
-    customer: "Sophia Carter",
-    kind: "Refund",
-    amount: "-$18.00",
-    method: "Visa ·••• 4242",
-    status: "Refunded",
-    createdAt: "2026-03-30",
+    ...buildPaymentRecord({
+      id: "PAY-88004",
+      orderId: "ORD-23988",
+      customer: "Sophia Carter",
+      partner: "Sparkle Wash Co.",
+      gross: 18,
+      method: "Visa ·••• 4242",
+      methodType: "Card",
+      paymentTiming: "Paid at order",
+      escrowStatus: "Refunded",
+      payoutStatus: "On hold",
+      status: "Refunded",
+      createdAt: "2026-03-30",
+      updatedAt: "2026-03-31",
+      orderCompletedAt: "2026-03-30",
+      payoutProcessedAt: null,
+      disputeId: "DSP-10003",
+    }),
   },
   {
-    id: "PAY-88005",
-    orderId: "ORD-24004",
-    customer: "Liam Johnson",
-    kind: "Customer charge",
-    amount: "$35.00",
-    method: "Mastercard ·••• 8891",
-    status: "Failed",
-    createdAt: "2026-04-03",
+    ...buildPaymentRecord({
+      id: "PAY-88005",
+      orderId: "ORD-24004",
+      customer: "Liam Johnson",
+      partner: "QuickPress",
+      gross: 35,
+      method: "Mastercard ·••• 8891",
+      methodType: "Card",
+      paymentTiming: "Paid at completion",
+      escrowStatus: "Failed",
+      payoutStatus: "Failed",
+      status: "Failed",
+      createdAt: "2026-04-03",
+      updatedAt: "2026-04-03",
+      orderCompletedAt: "2026-04-03",
+      payoutProcessedAt: null,
+    }),
   },
   {
-    id: "PAY-88006",
-    orderId: "—",
-    customer: "Sparkle Wash Co.",
-    kind: "Partner payout",
-    amount: "$890.50",
-    method: "Bank transfer",
-    status: "Pending",
-    createdAt: "2026-04-03",
+    ...buildPaymentRecord({
+      id: "PAY-88006",
+      orderId: "ORD-24005",
+      customer: "Ava Wilson",
+      partner: "Sparkle Wash Co.",
+      gross: 91.25,
+      method: "Bank transfer",
+      methodType: "Bank",
+      paymentTiming: "Paid at order",
+      escrowStatus: "Ready for payout",
+      payoutStatus: "Ready",
+      status: "Pending",
+      createdAt: "2026-04-03",
+      updatedAt: "2026-04-04",
+      orderCompletedAt: "2026-04-04",
+      payoutProcessedAt: null,
+    }),
   },
 ];
 
@@ -676,22 +819,35 @@ const EXTRA_PAYMENTS: AdminPayment[] = Array.from({ length: 38 }, (_, index) => 
   const month = 1 + (index % 12);
   const day = 1 + (index % 28);
   const status = PAYMENT_STATUSES[index % PAYMENT_STATUSES.length];
-  const kind = PAYMENT_KINDS[index % PAYMENT_KINDS.length];
-  const base = 12 + (index % 200);
+  const paymentTiming = PAYMENT_TIMINGS[index % PAYMENT_TIMINGS.length];
+  const escrowStatus = ESCROW_STATUSES[index % ESCROW_STATUSES.length];
+  const payoutStatus = PAYOUT_STATUSES[index % PAYOUT_STATUSES.length];
+  const methodType = PAYMENT_METHOD_TYPES[index % PAYMENT_METHOD_TYPES.length];
+  const base = 20 + (index % 170);
   const cents = (index * 13) % 100;
-  const isPartner = kind === "Partner payout";
-  const orderId = isPartner ? "—" : `ORD-${24010 + (index % 40)}`;
+  const gross = parseCurrency(`$${base}.${String(cents).padStart(2, "0")}`);
+  const createdAt = `2026-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  const completedAt = escrowStatus === "In escrow" || escrowStatus === "Awaiting payment" ? null : addDays(createdAt, 1);
+  const payoutProcessedAt = payoutStatus === "Sent" ? addDays(createdAt, 2) : null;
 
-  return {
+  return buildPaymentRecord({
     id: `PAY-${n}`,
-    orderId,
-    customer: isPartner ? randomFrom(PARTNERS, index + 1) : randomFrom(CUSTOMERS, index + 2),
-    kind,
-    amount: kind === "Refund" ? `-$${Math.min(base, 99)}.${String(cents).padStart(2, "0")}` : `$${base}.${String(cents).padStart(2, "0")}`,
+    orderId: `ORD-${24010 + (index % 40)}`,
+    customer: randomFrom(CUSTOMERS, index + 2),
+    partner: randomFrom(PARTNERS, index + 1),
+    gross,
     method: randomFrom(PAYMENT_METHODS, index + 5),
+    methodType,
+    paymentTiming,
+    escrowStatus,
+    payoutStatus,
     status,
-    createdAt: `2026-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`,
-  };
+    createdAt,
+    updatedAt: addDays(createdAt, 1),
+    orderCompletedAt: completedAt,
+    payoutProcessedAt,
+    disputeId: status === "Refunded" ? `DSP-${10020 + (index % 12)}` : null,
+  });
 });
 
 const DEMO_PAYMENTS: AdminPayment[] = [...SEEDED_PAYMENTS, ...EXTRA_PAYMENTS];
