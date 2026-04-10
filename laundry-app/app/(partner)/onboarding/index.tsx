@@ -244,7 +244,7 @@ export default function PartnerOnboardingStep1() {
     <SafeAreaView style={styles.container} edges={["top"]}>
       <PartnerHeader
         title={s.step1Title}
-        subtitle={s.step1Subtitle}
+        // subtitle={s.step1Subtitle}
         leftIcon="arrow-left"
         onLeftPress={() => router.back()}
         leftAccessibilityLabel={s.back}
@@ -256,11 +256,13 @@ export default function PartnerOnboardingStep1() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
+        <Text style={styles.businessNameLabel}>Business Name</Text>
         <FormTextInput
           placeholder={s.businessNamePlaceholder}
           value={businessName}
           onChangeText={setBusinessName}
         />
+        <Text style={styles.businessNameLabel}>Business Contact Number</Text>
         {submitAttempted && isBusinessNameMissing ? (
           <Text style={styles.errorText}>
             {s.requiredFieldError ?? "This field is required."}
@@ -273,6 +275,8 @@ export default function PartnerOnboardingStep1() {
           onChangeText={(value) => setPhoneNumber(normalizePkPhoneDigits(value))}
           containerStyle={styles.phoneInput}
         />
+        <Text style={styles.businessNameLabel}>Business Available Time</Text>
+
         {submitAttempted && isPhoneMissing ? (
           <Text style={styles.errorText}>
             {s.requiredFieldError ?? "This field is required."}
@@ -450,6 +454,7 @@ export default function PartnerOnboardingStep1() {
             </View>
           </View>
         </Modal>
+        <Text style={styles.businessNameLabel}>Business Address</Text>
         <FormTextInput
           placeholder={s.addressPlaceholder}
           value={address}
@@ -460,6 +465,7 @@ export default function PartnerOnboardingStep1() {
             {s.requiredFieldError ?? "This field is required."}
           </Text>
         ) : null}
+        <Text style={styles.businessNameLabel}>Business Description</Text>
         <FormTextInput
           placeholder={s.businessDescriptionPlaceholder}
           value={businessDescription}
@@ -644,5 +650,10 @@ const styles = StyleSheet.create({
     marginTop: -8,
     marginBottom: 12,
     paddingHorizontal: 8,
+  },
+  businessNameLabel: {
+    fontSize: theme.fontSize.xSmallText,
+    color: theme.colors.white,
+    marginBottom: 8,
   },
 });
