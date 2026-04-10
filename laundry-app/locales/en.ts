@@ -118,7 +118,12 @@ export const en = {
     pickLaunderer: {
       title: "Pick Up & Delivery",
       addressPlaceholder: "1465 5th Avenue APt 5C",
+      hoursPlaceholder: "Hours not set",
+      emptyList:
+        "No launderers are available for pickup yet. Complete partner onboarding with pickup enabled to appear here.",
+      retry: "Retry",
     },
+    partnerPickupLinePrefix: "Pickup & delivery:",
     laundererDetail: {
       title: "Laundromat Detailed",
       perPound: "per Pound",
@@ -336,9 +341,19 @@ export const en = {
     },
     onboarding: {
       step1Title: "Business details",
-      step1Subtitle: "Tell us about your laundry business.",
+      step1Subtitle: "laundry business.",
       businessNamePlaceholder: "Business Name",
       businessDescriptionPlaceholder: "Business description",
+      phoneNumberPlaceholder: "Phone Number",
+      availableTimePlaceholder: "Available Time",
+      startTimePlaceholder: "Start Time",
+      endTimePlaceholder: "End Time",
+      addressPlaceholder: "Address",
+      requiredFieldError: "This field is required.",
+      phoneNumberHintInvalid:
+        "Enter a valid 10-digit Pakistani mobile number (without the leading 0).",
+      availableTimeHintInvalid: "Use format: 9:00 AM - 6:00 PM",
+      availableTimeRangeInvalid: "End time must be after start time.",
       step2Title: "Services",
       step2ScreenTitle: "Service",
       step2Subtitle: "What services do you offer?",

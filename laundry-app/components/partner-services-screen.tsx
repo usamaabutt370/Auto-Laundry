@@ -2,6 +2,7 @@ import { useRouter } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useState } from "react";
 
 import { FormTextInput } from "@/components/form-text-input";
 import { PartnerHeader } from "@/components/partner-header";
@@ -65,6 +66,7 @@ export interface PartnerServicesScreenProps {
 export function PartnerServicesScreen({ mode }: PartnerServicesScreenProps) {
   const router = useRouter();
   const { locale } = useLocale();
+  const [inlineError, setInlineError] = useState<string | null>(null);
   const {
     washAndFoldPricing,
     dryCleaningPricing,
@@ -73,6 +75,8 @@ export function PartnerServicesScreen({ mode }: PartnerServicesScreenProps) {
     setPickupDeliveryPricing,
     savePickupDeliveryPricing,
     isSavingPickupDeliveryPricing,
+    submitOnboardingServices,
+    isSubmittingOnboardingServices,
   } = useMerchantServices();
   const onboardingStrings = getStrings(locale).partner.onboarding;
   const settingsStrings = getStrings(locale).partner.settings;
@@ -102,7 +106,29 @@ export function PartnerServicesScreen({ mode }: PartnerServicesScreenProps) {
     }
   };
 
-  const handleFinish = () => {
+  const allCoreServicesAdded =
+    (washAndFoldPricing?.rows?.length ?? 0) > 0 &&
+    (dryCleaningPricing?.rows?.length ?? 0) > 0 &&
+    (tailoringPricing?.rows?.length ?? 0) > 0;
+  const pickupAmountValid =
+    !pickupDeliveryPricing.enabled || pickupDeliveryPricing.amount.trim().length > 0;
+
+  const handleFinish = async () => {
+    setInlineError(null);
+    if (!allCoreServicesAdded) {
+      setInlineError("Please add prices for all services before finishing.");
+      return;
+    }
+    if (!pickupAmountValid) {
+      setInlineError("Please enter pickup and delivery amount or disable the option.");
+      return;
+    }
+    const result = await submitOnboardingServices();
+    if (!result.ok) {
+      setInlineError(result.error ?? "Unable to save services. Please try again.");
+      return;
+    }
+    setInlineError(null);
     router.replace("/(partner)");
   };
 
@@ -213,15 +239,20 @@ export function PartnerServicesScreen({ mode }: PartnerServicesScreenProps) {
         </View>
 
         {isOnboarding && (
-          <AppButton
-            label={onboardingStrings.finish}
-            onPress={handleFinish}
-            variant="filled"
-            rightIcon="arrow-right"
-            fullWidth
-            style={styles.finishBtn}
-            accessibilityLabel={onboardingStrings.finish}
-          />
+          <>
+            {inlineError ? <Text style={styles.errorText}>{inlineError}</Text> : null}
+            <AppButton
+              label={onboardingStrings.finish}
+              onPress={handleFinish}
+              variant="filled"
+              rightIcon="arrow-right"
+              fullWidth
+              loading={isSubmittingOnboardingServices}
+              disabled={isSubmittingOnboardingServices}
+              style={styles.finishBtn}
+              accessibilityLabel={onboardingStrings.finish}
+            />
+          </>
         )}
         {!isOnboarding && (
           <AppButton
@@ -261,6 +292,12 @@ const styles = StyleSheet.create({
   },
   finishBtn: {
     marginTop: 28,
+  },
+  errorText: {
+    color: "#FFB3B3",
+    fontSize: fs.smallText,
+    marginTop: 16,
+    marginBottom: -16,
   },
   pickupWrap: {
     marginTop: 18,

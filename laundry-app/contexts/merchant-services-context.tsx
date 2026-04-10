@@ -57,6 +57,8 @@ interface MerchantServicesContextValue {
   setPickupDeliveryPricing: React.Dispatch<React.SetStateAction<PickupDeliveryPricing>>;
   savePickupDeliveryPricing: () => Promise<boolean>;
   isSavingPickupDeliveryPricing: boolean;
+  submitOnboardingServices: () => Promise<{ ok: boolean; error?: string }>;
+  isSubmittingOnboardingServices: boolean;
   addService: (item: Omit<ServiceItem, "id">) => void | Promise<void>;
   updateService: (id: string, updates: Partial<Omit<ServiceItem, "id">>) => void;
   removeService: (id: string) => void;
@@ -94,6 +96,7 @@ export function MerchantServicesProvider({ children }: { children: React.ReactNo
     amount: "",
   });
   const [isSavingPickupDeliveryPricing, setIsSavingPickupDeliveryPricing] = useState(false);
+  const [isSubmittingOnboardingServices, setIsSubmittingOnboardingServices] = useState(false);
 
   const fetchServices = useCallback(async () => {
     if (!supabase || !user?.id) {
@@ -220,6 +223,91 @@ export function MerchantServicesProvider({ children }: { children: React.ReactNo
     [user?.id]
   );
 
+  const submitOnboardingServices = useCallback(async () => {
+    if (!isSupabaseConfigured() || !supabase || !user?.id) {
+      return { ok: false, error: "Supabase is not configured or user is not signed in." };
+    }
+
+    const payload: Array<{
+      user_id: string;
+      name: string;
+      price_display: string;
+      category: string;
+    }> = [];
+
+    const appendRows = (category: string, rows: ServicePricingRow[] | undefined) => {
+      (rows ?? []).forEach((row) => {
+        const value = row.value.trim();
+        if (!value) return;
+        payload.push({
+          user_id: user.id,
+          name: `${category} - ${row.label}`,
+          price_display: value,
+          category,
+        });
+      });
+    };
+
+    appendRows("Wash & Fold", washAndFoldPricing?.rows);
+    appendRows("Dry Cleaning", dryCleaningPricing?.rows);
+    appendRows("Tailoring", tailoringPricing?.rows);
+
+    if (pickupDeliveryPricing.enabled && pickupDeliveryPricing.amount.trim().length > 0) {
+      payload.push({
+        user_id: user.id,
+        name: "Pickup & Delivery",
+        price_display: pickupDeliveryPricing.amount.trim(),
+        category: "Pickup & Delivery",
+      });
+    }
+
+    setIsSubmittingOnboardingServices(true);
+    try {
+      const { error: profileError } = await supabase.from("partner_profiles").upsert(
+        {
+          id: user.id,
+          pickup_delivery_enabled: pickupDeliveryPricing.enabled,
+          pickup_delivery_amount: pickupDeliveryPricing.amount.trim(),
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "id" }
+      );
+      if (profileError) {
+        return { ok: false, error: profileError.message };
+      }
+
+      const { error: deleteError } = await supabase
+        .from("partner_services")
+        .delete()
+        .eq("user_id", user.id);
+      if (deleteError) {
+        return { ok: false, error: deleteError.message };
+      }
+
+      if (payload.length > 0) {
+        const { error: insertError } = await supabase
+          .from("partner_services")
+          .insert(payload);
+        if (insertError) {
+          return { ok: false, error: insertError.message };
+        }
+      }
+
+      await fetchServices();
+      return { ok: true };
+    } finally {
+      setIsSubmittingOnboardingServices(false);
+    }
+  }, [
+    user?.id,
+    washAndFoldPricing,
+    dryCleaningPricing,
+    tailoringPricing,
+    pickupDeliveryPricing.enabled,
+    pickupDeliveryPricing.amount,
+    fetchServices,
+  ]);
+
   const value = useMemo(
     () => ({
       services,
@@ -238,6 +326,8 @@ export function MerchantServicesProvider({ children }: { children: React.ReactNo
       setPickupDeliveryPricing,
       savePickupDeliveryPricing,
       isSavingPickupDeliveryPricing,
+      submitOnboardingServices,
+      isSubmittingOnboardingServices,
       addService,
       updateService,
       removeService,
@@ -255,6 +345,8 @@ export function MerchantServicesProvider({ children }: { children: React.ReactNo
       pickupDeliveryPricing,
       savePickupDeliveryPricing,
       isSavingPickupDeliveryPricing,
+      submitOnboardingServices,
+      isSubmittingOnboardingServices,
       addService,
       updateService,
       removeService,

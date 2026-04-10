@@ -1,25 +1,32 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 
 import { assets } from "@/assets/assets";
-import { strings } from "@/constants/strings";
-import { theme } from "@/constants/theme";
-import {
-  getLaundererById,
-  type LaundererServiceType,
-} from "@/constants/launderers";
 import { Spacer } from "@/components";
+import { strings } from "@/constants/strings";
+import type { LaundererServiceType } from "@/constants/launderers";
+import { theme } from "@/constants/theme";
+import { avatarUrlWithCacheBuster } from "@/lib/avatar";
+import {
+  fetchPartnerDetail,
+  serviceCategoriesToTypes,
+} from "@/lib/partner-discovery";
 
 const c = theme.colors;
 
-const ONBOARDING_IMAGES: Record<"slide1" | "slide2" | "slide3", number> = {
-  slide1: assets.onboarding.slide1,
-  slide2: assets.onboarding.slide2,
-  slide3: assets.onboarding.slide3,
-};
+const PLACEHOLDER_RATING = 4.5;
+const DISTANCE_PLACEHOLDER = "—";
 
 const SERVICE_KEYS: LaundererServiceType[] = [
   "washAndFold",
@@ -29,21 +36,62 @@ const SERVICE_KEYS: LaundererServiceType[] = [
 
 export default function LaundererDetailScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ id: string }>();
-  const launderer = getLaundererById(params.id ?? "");
+  const params = useLocalSearchParams<{ id: string | string[] }>();
+  const partnerId = Array.isArray(params.id) ? params.id[0] : params.id;
   const s = strings.customer.laundererDetail;
   const sServices = strings.customer.pickupServices;
 
-  if (!launderer) {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [profile, setProfile] = useState<Awaited<
+    ReturnType<typeof fetchPartnerDetail>
+  >["profile"]>(null);
+  const [services, setServices] = useState<
+    Awaited<ReturnType<typeof fetchPartnerDetail>>["services"]
+  >([]);
+
+  const load = useCallback(async () => {
+    if (!partnerId) {
+      setLoading(false);
+      setProfile(null);
+      setServices([]);
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    const { profile: p, services: rows, error: err } = await fetchPartnerDetail(
+      partnerId
+    );
+    if (err) setError(err);
+    setProfile(p);
+    setServices(rows);
+    setLoading(false);
+  }, [partnerId]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const serviceTypes = useMemo(
+    () =>
+      serviceCategoriesToTypes(
+        services.map((row) => row.category).filter(Boolean) as string[]
+      ),
+    [services]
+  );
+
+  const heroUri = avatarUrlWithCacheBuster(profile?.image_url, profile?.updated_at);
+
+  const handleSelect = () => {
+    router.push("/(customer)/pickup-services");
+  };
+
+  if (!partnerId) {
     return (
       <View style={styles.container}>
         <SafeAreaView style={styles.header} edges={["top"]}>
           <Pressable onPress={() => router.back()} style={styles.backBtn}>
-            <MaterialCommunityIcons
-              name="arrow-left"
-              size={24}
-              color={c.white}
-            />
+            <MaterialCommunityIcons name="arrow-left" size={24} color={c.white} />
           </Pressable>
           <Text style={styles.headerTitle}>{s.title}</Text>
         </SafeAreaView>
@@ -54,11 +102,48 @@ export default function LaundererDetailScreen() {
     );
   }
 
-  const heroSource = ONBOARDING_IMAGES[launderer.heroImageKey];
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <SafeAreaView style={styles.header} edges={["top"]}>
+          <Pressable onPress={() => router.back()} style={styles.backBtn}>
+            <MaterialCommunityIcons name="arrow-left" size={24} color={c.white} />
+          </Pressable>
+          <Text style={styles.headerTitle}>{s.title}</Text>
+          <View style={styles.headerRight} />
+        </SafeAreaView>
+        <View style={styles.centered}>
+          <ActivityIndicator color={c.white} size="small" />
+        </View>
+      </View>
+    );
+  }
 
-  const handleSelect = () => {
-    router.push("/(customer)/pickup-services");
-  };
+  if (error || !profile) {
+    return (
+      <View style={styles.container}>
+        <SafeAreaView style={styles.header} edges={["top"]}>
+          <Pressable onPress={() => router.back()} style={styles.backBtn}>
+            <MaterialCommunityIcons name="arrow-left" size={24} color={c.white} />
+          </Pressable>
+          <Text style={styles.headerTitle}>{s.title}</Text>
+          <View style={styles.headerRight} />
+        </SafeAreaView>
+        <View style={styles.centered}>
+          <Text style={styles.notFoundText}>
+            {error ?? "Launderer not found"}
+          </Text>
+          <Pressable onPress={load} style={styles.retryWrap}>
+            <Text style={styles.retryText}>{strings.customer.pickLaunderer.retry}</Text>
+          </Pressable>
+        </View>
+      </View>
+    );
+  }
+
+  const hoursDetail =
+    profile.available_time?.trim() ||
+    strings.customer.pickLaunderer.hoursPlaceholder;
 
   return (
     <View style={styles.container}>
@@ -73,17 +158,11 @@ export default function LaundererDetailScreen() {
         </Pressable>
         <Text style={styles.headerTitle}>{s.title}</Text>
         <Pressable
-          style={({ pressed }) => [
-            styles.headerRight,
-            pressed && styles.pressed,
-          ]}
+          style={({ pressed }) => [styles.headerRight, pressed && styles.pressed]}
           accessibilityRole="button"
           accessibilityLabel="Options"
         >
-          <Image
-            source={assets.icons.menu_icon}
-            style={styles.headerRightIcon}
-          />
+          <Image source={assets.icons.menu_icon} style={styles.headerRightIcon} />
         </Pressable>
       </SafeAreaView>
 
@@ -92,7 +171,15 @@ export default function LaundererDetailScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <Image source={heroSource} style={styles.heroImage} />
+        {heroUri ? (
+          <Image source={{ uri: heroUri }} style={styles.heroImage} contentFit="cover" />
+        ) : (
+          <Image
+            source={assets.onboarding.slide2}
+            style={styles.heroImage}
+            contentFit="cover"
+          />
+        )}
         <Spacer.Column numberOfSpaces={2} />
         <View style={styles.infoBlock}>
           <View style={styles.ratingDistanceRow}>
@@ -104,7 +191,7 @@ export default function LaundererDetailScreen() {
                 color="#EAB308"
               />
             ))}
-            <Text style={styles.ratingText}>({launderer.rating})</Text>
+            <Text style={styles.ratingText}>({PLACEHOLDER_RATING})</Text>
             <MaterialCommunityIcons
               name="compass-outline"
               size={18}
@@ -112,9 +199,12 @@ export default function LaundererDetailScreen() {
               style={styles.compassIcon}
               opacity={0.7}
             />
-            <Text style={styles.distanceText}>{launderer.distance}</Text>
+            <Text style={styles.distanceText}>{DISTANCE_PLACEHOLDER}</Text>
           </View>
-          <Text style={styles.name}>{launderer.name}</Text>
+          <Text style={styles.name}>{profile.business_name.trim()}</Text>
+          {profile.business_description?.trim() ? (
+            <Text style={styles.description}>{profile.business_description.trim()}</Text>
+          ) : null}
           <View style={styles.detailRow}>
             <MaterialCommunityIcons
               name="clock-outline"
@@ -122,9 +212,7 @@ export default function LaundererDetailScreen() {
               color={c.white}
               opacity={0.7}
             />
-            <Text style={styles.detailText}>
-              {launderer.openingHoursDetail}
-            </Text>
+            <Text style={styles.detailText}>{hoursDetail}</Text>
           </View>
           <View style={styles.detailRow}>
             <MaterialCommunityIcons
@@ -133,7 +221,9 @@ export default function LaundererDetailScreen() {
               color={c.white}
               opacity={0.7}
             />
-            <Text style={styles.detailText}>{launderer.phoneNumber}</Text>
+            <Text style={styles.detailText}>
+              {profile.phone_number?.trim() || "—"}
+            </Text>
           </View>
           <View style={styles.detailRow}>
             <MaterialCommunityIcons
@@ -142,24 +232,27 @@ export default function LaundererDetailScreen() {
               color={c.white}
               opacity={0.7}
             />
-            <Text style={styles.detailText}>{launderer.address}</Text>
-          </View>
-          <View style={styles.detailRow}>
-            <MaterialCommunityIcons
-              name="cash"
-              size={20}
-              color={c.white}
-              opacity={0.7}
-            />
             <Text style={styles.detailText}>
-              $ {launderer.pricePerPound.toFixed(2)} {s.perPound}
+              {profile.address?.trim() || "—"}
             </Text>
           </View>
+          {profile.pickup_delivery_enabled &&
+          profile.pickup_delivery_amount?.trim() ? (
+            <View style={styles.detailRow}>
+              <MaterialCommunityIcons
+                name="truck-delivery-outline"
+                size={20}
+                color={c.white}
+                opacity={0.7}
+              />
+              <Text style={styles.detailText}>
+                {`${strings.customer.partnerPickupLinePrefix} ${profile.pickup_delivery_amount.trim()}`}
+              </Text>
+            </View>
+          ) : null}
 
           <View style={styles.servicesRow}>
-            {SERVICE_KEYS.filter((k) =>
-              launderer.servicesOffered.includes(k),
-            ).map((key) => (
+            {SERVICE_KEYS.filter((k) => serviceTypes.includes(k)).map((key) => (
               <View key={key} style={styles.servicePill}>
                 <Text style={styles.servicePillText}>{sServices[key]}</Text>
               </View>
@@ -197,8 +290,10 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: c.white,
     fontWeight: "700",
+    flex: 1,
+    textAlign: "center",
   },
-  headerRight: { padding: 8 },
+  headerRight: { padding: 8, width: 40 },
   headerRightIcon: {
     width: 20,
     height: 20,
@@ -215,7 +310,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
     width: "100%",
     borderRadius: 16,
-    resizeMode: "contain",
+    resizeMode: "cover",
     backgroundColor: c.blue900,
   },
   infoBlock: {
@@ -244,8 +339,15 @@ const styles = StyleSheet.create({
   name: {
     fontSize: 22,
     color: c.white,
-    marginBottom: 16,
+    marginBottom: 8,
     fontWeight: "700",
+  },
+  description: {
+    fontSize: 14,
+    color: c.white,
+    opacity: 0.75,
+    marginBottom: 12,
+    lineHeight: 20,
   },
   detailRow: {
     gap: 12,
@@ -299,9 +401,21 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
+    paddingHorizontal: 24,
+    gap: 12,
   },
   notFoundText: {
     fontSize: 16,
     color: c.white,
+    textAlign: "center",
+  },
+  retryWrap: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+  },
+  retryText: {
+    color: c.lightBlue,
+    fontSize: 15,
+    fontWeight: "600",
   },
 });

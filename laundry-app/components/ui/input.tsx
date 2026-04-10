@@ -25,7 +25,7 @@ export interface InputProps extends Omit<TextInputProps, "style"> {
   style?: TextInputProps["style"];
   /** Background color of the input (e.g. theme background for blended look). */
   backgroundColor?: string;
-  /** Border color (light teal outline). */
+  /** Border color; defaults to `theme.colors.outline` (same as FormTextInput). */
   borderColor?: string;
   /** Placeholder and text color. */
   placeholderTextColor?: string;
@@ -79,7 +79,7 @@ export function Input({
             styles.input,
             {
               backgroundColor: theme.colors.blue900 ?? "transparent",
-              borderColor: borderColor ?? "rgba(255,255,255,0.4)",
+              borderColor: borderColor ?? theme.colors.outline,
               color: textColor ?? theme.colors.white,
               paddingRight: showPasswordToggle ? PASSWORD_ICON_PADDING : 20,
               paddingLeft: isPhone ? 56 : 20,

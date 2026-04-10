@@ -117,7 +117,12 @@ export const ur = {
     pickLaunderer: {
       title: "پک اپ اور ڈیلیوری",
       addressPlaceholder: "1465 5th Avenue APt 5C",
+      hoursPlaceholder: "اوقات متعین نہیں",
+      emptyList:
+        "ابھی پک اپ کے لیے کوئی لانڈرر دستیاب نہیں۔ یہاں نظر آنے کے لیے پارٹنر آن بورڈنگ مکمل کریں۔",
+      retry: "دوبارہ کوشش",
     },
+    partnerPickupLinePrefix: "پک اپ اور ڈیلیوری:",
     laundererDetail: {
       title: "لانڈرومیٹ کی تفصیل",
       perPound: "فی پاؤنڈ",
@@ -338,6 +343,15 @@ export const ur = {
       step1Subtitle: "اپنے لانڈری کاروبار کے بارے میں بتائیں۔",
       businessNamePlaceholder: "کاروبار کا نام",
       businessDescriptionPlaceholder: "کاروباری تفصیل",
+      phoneNumberPlaceholder: "فون نمبر",
+      availableTimePlaceholder: "دستیاب وقت",
+      startTimePlaceholder: "شروع کا وقت",
+      endTimePlaceholder: "اختتامی وقت",
+      addressPlaceholder: "پتہ",
+      requiredFieldError: "یہ خانہ لازمی ہے۔",
+      phoneNumberHintInvalid: "درست 10 ہندسوں کا فون نمبر درج کریں۔",
+      availableTimeHintInvalid: "فارمیٹ استعمال کریں: 9:00 AM - 6:00 PM",
+      availableTimeRangeInvalid: "اختتامی وقت، شروع کے وقت کے بعد ہونا چاہیے۔",
       step2Title: "سروسز",
       step2ScreenTitle: "سروس",
       step2Subtitle: "آپ کون سی سروسز پیش کرتے ہیں؟",

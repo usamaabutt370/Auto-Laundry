@@ -1,6 +1,8 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -14,44 +16,84 @@ import { Image } from "expo-image";
 import { assets } from "@/assets/assets";
 import { strings } from "@/constants/strings";
 import { theme } from "@/constants/theme";
-import { LAUNDERERS, type Launderer } from "@/constants/launderers";
+import { avatarUrlWithCacheBuster } from "@/lib/avatar";
+import {
+  fetchPickupPartners,
+  type PartnerPublicRow,
+} from "@/lib/partner-discovery";
+import {
+  getCoordinatesWithFallback,
+  type Coordinates,
+} from "@/utils/geocoding";
 
 const c = theme.colors;
 
-const ONBOARDING_IMAGES: Record<"slide1" | "slide2" | "slide3", number> = {
-  slide1: assets.onboarding.slide1,
-  slide2: assets.onboarding.slide2,
-  slide3: assets.onboarding.slide3,
-};
+const PLACEHOLDER_RATING = 4.5;
+const DEFAULT_ADDRESS = "1465 5th Avenue APt 5C";
+const DISTANCE_PLACEHOLDER = "—";
+const PARTNER_DISTANCE_PLACEHOLDER = `${DISTANCE_PLACEHOLDER} km`;
+const USER_GEO_DEBOUNCE_MS = 500;
+
+function toRadians(value: number): number {
+  return (value * Math.PI) / 180;
+}
+
+function calculateDistanceKm(from: Coordinates, to: Coordinates): number {
+  const earthRadiusKm = 6371;
+  const deltaLatitude = toRadians(to.latitude - from.latitude);
+  const deltaLongitude = toRadians(to.longitude - from.longitude);
+  const fromLatitude = toRadians(from.latitude);
+  const toLatitude = toRadians(to.latitude);
+  const a =
+    Math.sin(deltaLatitude / 2) ** 2 +
+    Math.cos(fromLatitude) * Math.cos(toLatitude) * Math.sin(deltaLongitude / 2) ** 2;
+  const cAngle = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return earthRadiusKm * cAngle;
+}
+
+function formatDistanceKm(distanceKm: number | null | undefined): string {
+  if (typeof distanceKm !== "number" || !Number.isFinite(distanceKm)) {
+    return PARTNER_DISTANCE_PLACEHOLDER;
+  }
+  if (distanceKm < 1) {
+    return `${Math.max(0.1, distanceKm).toFixed(1)} km`;
+  }
+  return `${distanceKm.toFixed(1)} km`;
+}
 
 function LaundererCard({
-  launderer,
+  partner,
+  distanceLabel,
   onPress,
 }: {
-  launderer: Launderer;
+  partner: PartnerPublicRow;
+  distanceLabel: string;
   onPress: () => void;
 }) {
-  const imageSource = ONBOARDING_IMAGES[launderer.imageKey];
+  const imageUri = avatarUrlWithCacheBuster(partner.image_url, partner.updated_at);
+  const hours =
+    partner.available_time?.trim() || strings.customer.pickLaunderer.hoursPlaceholder;
+  const phone = partner.phone_number?.trim() || "—";
+
   return (
     <Pressable
       onPress={onPress}
       style={({ pressed }) => [styles.card, pressed && styles.pressed]}
     >
-      <Image source={imageSource} style={styles.cardImage} />
+      {imageUri ? (
+        <Image source={{ uri: imageUri }} style={styles.cardImage} contentFit="cover" />
+      ) : (
+        <Image source={assets.onboarding.slide1} style={styles.cardImage} />
+      )}
       <View style={styles.cardBody}>
         <View style={styles.ratingRow}>
           {[1, 2, 3, 4, 5].map((i) => (
-            <MaterialCommunityIcons
-              key={i}
-              name="star"
-              size={16}
-              color="#EAB308"
-            />
+            <MaterialCommunityIcons key={i} name="star" size={16} color="#EAB308" />
           ))}
-          <Text style={styles.ratingText}>({launderer.rating})</Text>
+          <Text style={styles.ratingText}>({PLACEHOLDER_RATING})</Text>
         </View>
         <Text style={styles.cardName} numberOfLines={1}>
-          {launderer.name}
+          {partner.business_name.trim()}
         </Text>
         <View style={styles.infoRow}>
           <MaterialCommunityIcons
@@ -60,7 +102,7 @@ function LaundererCard({
             color={c.white}
             opacity={0.5}
           />
-          <Text style={styles.infoText}>{launderer.phoneNumber}</Text>
+          <Text style={styles.infoText}>{phone}</Text>
         </View>
         <View style={styles.infoRow}>
           <MaterialCommunityIcons
@@ -69,7 +111,7 @@ function LaundererCard({
             color={c.white}
             opacity={0.5}
           />
-          <Text style={styles.infoText}>{launderer.openingHours}</Text>
+          <Text style={styles.infoText}>{hours}</Text>
         </View>
         <View style={styles.infoRow}>
           <MaterialCommunityIcons
@@ -78,7 +120,7 @@ function LaundererCard({
             color={c.white}
             opacity={0.5}
           />
-          <Text style={styles.infoText}>{launderer.distance}</Text>
+          <Text style={styles.infoText}>{distanceLabel}</Text>
         </View>
         <View style={styles.infoRow}>
           <MaterialCommunityIcons
@@ -88,7 +130,7 @@ function LaundererCard({
             opacity={0.5}
           />
           <Text style={styles.infoText} numberOfLines={2}>
-            {launderer.address}
+            {partner.address?.trim() || "—"}
           </Text>
         </View>
       </View>
@@ -99,6 +141,146 @@ function LaundererCard({
 export default function PickLaundererScreen() {
   const router = useRouter();
   const s = strings.customer.pickLaunderer;
+  const [partners, setPartners] = useState<PartnerPublicRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [addressInput, setAddressInput] = useState(DEFAULT_ADDRESS);
+  const [userCoordinates, setUserCoordinates] = useState<Coordinates | null>(null);
+  const [partnerCoordinates, setPartnerCoordinates] = useState<Record<string, Coordinates | null>>(
+    {}
+  );
+  const geocodeCacheRef = useRef<Map<string, Coordinates | null>>(new Map());
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    const { data, error: err } = await fetchPickupPartners();
+    if (err) {
+      setError(err);
+      setPartners([]);
+    } else {
+      setPartners(data ?? []);
+    }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const timeoutId = setTimeout(() => {
+      getCoordinatesWithFallback(addressInput).then((coords) => {
+        if (!cancelled) {
+          setUserCoordinates(coords);
+        }
+      });
+    }, USER_GEO_DEBOUNCE_MS);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timeoutId);
+    };
+  }, [addressInput]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const uniqueAddresses = Array.from(
+      new Set(
+        partners
+          .filter(
+            (partner) =>
+              !Number.isFinite(partner.latitude) || !Number.isFinite(partner.longitude)
+          )
+          .map((partner) => partner.address?.trim() ?? "")
+          .filter((address) => address.length > 0)
+      )
+    );
+    const unresolvedAddresses = uniqueAddresses.filter(
+      (address) => !geocodeCacheRef.current.has(address)
+    );
+
+    if (unresolvedAddresses.length === 0) {
+      setPartnerCoordinates((prev) => {
+        const next: Record<string, Coordinates | null> = {};
+        for (const partner of partners) {
+          if (
+            Number.isFinite(partner.latitude) &&
+            Number.isFinite(partner.longitude)
+          ) {
+            next[partner.id] = {
+              latitude: Number(partner.latitude),
+              longitude: Number(partner.longitude),
+            };
+            continue;
+          }
+          const address = partner.address?.trim() ?? "";
+          next[partner.id] = address ? geocodeCacheRef.current.get(address) ?? null : null;
+        }
+        const prevKeys = Object.keys(prev);
+        const nextKeys = Object.keys(next);
+        const hasSameKeys =
+          prevKeys.length === nextKeys.length &&
+          nextKeys.every((key) => Object.prototype.hasOwnProperty.call(prev, key));
+        if (!hasSameKeys) return next;
+        const isSame = nextKeys.every(
+          (key) =>
+            prev[key]?.latitude === next[key]?.latitude &&
+            prev[key]?.longitude === next[key]?.longitude
+        );
+        return isSame ? prev : next;
+      });
+      return;
+    }
+
+    (async () => {
+      const resolved = await Promise.all(
+        unresolvedAddresses.map(async (address) => ({
+          address,
+          coords: await getCoordinatesWithFallback(address),
+        }))
+      );
+      if (cancelled) return;
+      for (const item of resolved) {
+        geocodeCacheRef.current.set(item.address, item.coords);
+      }
+      const next: Record<string, Coordinates | null> = {};
+      for (const partner of partners) {
+        if (
+          Number.isFinite(partner.latitude) &&
+          Number.isFinite(partner.longitude)
+        ) {
+          next[partner.id] = {
+            latitude: Number(partner.latitude),
+            longitude: Number(partner.longitude),
+          };
+          continue;
+        }
+        const address = partner.address?.trim() ?? "";
+        next[partner.id] = address ? geocodeCacheRef.current.get(address) ?? null : null;
+      }
+      setPartnerCoordinates(next);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [partners]);
+
+  const partnerDistanceLabels = useMemo(() => {
+    const next: Record<string, string> = {};
+    for (const partner of partners) {
+      const partnerCoords = partnerCoordinates[partner.id];
+      if (!userCoordinates || !partnerCoords) {
+        next[partner.id] = PARTNER_DISTANCE_PLACEHOLDER;
+        continue;
+      }
+      const km = calculateDistanceKm(userCoordinates, partnerCoords);
+      next[partner.id] = formatDistanceKm(km);
+    }
+    return next;
+  }, [partnerCoordinates, partners, userCoordinates]);
 
   return (
     <View style={styles.container}>
@@ -112,53 +294,63 @@ export default function PickLaundererScreen() {
           <MaterialCommunityIcons name="arrow-left" size={24} color={c.white} />
         </Pressable>
         <View style={styles.addressWrap}>
-          <Image
-            source={assets.icons.location_icon}
-            style={styles.addressIcon}
-          />
+          <Image source={assets.icons.location_icon} style={styles.addressIcon} />
           <TextInput
             placeholder={s.addressPlaceholder}
             placeholderTextColor={c.gray50}
             style={styles.addressInput}
-            defaultValue="1465 5th Avenue APt 5C"
+            value={addressInput}
+            onChangeText={setAddressInput}
             editable
             returnKeyType="done"
           />
         </View>
         <Pressable
-          style={({ pressed }) => [
-            styles.headerRight,
-            pressed && styles.pressed,
-          ]}
+          style={({ pressed }) => [styles.headerRight, pressed && styles.pressed]}
           accessibilityRole="button"
           accessibilityLabel="Filter"
         >
-          <Image
-            source={assets.icons.menu_icon}
-            style={styles.headerRightIcon}
-          />
+          <Image source={assets.icons.menu_icon} style={styles.headerRightIcon} />
         </Pressable>
       </SafeAreaView>
       <Text style={styles.screenTitle}>{s.title}</Text>
 
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {LAUNDERERS.map((launderer) => (
-          <LaundererCard
-            key={launderer.id}
-            launderer={launderer}
-            onPress={() =>
-              router.push({
-                pathname: "/(customer)/launderer-detail",
-                params: { id: launderer.id },
-              })
-            }
-          />
-        ))}
-      </ScrollView>
+      {loading ? (
+        <View style={styles.centerBlock}>
+          <ActivityIndicator color={c.white} size="small" />
+        </View>
+      ) : error ? (
+        <View style={styles.centerBlock}>
+          <Text style={styles.errorText}>{error}</Text>
+          <Pressable onPress={load} style={styles.retryBtn}>
+            <Text style={styles.retryText}>{s.retry}</Text>
+          </Pressable>
+        </View>
+      ) : partners.length === 0 ? (
+        <View style={styles.centerBlock}>
+          <Text style={styles.emptyText}>{s.emptyList}</Text>
+        </View>
+      ) : (
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {partners.map((partner) => (
+            <LaundererCard
+              key={partner.id}
+              partner={partner}
+              distanceLabel={partnerDistanceLabels[partner.id] ?? PARTNER_DISTANCE_PLACEHOLDER}
+              onPress={() =>
+                router.push({
+                  pathname: "/(customer)/launderer-detail",
+                  params: { id: partner.id },
+                })
+              }
+            />
+          ))}
+        </ScrollView>
+      )}
     </View>
   );
 }
@@ -215,6 +407,32 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 40,
     gap: 16,
+  },
+  centerBlock: {
+    flex: 1,
+    paddingHorizontal: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 12,
+  },
+  errorText: {
+    color: "#FFB3B3",
+    fontSize: 14,
+    textAlign: "center",
+  },
+  emptyText: {
+    color: c.blue500,
+    fontSize: 15,
+    textAlign: "center",
+  },
+  retryBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+  },
+  retryText: {
+    color: c.lightBlue,
+    fontSize: 15,
+    fontWeight: "600",
   },
   card: {
     flexDirection: "row",

@@ -1,6 +1,7 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
 import {
+  ActivityIndicator,
   Platform,
   Pressable,
   StyleSheet,
@@ -34,6 +35,8 @@ export interface AppButtonProps {
   accessibilityLabel?: string;
   /** Disabled state. */
   disabled?: boolean;
+  /** Show spinner and block presses. */
+  loading?: boolean;
 }
 
 /**
@@ -50,6 +53,7 @@ export function AppButton({
   style,
   accessibilityLabel,
   disabled = false,
+  loading = false,
 }: AppButtonProps) {
   const isFilled = variant === "filled";
   const isPlaceholder = variant === "placeholder";
@@ -60,10 +64,12 @@ export function AppButton({
       : c.outline;
   const textColor = isPlaceholder ? c.background : isFilled ? c.white : c.outline;
 
+  const isDisabled = disabled || loading;
+
   return (
     <Pressable
       onPress={onPress}
-      disabled={disabled}
+      disabled={isDisabled}
       style={({ pressed }) => [
         styles.base,
         isPlaceholder
@@ -73,21 +79,23 @@ export function AppButton({
             : styles.outline,
         fullWidth && styles.fullWidth,
         pressed && styles.pressed,
-        disabled && styles.disabled,
+        isDisabled && styles.disabled,
         style,
       ]}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
-      accessibilityState={{ disabled }}
+      accessibilityState={{ disabled: isDisabled, busy: loading }}
     >
-      {leftIcon != null && (
+      {loading ? (
+        <ActivityIndicator size="small" color={iconColor} />
+      ) : leftIcon != null ? (
         <MaterialCommunityIcons
           name={leftIcon}
           size={22}
           color={iconColor}
           style={styles.iconLeft}
         />
-      )}
+      ) : null}
       <Text
         style={[styles.text, { color: textColor }]}
         numberOfLines={1}
@@ -95,7 +103,7 @@ export function AppButton({
       >
         {label}
       </Text>
-      {rightIcon != null && (
+      {!loading && rightIcon != null && (
         <MaterialCommunityIcons
           name={rightIcon}
           size={20}
