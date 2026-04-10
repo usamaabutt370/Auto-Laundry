@@ -7,6 +7,8 @@ export type PartnerPublicRow = {
   phone_number: string | null;
   available_time: string | null;
   address: string | null;
+  latitude: number | null;
+  longitude: number | null;
   image_url: string | null;
   updated_at: string | null;
 };
@@ -34,7 +36,7 @@ export async function fetchPickupPartners(): Promise<{
   const { data, error } = await supabase
     .from("partner_profiles")
     .select(
-      "id, business_name, phone_number, available_time, address, image_url, updated_at"
+      "id, business_name, phone_number, available_time, address, latitude, longitude, image_url, updated_at"
     )
     .eq("pickup_delivery_enabled", true)
     .order("business_name", { ascending: true });
@@ -59,7 +61,7 @@ export async function fetchPartnerDetail(partnerId: string): Promise<{
   const { data: profile, error: pErr } = await supabase
     .from("partner_profiles")
     .select(
-      "id, business_name, business_description, phone_number, available_time, address, image_url, updated_at, pickup_delivery_enabled, pickup_delivery_amount"
+      "id, business_name, business_description, phone_number, available_time, address, latitude, longitude, image_url, updated_at, pickup_delivery_enabled, pickup_delivery_amount"
     )
     .eq("id", partnerId)
     .maybeSingle<PartnerDetailRow>();

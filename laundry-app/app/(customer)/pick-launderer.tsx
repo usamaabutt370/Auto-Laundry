@@ -1,6 +1,6 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -21,17 +21,53 @@ import {
   fetchPickupPartners,
   type PartnerPublicRow,
 } from "@/lib/partner-discovery";
+import {
+  getCoordinatesWithFallback,
+  type Coordinates,
+} from "@/utils/geocoding";
 
 const c = theme.colors;
 
 const PLACEHOLDER_RATING = 4.5;
+const DEFAULT_ADDRESS = "1465 5th Avenue APt 5C";
 const DISTANCE_PLACEHOLDER = "—";
+const PARTNER_DISTANCE_PLACEHOLDER = `${DISTANCE_PLACEHOLDER} km`;
+const USER_GEO_DEBOUNCE_MS = 500;
+
+function toRadians(value: number): number {
+  return (value * Math.PI) / 180;
+}
+
+function calculateDistanceKm(from: Coordinates, to: Coordinates): number {
+  const earthRadiusKm = 6371;
+  const deltaLatitude = toRadians(to.latitude - from.latitude);
+  const deltaLongitude = toRadians(to.longitude - from.longitude);
+  const fromLatitude = toRadians(from.latitude);
+  const toLatitude = toRadians(to.latitude);
+  const a =
+    Math.sin(deltaLatitude / 2) ** 2 +
+    Math.cos(fromLatitude) * Math.cos(toLatitude) * Math.sin(deltaLongitude / 2) ** 2;
+  const cAngle = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return earthRadiusKm * cAngle;
+}
+
+function formatDistanceKm(distanceKm: number | null | undefined): string {
+  if (typeof distanceKm !== "number" || !Number.isFinite(distanceKm)) {
+    return PARTNER_DISTANCE_PLACEHOLDER;
+  }
+  if (distanceKm < 1) {
+    return `${Math.max(0.1, distanceKm).toFixed(1)} km`;
+  }
+  return `${distanceKm.toFixed(1)} km`;
+}
 
 function LaundererCard({
   partner,
+  distanceLabel,
   onPress,
 }: {
   partner: PartnerPublicRow;
+  distanceLabel: string;
   onPress: () => void;
 }) {
   const imageUri = avatarUrlWithCacheBuster(partner.image_url, partner.updated_at);
@@ -84,7 +120,7 @@ function LaundererCard({
             color={c.white}
             opacity={0.5}
           />
-          <Text style={styles.infoText}>{DISTANCE_PLACEHOLDER}</Text>
+          <Text style={styles.infoText}>{distanceLabel}</Text>
         </View>
         <View style={styles.infoRow}>
           <MaterialCommunityIcons
@@ -108,6 +144,12 @@ export default function PickLaundererScreen() {
   const [partners, setPartners] = useState<PartnerPublicRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [addressInput, setAddressInput] = useState(DEFAULT_ADDRESS);
+  const [userCoordinates, setUserCoordinates] = useState<Coordinates | null>(null);
+  const [partnerCoordinates, setPartnerCoordinates] = useState<Record<string, Coordinates | null>>(
+    {}
+  );
+  const geocodeCacheRef = useRef<Map<string, Coordinates | null>>(new Map());
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -126,6 +168,120 @@ export default function PickLaundererScreen() {
     load();
   }, [load]);
 
+  useEffect(() => {
+    let cancelled = false;
+    const timeoutId = setTimeout(() => {
+      getCoordinatesWithFallback(addressInput).then((coords) => {
+        if (!cancelled) {
+          setUserCoordinates(coords);
+        }
+      });
+    }, USER_GEO_DEBOUNCE_MS);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timeoutId);
+    };
+  }, [addressInput]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const uniqueAddresses = Array.from(
+      new Set(
+        partners
+          .filter(
+            (partner) =>
+              !Number.isFinite(partner.latitude) || !Number.isFinite(partner.longitude)
+          )
+          .map((partner) => partner.address?.trim() ?? "")
+          .filter((address) => address.length > 0)
+      )
+    );
+    const unresolvedAddresses = uniqueAddresses.filter(
+      (address) => !geocodeCacheRef.current.has(address)
+    );
+
+    if (unresolvedAddresses.length === 0) {
+      setPartnerCoordinates((prev) => {
+        const next: Record<string, Coordinates | null> = {};
+        for (const partner of partners) {
+          if (
+            Number.isFinite(partner.latitude) &&
+            Number.isFinite(partner.longitude)
+          ) {
+            next[partner.id] = {
+              latitude: Number(partner.latitude),
+              longitude: Number(partner.longitude),
+            };
+            continue;
+          }
+          const address = partner.address?.trim() ?? "";
+          next[partner.id] = address ? geocodeCacheRef.current.get(address) ?? null : null;
+        }
+        const prevKeys = Object.keys(prev);
+        const nextKeys = Object.keys(next);
+        const hasSameKeys =
+          prevKeys.length === nextKeys.length &&
+          nextKeys.every((key) => Object.prototype.hasOwnProperty.call(prev, key));
+        if (!hasSameKeys) return next;
+        const isSame = nextKeys.every(
+          (key) =>
+            prev[key]?.latitude === next[key]?.latitude &&
+            prev[key]?.longitude === next[key]?.longitude
+        );
+        return isSame ? prev : next;
+      });
+      return;
+    }
+
+    (async () => {
+      const resolved = await Promise.all(
+        unresolvedAddresses.map(async (address) => ({
+          address,
+          coords: await getCoordinatesWithFallback(address),
+        }))
+      );
+      if (cancelled) return;
+      for (const item of resolved) {
+        geocodeCacheRef.current.set(item.address, item.coords);
+      }
+      const next: Record<string, Coordinates | null> = {};
+      for (const partner of partners) {
+        if (
+          Number.isFinite(partner.latitude) &&
+          Number.isFinite(partner.longitude)
+        ) {
+          next[partner.id] = {
+            latitude: Number(partner.latitude),
+            longitude: Number(partner.longitude),
+          };
+          continue;
+        }
+        const address = partner.address?.trim() ?? "";
+        next[partner.id] = address ? geocodeCacheRef.current.get(address) ?? null : null;
+      }
+      setPartnerCoordinates(next);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [partners]);
+
+  const partnerDistanceLabels = useMemo(() => {
+    const next: Record<string, string> = {};
+    for (const partner of partners) {
+      const partnerCoords = partnerCoordinates[partner.id];
+      if (!userCoordinates || !partnerCoords) {
+        next[partner.id] = PARTNER_DISTANCE_PLACEHOLDER;
+        continue;
+      }
+      const km = calculateDistanceKm(userCoordinates, partnerCoords);
+      next[partner.id] = formatDistanceKm(km);
+    }
+    return next;
+  }, [partnerCoordinates, partners, userCoordinates]);
+
   return (
     <View style={styles.container}>
       <SafeAreaView style={styles.header} edges={["top"]}>
@@ -143,7 +299,8 @@ export default function PickLaundererScreen() {
             placeholder={s.addressPlaceholder}
             placeholderTextColor={c.gray50}
             style={styles.addressInput}
-            defaultValue="1465 5th Avenue APt 5C"
+            value={addressInput}
+            onChangeText={setAddressInput}
             editable
             returnKeyType="done"
           />
@@ -183,6 +340,7 @@ export default function PickLaundererScreen() {
             <LaundererCard
               key={partner.id}
               partner={partner}
+              distanceLabel={partnerDistanceLabels[partner.id] ?? PARTNER_DISTANCE_PLACEHOLDER}
               onPress={() =>
                 router.push({
                   pathname: "/(customer)/launderer-detail",

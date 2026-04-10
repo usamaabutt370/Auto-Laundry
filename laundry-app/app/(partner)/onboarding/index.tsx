@@ -23,6 +23,7 @@ import { useLocale } from "@/contexts/locale-context";
 import { useAuth } from "@/contexts/auth-context";
 import { getStrings } from "@/locales";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
+import { getCoordinatesWithFallback } from "@/utils/geocoding";
 
 const PHONE_DIGITS_MAX = 10;
 const HOURS = Array.from({ length: 12 }, (_, idx) => idx + 1);
@@ -101,7 +102,7 @@ export default function PartnerOnboardingStep1() {
     supabase
       .from("partner_profiles")
       .select(
-        "business_name, business_description, phone_number, available_time, address"
+        "business_name, business_description, phone_number, available_time, address, latitude, longitude"
       )
       .eq("id", user.id)
       .maybeSingle()
@@ -203,18 +204,35 @@ export default function PartnerOnboardingStep1() {
 
     setIsSaving(true);
     try {
-      const { error } = await supabase.from("partner_profiles").upsert(
-        {
-          id: user.id,
-          business_name: businessName.trim(),
-          business_description: businessDescription.trim(),
-          phone_number: `+92${phoneNumber}`,
-          available_time: normalizedAvailableTime.toUpperCase(),
-          address: address.trim(),
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "id" }
-      );
+      const coords = await getCoordinatesWithFallback(address.trim());
+      const payload: {
+        id: string;
+        business_name: string;
+        business_description: string;
+        phone_number: string;
+        available_time: string;
+        address: string;
+        updated_at: string;
+        latitude?: number;
+        longitude?: number;
+      } = {
+        id: user.id,
+        business_name: businessName.trim(),
+        business_description: businessDescription.trim(),
+        phone_number: `+92${phoneNumber}`,
+        available_time: normalizedAvailableTime.toUpperCase(),
+        address: address.trim(),
+        updated_at: new Date().toISOString(),
+      };
+      if (coords) {
+        payload.latitude = coords.latitude;
+        payload.longitude = coords.longitude;
+      } else {
+        console.warn("OSM geocoding failed for address:", address.trim());
+      }
+      const { error } = await supabase.from("partner_profiles").upsert(payload, {
+        onConflict: "id",
+      });
 
       if (error) {
         Alert.alert("Save failed", error.message);
