@@ -1,7 +1,6 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 
@@ -9,6 +8,7 @@ import { Spacer } from "@/components";
 import { assets } from "@/assets/assets";
 import { strings } from "@/constants/strings";
 import { theme } from "@/constants/theme";
+import { useCustomerOrderDraft } from "@/contexts/customer-order-draft-context";
 
 const c = theme.colors;
 
@@ -20,36 +20,44 @@ const SERVICES: {
 }[] = [
   { id: "washAndFold", labelKey: "washAndFold" },
   { id: "dryCleaning", labelKey: "dryCleaning" },
-  // { id: "tailoring", labelKey: "tailoring" },
 ];
 
 export default function PickupServicesScreen() {
   const router = useRouter();
+  const { draft, setSelectedServiceIds } = useCustomerOrderDraft();
   const s = strings.customer.pickupServices;
-  const [selectedIds, setSelectedIds] = useState<ServiceId[]>(["washAndFold"]);
+  const selectedIds = draft.selectedServiceIds;
 
   const toggle = (id: ServiceId) => {
     if (id === "washAndFold") {
-      setSelectedIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
-      router.push("/(customer)/laundry-bags");
+      setSelectedServiceIds(
+        selectedIds.includes(id) ? selectedIds : [...selectedIds, id],
+      );
+      router.push("/(customer)/wash-fold-order");
       return;
     }
     if (id === "dryCleaning") {
-      setSelectedIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
-      router.push("/(customer)/dry-clean-options");
+      setSelectedServiceIds(
+        selectedIds.includes(id) ? selectedIds : [...selectedIds, id],
+      );
+      router.push("/(customer)/dry-clean-itemized-by-user");
       return;
     }
-    if (id === "tailoring") {
-      setSelectedIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
-      // router.push("/(customer)/tailoring");
-      return;
-    }
-    setSelectedIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    setSelectedServiceIds(
+      selectedIds.includes(id)
+        ? selectedIds.filter((x) => x !== id)
+        : [...selectedIds, id],
     );
   };
 
   const handleConfirm = () => {
+    if (!draft.partnerId) {
+      Alert.alert(
+        "Choose a launderer",
+        "Go back and select a laundry partner before scheduling pickup.",
+      );
+      return;
+    }
     router.push("/(customer)/schedule-pickup");
   };
 
@@ -66,10 +74,7 @@ export default function PickupServicesScreen() {
         </Pressable>
         <Text style={styles.headerTitle}>{s.title}</Text>
         <View style={styles.headerRight}>
-          <Image
-            source={assets.icons.menu_icon}
-            style={styles.headerRightIcon}
-          />
+          <Image source={assets.icons.menu_icon} style={styles.headerRightIcon} />
         </View>
       </SafeAreaView>
 
@@ -127,10 +132,7 @@ export default function PickupServicesScreen() {
         <View style={styles.spacer} />
         <Pressable
           onPress={handleConfirm}
-          style={({ pressed }) => [
-            styles.confirmBtn,
-            pressed && styles.pressed,
-          ]}
+          style={({ pressed }) => [styles.confirmBtn, pressed && styles.pressed]}
         >
           <Text style={styles.confirmLabel}>{s.confirm}</Text>
         </Pressable>

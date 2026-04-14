@@ -139,19 +139,12 @@ export const en = {
       confirm: "Confirm",
       months: "January,February,March,April,May,June,July,August,September,October,November,December",
     },
-    dryCleanOptions: {
-      title: "Dry Cleaning",
-      prompt: "Choose your preferred option :",
-      sortedByCleaner: "Sorted by cleaner",
-      itemizedByUser: "Itemized by User",
-    },
     dryCleanItemize: {
-      title: "Dry Cleaning - Itemize",
-      continue: "Continue",
+      title: "Dry Cleaning",
     },
     bags: {
       title: "Bags",
-      heading: "Enter number of bags to Wash & Fold",
+      heading: "Number of bags :",
       numberOfBags: "Number of bags :",
       hint: "Please provide as much detail as possible for each bag. The final weight/price will be updated by the cleaner at reception.",
       continue: "Continue",
@@ -167,6 +160,27 @@ export const en = {
       instructions: "Instructions",
       instructionsPlaceholder: "Add Specific details on your items",
       save: "Save",
+    },
+    washFoldOrder: {
+      title: "Your wash & fold load",
+      lead:
+        "Choose how this load is priced, enter the number that sets your total, and add any notes for your launderer below.",
+      howPriced: "Price this load",
+      perBag: "Per bag",
+      perItem: "Per item",
+      chargedTitle: "What you’re paying for",
+      calcLine: "{qty}: {amount}",
+      calcNoRate: "{qty} — rate not on partner list",
+    },
+    liveEstimate: {
+      estimatedLabel: "Estimated total",
+      viewBreakdown: "View price breakdown",
+      hideBreakdown: "Hide breakdown",
+      loading: "Loading partner prices…",
+      noPartner:
+        "Choose a launderer from the map first to see live prices for this load.",
+      partialNote:
+        "* Some lines are not in the partner’s price list — total is partial.",
     },
     schedulePickup: {
       title: "Pick up Schedule",
@@ -384,6 +398,11 @@ export const en = {
         "This service has a different pricing flow. We'll add it in a future update.",
       itemizeTitleSuffix: " - Itemize",
       continue: "Continue",
+      dryCleaningItemSuit: "Suit",
+      dryCleaningItemShirt: "Shirt",
+      dryCleaningItemPants: "Pants",
+      dryCleaningItemDress: "Dress",
+      dryCleaningItemSweater: "Sweater",
       dryCleaningItemCoat: "Coat",
       dryCleaningItemJacket: "Jacket",
       dryCleaningItemTie: "Tie",

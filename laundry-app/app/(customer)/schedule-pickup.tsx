@@ -14,6 +14,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { strings } from "@/constants/strings";
 import { theme } from "@/constants/theme";
+import { useCustomerOrderDraft } from "@/contexts/customer-order-draft-context";
 import { Spacer } from "@/components";
 import { assets } from "@/assets/assets";
 import { Image } from "expo-image";
@@ -126,6 +127,7 @@ const YEAR_OPTIONS = Array.from({ length: 15 }, (_, i) => CURRENT_YEAR - 1 + i);
 
 export default function SchedulePickupScreen() {
   const router = useRouter();
+  const { setPickupSchedule } = useCustomerOrderDraft();
   const s = strings.customer.schedulePickup;
   const [instructions, setInstructions] = useState("");
   const [selectedTimeSlotIndex, setSelectedTimeSlotIndex] = useState(3); // 11am - 12pm
@@ -175,6 +177,17 @@ export default function SchedulePickupScreen() {
   };
 
   const handleConfirm = () => {
+    const selectedDate = datesInMonth[selectedDateIndex]?.date ?? today;
+    const y = selectedDate.getFullYear();
+    const m = selectedDate.getMonth();
+    const d = selectedDate.getDate();
+    const dateIso = `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+    setPickupSchedule({
+      dateIso,
+      timeSlotLabel,
+      dayLabel,
+      instructions: instructions.trim(),
+    });
     router.push("/(customer)/schedule-delivery");
   };
 

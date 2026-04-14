@@ -1,40 +1,99 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useFocusEffect, useRouter } from "expo-router";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 
 import { assets } from "@/assets/assets";
+import { CustomerLiveEstimateFooter } from "@/components/customer-live-estimate-footer";
+import {
+  DRY_CLEAN_ITEM_DEFS,
+  initialDryCleanQuantities,
+} from "@/constants/dry-clean-items";
 import { strings } from "@/constants/strings";
 import { theme } from "@/constants/theme";
+import type { CustomerOrderDraft } from "@/contexts/customer-order-draft-context";
+import { useCustomerOrderDraft } from "@/contexts/customer-order-draft-context";
+import { dryCleanUnitForItem } from "@/lib/customer-order-estimate";
+import { usePartnerOrderEstimate } from "@/hooks/use-partner-order-estimate";
+import { formatMoney } from "@/utils/format-money";
 
 const c = theme.colors;
 
-const DRY_CLEAN_ITEMS: { id: string; name: string; price: number }[] = [
-  { id: "coat", name: "Coat", price: 28.79 },
-  { id: "jacket", name: "Jacket", price: 12.79 },
-  { id: "tie", name: "Tie", price: 8.79 },
-  { id: "robe", name: "Robe", price: 12.79 },
-  { id: "blanket", name: "Blanket", price: 25.79 },
-];
-
 export default function DryCleanItemizedByUserScreen() {
   const router = useRouter();
+  const {
+    draft,
+    setDryCleanItemizedQuantities,
+    setDryCleanItemizedInstructions,
+    setSelectedServiceIds,
+  } = useCustomerOrderDraft();
   const s = strings.customer.dryCleanItemize;
-  const [quantities, setQuantities] = useState<Record<string, number>>({
-    coat: 1,
-    jacket: 0,
-    tie: 1,
-    robe: 0,
-    blanket: 1,
-  });
+  const sDet = strings.customer.laundryBagDetail;
+  const sLive = strings.customer.liveEstimate;
+
+  const [quantities, setQuantities] = useState<Record<string, number>>(() =>
+    initialDryCleanQuantities(),
+  );
+  const [instructions, setInstructions] = useState("");
+
+  const draftRef = useRef(draft);
+  draftRef.current = draft;
+
+  // Stable callback: hydrate on focus only. Deps on `draft.dryClean` re-run this while focused and loop with the sync effects below.
+  useFocusEffect(
+    useCallback(() => {
+      const dc = draftRef.current.dryClean;
+      if (!dc) return;
+      setInstructions(dc.itemizedInstructions ?? "");
+      setQuantities((prev) => {
+        const next = { ...prev };
+        for (const def of DRY_CLEAN_ITEM_DEFS) {
+          const q = dc.itemizedQuantities[def.id];
+          if (q != null) next[def.id] = q;
+        }
+        return next;
+      });
+    }, []),
+  );
+
+  useEffect(() => {
+    if (!draft.selectedServiceIds.includes("dryCleaning")) {
+      setSelectedServiceIds([...draft.selectedServiceIds, "dryCleaning"]);
+    }
+  }, [draft.selectedServiceIds, setSelectedServiceIds]);
+
+  useEffect(() => {
+    setDryCleanItemizedQuantities(quantities);
+  }, [quantities, setDryCleanItemizedQuantities]);
+
+  useEffect(() => {
+    setDryCleanItemizedInstructions(instructions.trim());
+  }, [instructions, setDryCleanItemizedInstructions]);
+
+  const dryOnlyDraft: CustomerOrderDraft = useMemo(
+    () => ({
+      ...draft,
+      selectedServiceIds: ["dryCleaning"],
+      washFold: null,
+      pickup: null,
+      delivery: null,
+    }),
+    [draft],
+  );
+
+  const { loading, estimate, services } = usePartnerOrderEstimate(
+    draft.partnerId,
+    dryOnlyDraft,
+  );
 
   const setQty = (id: string, delta: number) => {
     setQuantities((prev) => {
@@ -43,9 +102,11 @@ export default function DryCleanItemizedByUserScreen() {
     });
   };
 
-  const handleContinue = () => {
-    router.push("/(customer)/dry-clean-itemize-detail");
+  const handleSave = () => {
+    router.push("/(customer)/pickup-services");
   };
+
+  const currencyPrefix = estimate.currencyPrefix;
 
   return (
     <View style={styles.container}>
@@ -53,46 +114,56 @@ export default function DryCleanItemizedByUserScreen() {
         <Pressable
           onPress={() => router.back()}
           style={({ pressed }) => [styles.backBtn, pressed && styles.pressed]}
-          accessibilityRole="button"
-          accessibilityLabel="Go back"
         >
           <MaterialCommunityIcons name="arrow-left" size={24} color={c.white} />
         </Pressable>
         <Text style={styles.headerTitle} numberOfLines={1}>
           {s.title}
         </Text>
-        <Pressable
-          style={({ pressed }) => [styles.headerRight, pressed && styles.pressed]}
-          accessibilityRole="button"
-          accessibilityLabel="Options"
-        >
-          <Image
-            source={assets.icons.menu_icon}
-            style={styles.headerRightIcon}
-          />
+        <Pressable style={({ pressed }) => [styles.headerRight, pressed && styles.pressed]}>
+          <Image source={assets.icons.menu_icon} style={styles.headerRightIcon} />
         </Pressable>
       </SafeAreaView>
 
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {DRY_CLEAN_ITEMS.map((item) => {
+        <Text style={styles.lead}>
+          Set quantities for each type. Line totals use your launderer’s prices
+          when available.
+        </Text>
+
+        {DRY_CLEAN_ITEM_DEFS.map((item) => {
           const qty = quantities[item.id] ?? 0;
+          const { amount: unit, priceLabel } = dryCleanUnitForItem(
+            services,
+            item.name,
+          );
+          const lineTotal =
+            unit != null && qty > 0 ? Math.round(unit * qty * 100) / 100 : null;
+
           return (
             <View key={item.id} style={styles.itemCard}>
-              <Text style={styles.itemLabel}>
-                {item.name} - ${item.price.toFixed(2)}
-              </Text>
+              <View style={styles.itemLeft}>
+                <Text style={styles.itemName}>{item.name}</Text>
+                <Text style={styles.unitPrice}>
+                  {unit != null
+                    ? `${formatMoney(currencyPrefix || "", unit)} each · ${priceLabel}`
+                    : `Rate: ${priceLabel}`}
+                </Text>
+                {qty > 0 && lineTotal != null ? (
+                  <Text style={styles.lineSubtotal}>
+                    Subtotal: {formatMoney(currencyPrefix || "", lineTotal)}
+                  </Text>
+                ) : null}
+              </View>
               <View style={styles.stepper}>
                 <Pressable
                   onPress={() => setQty(item.id, -1)}
-                  style={({ pressed }) => [
-                    styles.stepperBtn,
-                    pressed && styles.pressed,
-                    qty <= 0 && styles.stepperBtnDisabled,
-                  ]}
+                  style={styles.stepperBtn}
                   disabled={qty <= 0}
                 >
                   <MaterialCommunityIcons
@@ -104,10 +175,7 @@ export default function DryCleanItemizedByUserScreen() {
                 <Text style={styles.stepperValue}>{qty}</Text>
                 <Pressable
                   onPress={() => setQty(item.id, 1)}
-                  style={({ pressed }) => [
-                    styles.stepperBtn,
-                    pressed && styles.pressed,
-                  ]}
+                  style={styles.stepperBtn}
                 >
                   <MaterialCommunityIcons name="plus" size={20} color={c.white} />
                 </Pressable>
@@ -115,17 +183,33 @@ export default function DryCleanItemizedByUserScreen() {
             </View>
           );
         })}
+
+        <Text style={styles.sectionLabel}>{sDet.instructions}</Text>
+        <TextInput
+          style={styles.instructions}
+          value={instructions}
+          onChangeText={setInstructions}
+          placeholder={sDet.instructionsPlaceholder}
+          placeholderTextColor="rgba(0,0,0,0.4)"
+          multiline
+          numberOfLines={3}
+          textAlignVertical="top"
+        />
       </ScrollView>
 
       <SafeAreaView style={styles.footer} edges={["bottom"]}>
+        <CustomerLiveEstimateFooter
+          strings={sLive}
+          partnerName={draft.partnerName}
+          loading={loading}
+          hasPartner={Boolean(draft.partnerId)}
+          estimate={estimate}
+        />
         <Pressable
-          onPress={handleContinue}
-          style={({ pressed }) => [
-            styles.continueBtn,
-            pressed && styles.pressed,
-          ]}
+          onPress={handleSave}
+          style={({ pressed }) => [styles.continueBtn, pressed && styles.pressed]}
         >
-          <Text style={styles.continueLabel}>{s.continue}</Text>
+          <Text style={styles.continueLabel}>{sDet.save}</Text>
         </Pressable>
       </SafeAreaView>
     </View>
@@ -133,10 +217,7 @@ export default function DryCleanItemizedByUserScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: c.background,
-  },
+  container: { flex: 1, backgroundColor: c.background },
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -153,73 +234,93 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   headerRight: { padding: 8 },
-  headerRightIcon: {
-    width: 20,
-    height: 20,
-    tintColor: c.white,
-  },
+  headerRightIcon: { width: 20, height: 20, tintColor: c.white },
   pressed: { opacity: 0.8 },
+  lead: {
+    fontSize: 15,
+    color: "rgba(255,255,255,0.8)",
+    lineHeight: 22,
+    marginBottom: 20,
+  },
   scroll: { flex: 1 },
   scrollContent: {
     paddingHorizontal: 24,
-    paddingTop: 24,
+    paddingTop: 8,
     paddingBottom: 24,
+  },
+  sectionLabel: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "rgba(255,255,255,0.55)",
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
+    marginBottom: 8,
+    marginTop: 8,
+  },
+  instructions: {
+    backgroundColor: c.white,
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 15,
+    color: c.themeBlack,
+    minHeight: 88,
+    marginBottom: 12,
   },
   itemCard: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     backgroundColor: c.blue900,
-    borderRadius: 12,
-    paddingVertical: 16,
-    paddingHorizontal: 16,
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.2)",
+    borderColor: "rgba(255,255,255,0.15)",
   },
-  itemLabel: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: c.white,
-    flex: 1,
+  itemLeft: { flex: 1, paddingRight: 12 },
+  itemName: { fontSize: 17, fontWeight: "700", color: c.white },
+  unitPrice: {
+    fontSize: 13,
+    color: "rgba(255,255,255,0.65)",
+    marginTop: 4,
   },
-  stepper: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
+  lineSubtotal: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: c.lightBlue,
+    marginTop: 6,
   },
+  stepper: { flexDirection: "row", alignItems: "center", gap: 10 },
   stepperBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: "rgba(255,255,255,0.2)",
     alignItems: "center",
     justifyContent: "center",
   },
-  stepperBtnDisabled: { opacity: 0.5 },
   stepperValue: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: "700",
     color: c.white,
-    minWidth: 24,
+    minWidth: 28,
     textAlign: "center",
   },
   footer: {
-    paddingHorizontal: 24,
-    paddingTop: 16,
-    paddingBottom: 8,
     backgroundColor: c.background,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255,255,255,0.06)",
   },
   continueBtn: {
+    marginHorizontal: 24,
+    marginBottom: 8,
+    marginTop: 4,
     backgroundColor: c.backgroundLight,
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: "center",
-    justifyContent: "center",
   },
-  continueLabel: {
-    fontSize: 17,
-    fontWeight: "700",
-    color: c.white,
-  },
+  continueLabel: { fontSize: 17, fontWeight: "700", color: c.white },
 });
