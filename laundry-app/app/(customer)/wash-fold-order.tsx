@@ -1,6 +1,6 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useFocusEffect, useRouter } from "expo-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "expo-router";
+import { useEffect, useMemo, useState } from "react";
 import {
   Pressable,
   ScrollView,
@@ -57,7 +57,6 @@ export default function WashFoldOrderScreen() {
     setWashFoldBagCount,
     setWashFoldPricingMode,
     setWashFoldBagDetail,
-    setSelectedServiceIds,
   } = useCustomerOrderDraft();
 
   const sBags = strings.customer.bags;
@@ -72,24 +71,9 @@ export default function WashFoldOrderScreen() {
       draft.washFold?.bagDetailsByIndex[1]?.itemCount ?? 1,
     ),
   );
-  const [instructions, setInstructions] = useState("");
-
-  useFocusEffect(
-    useCallback(() => {
-      const wf = draft.washFold;
-      if (!wf) return;
-      setBagCount(Math.max(MIN_BAGS_PRIMARY, wf.bagCount));
-      const b1 = wf.bagDetailsByIndex[1];
-      setItemCount(Math.max(MIN_ITEMS, b1?.itemCount ?? 0));
-      setInstructions(b1?.instructions ?? "");
-    }, [draft.washFold]),
+  const [instructions, setInstructions] = useState(
+    () => draft.washFold?.bagDetailsByIndex[1]?.instructions ?? "",
   );
-
-  useEffect(() => {
-    if (!draft.selectedServiceIds.includes("washAndFold")) {
-      setSelectedServiceIds([...draft.selectedServiceIds, "washAndFold"]);
-    }
-  }, [draft.selectedServiceIds, setSelectedServiceIds]);
 
   const pricingMode = draft.washFold?.pricingMode ?? "per_bag";
 
@@ -106,7 +90,7 @@ export default function WashFoldOrderScreen() {
       weightLabel: "—",
       weightLb: 1,
       itemCount,
-      instructions: instructions.trim(),
+      instructions,
     });
   }, [itemCount, instructions, setWashFoldBagDetail]);
 

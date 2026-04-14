@@ -23,6 +23,7 @@ export default function CustomerLayout() {
           <Stack.Screen name="edit-profile" />
           <Stack.Screen name="pickup-services" />
           <Stack.Screen name="dry-clean-itemized-by-user" />
+          <Stack.Screen name="tailoring-itemized-by-user" />
           <Stack.Screen name="laundry-bags" />
           <Stack.Screen name="wash-fold-order" />
           <Stack.Screen name="laundry-bag-detail" />

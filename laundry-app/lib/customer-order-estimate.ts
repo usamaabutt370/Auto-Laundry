@@ -1,4 +1,5 @@
 import { DRY_CLEAN_ITEM_DEFS } from "@/constants/dry-clean-items";
+import { TAILORING_ITEM_DEFS } from "@/constants/tailoring-items";
 import type { CustomerOrderDraft } from "@/contexts/customer-order-draft-context";
 import type { PartnerDetailRow, PartnerServiceLine } from "@/lib/partner-discovery";
 import {
@@ -8,6 +9,7 @@ import {
 
 const CAT_WASH = "Wash & Fold";
 const CAT_DRY = "Dry Cleaning";
+const CAT_TAILORING = "Tailoring";
 
 export type OrderEstimateLine = {
   key: string;
@@ -30,6 +32,10 @@ function washFoldRows(services: PartnerServiceLine[]) {
 
 function dryCleanRows(services: PartnerServiceLine[]) {
   return services.filter((s) => s.category === CAT_DRY);
+}
+
+function tailoringRows(services: PartnerServiceLine[]) {
+  return services.filter((s) => s.category === CAT_TAILORING);
 }
 
 function isLikelyPerLbName(name: string): boolean {
@@ -78,6 +84,20 @@ function matchDryCleanService(
   );
 }
 
+function matchTailoringService(
+  rows: PartnerServiceLine[],
+  itemName: string,
+): PartnerServiceLine | null {
+  const lower = itemName.toLowerCase();
+  const exact = rows.find((r) => r.name.trim().toLowerCase() === lower);
+  if (exact) return exact;
+  return (
+    rows.find((r) => r.name.toLowerCase().includes(lower)) ??
+    rows.find((r) => lower.includes(r.name.trim().toLowerCase())) ??
+    null
+  );
+}
+
 function inferCurrencyPrefix(services: PartnerServiceLine[]): string {
   for (const s of services) {
     const p = currencyPrefixFromDisplay(s.price_display);
@@ -110,6 +130,14 @@ export function buildCustomerOrderEstimate(
           itemizedInstructions: "",
         }
       : null);
+  const tailoring =
+    draft.tailoring ??
+    (draft.selectedServiceIds.includes("tailoring")
+      ? {
+          itemizedQuantities: {} as Record<string, number>,
+          itemizedInstructions: "",
+        }
+      : null);
 
   const lines: OrderEstimateLine[] = [];
   let currencyPrefix = inferCurrencyPrefix(services);
@@ -117,6 +145,7 @@ export function buildCustomerOrderEstimate(
     "Final price may change when the launderer weighs or inspects your items.";
 
   const addPickupFee = () => {
+    if (!draft.pickupDeliveryRequested) return;
     if (!profile?.pickup_delivery_enabled) return;
     /** Only after pickup and delivery are both on the draft (e.g. order summary), not mid-flow. */
     if (draft.pickup == null || draft.delivery == null) return;
@@ -250,6 +279,26 @@ export function buildCustomerOrderEstimate(
     }
   }
 
+  if (draft.selectedServiceIds.includes("tailoring") && tailoring) {
+    const t = tailoring;
+    const rows = tailoringRows(services);
+
+    for (const def of TAILORING_ITEM_DEFS) {
+      const qty = t.itemizedQuantities[def.id] ?? 0;
+      if (qty <= 0) continue;
+      const row = matchTailoringService(rows, def.name);
+      const unit = row ? parsePriceDisplay(row.price_display) : null;
+      if (row && !currencyPrefix)
+        currencyPrefix = currencyPrefixFromDisplay(row.price_display);
+      lines.push({
+        key: `tailoring_${def.id}`,
+        title: row?.name.trim() ?? `Tailoring - ${def.name}`,
+        qtyLabel: `${qty}×`,
+        amount: unit != null ? Math.round(unit * qty * 100) / 100 : null,
+      });
+    }
+  }
+
   addPickupFee();
 
   const priced = lines.filter((l) => l.amount != null) as (OrderEstimateLine & {
@@ -278,6 +327,18 @@ export function dryCleanUnitForItem(
 ): { amount: number | null; priceLabel: string } {
   const rows = dryCleanRows(services);
   const row = matchDryCleanService(rows, itemName);
+  if (!row) return { amount: null, priceLabel: "—" };
+  const amount = parsePriceDisplay(row.price_display);
+  return { amount, priceLabel: row.price_display.trim() || "—" };
+}
+
+/** Unit price for one tailoring item name (partner list). */
+export function tailoringUnitForItem(
+  services: PartnerServiceLine[],
+  itemName: string,
+): { amount: number | null; priceLabel: string } {
+  const rows = tailoringRows(services);
+  const row = matchTailoringService(rows, itemName);
   if (!row) return { amount: null, priceLabel: "—" };
   const amount = parsePriceDisplay(row.price_display);
   return { amount, priceLabel: row.price_display.trim() || "—" };

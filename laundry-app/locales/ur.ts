@@ -135,6 +135,9 @@ export const ur = {
       washAndFold: "دھونا اور تہہ کرنا",
       dryCleaning: "ڈرائی کلیننگ",
       tailoring: "درزی",
+      includePickupDelivery: "پک اپ اور ڈیلیوری شامل کریں",
+      pickupDeliveryFee: "پک اپ اور ڈیلیوری فیس: {amount}",
+      pickupDeliveryFeeUnknown: "پک اپ اور ڈیلیوری فیس لاگو ہوگی",
       confirm: "تصدیق",
       months:
         "جنوری,فروری,مارچ,اپریل,مئی,جون,جولائی,اگست,ستمبر,اکتوبر,نومبر,دسمبر",

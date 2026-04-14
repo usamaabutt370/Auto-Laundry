@@ -21,6 +21,7 @@ export type WashFoldPricingMode = "per_bag" | "per_item";
 export type CustomerOrderDraft = {
   partnerId: string | null;
   partnerName: string | null;
+  pickupDeliveryRequested: boolean;
   selectedServiceIds: CustomerServiceId[];
   washFold: {
     bagCount: number;
@@ -32,6 +33,10 @@ export type CustomerOrderDraft = {
     bagDetailsByIndex: Record<number, WashFoldBagDetail>;
   } | null;
   dryClean: {
+    itemizedQuantities: Record<string, number>;
+    itemizedInstructions: string;
+  } | null;
+  tailoring: {
     itemizedQuantities: Record<string, number>;
     itemizedInstructions: string;
   } | null;
@@ -52,22 +57,27 @@ export type CustomerOrderDraft = {
 const emptyDraft = (): CustomerOrderDraft => ({
   partnerId: null,
   partnerName: null,
+  pickupDeliveryRequested: false,
   selectedServiceIds: ["washAndFold"],
   washFold: null,
   dryClean: null,
   pickup: null,
   delivery: null,
+  tailoring: null,
 });
 
 type Value = {
   draft: CustomerOrderDraft;
   setPartner: (partnerId: string, partnerName: string | null) => void;
+  setPickupDeliveryRequested: (enabled: boolean) => void;
   setSelectedServiceIds: (ids: CustomerServiceId[]) => void;
   setWashFoldBagCount: (bagCount: number) => void;
   setWashFoldPricingMode: (mode: WashFoldPricingMode) => void;
   setWashFoldBagDetail: (bagIndex: number, detail: WashFoldBagDetail) => void;
   setDryCleanItemizedQuantities: (quantities: Record<string, number>) => void;
   setDryCleanItemizedInstructions: (instructions: string) => void;
+  setTailoringItemizedQuantities: (quantities: Record<string, number>) => void;
+  setTailoringItemizedInstructions: (instructions: string) => void;
   setPickupSchedule: (slot: CustomerOrderDraft["pickup"]) => void;
   setDeliverySchedule: (slot: CustomerOrderDraft["delivery"]) => void;
   resetDraft: () => void;
@@ -86,8 +96,23 @@ export function CustomerOrderDraftProvider({
     setDraft((p) => ({ ...p, partnerId, partnerName }));
   }, []);
 
+  const setPickupDeliveryRequested = useCallback((enabled: boolean) => {
+    setDraft((p) => ({
+      ...p,
+      pickupDeliveryRequested: enabled,
+      pickup: enabled ? p.pickup : null,
+      delivery: enabled ? p.delivery : null,
+    }));
+  }, []);
+
   const setSelectedServiceIds = useCallback((ids: CustomerServiceId[]) => {
-    setDraft((p) => ({ ...p, selectedServiceIds: ids }));
+    setDraft((p) => {
+      const prev = p.selectedServiceIds;
+      const sameLength = prev.length === ids.length;
+      const sameValues = sameLength && prev.every((v, i) => v === ids[i]);
+      if (sameValues) return p;
+      return { ...p, selectedServiceIds: ids };
+    });
   }, []);
 
   const setWashFoldBagCount = useCallback((bagCount: number) => {
@@ -171,6 +196,29 @@ export function CustomerOrderDraftProvider({
     });
   }, []);
 
+  const setTailoringItemizedQuantities = useCallback(
+    (quantities: Record<string, number>) => {
+      setDraft((p) => ({
+        ...p,
+        tailoring: {
+          itemizedQuantities: quantities,
+          itemizedInstructions: p.tailoring?.itemizedInstructions ?? "",
+        },
+      }));
+    },
+    [],
+  );
+
+  const setTailoringItemizedInstructions = useCallback((instructions: string) => {
+    setDraft((p) => {
+      const t = p.tailoring ?? {
+        itemizedQuantities: {},
+        itemizedInstructions: "",
+      };
+      return { ...p, tailoring: { ...t, itemizedInstructions: instructions } };
+    });
+  }, []);
+
   const setPickupSchedule = useCallback((slot: CustomerOrderDraft["pickup"]) => {
     setDraft((p) => ({ ...p, pickup: slot }));
   }, []);
@@ -185,12 +233,15 @@ export function CustomerOrderDraftProvider({
     () => ({
       draft,
       setPartner,
+      setPickupDeliveryRequested,
       setSelectedServiceIds,
       setWashFoldBagCount,
       setWashFoldPricingMode,
       setWashFoldBagDetail,
       setDryCleanItemizedQuantities,
       setDryCleanItemizedInstructions,
+      setTailoringItemizedQuantities,
+      setTailoringItemizedInstructions,
       setPickupSchedule,
       setDeliverySchedule,
       resetDraft,
@@ -198,12 +249,15 @@ export function CustomerOrderDraftProvider({
     [
       draft,
       setPartner,
+      setPickupDeliveryRequested,
       setSelectedServiceIds,
       setWashFoldBagCount,
       setWashFoldPricingMode,
       setWashFoldBagDetail,
       setDryCleanItemizedQuantities,
       setDryCleanItemizedInstructions,
+      setTailoringItemizedQuantities,
+      setTailoringItemizedInstructions,
       setPickupSchedule,
       setDeliverySchedule,
       resetDraft,
