@@ -1,8 +1,9 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -15,7 +16,9 @@ import { Image } from "expo-image";
 import { assets } from "@/assets/assets";
 import { strings } from "@/constants/strings";
 import { theme } from "@/constants/theme";
+import { useAuth } from "@/contexts/auth-context";
 import { useCustomerOrderDraft } from "@/contexts/customer-order-draft-context";
+import { submitCustomerOrder } from "@/lib/customer-order-submit";
 import { usePartnerOrderEstimate } from "@/hooks/use-partner-order-estimate";
 import { formatMoney } from "@/utils/format-money";
 
@@ -23,17 +26,45 @@ const c = theme.colors;
 
 export default function OrderSummaryScreen() {
   const router = useRouter();
+  const { user } = useAuth();
   const { draft, resetDraft } = useCustomerOrderDraft();
+  const [submitting, setSubmitting] = useState(false);
   const s = strings.customer.orderSummary;
   const sServices = strings.customer.pickupServices;
 
-  const { loading, error, estimate, reload } = usePartnerOrderEstimate(
+  const { loading, error, estimate, profile, services, reload } = usePartnerOrderEstimate(
     draft.partnerId,
     draft,
   );
 
-  const handleSubmitOrder = () => {
+  const handleSubmitOrder = async () => {
+    if (!user?.id) {
+      Alert.alert("Sign in required", "Please sign in again to submit your order.");
+      return;
+    }
+    if (!draft.partnerId) {
+      Alert.alert("Missing launderer", "Please choose a launderer first.");
+      return;
+    }
+    if (draft.selectedServiceIds.length === 0) {
+      Alert.alert("No services selected", "Please select at least one service.");
+      return;
+    }
+    setSubmitting(true);
+    const result = await submitCustomerOrder({
+      customerId: user.id,
+      draft,
+      estimate,
+      profile,
+      services,
+    });
+    setSubmitting(false);
+    if (!result.ok) {
+      Alert.alert("Unable to submit order", result.error);
+      return;
+    }
     resetDraft();
+    Alert.alert("Order submitted", `Your order reference is ${result.orderId.slice(0, 8)}.`);
     router.replace("/(customer)/(tabs)");
   };
 
@@ -134,14 +165,16 @@ export default function OrderSummaryScreen() {
       <SafeAreaView style={styles.footer} edges={["bottom"]}>
         <Pressable
           onPress={handleSubmitOrder}
-          disabled={!draft.partnerId || loading || Boolean(error)}
+          disabled={!draft.partnerId || loading || Boolean(error) || submitting}
           style={({ pressed }) => [
             styles.submitBtn,
-            (!draft.partnerId || loading || error) && styles.submitDisabled,
+            (!draft.partnerId || loading || error || submitting) && styles.submitDisabled,
             pressed && styles.pressed,
           ]}
         >
-          <Text style={styles.submitLabel}>{s.submitOrder}</Text>
+          <Text style={styles.submitLabel}>
+            {submitting ? "Submitting..." : s.submitOrder}
+          </Text>
         </Pressable>
       </SafeAreaView>
     </View>

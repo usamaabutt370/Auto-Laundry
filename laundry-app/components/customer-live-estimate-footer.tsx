@@ -61,9 +61,9 @@ export function CustomerLiveEstimateFooter({
 
   const showTotal =
     estimate.total != null
-      ? formatMoney(estimate.currencyPrefix, estimate.total)
+      ? formatMoney(estimate.currencyPrefix || "RS : ", estimate.total)
       : estimate.partialTotal > 0
-        ? `${formatMoney(estimate.currencyPrefix, estimate.partialTotal)} *`
+        ? `${formatMoney(estimate.currencyPrefix || "RS : ", estimate.partialTotal)} *`
         : "—";
 
   return (

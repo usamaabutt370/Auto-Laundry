@@ -106,6 +106,17 @@ function inferCurrencyPrefix(services: PartnerServiceLine[]): string {
   return "";
 }
 
+function cleanWashFoldLineTitle(rawName: string): string {
+  const stripped = rawName
+    .replace(/\bprice\s*per\s*bag\b/gi, "")
+    .replace(/\bprice\s*per\s*item\b/gi, "")
+    .replace(/\(\s*\)/g, "")
+    .replace(/\s{2,}/g, " ")
+    .replace(/\s*-\s*$/g, "")
+    .trim();
+  return stripped || "Wash & fold";
+}
+
 export function buildCustomerOrderEstimate(
   draft: CustomerOrderDraft,
   profile: PartnerDetailRow | null,
@@ -186,7 +197,7 @@ export function buildCustomerOrderEstimate(
         currencyPrefix = currencyPrefixFromDisplay(row.price_display);
       lines.push({
         key: "wash_fold_bag",
-        title: row.name.trim() || "Wash & fold (per bag)",
+        title: cleanWashFoldLineTitle(row.name),
         qtyLabel: `${bagN} bag(s)`,
         amount: unit != null ? Math.round(unit * bagN * 100) / 100 : null,
       });
@@ -209,7 +220,7 @@ export function buildCustomerOrderEstimate(
         currencyPrefix = currencyPrefixFromDisplay(row.price_display);
       lines.push({
         key: "wash_fold_item",
-        title: row.name.trim() || "Wash & fold (per item)",
+        title: cleanWashFoldLineTitle(row.name),
         qtyLabel: `${itemQty} item(s)`,
         amount:
           unit != null ? Math.round(unit * itemQty * 100) / 100 : null,
@@ -339,6 +350,19 @@ export function tailoringUnitForItem(
 ): { amount: number | null; priceLabel: string } {
   const rows = tailoringRows(services);
   const row = matchTailoringService(rows, itemName);
+  if (!row) return { amount: null, priceLabel: "—" };
+  const amount = parsePriceDisplay(row.price_display);
+  return { amount, priceLabel: row.price_display.trim() || "—" };
+}
+
+/** Unit price for wash & fold mode (per bag / per item) from partner list. */
+export function washFoldUnitForMode(
+  services: PartnerServiceLine[],
+  mode: "per_bag" | "per_item",
+): { amount: number | null; priceLabel: string } {
+  const rows = washFoldRows(services);
+  const row =
+    mode === "per_bag" ? pickWashFoldRowForBag(rows) : pickWashFoldRowForItem(rows);
   if (!row) return { amount: null, priceLabel: "—" };
   const amount = parsePriceDisplay(row.price_display);
   return { amount, priceLabel: row.price_display.trim() || "—" };

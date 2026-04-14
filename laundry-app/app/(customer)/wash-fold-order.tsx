@@ -19,6 +19,7 @@ import { theme } from "@/constants/theme";
 import type { CustomerOrderDraft } from "@/contexts/customer-order-draft-context";
 import { useCustomerOrderDraft } from "@/contexts/customer-order-draft-context";
 import { usePartnerOrderEstimate } from "@/hooks/use-partner-order-estimate";
+import { washFoldUnitForMode } from "@/lib/customer-order-estimate";
 import { formatMoney } from "@/utils/format-money";
 
 const c = theme.colors;
@@ -111,10 +112,20 @@ export default function WashFoldOrderScreen() {
     [draft],
   );
 
-  const { loading, estimate } = usePartnerOrderEstimate(
+  const { loading, estimate, services } = usePartnerOrderEstimate(
     draft.partnerId,
     washOnlyDraft,
   );
+  const perBagUnit = washFoldUnitForMode(services, "per_bag");
+  const perItemUnit = washFoldUnitForMode(services, "per_item");
+  const perBagLabel =
+    perBagUnit.amount != null
+      ? formatMoney(estimate.currencyPrefix || "RS : ", perBagUnit.amount)
+      : perBagUnit.priceLabel;
+  const perItemLabel =
+    perItemUnit.amount != null
+      ? formatMoney(estimate.currencyPrefix || "RS : ", perItemUnit.amount)
+      : perItemUnit.priceLabel;
 
   /** Under the stepper: only the line for the active toggle (footer still shows full combined breakdown). */
   const washFoldPreviewLines = useMemo(() => {
@@ -192,18 +203,30 @@ export default function WashFoldOrderScreen() {
           >
             <MaterialCommunityIcons
               name="package-variant"
-              size={20}
+              size={30}
               color={pricingMode === "per_bag" ? c.themeBlack : "rgba(255,255,255,0.85)"}
               style={styles.toggleIcon}
             />
-            <Text
-              style={[
-                styles.toggleLabel,
-                pricingMode === "per_bag" ? styles.toggleLabelOnLight : styles.toggleLabelIdle,
-              ]}
-            >
-              {sOrder.perBag}
-            </Text>
+            <View >
+              <Text
+                style={[
+                  styles.toggleLabel,
+                  pricingMode === "per_bag" ? styles.toggleLabelOnLight : styles.toggleLabelIdle,
+                ]}
+              >
+                {sOrder.perBag}
+              </Text>
+              <Text
+                style={[
+                  styles.toggleRate,
+                  pricingMode === "per_bag"
+                    ? styles.toggleRateOnLight
+                    : styles.toggleRateIdle,
+                ]}
+              >
+                {perBagLabel}
+              </Text>
+            </View>
           </Pressable>
           <Pressable
             onPress={() => setWashFoldPricingMode("per_item")}
@@ -217,18 +240,30 @@ export default function WashFoldOrderScreen() {
           >
             <MaterialCommunityIcons
               name="tshirt-crew-outline"
-              size={20}
+              size={30}
               color={pricingMode === "per_item" ? c.themeBlack : "rgba(255,255,255,0.85)"}
               style={styles.toggleIcon}
             />
-            <Text
-              style={[
-                styles.toggleLabel,
-                pricingMode === "per_item" ? styles.toggleLabelOnLight : styles.toggleLabelIdle,
-              ]}
-            >
-              {sOrder.perItem}
-            </Text>
+            <View>
+              <Text
+                style={[
+                  styles.toggleLabel,
+                  pricingMode === "per_item" ? styles.toggleLabelOnLight : styles.toggleLabelIdle,
+                ]}
+              >
+                {sOrder.perItem}
+              </Text>
+              <Text
+                style={[
+                  styles.toggleRate,
+                  pricingMode === "per_item"
+                    ? styles.toggleRateOnLight
+                    : styles.toggleRateIdle,
+                ]}
+              >
+                {perItemLabel}
+              </Text>
+            </View>
           </Pressable>
         </View>
 
@@ -292,7 +327,7 @@ export default function WashFoldOrderScreen() {
           </View>
         )}
 
-        {washFoldPreviewLines.length > 0 ? (
+        {/* {washFoldPreviewLines.length > 0 ? (
           <View style={styles.calcPreviewBlock}>
             {washFoldPreviewLines.map((line, i) => (
               <Text key={`${line.key}-${i}`} style={styles.calcPreview}>
@@ -300,7 +335,7 @@ export default function WashFoldOrderScreen() {
               </Text>
             ))}
           </View>
-        ) : null}
+        ) : null} */}
 
         <Text style={styles.sectionLabel}>{sDet.instructions}</Text>
         <TextInput
@@ -427,11 +462,21 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "700",
   },
+  toggleRate: {
+    fontSize: 12,
+    marginTop: 2,
+  },
   toggleLabelOnLight: {
     color: c.themeBlack,
   },
   toggleLabelIdle: {
     color: "rgba(255,255,255,0.95)",
+  },
+  toggleRateOnLight: {
+    color: "rgba(0,0,0,0.9)",
+  },
+  toggleRateIdle: {
+    color: "rgba(255,255,255,0.9)",
   },
   inputRowDriver: {
     borderWidth: 2,

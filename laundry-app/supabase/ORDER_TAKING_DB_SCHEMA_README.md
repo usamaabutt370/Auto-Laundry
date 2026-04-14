@@ -56,14 +56,10 @@ Core fields:
 - `id` (uuid, PK)
 - `order_id` (uuid -> `customer_orders.id`)
 - `service_type` (`washAndFold | dryCleaning | tailoring`)
+- `pricing_mode` (`per_item`)
+- `total_item_count`
 - `instructions`
 - `estimated_amount`
-
-Wash & Fold-specific fields (nullable for other services):
-
-- `wash_fold_pricing_mode` (`per_bag | per_item`)
-- `wash_fold_bag_count`
-- `wash_fold_item_count`
 
 Constraint:
 
@@ -79,6 +75,7 @@ Core fields:
 
 - `id` (uuid, PK)
 - `order_service_id` (uuid -> `order_services.id`)
+- `service_type` (`washAndFold | dryCleaning | tailoring`)
 - `item_key`
 - `item_name`
 - `quantity`
