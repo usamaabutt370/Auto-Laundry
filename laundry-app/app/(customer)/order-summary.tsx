@@ -1,33 +1,77 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useMemo, useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 
 import { assets } from "@/assets/assets";
 import { strings } from "@/constants/strings";
 import { theme } from "@/constants/theme";
+import { useAuth } from "@/contexts/auth-context";
+import { useCustomerOrderDraft } from "@/contexts/customer-order-draft-context";
+import { submitCustomerOrder } from "@/lib/customer-order-submit";
+import { usePartnerOrderEstimate } from "@/hooks/use-partner-order-estimate";
+import { formatMoney } from "@/utils/format-money";
 
 const c = theme.colors;
 
-// Placeholder line items; can be replaced with real order state/params later
-const SERVICE_LINES = [
-  { nameKey: "washAndFold" as const, qty: 3, price: 14 },
-  { nameKey: "dryCleaning" as const, qty: 3, price: 13 },
-  { nameKey: "tailoring" as const, qty: 3, price: 21 },
-];
-const ORDER_NUMBER_PLACEHOLDER = "xyz";
-const ESTIMATED_TOTAL = SERVICE_LINES.reduce((sum, l) => sum + l.price, 0);
-
 export default function OrderSummaryScreen() {
   const router = useRouter();
+  const { user } = useAuth();
+  const { draft, resetDraft } = useCustomerOrderDraft();
+  const [submitting, setSubmitting] = useState(false);
   const s = strings.customer.orderSummary;
   const sServices = strings.customer.pickupServices;
 
-  const handleSubmitOrder = () => {
-    // TODO: submit to API and navigate to success
-    router.back();
+  const { loading, error, estimate, profile, services, reload } = usePartnerOrderEstimate(
+    draft.partnerId,
+    draft,
+  );
+
+  const handleSubmitOrder = async () => {
+    if (!user?.id) {
+      Alert.alert("Sign in required", "Please sign in again to submit your order.");
+      return;
+    }
+    if (!draft.partnerId) {
+      Alert.alert("Missing launderer", "Please choose a launderer first.");
+      return;
+    }
+    if (draft.selectedServiceIds.length === 0) {
+      Alert.alert("No services selected", "Please select at least one service.");
+      return;
+    }
+    setSubmitting(true);
+    const result = await submitCustomerOrder({
+      customerId: user.id,
+      draft,
+      estimate,
+      profile,
+      services,
+    });
+    setSubmitting(false);
+    if (!result.ok) {
+      Alert.alert("Unable to submit order", result.error);
+      return;
+    }
+    resetDraft();
+    Alert.alert("Order submitted", `Your order reference is ${result.orderId.slice(0, 8)}.`);
+    router.replace("/(customer)/(tabs)");
   };
+
+  const orderRef = useMemo(() => {
+    const t = Date.now().toString(36).toUpperCase();
+    return `AL-${t.slice(-8)}`;
+  }, []);
 
   return (
     <View style={styles.container}>
@@ -35,17 +79,11 @@ export default function OrderSummaryScreen() {
         <Pressable
           onPress={() => router.back()}
           style={({ pressed }) => [styles.backBtn, pressed && styles.pressed]}
-          accessibilityRole="button"
-          accessibilityLabel="Go back"
         >
           <MaterialCommunityIcons name="arrow-left" size={24} color={c.white} />
         </Pressable>
         <Text style={styles.headerTitle}>{s.title}</Text>
-        <Pressable
-          style={({ pressed }) => [styles.headerRight, pressed && styles.pressed]}
-          accessibilityRole="button"
-          accessibilityLabel="Options"
-        >
+        <Pressable style={({ pressed }) => [styles.headerRight, pressed && styles.pressed]}>
           <Image source={assets.icons.menu_icon} style={styles.headerRightIcon} />
         </Pressable>
       </SafeAreaView>
@@ -55,34 +93,88 @@ export default function OrderSummaryScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.serviceCard}>
-          <Text style={styles.serviceTitle}>{s.service}</Text>
-          <Text style={styles.orderNumber}>
-            {s.orderNumber}: {ORDER_NUMBER_PLACEHOLDER}
-          </Text>
-          {SERVICE_LINES.map((line) => (
-            <View key={line.nameKey} style={styles.serviceRow}>
-              <Text style={styles.serviceName}>{sServices[line.nameKey]}</Text>
-              <Text style={styles.serviceQty}>{line.qty}x</Text>
-              <Text style={styles.servicePrice}>$ {line.price}</Text>
-            </View>
-          ))}
-          <View style={styles.totalRow}>
-            <Text style={styles.estimatedTotalLabel}>{s.estimatedTotal}</Text>
-            <Text style={styles.estimatedTotalValue}>$ {ESTIMATED_TOTAL}</Text>
+        {!draft.partnerId ? (
+          <View style={styles.centerBlock}>
+            <Text style={styles.muted}>Select a launderer first.</Text>
+            <Pressable
+              onPress={() => router.replace("/(customer)/pick-launderer")}
+              style={styles.linkBtn}
+            >
+              <Text style={styles.linkText}>Pick a launderer</Text>
+            </Pressable>
           </View>
-        </View>
+        ) : loading ? (
+          <View style={styles.centerBlock}>
+            <ActivityIndicator color={c.white} />
+          </View>
+        ) : error ? (
+          <View style={styles.centerBlock}>
+            <Text style={styles.error}>{error}</Text>
+            <Pressable onPress={reload} style={styles.linkBtn}>
+              <Text style={styles.linkText}>Retry</Text>
+            </Pressable>
+          </View>
+        ) : (
+          <>
+            {draft.partnerName ? (
+              <Text style={styles.partner}>{draft.partnerName}</Text>
+            ) : null}
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>{s.service}</Text>
+              <Text style={styles.ref}>
+                {s.orderNumber}: {orderRef}
+              </Text>
+              <Text style={styles.subheading}>Services</Text>
+              {draft.selectedServiceIds.map((id) => (
+                <Text key={id} style={styles.bullet}>
+                  • {sServices[id]}
+                </Text>
+              ))}
+              <Text style={[styles.subheading, styles.mt]}>Estimate</Text>
+              {estimate.lines.map((line) => (
+                <View key={line.key} style={styles.row}>
+                  <Text style={styles.rowName} numberOfLines={2}>
+                    {line.title}
+                  </Text>
+                  <Text style={styles.rowQty}>{line.qtyLabel}</Text>
+                  <Text style={styles.rowPrice}>
+                    {line.amount != null
+                      ? formatMoney(estimate.currencyPrefix, line.amount)
+                      : "—"}
+                  </Text>
+                </View>
+              ))}
+              <View style={styles.totalRow}>
+                <Text style={styles.totalLabel}>{s.estimatedTotal}</Text>
+                <Text style={styles.totalValue}>
+                  {estimate.total != null
+                    ? formatMoney(estimate.currencyPrefix, estimate.total)
+                    : estimate.partialTotal > 0
+                      ? `${formatMoney(estimate.currencyPrefix, estimate.partialTotal)} *`
+                      : "—"}
+                </Text>
+              </View>
+              {estimate.disclaimer ? (
+                <Text style={styles.disclaimer}>{estimate.disclaimer}</Text>
+              ) : null}
+            </View>
+          </>
+        )}
       </ScrollView>
 
       <SafeAreaView style={styles.footer} edges={["bottom"]}>
         <Pressable
           onPress={handleSubmitOrder}
+          disabled={!draft.partnerId || loading || Boolean(error) || submitting}
           style={({ pressed }) => [
             styles.submitBtn,
+            (!draft.partnerId || loading || error || submitting) && styles.submitDisabled,
             pressed && styles.pressed,
           ]}
         >
-          <Text style={styles.submitLabel}>{s.submitOrder}</Text>
+          <Text style={styles.submitLabel}>
+            {submitting ? "Submitting..." : s.submitOrder}
+          </Text>
         </Pressable>
       </SafeAreaView>
     </View>
@@ -90,10 +182,7 @@ export default function OrderSummaryScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: c.background,
-  },
+  container: { flex: 1, backgroundColor: c.background },
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -102,89 +191,76 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   backBtn: { padding: 8 },
-  headerTitle: {
+  headerTitle: { fontSize: 18, fontWeight: "700", color: c.white },
+  headerRight: { padding: 8 },
+  headerRightIcon: { width: 20, height: 20, tintColor: c.white },
+  pressed: { opacity: 0.8 },
+  scroll: { flex: 1 },
+  scrollContent: { paddingHorizontal: 24, paddingTop: 24, paddingBottom: 24 },
+  centerBlock: { paddingVertical: 40, alignItems: "center", gap: 12 },
+  partner: {
     fontSize: 18,
     fontWeight: "700",
     color: c.white,
+    marginBottom: 12,
   },
-  headerRight: { padding: 8 },
-  headerRightIcon: {
-    width: 20,
-    height: 20,
-    tintColor: c.white,
-  },
-  pressed: { opacity: 0.8 },
-  scroll: { flex: 1 },
-  scrollContent: {
-    paddingHorizontal: 24,
-    paddingTop: 24,
-    paddingBottom: 24,
-  },
-  serviceCard: {
+  card: {
     backgroundColor: c.blue900,
     borderRadius: 16,
-    paddingVertical: 20,
-    paddingHorizontal: 16,
+    padding: 18,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.15)",
+    borderColor: "rgba(255,255,255,0.12)",
   },
-  serviceTitle: {
-    fontSize: 20,
+  cardTitle: { fontSize: 20, fontWeight: "700", color: c.white, marginBottom: 6 },
+  ref: { fontSize: 14, color: "rgba(255,255,255,0.85)", marginBottom: 12 },
+  subheading: {
+    fontSize: 12,
     fontWeight: "700",
-    color: c.white,
-    marginBottom: 8,
+    color: "rgba(255,255,255,0.55)",
+    textTransform: "uppercase",
+    marginBottom: 6,
   },
-  orderNumber: {
-    fontSize: 14,
-    color: "rgba(255,255,255,0.9)",
-    marginBottom: 16,
-  },
-  serviceRow: {
+  mt: { marginTop: 14 },
+  bullet: { fontSize: 15, color: c.white, marginBottom: 4 },
+  row: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(255,255,255,0.1)",
+    borderBottomColor: "rgba(255,255,255,0.08)",
   },
-  serviceName: {
-    fontSize: 16,
+  rowName: { flex: 1, color: c.white, fontSize: 15, paddingRight: 8 },
+  rowQty: { fontSize: 14, color: c.white, marginHorizontal: 6 },
+  rowPrice: {
+    fontSize: 15,
+    fontWeight: "700",
     color: c.white,
-    fontWeight: "500",
-    flex: 1,
-  },
-  serviceQty: {
-    fontSize: 16,
-    color: c.white,
-    marginHorizontal: 16,
-  },
-  servicePrice: {
-    fontSize: 16,
-    color: c.white,
-    fontWeight: "600",
-    minWidth: 48,
+    minWidth: 72,
     textAlign: "right",
   },
   totalRow: {
     flexDirection: "row",
-    alignItems: "center",
     justifyContent: "space-between",
-    paddingTop: 16,
-    marginTop: 8,
+    marginTop: 16,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255,255,255,0.12)",
   },
-  estimatedTotalLabel: {
-    fontSize: 17,
-    fontWeight: "700",
-    color: c.white,
+  totalLabel: { fontSize: 17, fontWeight: "700", color: c.white },
+  totalValue: { fontSize: 20, fontWeight: "800", color: c.white },
+  disclaimer: {
+    fontSize: 12,
+    color: "rgba(255,255,255,0.6)",
+    marginTop: 12,
+    lineHeight: 17,
   },
-  estimatedTotalValue: {
-    fontSize: 17,
-    fontWeight: "700",
-    color: c.white,
-  },
+  muted: { color: "rgba(255,255,255,0.75)", textAlign: "center" },
+  error: { color: "#FFB3B3", textAlign: "center" },
+  linkBtn: { padding: 12 },
+  linkText: { color: c.lightBlue, fontWeight: "600", fontSize: 16 },
   footer: {
     paddingHorizontal: 24,
-    paddingTop: 16,
+    paddingTop: 12,
     paddingBottom: 8,
     backgroundColor: c.background,
   },
@@ -193,11 +269,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: "center",
-    justifyContent: "center",
   },
-  submitLabel: {
-    fontSize: 17,
-    fontWeight: "700",
-    color: c.white,
-  },
+  submitDisabled: { opacity: 0.45 },
+  submitLabel: { fontSize: 17, fontWeight: "700", color: c.white },
 });

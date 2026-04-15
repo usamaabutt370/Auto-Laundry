@@ -1,56 +1,125 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useEffect, useMemo, useState } from "react";
+import {
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 
 import { Spacer } from "@/components";
 import { assets } from "@/assets/assets";
 import { strings } from "@/constants/strings";
+import type { LaundererServiceType } from "@/constants/launderers";
 import { theme } from "@/constants/theme";
+import { useCustomerOrderDraft } from "@/contexts/customer-order-draft-context";
+import { fetchPartnerDetail, serviceCategoriesToTypes } from "@/lib/partner-discovery";
 
 const c = theme.colors;
 
 type ServiceId = "washAndFold" | "dryCleaning" | "tailoring";
 
-const SERVICES: {
-  id: ServiceId;
-  labelKey: keyof typeof strings.customer.pickupServices;
-}[] = [
-  { id: "washAndFold", labelKey: "washAndFold" },
-  { id: "dryCleaning", labelKey: "dryCleaning" },
-  // { id: "tailoring", labelKey: "tailoring" },
+const SERVICE_KEYS: LaundererServiceType[] = [
+  "washAndFold",
+  "dryCleaning",
+  "tailoring",
 ];
 
 export default function PickupServicesScreen() {
   const router = useRouter();
+  const { draft, setPickupDeliveryRequested, setSelectedServiceIds } =
+    useCustomerOrderDraft();
   const s = strings.customer.pickupServices;
-  const [selectedIds, setSelectedIds] = useState<ServiceId[]>(["washAndFold"]);
+  const selectedIds = draft.selectedServiceIds;
+  const [partnerServiceTypes, setPartnerServiceTypes] = useState<ServiceId[]>([]);
+  const [pickupDeliveryEnabled, setPickupDeliveryEnabled] = useState(false);
+  const [pickupFeeLabel, setPickupFeeLabel] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadPartnerServices = async () => {
+      if (!draft.partnerId) {
+        setPartnerServiceTypes([]);
+        return;
+      }
+      const { profile, services } = await fetchPartnerDetail(draft.partnerId);
+      if (cancelled) return;
+      const available = serviceCategoriesToTypes(services.map((row) => row.category))
+        .filter((id): id is ServiceId => SERVICE_KEYS.includes(id))
+        .filter((id, idx, arr) => arr.indexOf(id) === idx);
+      setPartnerServiceTypes(available);
+      setPickupDeliveryEnabled(Boolean(profile?.pickup_delivery_enabled));
+      setPickupFeeLabel(profile?.pickup_delivery_amount?.trim() || null);
+    };
+    loadPartnerServices();
+    return () => {
+      cancelled = true;
+    };
+  }, [draft.partnerId]);
+
+  const servicesToShow = useMemo(() => {
+    if (partnerServiceTypes.length > 0) return partnerServiceTypes;
+    return draft.partnerId ? [] : (["washAndFold", "dryCleaning"] as ServiceId[]);
+  }, [draft.partnerId, partnerServiceTypes]);
+
+  useEffect(() => {
+    if (servicesToShow.length === 0) return;
+    const allowed = new Set<ServiceId>(servicesToShow);
+    const next = selectedIds.filter((id): id is ServiceId => allowed.has(id as ServiceId));
+    if (next.length !== selectedIds.length) {
+      setSelectedServiceIds(next);
+    }
+  }, [selectedIds, servicesToShow, setSelectedServiceIds]);
 
   const toggle = (id: ServiceId) => {
+    if (!servicesToShow.includes(id)) return;
     if (id === "washAndFold") {
-      setSelectedIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
-      router.push("/(customer)/laundry-bags");
+      setSelectedServiceIds(
+        selectedIds.includes(id) ? selectedIds : [...selectedIds, id],
+      );
+      router.push("/(customer)/wash-fold-order");
       return;
     }
     if (id === "dryCleaning") {
-      setSelectedIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
-      router.push("/(customer)/dry-clean-options");
+      setSelectedServiceIds(
+        selectedIds.includes(id) ? selectedIds : [...selectedIds, id],
+      );
+      router.push("/(customer)/dry-clean-itemized-by-user");
       return;
     }
     if (id === "tailoring") {
-      setSelectedIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
-      // router.push("/(customer)/tailoring");
+      setSelectedServiceIds(
+        selectedIds.includes(id) ? selectedIds : [...selectedIds, id],
+      );
+      router.push("/(customer)/tailoring-itemized-by-user");
       return;
     }
-    setSelectedIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    setSelectedServiceIds(
+      selectedIds.includes(id)
+        ? selectedIds.filter((x) => x !== id)
+        : [...selectedIds, id],
     );
   };
 
   const handleConfirm = () => {
-    router.push("/(customer)/schedule-pickup");
+    if (!draft.partnerId) {
+      Alert.alert(
+        "Choose a launderer",
+        "Go back and select a laundry partner before scheduling pickup.",
+      );
+      return;
+    }
+    if (draft.pickupDeliveryRequested) {
+      router.push("/(customer)/schedule-pickup");
+      return;
+    }
+    router.push("/(customer)/order-summary");
   };
 
   return (
@@ -66,10 +135,7 @@ export default function PickupServicesScreen() {
         </Pressable>
         <Text style={styles.headerTitle}>{s.title}</Text>
         <View style={styles.headerRight}>
-          <Image
-            source={assets.icons.menu_icon}
-            style={styles.headerRightIcon}
-          />
+          <Image source={assets.icons.menu_icon} style={styles.headerRightIcon} />
         </View>
       </SafeAreaView>
 
@@ -82,7 +148,7 @@ export default function PickupServicesScreen() {
         <View style={styles.servicesBlock}>
           <Text style={styles.chooseHeading}>{s.chooseServices}</Text>
           <Spacer.Column numberOfSpaces={10} />
-          {SERVICES.map(({ id, labelKey }) => {
+          {servicesToShow.map((id) => {
             const isSelected = selectedIds.includes(id);
             return (
               <Pressable
@@ -118,19 +184,41 @@ export default function PickupServicesScreen() {
                       : styles.serviceLabelUnselected,
                   ]}
                 >
-                  {s[labelKey]}
+                  {s[id]}
                 </Text>
               </Pressable>
             );
           })}
+          {draft.partnerId && servicesToShow.length === 0 ? (
+            <Text style={styles.emptyText}>No services configured by this launderer yet.</Text>
+          ) : null}
+
+          {pickupDeliveryEnabled ? (
+            <View style={styles.pickupRow}>
+              <View style={styles.pickupTextWrap}>
+                <Text style={styles.pickupTitle}>{s.includePickupDelivery}</Text>
+                <Text style={styles.pickupSub}>
+                  {pickupFeeLabel
+                    ? s.pickupDeliveryFee.replace("{amount}", pickupFeeLabel)
+                    : s.pickupDeliveryFeeUnknown}
+                </Text>
+              </View>
+              <Switch
+                value={draft.pickupDeliveryRequested}
+                onValueChange={setPickupDeliveryRequested}
+                trackColor={{
+                  false: "rgba(255,255,255,0.3)",
+                  true: c.blue500,
+                }}
+                thumbColor={c.white}
+              />
+            </View>
+          ) : null}
         </View>
         <View style={styles.spacer} />
         <Pressable
           onPress={handleConfirm}
-          style={({ pressed }) => [
-            styles.confirmBtn,
-            pressed && styles.pressed,
-          ]}
+          style={({ pressed }) => [styles.confirmBtn, pressed && styles.pressed]}
         >
           <Text style={styles.confirmLabel}>{s.confirm}</Text>
         </Pressable>
@@ -252,5 +340,34 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: c.white,
     opacity: 0.9,
+  },
+  emptyText: {
+    fontSize: 14,
+    color: "rgba(255,255,255,0.75)",
+    marginTop: 4,
+  },
+  pickupRow: {
+    marginTop: 10,
+    padding: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.2)",
+    backgroundColor: "rgba(0,0,0,0.12)",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  pickupTextWrap: {
+    flex: 1,
+    gap: 4,
+  },
+  pickupTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: c.white,
+  },
+  pickupSub: {
+    fontSize: 13,
+    color: "rgba(255,255,255,0.75)",
   },
 });

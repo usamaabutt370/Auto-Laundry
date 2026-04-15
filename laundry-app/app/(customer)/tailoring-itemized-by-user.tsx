@@ -14,57 +14,55 @@ import { Image } from "expo-image";
 
 import { assets } from "@/assets/assets";
 import { CustomerLiveEstimateFooter } from "@/components/customer-live-estimate-footer";
-import {
-  DRY_CLEAN_ITEM_DEFS,
-  initialDryCleanQuantities,
-} from "@/constants/dry-clean-items";
 import { strings } from "@/constants/strings";
+import { TAILORING_ITEM_DEFS, initialTailoringQuantities } from "@/constants/tailoring-items";
 import { theme } from "@/constants/theme";
 import type { CustomerOrderDraft } from "@/contexts/customer-order-draft-context";
 import { useCustomerOrderDraft } from "@/contexts/customer-order-draft-context";
-import { dryCleanUnitForItem } from "@/lib/customer-order-estimate";
 import { usePartnerOrderEstimate } from "@/hooks/use-partner-order-estimate";
+import { tailoringUnitForItem } from "@/lib/customer-order-estimate";
 import { formatMoney } from "@/utils/format-money";
 
 const c = theme.colors;
 
-export default function DryCleanItemizedByUserScreen() {
+export default function TailoringItemizedByUserScreen() {
   const router = useRouter();
   const {
     draft,
-    setDryCleanItemizedQuantities,
-    setDryCleanItemizedInstructions,
+    setTailoringItemizedQuantities,
+    setTailoringItemizedInstructions,
   } = useCustomerOrderDraft();
-  const s = strings.customer.dryCleanItemize;
+  const s = strings.customer.pickupServices;
   const sDet = strings.customer.laundryBagDetail;
   const sLive = strings.customer.liveEstimate;
 
   const [quantities, setQuantities] = useState<Record<string, number>>(() => {
-    const next = initialDryCleanQuantities();
-    const saved = draft.dryClean?.itemizedQuantities ?? {};
-    for (const def of DRY_CLEAN_ITEM_DEFS) {
+    const next = initialTailoringQuantities();
+    const saved = draft.tailoring?.itemizedQuantities ?? {};
+    for (const def of TAILORING_ITEM_DEFS) {
       const q = saved[def.id];
       if (q != null) next[def.id] = q;
     }
     return next;
   });
   const [instructions, setInstructions] = useState(
-    () => draft.dryClean?.itemizedInstructions ?? "",
+    () => draft.tailoring?.itemizedInstructions ?? "",
   );
 
   useEffect(() => {
-    setDryCleanItemizedQuantities(quantities);
-  }, [quantities, setDryCleanItemizedQuantities]);
+    setTailoringItemizedQuantities(quantities);
+  }, [quantities, setTailoringItemizedQuantities]);
 
   useEffect(() => {
-    setDryCleanItemizedInstructions(instructions.trim());
-  }, [instructions, setDryCleanItemizedInstructions]);
+    setTailoringItemizedInstructions(instructions.trim());
+  }, [instructions, setTailoringItemizedInstructions]);
 
-  const dryOnlyDraft: CustomerOrderDraft = useMemo(
+  const tailoringOnlyDraft: CustomerOrderDraft = useMemo(
     () => ({
       ...draft,
-      selectedServiceIds: ["dryCleaning"],
+      selectedServiceIds: ["tailoring"],
       washFold: null,
+      dryClean: null,
       pickup: null,
       delivery: null,
     }),
@@ -73,7 +71,7 @@ export default function DryCleanItemizedByUserScreen() {
 
   const { loading, estimate, services } = usePartnerOrderEstimate(
     draft.partnerId,
-    dryOnlyDraft,
+    tailoringOnlyDraft,
   );
 
   const setQty = (id: string, delta: number) => {
@@ -99,7 +97,7 @@ export default function DryCleanItemizedByUserScreen() {
           <MaterialCommunityIcons name="arrow-left" size={24} color={c.white} />
         </Pressable>
         <Text style={styles.headerTitle} numberOfLines={1}>
-          {s.title}
+          {s.tailoring}
         </Text>
         <Pressable style={({ pressed }) => [styles.headerRight, pressed && styles.pressed]}>
           <Image source={assets.icons.menu_icon} style={styles.headerRightIcon} />
@@ -117,9 +115,9 @@ export default function DryCleanItemizedByUserScreen() {
           when available.
         </Text>
 
-        {DRY_CLEAN_ITEM_DEFS.map((item) => {
+        {TAILORING_ITEM_DEFS.map((item) => {
           const qty = quantities[item.id] ?? 0;
-          const { amount: unit, priceLabel } = dryCleanUnitForItem(
+          const { amount: unit, priceLabel } = tailoringUnitForItem(
             services,
             item.name,
           );

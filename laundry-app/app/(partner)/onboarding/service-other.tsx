@@ -29,6 +29,11 @@ const OTHER_SERVICE_KEYS = ["dryCleaning", "tailoring"] as const;
 type OtherServiceKey = (typeof OTHER_SERVICE_KEYS)[number];
 
 const DRY_CLEANING_ITEM_KEYS = [
+  "dryCleaningItemSuit",
+  "dryCleaningItemShirt",
+  "dryCleaningItemPants",
+  "dryCleaningItemDress",
+  "dryCleaningItemSweater",
   "dryCleaningItemCoat",
   "dryCleaningItemJacket",
   "dryCleaningItemTie",

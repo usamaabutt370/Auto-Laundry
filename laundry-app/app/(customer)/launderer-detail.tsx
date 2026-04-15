@@ -17,6 +17,7 @@ import { Spacer } from "@/components";
 import { strings } from "@/constants/strings";
 import type { LaundererServiceType } from "@/constants/launderers";
 import { theme } from "@/constants/theme";
+import { useCustomerOrderDraft } from "@/contexts/customer-order-draft-context";
 import { avatarUrlWithCacheBuster } from "@/lib/avatar";
 import {
   fetchPartnerDetail,
@@ -36,6 +37,7 @@ const SERVICE_KEYS: LaundererServiceType[] = [
 
 export default function LaundererDetailScreen() {
   const router = useRouter();
+  const { setPartner } = useCustomerOrderDraft();
   const params = useLocalSearchParams<{ id: string | string[] }>();
   const partnerId = Array.isArray(params.id) ? params.id[0] : params.id;
   const s = strings.customer.laundererDetail;
@@ -83,6 +85,9 @@ export default function LaundererDetailScreen() {
   const heroUri = avatarUrlWithCacheBuster(profile?.image_url, profile?.updated_at);
 
   const handleSelect = () => {
+    if (partnerId) {
+      setPartner(partnerId, profile?.business_name?.trim() || null);
+    }
     router.push("/(customer)/pickup-services");
   };
 
