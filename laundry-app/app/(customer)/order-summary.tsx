@@ -18,7 +18,7 @@ import { strings } from "@/constants/strings";
 import { theme } from "@/constants/theme";
 import { useAuth } from "@/contexts/auth-context";
 import { useCustomerOrderDraft } from "@/contexts/customer-order-draft-context";
-import { submitCustomerOrder } from "@/lib/customer-order-submit";
+import { createPendingCustomerOrder } from "@/lib/customer-order-submit";
 import { usePartnerOrderEstimate } from "@/hooks/use-partner-order-estimate";
 import { formatMoney } from "@/utils/format-money";
 
@@ -27,12 +27,12 @@ const c = theme.colors;
 export default function OrderSummaryScreen() {
   const router = useRouter();
   const { user } = useAuth();
-  const { draft, resetDraft } = useCustomerOrderDraft();
+  const { draft } = useCustomerOrderDraft();
   const [submitting, setSubmitting] = useState(false);
   const s = strings.customer.orderSummary;
   const sServices = strings.customer.pickupServices;
 
-  const { loading, error, estimate, profile, services, reload } = usePartnerOrderEstimate(
+  const { loading, error, estimate, services, reload } = usePartnerOrderEstimate(
     draft.partnerId,
     draft,
   );
@@ -51,11 +51,10 @@ export default function OrderSummaryScreen() {
       return;
     }
     setSubmitting(true);
-    const result = await submitCustomerOrder({
+    const result = await createPendingCustomerOrder({
       customerId: user.id,
       draft,
       estimate,
-      profile,
       services,
     });
     setSubmitting(false);
@@ -63,9 +62,14 @@ export default function OrderSummaryScreen() {
       Alert.alert("Unable to submit order", result.error);
       return;
     }
-    resetDraft();
-    Alert.alert("Order submitted", `Your order reference is ${result.orderId.slice(0, 8)}.`);
-    router.replace("/(customer)/(tabs)");
+    router.push({
+      pathname: "/(customer)/payment-method",
+      params: {
+        orderId: result.data.orderId,
+        amount: String(result.data.amountToCharge),
+        currencyPrefix: result.data.currencyPrefix || "",
+      },
+    });
   };
 
   const orderRef = useMemo(() => {

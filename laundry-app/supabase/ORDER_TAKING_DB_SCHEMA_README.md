@@ -32,6 +32,10 @@ Core fields:
 - `customer_id` (uuid -> `auth.users.id`)
 - `partner_id` (uuid -> `public.partner_profiles.id`)
 - `status` (`draft | submitted | accepted | in_progress | ready | completed | cancelled`)
+- `payment_status` (`pending | paid | failed | refunded`)
+- `payment_method_type` (e.g. `card`)
+- `payment_intent_id` (Stripe payment intent id)
+- `paid_at`
 - Estimate fields:
   - `currency_prefix`
   - `estimated_partial_total`

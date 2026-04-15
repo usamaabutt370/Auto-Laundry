@@ -6,15 +6,20 @@ import {
   tailoringUnitForItem,
   type OrderEstimateResult,
 } from "@/lib/customer-order-estimate";
-import type { PartnerDetailRow, PartnerServiceLine } from "@/lib/partner-discovery";
+import type { PartnerServiceLine } from "@/lib/partner-discovery";
 import { supabase } from "@/lib/supabase";
 
 type SubmitParams = {
   customerId: string;
   draft: CustomerOrderDraft;
   estimate: OrderEstimateResult;
-  profile: PartnerDetailRow | null;
   services: PartnerServiceLine[];
+};
+
+export type PendingOrderResult = {
+  orderId: string;
+  amountToCharge: number;
+  currencyPrefix: string;
 };
 
 function sumEstimateByPrefix(estimate: OrderEstimateResult, prefix: string): number | null {
@@ -26,13 +31,14 @@ function sumEstimateByPrefix(estimate: OrderEstimateResult, prefix: string): num
   return Math.round(total * 100) / 100;
 }
 
-export async function submitCustomerOrder({
+export async function createPendingCustomerOrder({
   customerId,
   draft,
   estimate,
-  profile,
   services,
-}: SubmitParams): Promise<{ ok: true; orderId: string } | { ok: false; error: string }> {
+}: SubmitParams): Promise<
+  { ok: true; data: PendingOrderResult } | { ok: false; error: string }
+> {
   if (!supabase) {
     return { ok: false, error: "Supabase is not configured." };
   }
@@ -41,6 +47,10 @@ export async function submitCustomerOrder({
   }
   if (draft.selectedServiceIds.length === 0) {
     return { ok: false, error: "No services selected." };
+  }
+  const amountToCharge = estimate.total ?? estimate.partialTotal;
+  if (!amountToCharge || amountToCharge <= 0) {
+    return { ok: false, error: "Unable to calculate payable amount for this order." };
   }
 
   const pickupFee =
@@ -51,7 +61,8 @@ export async function submitCustomerOrder({
     .insert({
       customer_id: customerId,
       partner_id: draft.partnerId,
-      status: "submitted",
+      status: "draft",
+      payment_status: "pending",
       currency_prefix: estimate.currencyPrefix ?? "",
       estimated_partial_total: estimate.partialTotal ?? 0,
       estimated_total: estimate.total,
@@ -78,7 +89,7 @@ export async function submitCustomerOrder({
       delivery_instructions: draft.pickupDeliveryRequested
         ? draft.delivery?.instructions?.trim() ?? ""
         : "",
-      submitted_at: new Date().toISOString(),
+      submitted_at: null,
     })
     .select("id")
     .single<{ id: string }>();
@@ -198,5 +209,46 @@ export async function submitCustomerOrder({
     }
   }
 
-  return { ok: true, orderId };
+  return {
+    ok: true,
+    data: {
+      orderId,
+      amountToCharge,
+      currencyPrefix: estimate.currencyPrefix || "",
+    },
+  };
+}
+
+export async function markOrderPaid(
+  orderId: string,
+  paymentIntentId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!supabase) return { ok: false, error: "Supabase is not configured." };
+  const { error } = await supabase
+    .from("customer_orders")
+    .update({
+      status: "submitted",
+      payment_status: "paid",
+      payment_method_type: "card",
+      payment_intent_id: paymentIntentId,
+      paid_at: new Date().toISOString(),
+      submitted_at: new Date().toISOString(),
+    })
+    .eq("id", orderId);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+export async function markOrderPaymentFailed(
+  orderId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!supabase) return { ok: false, error: "Supabase is not configured." };
+  const { error } = await supabase
+    .from("customer_orders")
+    .update({
+      payment_status: "failed",
+    })
+    .eq("id", orderId);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
 }
