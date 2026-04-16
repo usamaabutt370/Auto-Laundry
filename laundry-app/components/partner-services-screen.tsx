@@ -114,57 +114,134 @@ export function PartnerServicesScreen({ mode }: PartnerServicesScreenProps) {
   const handleFinish = async () => {
     if (isSubmittingRequest) return;
 
-    if (isSupabaseConfigured() && supabase && user?.id) {
-      setIsSubmittingRequest(true);
-      const pickupSaved = await savePickupDeliveryPricing();
-      if (!pickupSaved) {
-        setIsSubmittingRequest(false);
-        Alert.alert("Error", "Could not save services. Please try again.");
-        return;
-      }
+    if (!isSupabaseConfigured() || !supabase) {
+      Alert.alert(
+        "Configuration error",
+        "Supabase is not configured. Please set your Supabase URL and anon key.",
+      );
+      return;
+    }
 
-      const { data: partnerProfile } = await supabase
+    setIsSubmittingRequest(true);
+    const resolvedUserId =
+      user?.id ??
+      (await supabase.auth.getSession()).data.session?.user?.id ??
+      null;
+    if (!resolvedUserId) {
+      setIsSubmittingRequest(false);
+      Alert.alert("Error", "Missing user ID. Please sign in again.");
+      return;
+    }
+
+      const normalizedPickupAmount = (pickupDeliveryPricing.amount ?? "").trim();
+      const kycStatus = "submitted" as const;
+
+      // Ensure partner profile is fully persisted at submission time.
+      const { data: existingPartnerProfile } = await supabase
         .from("partner_profiles")
         .select("business_name,business_description")
-        .eq("id", user.id)
+        .eq("id", resolvedUserId)
         .maybeSingle<{
           business_name: string | null;
           business_description: string | null;
         }>();
 
-      const submittedAt = new Date().toISOString();
-      const { error } = await supabase.from("partner_onboarding_requests").upsert(
+      const businessName = (existingPartnerProfile?.business_name ?? "").trim();
+      const businessDescription = (existingPartnerProfile?.business_description ?? "").trim();
+      const resolvedBusinessName = businessName || "Laundry Business";
+      const resolvedBusinessDescription =
+        businessDescription || "Submitted from mobile onboarding flow.";
+
+      const { error: partnerProfileSaveError } = await supabase.from("partner_profiles").upsert(
         {
-          user_id: user.id,
-          status: "submitted",
-          submitted_at: submittedAt,
-          reviewed_at: null,
-          rejection_reason: null,
-          notes: JSON.stringify({
-            source: "mobile_onboarding",
-            submittedAt,
-            businessProfile: {
-              businessName: partnerProfile?.business_name ?? "",
-              businessDescription: partnerProfile?.business_description ?? "",
-              pickupDeliveryEnabled: pickupDeliveryPricing.enabled,
-              pickupDeliveryAmount: pickupDeliveryPricing.amount.trim(),
-            },
-            servicePricing: {
-              washAndFold: washAndFoldPricing?.rows ?? [],
-              dryCleaning: dryCleaningPricing?.rows ?? [],
-              tailoring: tailoringPricing?.rows ?? [],
-            },
-            serviceLines: services.map((service) => ({
-              id: service.id,
-              name: service.name,
-              priceDisplay: service.priceDisplay,
-              category: service.category ?? null,
-            })),
-          }),
-          updated_at: submittedAt,
+          id: resolvedUserId,
+          business_name: resolvedBusinessName,
+          business_description: resolvedBusinessDescription,
+          pickup_delivery_enabled: Boolean(pickupDeliveryPricing.enabled),
+          pickup_delivery_amount: normalizedPickupAmount,
+          updated_at: new Date().toISOString(),
         },
-        { onConflict: "user_id" }
+        { onConflict: "id" }
       );
+
+      if (partnerProfileSaveError) {
+        setIsSubmittingRequest(false);
+        Alert.alert("Error", `Could not save partner profile. ${partnerProfileSaveError.message}`);
+        return;
+      }
+
+      // Read latest persisted services to produce reliable KYC snapshot.
+      const { data: persistedServices, error: persistedServicesError } = await supabase
+        .from("partner_services")
+        .select("name,category,price_display")
+        .eq("user_id", resolvedUserId)
+        .order("created_at", { ascending: true });
+
+      if (persistedServicesError) {
+        setIsSubmittingRequest(false);
+        Alert.alert("Error", `Could not load partner services. ${persistedServicesError.message}`);
+        return;
+      }
+
+      const dbServiceLines = (persistedServices ?? [])
+        .map((item) => ({
+          name: (item.name ?? "").trim(),
+          category: (item.category ?? "").trim(),
+          priceDisplay: (item.price_display ?? "").trim(),
+        }))
+        .filter((item) => item.name.length > 0 && item.priceDisplay.length > 0);
+
+      const memoryServiceLines = services
+        .map((item) => ({
+          name: (item.name ?? "").trim(),
+          category: (item.category ?? "").trim(),
+          priceDisplay: (item.priceDisplay ?? "").trim(),
+        }))
+        .filter((item) => item.name.length > 0 && item.priceDisplay.length > 0);
+
+      const serviceLines = dbServiceLines.length > 0 ? dbServiceLines : memoryServiceLines;
+      if (serviceLines.length === 0) {
+        setIsSubmittingRequest(false);
+        Alert.alert("Error", "Please add at least one service before submitting.");
+        return;
+      }
+
+      const notesPayload = {
+        businessProfile: {
+          businessName: resolvedBusinessName,
+          businessDescription: resolvedBusinessDescription,
+        },
+        servicePricing: {
+          pickupDeliveryEnabled: Boolean(pickupDeliveryPricing.enabled),
+          pickupDeliveryAmount: normalizedPickupAmount,
+        },
+        serviceLines,
+      };
+
+      let notesSerialized = "";
+      try {
+        notesSerialized = JSON.stringify(notesPayload);
+      } catch {
+        setIsSubmittingRequest(false);
+        Alert.alert("Error", "Could not prepare KYC snapshot.");
+        return;
+      }
+
+      const submittedAt = new Date().toISOString();
+      const kycPayload = {
+        user_id: resolvedUserId,
+        status: kycStatus,
+        submitted_at: submittedAt,
+        updated_at: submittedAt,
+        reviewed_at: null,
+        reviewed_by: null,
+        rejection_reason: null,
+        notes: notesSerialized,
+      };
+
+      const { error } = await supabase
+        .from("partner_onboarding_requests")
+        .upsert(kycPayload, { onConflict: "user_id" });
 
       if (error) {
         setIsSubmittingRequest(false);
@@ -179,8 +256,7 @@ export function PartnerServicesScreen({ mode }: PartnerServicesScreenProps) {
         return;
       }
 
-      await refreshPartnerApproval();
-    }
+    await refreshPartnerApproval();
 
     setIsSubmittingRequest(false);
     setSuccessModalVisible(true);
