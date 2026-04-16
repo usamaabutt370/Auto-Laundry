@@ -6,6 +6,7 @@ import type {
   PartnerOnboardingStatus,
 } from "@/features/admin/types/admin-partner-kyc";
 import { theme } from "@/lib/theme/theme";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 type PartnerKycDetailProps = {
@@ -34,6 +35,7 @@ function formatDate(value: string | null): string {
 }
 
 export function PartnerKycDetail({ partner }: PartnerKycDetailProps) {
+  const router = useRouter();
   const [currentStatus, setCurrentStatus] = useState<PartnerOnboardingStatus>(partner.request.status);
   const [rejectionReason, setRejectionReason] = useState(partner.request.rejectionReason ?? "");
   const [statusNote, setStatusNote] = useState<string | null>(null);
@@ -68,6 +70,7 @@ export function PartnerKycDetail({ partner }: PartnerKycDetailProps) {
       setCurrentStatus(nextStatus);
       if (nextStatus === "approved") setRejectionReason("");
       setStatusNote(`KYC request ${nextStatus}.`);
+      router.refresh();
     } catch (error) {
       setStatusNote(error instanceof Error ? error.message : "Failed to update KYC status.");
     } finally {
