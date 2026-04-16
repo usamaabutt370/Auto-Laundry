@@ -1,8 +1,10 @@
 import { UsersList } from "@/features/admin/components/users-list";
-import { fetchUsersDemoData } from "@/features/admin/data/users-demo-data";
+import { getAdminUsers } from "@/features/admin/data/admin-users";
+
+export const dynamic = "force-dynamic";
 
 export default async function UsersPage() {
-  const users = await fetchUsersDemoData();
+  const users = await getAdminUsers();
 
   return <UsersList users={users} />;
 }

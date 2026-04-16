@@ -2,7 +2,7 @@
 
 import { PRODUCT_NAME } from "@/lib/branding";
 import { theme } from "@/lib/theme/theme";
-import type { AdminOrder, OrderStatus, ShippingService } from "@/features/admin/data/orders-demo-data";
+import type { AdminOrder, OrderStatus, ShippingService } from "@/features/admin/data/admin-orders";
 import { useEffect, useMemo, useState } from "react";
 
 type OrdersListProps = {
@@ -20,6 +20,7 @@ const ORDER_STATUSES: OrderStatus[] = [
   "Ready",
   "Delivered",
   "Cancelled",
+  "N/A",
 ];
 
 const STATUS_PILL: Record<OrderStatus, { bg: string; fg: string; border: string }> = {
@@ -29,6 +30,7 @@ const STATUS_PILL: Record<OrderStatus, { bg: string; fg: string; border: string 
   Ready: { bg: "rgba(123, 213, 233, 0.2)", fg: "#7BD5E9", border: "rgba(123, 213, 233, 0.45)" },
   Delivered: { bg: "rgba(110, 231, 168, 0.22)", fg: "#6EE7A8", border: "rgba(110, 231, 168, 0.45)" },
   Cancelled: { bg: "rgba(241, 140, 140, 0.22)", fg: "#F18C8C", border: "rgba(241, 140, 140, 0.45)" },
+  "N/A": { bg: "rgba(160, 174, 192, 0.22)", fg: "#C6D0DF", border: "rgba(160, 174, 192, 0.45)" },
 };
 
 const SERVICE_DOT: Record<ShippingService, string> = {

@@ -2,7 +2,7 @@
 
 import { PRODUCT_NAME } from "@/lib/branding";
 import { theme } from "@/lib/theme/theme";
-import type { AdminUser } from "@/features/admin/data/users-demo-data";
+import type { AdminUser } from "@/features/admin/types/admin-user";
 import { useEffect, useMemo, useState } from "react";
 
 type UsersListProps = {
@@ -15,6 +15,7 @@ const statusPillMap: Record<AdminUser["status"], { bg: string; fg: string; borde
   Active: { bg: "rgba(110, 231, 168, 0.2)", fg: "#6EE7A8", border: "rgba(110, 231, 168, 0.45)" },
   Pending: { bg: "rgba(246, 211, 107, 0.2)", fg: "#F6D36B", border: "rgba(246, 211, 107, 0.45)" },
   Blocked: { bg: "rgba(241, 140, 140, 0.22)", fg: "#F18C8C", border: "rgba(241, 140, 140, 0.45)" },
+  "N/A": { bg: "rgba(160, 174, 192, 0.22)", fg: "#C6D0DF", border: "rgba(160, 174, 192, 0.45)" },
 };
 
 const FILTERS: { key: StatusFilter; label: string }[] = [
@@ -22,6 +23,7 @@ const FILTERS: { key: StatusFilter; label: string }[] = [
   { key: "Active", label: "Active" },
   { key: "Pending", label: "Pending" },
   { key: "Blocked", label: "Blocked" },
+  { key: "N/A", label: "N/A" },
 ];
 
 const statusPillClass = "admin-status-pill border text-[11px] font-semibold sm:text-xs";
