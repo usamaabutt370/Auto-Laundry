@@ -1,21 +1,11 @@
 import { useRouter } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import {
-  Alert,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { useState } from "react";
+import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 import { FormTextInput } from "@/components/form-text-input";
-import { AppHeader } from "@/components/app-header";
+import { PartnerHeader } from "@/components/partner-header";
 import {
   ServiceNoPricesButton,
   ServiceWithPricesCard,
@@ -25,11 +15,9 @@ import { theme } from "@/constants/theme";
 import { useAuth } from "@/contexts/auth-context";
 import { useLocale } from "@/contexts/locale-context";
 import { useMerchantServices } from "@/contexts/merchant-services-context";
-import {
-  awardWelcomeCredits,
-  isWelcomeCreditsRpcMissingError,
-} from "@/lib/partner-credits";
 import { getStrings } from "@/locales";
+import { isMissingPartnerOnboardingRequestsTableError } from "@/lib/partner-onboarding-request";
+import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { allowDecimalOnly } from "@/utils/input-filter";
 
 const c = theme.colors;
@@ -80,13 +68,10 @@ export interface PartnerServicesScreenProps {
  */
 export function PartnerServicesScreen({ mode }: PartnerServicesScreenProps) {
   const router = useRouter();
-  const { user } = useAuth();
   const { locale } = useLocale();
-  const [inlineError, setInlineError] = useState<string | null>(null);
-  const [creditsModalVisible, setCreditsModalVisible] = useState(false);
-  const [awardedCredits, setAwardedCredits] = useState(0);
-  const [currentBalance, setCurrentBalance] = useState(0);
+  const { user, refreshPartnerApproval } = useAuth();
   const {
+    services,
     washAndFoldPricing,
     dryCleaningPricing,
     tailoringPricing,
@@ -94,11 +79,12 @@ export function PartnerServicesScreen({ mode }: PartnerServicesScreenProps) {
     setPickupDeliveryPricing,
     savePickupDeliveryPricing,
     isSavingPickupDeliveryPricing,
-    submitOnboardingServices,
-    isSubmittingOnboardingServices,
   } = useMerchantServices();
   const onboardingStrings = getStrings(locale).partner.onboarding;
   const settingsStrings = getStrings(locale).partner.settings;
+  const dashboardStrings = getStrings(locale).partner.dashboard;
+  const [isSubmittingRequest, setIsSubmittingRequest] = useState(false);
+  const [successModalVisible, setSuccessModalVisible] = useState(false);
 
   const isOnboarding = mode === "onboarding";
   const title = isOnboarding
@@ -125,91 +111,104 @@ export function PartnerServicesScreen({ mode }: PartnerServicesScreenProps) {
     }
   };
 
-  const hasAtLeastOnePrice = (pricing: { rows: Array<{ value: string }> } | null) =>
-    (pricing?.rows ?? []).some((row) => row.value.trim().length > 0);
-
-  const allCoreServicesAdded =
-    hasAtLeastOnePrice(washAndFoldPricing) &&
-    hasAtLeastOnePrice(dryCleaningPricing) &&
-    hasAtLeastOnePrice(tailoringPricing);
-  const pickupAmountValid =
-    !pickupDeliveryPricing.enabled || pickupDeliveryPricing.amount.trim().length > 0;
-
   const handleFinish = async () => {
-    setInlineError(null);
-    if (!allCoreServicesAdded) {
-      setInlineError(
-        "Please add at least one priced item in Wash & Fold, Dry Cleaning, and Tailoring before finishing.",
-      );
-      return;
-    }
-    if (!pickupAmountValid) {
-      setInlineError("Please enter pickup and delivery amount or disable the option.");
-      return;
-    }
-    const result = await submitOnboardingServices();
-    if (!result.ok) {
-      setInlineError(result.error ?? "Unable to save services. Please try again.");
-      return;
-    }
-    if (!user?.id) {
-      setInlineError("Unable to set welcome credits. Please sign in again.");
-      return;
-    }
-    try {
-      const welcomeCredits = await awardWelcomeCredits();
-      setAwardedCredits(Math.max(0, Number(welcomeCredits.awarded) || 0));
-      setCurrentBalance(Math.max(0, Number(welcomeCredits.balance) || 0));
-      setCreditsModalVisible(true);
-      return;
-    } catch (error) {
-      if (isWelcomeCreditsRpcMissingError(error)) {
-        Alert.alert(
-          "Credits setup pending",
-          "Your onboarding is saved. Please deploy the latest Supabase migration for partner credits, then credits can be granted.",
-        );
-        router.replace("/(partner)");
+    if (isSubmittingRequest) return;
+
+    if (isSupabaseConfigured() && supabase && user?.id) {
+      setIsSubmittingRequest(true);
+      const pickupSaved = await savePickupDeliveryPricing();
+      if (!pickupSaved) {
+        setIsSubmittingRequest(false);
+        Alert.alert("Error", "Could not save services. Please try again.");
         return;
       }
-      setInlineError(
-        error instanceof Error
-          ? error.message
-          : "Unable to set welcome credits. Please try again.",
+
+      const { data: partnerProfile } = await supabase
+        .from("partner_profiles")
+        .select("business_name,business_description")
+        .eq("id", user.id)
+        .maybeSingle<{
+          business_name: string | null;
+          business_description: string | null;
+        }>();
+
+      const submittedAt = new Date().toISOString();
+      const { error } = await supabase.from("partner_onboarding_requests").upsert(
+        {
+          user_id: user.id,
+          status: "submitted",
+          submitted_at: submittedAt,
+          reviewed_at: null,
+          rejection_reason: null,
+          notes: JSON.stringify({
+            source: "mobile_onboarding",
+            submittedAt,
+            businessProfile: {
+              businessName: partnerProfile?.business_name ?? "",
+              businessDescription: partnerProfile?.business_description ?? "",
+              pickupDeliveryEnabled: pickupDeliveryPricing.enabled,
+              pickupDeliveryAmount: pickupDeliveryPricing.amount.trim(),
+            },
+            servicePricing: {
+              washAndFold: washAndFoldPricing?.rows ?? [],
+              dryCleaning: dryCleaningPricing?.rows ?? [],
+              tailoring: tailoringPricing?.rows ?? [],
+            },
+            serviceLines: services.map((service) => ({
+              id: service.id,
+              name: service.name,
+              priceDisplay: service.priceDisplay,
+              category: service.category ?? null,
+            })),
+          }),
+          updated_at: submittedAt,
+        },
+        { onConflict: "user_id" }
       );
-      return;
+
+      if (error) {
+        setIsSubmittingRequest(false);
+        if (isMissingPartnerOnboardingRequestsTableError(error)) {
+          Alert.alert(
+            "Database update required",
+            "The partner KYC table has not been created in Supabase yet. Run `npx supabase db push` from `laundry-app`, then try again.",
+          );
+          return;
+        }
+        Alert.alert("Error", error.message);
+        return;
+      }
+
+      await refreshPartnerApproval();
     }
+
+    setIsSubmittingRequest(false);
+    setSuccessModalVisible(true);
   };
 
   const handleSaveSettings = async () => {
     const ok = await savePickupDeliveryPricing();
-    const servicesResult = await submitOnboardingServices();
-    
-    if (ok && servicesResult.ok) {
-      Alert.alert("Saved", "Settings have been saved.");
+    if (ok) {
+      Alert.alert("Saved", "Pickup and delivery settings have been saved.");
       return;
     }
-    Alert.alert("Error", servicesResult.error || "Could not save settings. Please try again.");
+    Alert.alert("Error", "Could not save settings. Please try again.");
   };
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
-      <AppHeader
+      <PartnerHeader
         title={title}
         leftIcon="arrow-left"
         onLeftPress={() => router.back()}
         leftAccessibilityLabel={onboardingStrings.back}
       />
 
-      <KeyboardAvoidingView
-        style={styles.keyboardView}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
       >
-        <ScrollView
-          style={styles.scroll}
-          contentContainerStyle={styles.content}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
         <Text style={styles.heading}>
           {onboardingStrings.chooseServicesHeading}
         </Text>
@@ -294,20 +293,16 @@ export function PartnerServicesScreen({ mode }: PartnerServicesScreenProps) {
         </View>
 
         {isOnboarding && (
-          <>
-            {inlineError ? <Text style={styles.errorText}>{inlineError}</Text> : null}
-            <AppButton
-              label={onboardingStrings.finish}
-              onPress={handleFinish}
-              variant="filled"
-              rightIcon="arrow-right"
-              fullWidth
-              loading={isSubmittingOnboardingServices}
-              disabled={isSubmittingOnboardingServices}
-              style={styles.finishBtn}
-              accessibilityLabel={onboardingStrings.finish}
-            />
-          </>
+          <AppButton
+            label={onboardingStrings.finish}
+            onPress={handleFinish}
+            variant="filled"
+            rightIcon="arrow-right"
+            fullWidth
+            disabled={isSubmittingRequest}
+            style={styles.finishBtn}
+            accessibilityLabel={onboardingStrings.finish}
+          />
         )}
         {!isOnboarding && (
           <AppButton
@@ -316,50 +311,51 @@ export function PartnerServicesScreen({ mode }: PartnerServicesScreenProps) {
             variant="filled"
             rightIcon="check"
             fullWidth
-            disabled={isSavingPickupDeliveryPricing || isSubmittingOnboardingServices}
-            loading={isSavingPickupDeliveryPricing || isSubmittingOnboardingServices}
+            disabled={isSavingPickupDeliveryPricing}
             style={styles.finishBtn}
             accessibilityLabel={settingsStrings.save}
           />
         )}
       </ScrollView>
-    </KeyboardAvoidingView>
+
       <Modal
-        visible={creditsModalVisible}
+        visible={successModalVisible}
         transparent
         animationType="fade"
-        presentationStyle="overFullScreen"
-        statusBarTranslucent
-        onRequestClose={() => setCreditsModalVisible(false)}
+        onRequestClose={() => setSuccessModalVisible(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>{onboardingStrings.creditsScreenTitle}</Text>
-            <Text style={styles.modalSubtitle}>{onboardingStrings.creditsScreenSubtitle}</Text>
-            <View style={styles.modalStats}>
-              <Text style={styles.modalStatsLabel}>{onboardingStrings.creditsAwardedLabel}</Text>
-              <Text style={styles.modalStatsValue}>
-                {awardedCredits} {onboardingStrings.creditsTokenLabel}
-              </Text>
-              <Text style={styles.modalBalanceLine}>
-                {onboardingStrings.creditsBalanceLabelPrefix} {currentBalance}{" "}
-                {onboardingStrings.creditsTokenLabel}
-              </Text>
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setSuccessModalVisible(false)}
+        >
+          <Pressable
+            style={styles.modalCard}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <View style={styles.modalIconWrap}>
+              <MaterialCommunityIcons
+                name="clock-outline"
+                size={22}
+                color={c.background}
+              />
             </View>
+            <Text style={styles.modalTitle}>{dashboardStrings.pendingTitle}</Text>
+            <Text style={styles.modalMessage}>
+              {dashboardStrings.pendingMessage}
+            </Text>
             <AppButton
-              label={onboardingStrings.creditsContinueToDashboard}
+              label={dashboardStrings.pendingContinueButton}
               onPress={() => {
-                setCreditsModalVisible(false);
+                setSuccessModalVisible(false);
                 router.replace("/(partner)");
               }}
               variant="filled"
-              rightIcon="arrow-right"
               fullWidth
-              style={styles.modalContinueBtn}
-              accessibilityLabel={onboardingStrings.creditsContinueToDashboard}
+              style={styles.modalButton}
+              accessibilityLabel={dashboardStrings.pendingContinueButton}
             />
-          </View>
-        </View>
+          </Pressable>
+        </Pressable>
       </Modal>
     </SafeAreaView>
   );
@@ -371,9 +367,6 @@ const styles = StyleSheet.create({
     backgroundColor: c.background,
   },
   scroll: {
-    flex: 1,
-  },
-  keyboardView: {
     flex: 1,
   },
   content: {
@@ -389,12 +382,6 @@ const styles = StyleSheet.create({
   },
   finishBtn: {
     marginTop: 28,
-  },
-  errorText: {
-    color: "#FFB3B3",
-    fontSize: fs.smallText,
-    marginTop: 16,
-    marginBottom: -16,
   },
   pickupWrap: {
     marginTop: 18,
@@ -437,59 +424,47 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(3, 15, 27, 0.72)",
+    backgroundColor: c.modalOverlay,
     justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: 20,
+    padding: 24,
   },
   modalCard: {
-    width: "100%",
+    width: "92%",
     maxWidth: 340,
     backgroundColor: c.blue900,
-    borderRadius: 22,
+    borderRadius: 18,
     borderWidth: 1,
-    borderColor: "rgba(171, 233, 254, 0.45)",
+    borderColor: c.modalBorder,
     paddingHorizontal: 20,
-    paddingVertical: 22,
+    paddingTop: 22,
+    paddingBottom: 28,
+  },
+  modalIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: c.blue500,
+    alignSelf: "center",
+    marginBottom: 14,
   },
   modalTitle: {
-    color: c.white,
     fontSize: fs.titleMedium,
     fontWeight: "700",
-    lineHeight: 30,
-  },
-  modalSubtitle: {
-    marginTop: 8,
     color: c.white,
-    fontSize: fs.descText,
-    lineHeight: 21,
+    marginBottom: 10,
+    textAlign: "center",
   },
-  modalStats: {
-    marginTop: 16,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "rgba(171, 233, 254, 0.45)",
-    backgroundColor: "rgba(12, 52, 74, 0.45)",
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    gap: 4,
-  },
-  modalStatsLabel: {
-    color: c.white,
-    fontSize: fs.descText,
-  },
-  modalStatsValue: {
-    color: c.white,
-    fontSize: fs.titleMedium,
-    fontWeight: "700",
-  },
-  modalBalanceLine: {
-    color: c.white,
+  modalMessage: {
     fontSize: fs.smallText,
-    fontWeight: "600",
+    color: c.blue500,
+    lineHeight: 21,
+    textAlign: "center",
   },
-  modalContinueBtn: {
-    marginTop: 18,
-    marginBottom: 12,
+  modalButton: {
+    marginTop: 20,
+    marginBottom: 6,
   },
 });
