@@ -48,7 +48,7 @@ function matchesQuery(row: AdminPartnerKycListItem, q: string): boolean {
 }
 
 function formatStatus(status: PartnerOnboardingStatus): string {
-  if (status === "submitted") return "Submitted";
+  if (status === "submitted") return "Pending";
   if (status === "approved") return "Approved";
   if (status === "rejected") return "Rejected";
   return "Draft";
@@ -63,7 +63,7 @@ function formatDate(iso: string | null): string {
 
 export function PartnerKycList({ partners }: PartnerKycListProps) {
   const [query, setQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("submitted");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [page, setPage] = useState(1);
 
   const filtered = useMemo(() => {

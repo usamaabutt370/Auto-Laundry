@@ -236,9 +236,11 @@ function buildServiceRows(
 }
 
 function buildFullName(row: ProfileRow): string {
+  const fromParts = `${asText(row.first_name)} ${asText(row.last_name)}`.trim();
+  if (fromParts) return fromParts;
   const fullName = asText(row.full_name);
   if (fullName) return fullName;
-  return `${asText(row.first_name)} ${asText(row.last_name)}`.trim();
+  return "";
 }
 
 function normalizeStatus(raw: unknown): PartnerOnboardingStatus {
