@@ -1,107 +1,84 @@
 "use client";
 
-import { ConfirmModal } from "@/components/ui/confirm-modal";
 import Link from "next/link";
-import type { AdminPartnerKyc, PartnerKycStatus } from "@/features/admin/data/partner-kyc-demo-data";
+import type {
+  AdminPartnerKycDetail,
+  PartnerOnboardingStatus,
+} from "@/features/admin/types/admin-partner-kyc";
 import { theme } from "@/lib/theme/theme";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 type PartnerKycDetailProps = {
-  partner: AdminPartnerKyc;
+  partner: AdminPartnerKycDetail;
 };
 
-const STATUS_PILL: Record<PartnerKycStatus, { bg: string; fg: string; border: string }> = {
-  Pending: { bg: "rgba(246, 211, 107, 0.2)", fg: "#F6D36B", border: "rgba(246, 211, 107, 0.45)" },
-  Approved: { bg: "rgba(110, 231, 168, 0.2)", fg: "#6EE7A8", border: "rgba(110, 231, 168, 0.45)" },
-  Rejected: { bg: "rgba(241, 140, 140, 0.22)", fg: "#F18C8C", border: "rgba(241, 140, 140, 0.45)" },
+const STATUS_PILL: Record<PartnerOnboardingStatus, { bg: string; fg: string; border: string }> = {
+  draft: { bg: "rgba(255,255,255,0.1)", fg: "#E5E7EB", border: "rgba(255,255,255,0.25)" },
+  submitted: { bg: "rgba(246, 211, 107, 0.2)", fg: "#F6D36B", border: "rgba(246, 211, 107, 0.45)" },
+  approved: { bg: "rgba(110, 231, 168, 0.2)", fg: "#6EE7A8", border: "rgba(110, 231, 168, 0.45)" },
+  rejected: { bg: "rgba(241, 140, 140, 0.22)", fg: "#F18C8C", border: "rgba(241, 140, 140, 0.45)" },
 };
 
-const SERVICE_PRICE_BY_NAME: Record<string, string> = {
-  "Wash & fold": "$2.10/lb",
-  "Dry cleaning": "From $7.99/item",
-  "Ironing / pressing": "$3.50/item",
-  "Stain treatment": "$12.00+",
-  "Pickup & delivery": "$4.99 flat",
-  "Express same-day": "+35% surcharge",
-  "Commercial / bulk": "Custom quote",
-  "Alterations & tailoring": "From $15.00",
-  "Shoe cleaning": "$25.00/pair",
-  "Bedding & household": "$18.00/item",
-};
-
-function seedFromId(id: string): number {
-  return Array.from(id).reduce((sum, ch) => sum + ch.charCodeAt(0), 0);
+function formatStatus(status: PartnerOnboardingStatus): string {
+  if (status === "submitted") return "Submitted";
+  if (status === "approved") return "Approved";
+  if (status === "rejected") return "Rejected";
+  return "Draft";
 }
 
-function formatMoney(value: number): string {
-  return `$${value.toLocaleString("en-US")}`;
-}
-
-function buildEarningsBreakdown(id: string) {
-  const seed = seedFromId(id);
-  const completedOrders = 20 + (seed % 34);
-  const dropOffGross = 1200 + (seed % 1400);
-  const deliveryGross = 950 + (seed % 1100);
-  const grossRevenue = dropOffGross + deliveryGross;
-  const platformFee = Math.round(grossRevenue * 0.15);
-  const payoutReleased = Math.round(grossRevenue * 0.7);
-  const pendingPayout = Math.max(120, Math.round(grossRevenue * 0.12));
-  const adjustments = 35 + (seed % 140);
-  const netPartnerEarnings = payoutReleased - adjustments;
-
-  return {
-    completedOrders,
-    grossRevenue,
-    dropOffGross,
-    deliveryGross,
-    platformFee,
-    payoutReleased,
-    pendingPayout,
-    adjustments,
-    netPartnerEarnings,
-  };
-}
-
-function businessAddressFromId(id: string): string {
-  const num = 100 + (seedFromId(id) % 800);
-  return `${num} Market St, San Francisco, CA`;
-}
-
-function servicePriceFor(serviceName: string, partnerId: string, index: number): string {
-  const known = SERVICE_PRICE_BY_NAME[serviceName];
-  if (known) return known;
-  const base = 10 + ((seedFromId(partnerId) + index * 7) % 30);
-  return `$${base}.00 flat`;
+function formatDate(value: string | null): string {
+  if (!value) return "N/A";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return value;
+  return d.toISOString().slice(0, 10);
 }
 
 export function PartnerKycDetail({ partner }: PartnerKycDetailProps) {
-  const [currentStatus, setCurrentStatus] = useState<PartnerKycStatus>(partner.status);
-  const [accessStatus, setAccessStatus] = useState<"Active" | "Blocked">("Active");
+  const [currentStatus, setCurrentStatus] = useState<PartnerOnboardingStatus>(partner.request.status);
+  const [rejectionReason, setRejectionReason] = useState(partner.request.rejectionReason ?? "");
   const [statusNote, setStatusNote] = useState<string | null>(null);
-  const [blockConfirmOpen, setBlockConfirmOpen] = useState(false);
-  const [unblockConfirmOpen, setUnblockConfirmOpen] = useState(false);
+  const [busy, setBusy] = useState<"approve" | "reject" | null>(null);
   const pill = STATUS_PILL[currentStatus];
-  const canDecide = currentStatus === "Pending";
-  const canManageAccess = currentStatus !== "Rejected";
-  const initials = partner.partnerName
+  const canDecide = currentStatus === "submitted";
+  const initials = partner.profile.fullName
     .split(" ")
     .filter(Boolean)
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase() ?? "")
     .join("");
-  const earnings = buildEarningsBreakdown(partner.id);
+  const notesPretty = useMemo(
+    () => JSON.stringify(partner.request.notes ?? partner.request.notesRaw ?? {}, null, 2),
+    [partner.request.notes, partner.request.notesRaw],
+  );
 
-  const updateStatus = (next: PartnerKycStatus) => {
-    setCurrentStatus(next);
-    setStatusNote(`KYC status updated to ${next}.`);
-    window.setTimeout(() => setStatusNote(null), 2800);
-  };
-
-  const toggleBlock = (next: "Active" | "Blocked") => {
-    setAccessStatus(next);
-    setStatusNote(`Partner is now ${next}.`);
-    window.setTimeout(() => setStatusNote(null), 2800);
-  };
+  async function submitDecision(action: "approve" | "reject") {
+    const reason = rejectionReason.trim();
+    if (action === "reject" && !reason) {
+      setStatusNote("Rejection reason is required.");
+      return;
+    }
+    setBusy(action);
+    setStatusNote(null);
+    try {
+      const response = await fetch(`/api/admin/partner-kyc/${encodeURIComponent(partner.userId)}/review`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, rejectionReason: reason }),
+      });
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(payload?.error || `Request failed with status ${response.status}`);
+      }
+      const nextStatus = action === "approve" ? "approved" : "rejected";
+      setCurrentStatus(nextStatus);
+      if (nextStatus === "approved") setRejectionReason("");
+      setStatusNote(`KYC request ${nextStatus}.`);
+    } catch (error) {
+      setStatusNote(error instanceof Error ? error.message : "Failed to update KYC status.");
+    } finally {
+      setBusy(null);
+    }
+  }
 
   return (
     <section className="w-full min-w-0 space-y-4 sm:space-y-5">
@@ -109,7 +86,7 @@ export function PartnerKycDetail({ partner }: PartnerKycDetailProps) {
         <div className="min-w-0">
           <h1 className="text-[clamp(1.125rem,4vw,1.5rem)] font-bold text-white">Partner Detail</h1>
           <p className="mt-1 text-[13px] text-white/75 sm:text-[15px]">
-            Detailed profile, earnings, services, and business information for this partner.
+            Real KYC data from partner onboarding request and profile tables.
           </p>
         </div>
         <Link
@@ -131,57 +108,26 @@ export function PartnerKycDetail({ partner }: PartnerKycDetailProps) {
               {initials || "P"}
             </div>
             <div>
-              <p className="text-[16px] font-bold text-white sm:text-[18px]">{partner.partnerName}</p>
-              <p className="text-[12px] text-white/70 sm:text-[13px]">{partner.businessName}</p>
-              <p className="mt-0.5 font-mono text-[11px] text-white/55">{partner.id}</p>
+              <p className="text-[16px] font-bold text-white sm:text-[18px]">{partner.profile.fullName}</p>
+              <p className="text-[12px] text-white/70 sm:text-[13px]">{partner.business.businessName || "N/A"}</p>
+              <p className="mt-0.5 font-mono text-[11px] text-white/55">{partner.userId}</p>
             </div>
           </div>
-          <div className="flex w-full flex-col items-start gap-2 sm:w-auto sm:items-end">
+          <div className="flex w-full flex-col items-start gap-2 sm:w-auto sm:items-end text-left sm:text-right">
             <span
               className="admin-status-pill inline-flex w-fit rounded-full border py-1 pl-2.5 pr-3 text-[11px] font-semibold sm:text-xs"
               style={{ backgroundColor: pill.bg, color: pill.fg, borderColor: pill.border }}
             >
-              {currentStatus}
+              {formatStatus(currentStatus)}
             </span>
-            {canManageAccess ? (
-              accessStatus === "Blocked" ? (
-                <button
-                  type="button"
-                  onClick={() => setUnblockConfirmOpen(true)}
-                  className="inline-flex min-h-[40px] w-full items-center justify-center rounded-lg border px-3.5 py-2 text-center text-[12px] font-semibold leading-tight text-white sm:w-auto sm:text-[13px]"
-                  style={{ borderColor: theme.colors.outline }}
-                >
-                  Unblock Partner
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setBlockConfirmOpen(true)}
-                  className="inline-flex min-h-[40px] w-full items-center justify-center rounded-lg border px-3.5 py-2 text-center text-[12px] font-semibold leading-tight text-[#F18C8C] sm:w-auto sm:text-[13px]"
-                  style={{ borderColor: "rgba(241, 140, 140, 0.45)" }}
-                >
-                  Block Partner
-                </button>
-              )
-            ) : null}
+            <p className="text-[11px] text-white/65">Request ID: {partner.request.id || "N/A"}</p>
           </div>
         </div>
-        <div className="mt-3 flex items-center gap-2 text-[12px] sm:text-[13px]">
-          <span className="text-white/65">Partner access:</span>
-          {canManageAccess ? (
-            <span
-              className="admin-status-pill inline-flex rounded-full border py-1 pl-2.5 pr-3 font-semibold"
-              style={{
-                backgroundColor: accessStatus === "Blocked" ? "rgba(241, 140, 140, 0.22)" : "rgba(110, 231, 168, 0.2)",
-                color: accessStatus === "Blocked" ? "#F18C8C" : "#6EE7A8",
-                borderColor: accessStatus === "Blocked" ? "rgba(241, 140, 140, 0.45)" : "rgba(110, 231, 168, 0.45)",
-              }}
-            >
-              {accessStatus}
-            </span>
-          ) : (
-            <span className="text-white/60">Not applicable (KYC Rejected)</span>
-          )}
+        <div className="mt-3 grid gap-2 text-[12px] sm:grid-cols-2 sm:text-[13px]">
+          <p className="text-white/70">Submitted: <span className="text-white">{formatDate(partner.request.submittedAt)}</span></p>
+          <p className="text-white/70">Reviewed: <span className="text-white">{formatDate(partner.request.reviewedAt)}</span></p>
+          <p className="text-white/70">Reviewed by: <span className="text-white">{partner.request.reviewedBy || "N/A"}</span></p>
+          <p className="text-white/70">Role: <span className="text-white">{partner.profile.role || "N/A"}</span></p>
         </div>
       </section>
 
@@ -197,34 +143,43 @@ export function PartnerKycDetail({ partner }: PartnerKycDetailProps) {
             <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
                 <button
                 type="button"
-                onClick={() => updateStatus("Rejected")}
-                  className="min-h-[42px] w-full rounded-xl border px-4 text-[13px] font-semibold text-[#F18C8C] sm:min-w-[120px]"
+                disabled={busy !== null}
+                onClick={() => submitDecision("reject")}
+                className="min-h-[42px] w-full rounded-xl border px-4 text-[13px] font-semibold text-[#F18C8C] disabled:opacity-50 sm:min-w-[120px]"
                 style={{ borderColor: "rgba(241, 140, 140, 0.45)" }}
               >
-                Reject
+                {busy === "reject" ? "Rejecting..." : "Reject"}
               </button>
               <button
                 type="button"
-                onClick={() => updateStatus("Approved")}
-                  className="min-h-[42px] w-full rounded-xl border px-4 text-[13px] font-semibold text-white sm:min-w-[120px]"
+                disabled={busy !== null}
+                onClick={() => submitDecision("approve")}
+                className="min-h-[42px] w-full rounded-xl border px-4 text-[13px] font-semibold text-white disabled:opacity-50 sm:min-w-[120px]"
                 style={{ borderColor: theme.colors.filledButtonBorder, backgroundColor: theme.colors.secondary }}
               >
-                Approve
+                {busy === "approve" ? "Approving..." : "Approve"}
               </button>
             </div>
           ) : (
             <p className="text-[12px] font-medium text-white/70 sm:text-[13px]">
-              This profile is already marked as <span className="text-white">{currentStatus}</span>.
+              This profile is already marked as <span className="text-white">{formatStatus(currentStatus)}</span>.
             </p>
           )}
         </div>
-        {canManageAccess ? (
-          <div className="mt-3 border-t pt-3" style={{ borderColor: "rgba(255,255,255,0.12)" }}>
-            <p className="text-[12px] text-white/65 sm:text-[13px]">
-              Operational control: block partner from receiving new orders.
-            </p>
-          </div>
-        ) : null}
+        <div className="mt-3 border-t pt-3" style={{ borderColor: "rgba(255,255,255,0.12)" }}>
+          <label className="text-[12px] text-white/70 sm:text-[13px]" htmlFor="rejection-reason">
+            Rejection reason (required for reject)
+          </label>
+          <textarea
+            id="rejection-reason"
+            value={rejectionReason}
+            onChange={(e) => setRejectionReason(e.target.value)}
+            rows={3}
+            placeholder="Add reason shown to partner if rejected."
+            className="mt-2 w-full rounded-xl border bg-transparent px-3 py-2 text-[13px] text-white outline-none placeholder:text-white/40"
+            style={{ borderColor: theme.colors.outline }}
+          />
+        </div>
         {statusNote ? (
           <p className="mt-2 text-[12px] text-[#ABE9FE] sm:text-[13px]" role="status">
             {statusNote}
@@ -232,54 +187,25 @@ export function PartnerKycDetail({ partner }: PartnerKycDetailProps) {
         ) : null}
       </section>
 
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <article className="rounded-xl border p-3.5 sm:p-4" style={{ borderColor: theme.colors.outline, backgroundColor: theme.colors.sidebarBackground }}>
-          <p className="text-[11px] uppercase tracking-wide text-white/60">Completed orders</p>
-          <p className="mt-1 text-[22px] font-bold text-white">{earnings.completedOrders}</p>
-        </article>
-        <article className="rounded-xl border p-3.5 sm:p-4" style={{ borderColor: theme.colors.outline, backgroundColor: theme.colors.sidebarBackground }}>
-          <p className="text-[11px] uppercase tracking-wide text-white/60">Gross revenue</p>
-          <p className="mt-1 text-[22px] font-bold text-white">{formatMoney(earnings.grossRevenue)}</p>
-        </article>
-        <article className="rounded-xl border p-3.5 sm:p-4" style={{ borderColor: theme.colors.outline, backgroundColor: theme.colors.sidebarBackground }}>
-          <p className="text-[11px] uppercase tracking-wide text-white/60">Payout released</p>
-          <p className="mt-1 text-[22px] font-bold text-white">{formatMoney(earnings.payoutReleased)}</p>
-        </article>
-        <article className="rounded-xl border p-3.5 sm:p-4" style={{ borderColor: theme.colors.outline, backgroundColor: theme.colors.sidebarBackground }}>
-          <p className="text-[11px] uppercase tracking-wide text-white/60">Net partner earnings</p>
-          <p className="mt-1 text-[22px] font-bold text-white">{formatMoney(earnings.netPartnerEarnings)}</p>
-        </article>
-      </section>
-
       <section className="grid gap-3 xl:grid-cols-2">
         <article className="rounded-2xl border p-4 sm:p-5" style={{ borderColor: theme.colors.outline, backgroundColor: theme.colors.sidebarBackground }}>
-          <h2 className="text-[15px] font-bold text-white sm:text-[17px]">Earnings details</h2>
+          <h2 className="text-[15px] font-bold text-white sm:text-[17px]">Profile details</h2>
           <dl className="mt-3 space-y-2 text-[13px] sm:text-[14px]">
             <div className="flex items-start justify-between gap-3">
-              <dt className="text-white/70">Drop-off gross</dt>
-              <dd className="text-right font-semibold text-white">{formatMoney(earnings.dropOffGross)}</dd>
+              <dt className="text-white/70">Name</dt>
+              <dd className="text-right font-semibold text-white">{partner.profile.fullName}</dd>
             </div>
             <div className="flex items-start justify-between gap-3">
-              <dt className="text-white/70">Delivery gross</dt>
-              <dd className="text-right font-semibold text-white">{formatMoney(earnings.deliveryGross)}</dd>
+              <dt className="text-white/70">Email</dt>
+              <dd className="text-right font-semibold text-white">{partner.profile.email || "N/A"}</dd>
             </div>
             <div className="flex items-start justify-between gap-3">
-              <dt className="text-white/70">Platform fee (15%)</dt>
-              <dd className="text-right font-semibold text-white/85">- {formatMoney(earnings.platformFee)}</dd>
+              <dt className="text-white/70">Phone</dt>
+              <dd className="text-right font-semibold text-white">{partner.profile.phone || "N/A"}</dd>
             </div>
             <div className="flex items-start justify-between gap-3">
-              <dt className="text-white/70">Pending payout</dt>
-              <dd className="text-right font-semibold text-white">{formatMoney(earnings.pendingPayout)}</dd>
-            </div>
-            <div className="flex items-start justify-between gap-3">
-              <dt className="text-white/70">Refunds / adjustments</dt>
-              <dd className="text-right font-semibold text-white/85">- {formatMoney(earnings.adjustments)}</dd>
-            </div>
-            <div className="mt-2 border-t pt-2" style={{ borderColor: "rgba(255,255,255,0.12)" }}>
-              <div className="flex items-center justify-between gap-3">
-                <dt className="text-[13px] font-bold text-white">Net partner earnings</dt>
-                <dd className="text-[15px] font-bold text-[#6EE7A8]">{formatMoney(earnings.netPartnerEarnings)}</dd>
-              </div>
+              <dt className="text-white/70">Profile created</dt>
+              <dd className="text-right font-semibold text-white">{formatDate(partner.profile.createdAt)}</dd>
             </div>
           </dl>
         </article>
@@ -289,31 +215,33 @@ export function PartnerKycDetail({ partner }: PartnerKycDetailProps) {
           <dl className="mt-3 grid gap-2.5 text-[13px] sm:text-[14px]">
             <div>
               <dt className="text-[11px] text-white/60">Business name</dt>
-              <dd className="mt-0.5 text-white">{partner.businessName}</dd>
+              <dd className="mt-0.5 text-white">{partner.business.businessName || "N/A"}</dd>
             </div>
             <div>
-              <dt className="text-[11px] text-white/60">Primary contact name</dt>
-              <dd className="mt-0.5 text-white">{partner.partnerName}</dd>
+              <dt className="text-[11px] text-white/60">Business description</dt>
+              <dd className="mt-0.5 text-white">{partner.business.businessDescription || "N/A"}</dd>
             </div>
             <div>
-              <dt className="text-[11px] text-white/60">Email</dt>
-              <dd className="mt-0.5 break-all text-white">{partner.email}</dd>
+              <dt className="text-[11px] text-white/60">Pickup & delivery enabled</dt>
+              <dd className="mt-0.5 break-all text-white">
+                {partner.business.pickupDeliveryEnabled === null
+                  ? "N/A"
+                  : partner.business.pickupDeliveryEnabled
+                    ? "Yes"
+                    : "No"}
+              </dd>
             </div>
             <div>
-              <dt className="text-[11px] text-white/60">Phone</dt>
-              <dd className="mt-0.5 tabular-nums text-white">{partner.phone}</dd>
+              <dt className="text-[11px] text-white/60">Pickup & delivery amount</dt>
+              <dd className="mt-0.5 tabular-nums text-white">{partner.business.pickupDeliveryAmount || "N/A"}</dd>
             </div>
             <div>
-              <dt className="text-[11px] text-white/60">Business address</dt>
-              <dd className="mt-0.5 text-white">{businessAddressFromId(partner.id)}</dd>
+              <dt className="text-[11px] text-white/60">Submitted at</dt>
+              <dd className="mt-0.5 text-white">{formatDate(partner.request.submittedAt)}</dd>
             </div>
             <div>
-              <dt className="text-[11px] text-white/60">Documents summary</dt>
-              <dd className="mt-0.5 text-white/85">{partner.documentsSummary}</dd>
-            </div>
-            <div>
-              <dt className="text-[11px] text-white/60">KYC submitted</dt>
-              <dd className="mt-0.5 tabular-nums text-white">{partner.submittedAt}</dd>
+              <dt className="text-[11px] text-white/60">Rejection reason</dt>
+              <dd className="mt-0.5 text-white/85">{partner.request.rejectionReason || "N/A"}</dd>
             </div>
           </dl>
         </article>
@@ -321,44 +249,30 @@ export function PartnerKycDetail({ partner }: PartnerKycDetailProps) {
 
       <section className="rounded-2xl border p-4 sm:p-5" style={{ borderColor: theme.colors.outline, backgroundColor: theme.colors.sidebarBackground }}>
         <h2 className="text-[15px] font-bold text-white sm:text-[17px]">Services offered</h2>
-        <p className="mt-1 text-[12px] text-white/65 sm:text-[13px]">All listed services include the partner's declared price.</p>
+        <p className="mt-1 text-[12px] text-white/65 sm:text-[13px]">All listed services from `partner_services`.</p>
         <ul className="mt-3 grid gap-2 sm:grid-cols-2">
-          {partner.services.map((service, idx) => (
-            <li key={`${partner.id}-${service}`} className="flex items-start justify-between gap-3 rounded-lg border px-3 py-2.5 text-[13px] text-white/90 sm:text-[14px]" style={{ borderColor: "rgba(255,255,255,0.12)" }}>
+          {partner.services.map((service) => (
+            <li key={service.id} className="flex items-start justify-between gap-3 rounded-lg border px-3 py-2.5 text-[13px] text-white/90 sm:text-[14px]" style={{ borderColor: "rgba(255,255,255,0.12)" }}>
               <div className="flex min-w-0 items-start gap-2">
                 <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: theme.colors.outline }} />
-                <span className="min-w-0 break-words">{service}</span>
+                <span className="min-w-0 break-words">{service.name}</span>
               </div>
-              <span className="shrink-0 whitespace-nowrap tabular-nums text-right text-white">{servicePriceFor(service, partner.id, idx)}</span>
+              <span className="shrink-0 whitespace-nowrap tabular-nums text-right text-white">
+                {service.priceDisplay || "N/A"}
+              </span>
             </li>
           ))}
         </ul>
       </section>
-
-      <ConfirmModal
-        open={canManageAccess && blockConfirmOpen}
-        title="Block partner?"
-        description="This partner will be prevented from receiving new orders until you unblock them."
-        confirmLabel="Block"
-        cancelLabel="Cancel"
-        onConfirm={() => {
-          setBlockConfirmOpen(false);
-          toggleBlock("Blocked");
-        }}
-        onCancel={() => setBlockConfirmOpen(false)}
-      />
-      <ConfirmModal
-        open={canManageAccess && unblockConfirmOpen}
-        title="Unblock partner?"
-        description="This partner can receive new orders again."
-        confirmLabel="Unblock"
-        cancelLabel="Cancel"
-        onConfirm={() => {
-          setUnblockConfirmOpen(false);
-          toggleBlock("Active");
-        }}
-        onCancel={() => setUnblockConfirmOpen(false)}
-      />
+      <section className="rounded-2xl border p-4 sm:p-5" style={{ borderColor: theme.colors.outline, backgroundColor: theme.colors.sidebarBackground }}>
+        <h2 className="text-[15px] font-bold text-white sm:text-[17px]">Submission snapshot (`notes`)</h2>
+        <pre
+          className="mt-3 overflow-x-auto rounded-lg border p-3 text-[12px] leading-relaxed text-white/85"
+          style={{ borderColor: "rgba(255,255,255,0.12)", backgroundColor: "rgba(0,0,0,0.2)" }}
+        >
+          {notesPretty}
+        </pre>
+      </section>
     </section>
   );
 }

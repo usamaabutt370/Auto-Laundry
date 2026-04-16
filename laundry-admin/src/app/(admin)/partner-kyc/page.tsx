@@ -1,8 +1,8 @@
 import { PartnerKycList } from "@/features/admin/components/partner-kyc-list";
-import { fetchPartnerKycDemoData } from "@/features/admin/data/partner-kyc-demo-data";
+import { getAdminPartnerKycList } from "@/features/admin/data/admin-partner-kyc";
 
 export default async function PartnerKycPage() {
-  const partners = await fetchPartnerKycDemoData();
+  const partners = await getAdminPartnerKycList();
 
   return <PartnerKycList partners={partners} />;
 }

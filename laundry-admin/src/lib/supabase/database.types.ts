@@ -104,14 +104,44 @@ export type Database = {
         Row: {
           id: string;
           business_name?: string | null;
+          business_description?: string | null;
+          pickup_delivery_enabled?: boolean | null;
+          pickup_delivery_amount?: string | null;
           [key: string]: Json | undefined;
         };
         Insert: {
           id?: string;
           business_name?: string | null;
+          business_description?: string | null;
+          pickup_delivery_enabled?: boolean | null;
+          pickup_delivery_amount?: string | null;
           [key: string]: Json | undefined;
         };
         Update: Partial<Database["public"]["Tables"]["partner_profiles"]["Insert"]>;
+        Relationships: [];
+      };
+      partner_services: {
+        Row: {
+          id: string;
+          user_id?: string | null;
+          name?: string | null;
+          category?: string | null;
+          price_display?: string | null;
+          created_at?: string | null;
+          updated_at?: string | null;
+          [key: string]: Json | undefined;
+        };
+        Insert: {
+          id?: string;
+          user_id?: string | null;
+          name?: string | null;
+          category?: string | null;
+          price_display?: string | null;
+          created_at?: string | null;
+          updated_at?: string | null;
+          [key: string]: Json | undefined;
+        };
+        Update: Partial<Database["public"]["Tables"]["partner_services"]["Insert"]>;
         Relationships: [];
       };
       partner_onboarding_requests: {
@@ -125,6 +155,7 @@ export type Database = {
           updated_at?: string | null;
           rejection_reason?: string | null;
           reviewed_by?: string | null;
+          notes?: Json | null;
           [key: string]: Json | undefined;
         };
         Insert: {
@@ -137,6 +168,7 @@ export type Database = {
           updated_at?: string | null;
           rejection_reason?: string | null;
           reviewed_by?: string | null;
+          notes?: Json | null;
           [key: string]: Json | undefined;
         };
         Update: Partial<Database["public"]["Tables"]["partner_onboarding_requests"]["Insert"]>;

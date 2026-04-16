@@ -2,24 +2,28 @@
 
 import { PRODUCT_NAME } from "@/lib/branding";
 import { theme } from "@/lib/theme/theme";
-import type { AdminPartnerKyc, PartnerKycStatus } from "@/features/admin/data/partner-kyc-demo-data";
+import type {
+  AdminPartnerKycListItem,
+  PartnerOnboardingStatus,
+} from "@/features/admin/types/admin-partner-kyc";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 type PartnerKycListProps = {
-  partners: AdminPartnerKyc[];
+  partners: AdminPartnerKycListItem[];
 };
 
-type StatusFilter = "all" | PartnerKycStatus;
+type StatusFilter = "all" | PartnerOnboardingStatus;
 
 const PAGE_SIZE = 10;
 
-const KYC_STATUSES: PartnerKycStatus[] = ["Pending", "Approved", "Rejected"];
+const KYC_STATUSES: PartnerOnboardingStatus[] = ["draft", "submitted", "approved", "rejected"];
 
-const STATUS_PILL: Record<PartnerKycStatus, { bg: string; fg: string; border: string }> = {
-  Pending: { bg: "rgba(246, 211, 107, 0.2)", fg: "#F6D36B", border: "rgba(246, 211, 107, 0.45)" },
-  Approved: { bg: "rgba(110, 231, 168, 0.2)", fg: "#6EE7A8", border: "rgba(110, 231, 168, 0.45)" },
-  Rejected: { bg: "rgba(241, 140, 140, 0.22)", fg: "#F18C8C", border: "rgba(241, 140, 140, 0.45)" },
+const STATUS_PILL: Record<PartnerOnboardingStatus, { bg: string; fg: string; border: string }> = {
+  draft: { bg: "rgba(255,255,255,0.1)", fg: "#E5E7EB", border: "rgba(255,255,255,0.25)" },
+  submitted: { bg: "rgba(246, 211, 107, 0.2)", fg: "#F6D36B", border: "rgba(246, 211, 107, 0.45)" },
+  approved: { bg: "rgba(110, 231, 168, 0.2)", fg: "#6EE7A8", border: "rgba(110, 231, 168, 0.45)" },
+  rejected: { bg: "rgba(241, 140, 140, 0.22)", fg: "#F18C8C", border: "rgba(241, 140, 140, 0.45)" },
 };
 
 const statusPillClass = "admin-status-pill border text-[11px] font-semibold sm:text-xs";
@@ -31,28 +35,36 @@ const statusPillClass = "admin-status-pill border text-[11px] font-semibold sm:t
 const tableGridClass =
   "grid grid-cols-[minmax(96px,1fr)_minmax(124px,1.15fr)_minmax(116px,1fr)_minmax(150px,1.2fr)_minmax(112px,0.95fr)_minmax(176px,1.3fr)_minmax(98px,0.82fr)_minmax(88px,0.78fr)] items-center gap-x-4 gap-y-1";
 
-function matchesQuery(row: AdminPartnerKyc, q: string): boolean {
+function matchesQuery(row: AdminPartnerKycListItem, q: string): boolean {
   const s = q.trim().toLowerCase();
   if (!s) return true;
   return (
-    row.id.toLowerCase().includes(s) ||
+    row.userId.toLowerCase().includes(s) ||
     row.businessName.toLowerCase().includes(s) ||
     row.partnerName.toLowerCase().includes(s) ||
     row.email.toLowerCase().includes(s) ||
-    row.phone.toLowerCase().includes(s) ||
-    row.documentsSummary.toLowerCase().includes(s) ||
-    row.services.some((svc) => svc.toLowerCase().includes(s))
+    row.phone.toLowerCase().includes(s)
   );
+}
+
+function formatStatus(status: PartnerOnboardingStatus): string {
+  if (status === "submitted") return "Submitted";
+  if (status === "approved") return "Approved";
+  if (status === "rejected") return "Rejected";
+  return "Draft";
+}
+
+function formatDate(iso: string | null): string {
+  if (!iso) return "N/A";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toISOString().slice(0, 10);
 }
 
 export function PartnerKycList({ partners }: PartnerKycListProps) {
   const [query, setQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("submitted");
   const [page, setPage] = useState(1);
-
-  useEffect(() => {
-    setPage(1);
-  }, [query, statusFilter]);
 
   const filtered = useMemo(() => {
     const searched = partners.filter((p) => matchesQuery(p, query));
@@ -61,34 +73,31 @@ export function PartnerKycList({ partners }: PartnerKycListProps) {
   }, [partners, query, statusFilter]);
 
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-
-  useEffect(() => {
-    if (page > pageCount) setPage(pageCount);
-  }, [page, pageCount]);
+  const safePage = Math.max(1, Math.min(page, pageCount));
 
   const paged = useMemo(() => {
-    const start = (page - 1) * PAGE_SIZE;
+    const start = (safePage - 1) * PAGE_SIZE;
     return filtered.slice(start, start + PAGE_SIZE);
-  }, [filtered, page]);
+  }, [filtered, safePage]);
 
   const total = filtered.length;
-  const rangeStart = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
-  const rangeEnd = Math.min(page * PAGE_SIZE, total);
+  const rangeStart = total === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1;
+  const rangeEnd = Math.min(safePage * PAGE_SIZE, total);
 
   const pageNumbers = useMemo(() => {
     if (pageCount <= 7) {
       return Array.from({ length: pageCount }, (_, i) => i + 1);
     }
     const nums: number[] = [];
-    const windowStart = Math.max(2, page - 1);
-    const windowEnd = Math.min(pageCount - 1, page + 1);
+    const windowStart = Math.max(2, safePage - 1);
+    const windowEnd = Math.min(pageCount - 1, safePage + 1);
     nums.push(1);
     if (windowStart > 2) nums.push(-1);
     for (let n = windowStart; n <= windowEnd; n++) nums.push(n);
     if (windowEnd < pageCount - 1) nums.push(-1);
     nums.push(pageCount);
     return nums;
-  }, [page, pageCount]);
+  }, [safePage, pageCount]);
 
   return (
     <section className="w-full min-w-0 space-y-3 sm:space-y-4">
@@ -115,7 +124,10 @@ export function PartnerKycList({ partners }: PartnerKycListProps) {
           <input
             type="search"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setPage(1);
+            }}
             placeholder="Search by KYC ID, business, name, email, phone…"
             className="w-full rounded-xl border py-2.5 pl-9 pr-3 text-[13px] text-white outline-none placeholder:text-white/40 focus-visible:ring-2 focus-visible:ring-[#ABE9FE] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent"
             style={{
@@ -130,7 +142,10 @@ export function PartnerKycList({ partners }: PartnerKycListProps) {
         <select
           id="kyc-status-filter"
           value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
+          onChange={(e) => {
+            setStatusFilter(e.target.value as StatusFilter);
+            setPage(1);
+          }}
           className="admin-filter-select min-h-[44px] w-full cursor-pointer rounded-xl border py-2.5 pl-3 text-[13px] font-medium text-white outline-none sm:w-[min(100%,220px)]"
           style={{
             borderColor: theme.colors.outline,
@@ -158,12 +173,12 @@ export function PartnerKycList({ partners }: PartnerKycListProps) {
               backgroundColor: theme.colors.sidebarBackground,
             }}
           >
-            <span className="text-left">KYC ID</span>
+            <span className="text-left">User ID</span>
             <span className="text-left">Business</span>
             <span className="text-left">Name</span>
             <span className="text-left">Email</span>
             <span className="text-left">Submitted</span>
-            <span className="text-left">Documents</span>
+            <span className="text-left">Reviewed</span>
             <span className="text-left">Status</span>
             <span className="text-right">Actions</span>
           </div>
@@ -176,11 +191,11 @@ export function PartnerKycList({ partners }: PartnerKycListProps) {
             const pill = STATUS_PILL[row.status];
             return (
               <div
-                key={row.id}
+                key={row.userId}
                 className={`${tableGridClass} border-b px-4 py-2.5 text-xs text-white/85 last:border-b-0 sm:py-3 sm:text-sm`}
                 style={{ borderColor: "rgba(255,255,255,0.12)" }}
               >
-                <span className="text-left font-semibold tabular-nums leading-snug">{row.id}</span>
+                <span className="text-left font-semibold tabular-nums leading-snug">{row.userId}</span>
                 <span className="min-w-0 truncate text-left" title={row.businessName}>
                   {row.businessName}
                 </span>
@@ -193,9 +208,11 @@ export function PartnerKycList({ partners }: PartnerKycListProps) {
                 >
                   {row.email}
                 </span>
-                <span className="whitespace-nowrap text-left tabular-nums text-white/85">{row.submittedAt}</span>
-                <span className="min-w-0 truncate text-left text-[11px] text-white/75 sm:text-xs" title={row.documentsSummary}>
-                  {row.documentsSummary}
+                <span className="whitespace-nowrap text-left tabular-nums text-white/85">
+                  {formatDate(row.submittedAt)}
+                </span>
+                <span className="whitespace-nowrap text-left tabular-nums text-white/75">
+                  {formatDate(row.reviewedAt)}
                 </span>
                 <div className="flex justify-start">
                   <span
@@ -206,12 +223,12 @@ export function PartnerKycList({ partners }: PartnerKycListProps) {
                       borderColor: pill.border,
                     }}
                   >
-                    {row.status}
+                    {formatStatus(row.status)}
                   </span>
                 </div>
                 <div className="flex flex-wrap items-center justify-end gap-1.5">
                   <Link
-                    href={`/partner-kyc/${encodeURIComponent(row.id)}`}
+                    href={`/partner-kyc/${encodeURIComponent(row.userId)}`}
                     className="rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold transition hover:bg-white/5 sm:text-xs"
                     style={{ borderColor: theme.colors.filledButtonBorder, color: theme.colors.themeWhite }}
                   >
@@ -234,7 +251,7 @@ export function PartnerKycList({ partners }: PartnerKycListProps) {
           const pill = STATUS_PILL[row.status];
           return (
             <article
-              key={row.id}
+              key={row.userId}
               className="rounded-xl border p-3.5 sm:p-4"
               style={{
                 borderColor: theme.colors.outline,
@@ -242,7 +259,7 @@ export function PartnerKycList({ partners }: PartnerKycListProps) {
               }}
             >
               <div className="min-w-0 text-left">
-                <p className="text-[15px] font-bold tabular-nums text-white sm:text-[16px]">{row.id}</p>
+                <p className="text-[15px] font-bold tabular-nums text-white sm:text-[16px]">{row.userId}</p>
                 <p className="mt-0.5 text-[13px] font-medium text-white">{row.businessName}</p>
               </div>
               <dl className="mt-3 space-y-2.5 text-left text-[12px] text-white/85 sm:space-y-3 sm:text-[13px]">
@@ -260,11 +277,11 @@ export function PartnerKycList({ partners }: PartnerKycListProps) {
                 </div>
                 <div>
                   <dt className="text-[11px] text-white/55">Submitted</dt>
-                  <dd className="mt-0.5 tabular-nums">{row.submittedAt}</dd>
+                  <dd className="mt-0.5 tabular-nums">{formatDate(row.submittedAt)}</dd>
                 </div>
                 <div>
-                  <dt className="text-[11px] text-white/55">Documents</dt>
-                  <dd className="mt-0.5 leading-snug text-white/80">{row.documentsSummary}</dd>
+                  <dt className="text-[11px] text-white/55">Reviewed</dt>
+                  <dd className="mt-0.5 tabular-nums text-white/80">{formatDate(row.reviewedAt)}</dd>
                 </div>
                 <div>
                   <dt className="text-[11px] text-white/55">Status</dt>
@@ -277,13 +294,13 @@ export function PartnerKycList({ partners }: PartnerKycListProps) {
                         borderColor: pill.border,
                       }}
                     >
-                      {row.status}
+                      {formatStatus(row.status)}
                     </span>
                   </dd>
                 </div>
               </dl>
               <Link
-                href={`/partner-kyc/${encodeURIComponent(row.id)}`}
+                href={`/partner-kyc/${encodeURIComponent(row.userId)}`}
                 className="mt-4 w-full min-h-[44px] rounded-xl border px-3 py-2.5 text-[13px] font-semibold"
                 style={{ borderColor: theme.colors.filledButtonBorder, color: theme.colors.themeWhite }}
               >
@@ -307,7 +324,7 @@ export function PartnerKycList({ partners }: PartnerKycListProps) {
             <button
               type="button"
               onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page <= 1}
+              disabled={safePage <= 1}
               className="min-h-[36px] min-w-[36px] rounded-lg border text-[13px] font-semibold text-white/85 transition enabled:hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-35"
               style={{ borderColor: theme.colors.outline }}
               aria-label="Previous page"
@@ -326,12 +343,12 @@ export function PartnerKycList({ partners }: PartnerKycListProps) {
                   onClick={() => setPage(n)}
                   className="min-h-[36px] min-w-[36px] rounded-lg border text-[13px] font-semibold transition"
                   style={{
-                    borderColor: page === n ? "#ABE9FE" : theme.colors.outline,
-                    backgroundColor: page === n ? "rgba(171, 233, 254, 0.12)" : "transparent",
+                    borderColor: safePage === n ? "#ABE9FE" : theme.colors.outline,
+                    backgroundColor: safePage === n ? "rgba(171, 233, 254, 0.12)" : "transparent",
                     color: theme.colors.themeWhite,
                   }}
                   aria-label={`Page ${n}`}
-                  aria-current={page === n ? "page" : undefined}
+                  aria-current={safePage === n ? "page" : undefined}
                 >
                   {n}
                 </button>
@@ -340,7 +357,7 @@ export function PartnerKycList({ partners }: PartnerKycListProps) {
             <button
               type="button"
               onClick={() => setPage((p) => Math.min(pageCount, p + 1))}
-              disabled={page >= pageCount}
+              disabled={safePage >= pageCount}
               className="min-h-[36px] min-w-[36px] rounded-lg border text-[13px] font-semibold text-white/85 transition enabled:hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-35"
               style={{ borderColor: theme.colors.outline }}
               aria-label="Next page"

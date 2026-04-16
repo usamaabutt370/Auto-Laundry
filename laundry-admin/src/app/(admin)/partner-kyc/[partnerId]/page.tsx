@@ -1,5 +1,5 @@
 import { PartnerKycDetail } from "@/features/admin/components/partner-kyc-detail";
-import { fetchPartnerKycById } from "@/features/admin/data/partner-kyc-demo-data";
+import { getAdminPartnerKycDetail } from "@/features/admin/data/admin-partner-kyc";
 import { notFound } from "next/navigation";
 
 type PartnerKycDetailPageProps = {
@@ -9,7 +9,7 @@ type PartnerKycDetailPageProps = {
 export default async function PartnerKycDetailPage({ params }: PartnerKycDetailPageProps) {
   const { partnerId } = await params;
   const decodedId = decodeURIComponent(partnerId);
-  const partner = await fetchPartnerKycById(decodedId);
+  const partner = await getAdminPartnerKycDetail(decodedId);
 
   if (!partner) {
     notFound();
