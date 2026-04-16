@@ -1,6 +1,5 @@
-import { MaterialCommunityIcons } from "@expo/vector-icons";
 import type { ComponentProps } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { theme } from "@/constants/theme";
 
@@ -17,6 +16,8 @@ export interface OrderCardProps {
   customerName: string;
   /** Letter shown in avatar (e.g. first initial). Defaults to first char of customerName. */
   initial?: string;
+  /** Optional avatar URL to display instead of initials. */
+  avatarUrl?: string | null;
   /** Subtitle line (e.g. "Requested a Pick-up on April 6th at 10am"). */
   subtitle: string;
   /** Optional icon on the right. */
@@ -27,6 +28,14 @@ export interface OrderCardProps {
   style?: ComponentProps<typeof View>["style"];
   /** Minimum height of the card. */
   minHeight?: number;
+  /** Status label shown on the card. */
+  statusLabel?: string;
+  /** Optional accept action. */
+  onAccept?: () => void;
+  /** Optional reject action. */
+  onReject?: () => void;
+  /** Disable action buttons. */
+  actionsDisabled?: boolean;
 }
 
 /**
@@ -36,11 +45,16 @@ export interface OrderCardProps {
 export function OrderCard({
   customerName,
   initial,
+  avatarUrl,
   subtitle,
   rightIcon = "none",
   onPress,
   style,
   minHeight = 80,
+  statusLabel,
+  onAccept,
+  onReject,
+  actionsDisabled = false,
 }: OrderCardProps) {
   const initialChar =
     initial ?? (customerName.trim()[0]?.toUpperCase() ?? "?");
@@ -48,23 +62,55 @@ export function OrderCard({
   const content = (
     <>
       <View style={styles.avatarWrap}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>{initialChar}</Text>
-        </View>
+        {avatarUrl ? (
+          <Image source={{ uri: avatarUrl }} style={styles.avatarImage} />
+        ) : (
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>{initialChar}</Text>
+          </View>
+        )}
       </View>
       <View style={styles.cardBody}>
         <Text style={styles.customerName}>{customerName}</Text>
         <Text style={styles.subtitle}>{subtitle}</Text>
+        {statusLabel ? (
+          <View style={styles.statusWrap}>
+            <Text style={styles.statusText}>{statusLabel}</Text>
+          </View>
+        ) : null}
+        {(onAccept || onReject) && (
+          <View style={styles.actionsRow}>
+            {onAccept ? (
+              <Pressable
+                onPress={onAccept}
+                disabled={actionsDisabled}
+                style={({ pressed }) => [
+                  styles.actionButton,
+                  styles.acceptButton,
+                  pressed && !actionsDisabled && styles.pressed,
+                  actionsDisabled && styles.actionDisabled,
+                ]}
+              >
+                <Text style={styles.actionText}>Accept</Text>
+              </Pressable>
+            ) : null}
+            {onReject ? (
+              <Pressable
+                onPress={onReject}
+                disabled={actionsDisabled}
+                style={({ pressed }) => [
+                  styles.actionButton,
+                  styles.rejectButton,
+                  pressed && !actionsDisabled && styles.pressed,
+                  actionsDisabled && styles.actionDisabled,
+                ]}
+              >
+                <Text style={[styles.actionText, styles.rejectActionText]}>Reject</Text>
+              </Pressable>
+            ) : null}
+          </View>
+        )}
       </View>
-      {rightIcon !== "none" && (
-        <View style={styles.cardRight}>
-          <MaterialCommunityIcons
-            name={rightIcon === "scooter" ? "moped" : "bag-checked"}
-            size={22}
-            color={c.themeBlack}
-          />
-        </View>
-      )}
     </>
   );
 
@@ -90,7 +136,7 @@ const styles = StyleSheet.create({
   card: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: c.blue500,
+    backgroundColor: c.blue900,
     borderRadius: CARD_RADIUS,
     borderWidth: 1,
     borderColor: c.outline,
@@ -101,14 +147,21 @@ const styles = StyleSheet.create({
   },
   avatarWrap: {
     marginRight: 14,
+    backgroundColor:'transparent',
   },
   avatar: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: c.blue900,
+    backgroundColor: c.lightBlue,
     alignItems: "center",
     justifyContent: "center",
+  },
+  avatarImage: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    resizeMode: "cover",
   },
   avatarText: {
     fontSize: fs.smallTitle,
@@ -121,14 +174,58 @@ const styles = StyleSheet.create({
   customerName: {
     fontSize: fs.smallTitle,
     fontWeight: "600",
-    color: c.themeBlack,
+    color: c.white,
     marginBottom: 4,
   },
   subtitle: {
     fontSize: fs.smallText,
-    color: c.themeBlack,
+    color: c.blue500,
     lineHeight: 18,
     opacity: 0.85,
+  },
+  statusWrap: {
+    alignSelf: "flex-start",
+    marginTop: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    backgroundColor: c.blue900,
+  },
+  statusText: {
+    color: c.white,
+    fontSize: fs.descText,
+    fontWeight: "600",
+    textTransform: "capitalize",
+  },
+  actionsRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 12,
+  },
+  actionButton: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  acceptButton: {
+    backgroundColor: c.blue900,
+    borderColor: c.filledButtonBorder,
+  },
+  rejectButton: {
+    backgroundColor: "transparent",
+    borderColor: "#D9534F",
+  },
+  actionText: {
+    color: c.white,
+    fontSize: fs.descText,
+    fontWeight: "600",
+  },
+  rejectActionText: {
+    color: "#D9534F",
+  },
+  actionDisabled: {
+    opacity: 0.5,
   },
   cardRight: {
     marginLeft: 8,

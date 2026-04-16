@@ -424,6 +424,21 @@ export const en = {
       washAndFoldPricesCardTitle: "Your Wash & Fold prices",
       dryCleaningPricesCardTitle: "Your Dry Cleaning prices",
       tailoringPricesCardTitle: "Your Tailoring prices",
+      creditsScreenTitle: "Welcome credits added",
+      creditsScreenSubtitle:
+        "You have received starter tokens. We deduct tokens from your wallet as you receive paid orders.",
+      creditsAwardedLabel: "Credits awarded",
+      creditsTokenLabel: "tokens",
+      creditsBalanceLabelPrefix: "Current balance:",
+      creditsHowItWorksHeading: "How credits work",
+      creditsRuleFreeStart:
+        "You can start receiving orders immediately using your free onboarding credits.",
+      creditsRuleOrderDeductionPrefix: "For every order,",
+      creditsRuleOrderDeductionSuffix:
+        "of the order amount worth points will be deducted from your balance.",
+      creditsRuleTopup:
+        "When credits run low, top up your wallet to keep getting new orders.",
+      creditsContinueToDashboard: "Continue to dashboard",
     },
     settings: {
       merchantServices: "Merchant Services",

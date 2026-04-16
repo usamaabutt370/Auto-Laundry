@@ -419,6 +419,21 @@ export const ur = {
       washAndFoldPricesCardTitle: "واش اینڈ فولڈ کی قیمتیں",
       dryCleaningPricesCardTitle: "ڈرائی کلیننگ کی قیمتیں",
       tailoringPricesCardTitle: "ٹیلرنگ کی قیمتیں",
+      creditsScreenTitle: "ویلکم کریڈٹس شامل کر دیے گئے",
+      creditsScreenSubtitle:
+        "آپ کو ابتدائی ٹوکنز مل گئے ہیں۔ جیسے ہی آپ کو آرڈرز ملیں گے، آپ کے والٹ سے پوائنٹس کٹیں گے۔",
+      creditsAwardedLabel: "دیے گئے کریڈٹس",
+      creditsTokenLabel: "ٹوکنز",
+      creditsBalanceLabelPrefix: "موجودہ بیلنس:",
+      creditsHowItWorksHeading: "کریڈٹس کیسے کام کرتے ہیں",
+      creditsRuleFreeStart:
+        "آپ اپنے مفت آن بورڈنگ کریڈٹس کے ساتھ فوراً نئے آرڈرز لینا شروع کر سکتے ہیں۔",
+      creditsRuleOrderDeductionPrefix: "ہر آرڈر پر،",
+      creditsRuleOrderDeductionSuffix:
+        "آرڈر رقم کے برابر پوائنٹس آپ کے بیلنس سے کٹ جائیں گے۔",
+      creditsRuleTopup:
+        "جب کریڈٹس کم ہوں تو نئے آرڈرز جاری رکھنے کے لیے والٹ ٹاپ اپ کریں۔",
+      creditsContinueToDashboard: "ڈیش بورڈ پر جائیں",
     },
     settings: {
       merchantServices: "مرچنٹ سروسز",
