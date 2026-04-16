@@ -1,6 +1,7 @@
 import { useRouter } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useState } from "react";
+import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { FormTextInput } from "@/components/form-text-input";
@@ -11,9 +12,12 @@ import {
 } from "@/components/partner-service-entry";
 import { AppButton } from "@/components/ui/button";
 import { theme } from "@/constants/theme";
+import { useAuth } from "@/contexts/auth-context";
 import { useLocale } from "@/contexts/locale-context";
 import { useMerchantServices } from "@/contexts/merchant-services-context";
 import { getStrings } from "@/locales";
+import { isMissingPartnerOnboardingRequestsTableError } from "@/lib/partner-onboarding-request";
+import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { allowDecimalOnly } from "@/utils/input-filter";
 
 const c = theme.colors;
@@ -65,7 +69,9 @@ export interface PartnerServicesScreenProps {
 export function PartnerServicesScreen({ mode }: PartnerServicesScreenProps) {
   const router = useRouter();
   const { locale } = useLocale();
+  const { user, refreshPartnerApproval } = useAuth();
   const {
+    services,
     washAndFoldPricing,
     dryCleaningPricing,
     tailoringPricing,
@@ -76,6 +82,9 @@ export function PartnerServicesScreen({ mode }: PartnerServicesScreenProps) {
   } = useMerchantServices();
   const onboardingStrings = getStrings(locale).partner.onboarding;
   const settingsStrings = getStrings(locale).partner.settings;
+  const dashboardStrings = getStrings(locale).partner.dashboard;
+  const [isSubmittingRequest, setIsSubmittingRequest] = useState(false);
+  const [successModalVisible, setSuccessModalVisible] = useState(false);
 
   const isOnboarding = mode === "onboarding";
   const title = isOnboarding
@@ -102,8 +111,79 @@ export function PartnerServicesScreen({ mode }: PartnerServicesScreenProps) {
     }
   };
 
-  const handleFinish = () => {
-    router.replace("/(partner)");
+  const handleFinish = async () => {
+    if (isSubmittingRequest) return;
+
+    if (isSupabaseConfigured() && supabase && user?.id) {
+      setIsSubmittingRequest(true);
+      const pickupSaved = await savePickupDeliveryPricing();
+      if (!pickupSaved) {
+        setIsSubmittingRequest(false);
+        Alert.alert("Error", "Could not save services. Please try again.");
+        return;
+      }
+
+      const { data: partnerProfile } = await supabase
+        .from("partner_profiles")
+        .select("business_name,business_description")
+        .eq("id", user.id)
+        .maybeSingle<{
+          business_name: string | null;
+          business_description: string | null;
+        }>();
+
+      const submittedAt = new Date().toISOString();
+      const { error } = await supabase.from("partner_onboarding_requests").upsert(
+        {
+          user_id: user.id,
+          status: "submitted",
+          submitted_at: submittedAt,
+          reviewed_at: null,
+          rejection_reason: null,
+          notes: JSON.stringify({
+            source: "mobile_onboarding",
+            submittedAt,
+            businessProfile: {
+              businessName: partnerProfile?.business_name ?? "",
+              businessDescription: partnerProfile?.business_description ?? "",
+              pickupDeliveryEnabled: pickupDeliveryPricing.enabled,
+              pickupDeliveryAmount: pickupDeliveryPricing.amount.trim(),
+            },
+            servicePricing: {
+              washAndFold: washAndFoldPricing?.rows ?? [],
+              dryCleaning: dryCleaningPricing?.rows ?? [],
+              tailoring: tailoringPricing?.rows ?? [],
+            },
+            serviceLines: services.map((service) => ({
+              id: service.id,
+              name: service.name,
+              priceDisplay: service.priceDisplay,
+              category: service.category ?? null,
+            })),
+          }),
+          updated_at: submittedAt,
+        },
+        { onConflict: "user_id" }
+      );
+
+      if (error) {
+        setIsSubmittingRequest(false);
+        if (isMissingPartnerOnboardingRequestsTableError(error)) {
+          Alert.alert(
+            "Database update required",
+            "The partner KYC table has not been created in Supabase yet. Run `npx supabase db push` from `laundry-app`, then try again.",
+          );
+          return;
+        }
+        Alert.alert("Error", error.message);
+        return;
+      }
+
+      await refreshPartnerApproval();
+    }
+
+    setIsSubmittingRequest(false);
+    setSuccessModalVisible(true);
   };
 
   const handleSaveSettings = async () => {
@@ -219,6 +299,7 @@ export function PartnerServicesScreen({ mode }: PartnerServicesScreenProps) {
             variant="filled"
             rightIcon="arrow-right"
             fullWidth
+            disabled={isSubmittingRequest}
             style={styles.finishBtn}
             accessibilityLabel={onboardingStrings.finish}
           />
@@ -236,6 +317,46 @@ export function PartnerServicesScreen({ mode }: PartnerServicesScreenProps) {
           />
         )}
       </ScrollView>
+
+      <Modal
+        visible={successModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSuccessModalVisible(false)}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setSuccessModalVisible(false)}
+        >
+          <Pressable
+            style={styles.modalCard}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <View style={styles.modalIconWrap}>
+              <MaterialCommunityIcons
+                name="clock-outline"
+                size={22}
+                color={c.background}
+              />
+            </View>
+            <Text style={styles.modalTitle}>{dashboardStrings.pendingTitle}</Text>
+            <Text style={styles.modalMessage}>
+              {dashboardStrings.pendingMessage}
+            </Text>
+            <AppButton
+              label={dashboardStrings.pendingContinueButton}
+              onPress={() => {
+                setSuccessModalVisible(false);
+                router.replace("/(partner)");
+              }}
+              variant="filled"
+              fullWidth
+              style={styles.modalButton}
+              accessibilityLabel={dashboardStrings.pendingContinueButton}
+            />
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -300,5 +421,50 @@ const styles = StyleSheet.create({
   pickupAmountLabel: {
     fontSize: fs.descText,
     color: c.blue500,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: c.modalOverlay,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+  modalCard: {
+    width: "92%",
+    maxWidth: 340,
+    backgroundColor: c.blue900,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: c.modalBorder,
+    paddingHorizontal: 20,
+    paddingTop: 22,
+    paddingBottom: 28,
+  },
+  modalIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: c.blue500,
+    alignSelf: "center",
+    marginBottom: 14,
+  },
+  modalTitle: {
+    fontSize: fs.titleMedium,
+    fontWeight: "700",
+    color: c.white,
+    marginBottom: 10,
+    textAlign: "center",
+  },
+  modalMessage: {
+    fontSize: fs.smallText,
+    color: c.blue500,
+    lineHeight: 21,
+    textAlign: "center",
+  },
+  modalButton: {
+    marginTop: 20,
+    marginBottom: 6,
   },
 });

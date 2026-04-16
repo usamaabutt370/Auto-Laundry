@@ -1,5 +1,8 @@
 import { useState } from "react";
+import { useRouter } from "expo-router";
 import {
+  ActivityIndicator,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -14,6 +17,7 @@ import {
 } from "@/components/dashboard-period-selector";
 import { PartnerHeader } from "@/components/partner-header";
 import { theme } from "@/constants/theme";
+import { useAuth } from "@/contexts/auth-context";
 import { useLocale } from "@/contexts/locale-context";
 import { useSidebar } from "@/contexts/sidebar-context";
 import { useLaundererDashboard } from "@/hooks/use-launderer-dashboard";
@@ -86,18 +90,58 @@ function SummaryCard({
   );
 }
 
+function DashboardPlaceholder({
+  title,
+  message,
+  buttonLabel,
+  onPress,
+  loading,
+}: {
+  title: string;
+  message: string;
+  buttonLabel: string;
+  onPress: () => void;
+  loading?: boolean;
+}) {
+  return (
+    <View style={styles.placeholderCard}>
+      <Text style={styles.placeholderTitle}>{title}</Text>
+      <Text style={styles.placeholderMessage}>{message}</Text>
+      <Pressable
+        onPress={onPress}
+        style={({ pressed }) => [
+          styles.placeholderButton,
+          pressed && styles.placeholderButtonPressed,
+        ]}
+        accessibilityRole="button"
+        accessibilityLabel={buttonLabel}
+      >
+        {loading ? (
+          <ActivityIndicator color={c.background} />
+        ) : (
+          <Text style={styles.placeholderButtonText}>{buttonLabel}</Text>
+        )}
+      </Pressable>
+    </View>
+  );
+}
+
 /**
  * Partner dashboard: Number of Users, Drop Off / Delivery cards,
  * Summary (Total Income, Drop Off Income, Delivery Income), Balance, chart.
  * Data from useLaundererDashboard (zero until backend is wired).
  */
 export default function PartnerDashboardScreen() {
+  const router = useRouter();
   const { open: openSidebar } = useSidebar();
   const { locale } = useLocale();
+  const { partnerApprovalStatus, partnerRejectionReason, isLoading: isLoadingAuth } =
+    useAuth();
   const s = getStrings(locale).partner.dashboard;
   const [period, setPeriod] = useState<DashboardPeriod>("week");
 
-  const { data } = useLaundererDashboard(true, period);
+  const isApproved = partnerApprovalStatus === "approved";
+  const { data, isLoading } = useLaundererDashboard(isApproved, period);
 
   const subtitle = `${s.numberOfUsers}: ${data.numberOfUsers}`;
 
@@ -124,39 +168,81 @@ export default function PartnerDashboardScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.serviceCards}>
-          <ServiceBreakdownCard
-            title={s.dropOff}
-            total={data.dropOff.total}
-            washAndFold={data.dropOff.washAndFold}
-            dryCleaning={data.dropOff.dryCleaning}
-            tailoring={data.dropOff.tailoring}
-            s={s}
-          />
-          <ServiceBreakdownCard
-            title={s.delivery}
-            total={data.delivery.total}
-            washAndFold={data.delivery.washAndFold}
-            dryCleaning={data.delivery.dryCleaning}
-            tailoring={data.delivery.tailoring}
-            s={s}
-          />
-        </View>
-
-        <Text style={styles.sectionTitle}>{s.summary}</Text>
-        <View style={styles.summaryRow}>
-          <SummaryCard label={s.totalIncome} value={formatMoney(data.totalIncome)} />
-          <SummaryCard label={s.dropOffIncome} value={formatMoney(data.dropOffIncome)} />
-          <SummaryCard label={s.deliveryIncome} value={formatMoney(data.deliveryIncome)} />
-        </View>
-
-        <View style={styles.balanceCard}>
-          <Text style={styles.balanceLabel}>{s.balance}</Text>
-          <Text style={styles.balanceValue}>{formatMoney(data.balance)}</Text>
-          <View style={styles.chartWrap}>
-            <DashboardChart values={data.chartValues} />
+        {isLoadingAuth ? (
+          <View style={styles.loadingWrap}>
+            <ActivityIndicator color={c.white} />
           </View>
-        </View>
+        ) : !isApproved ? (
+          <DashboardPlaceholder
+            title={
+              partnerApprovalStatus === "submitted"
+                ? s.pendingTitle
+                : partnerApprovalStatus === "rejected"
+                  ? s.rejectedTitle
+                  : s.placeholderTitle
+            }
+            message={
+              partnerApprovalStatus === "submitted"
+                ? s.pendingMessage
+                : partnerApprovalStatus === "rejected"
+                  ? partnerRejectionReason?.trim()
+                    ? s.rejectedMessage.replace(
+                        "{{reason}}",
+                        partnerRejectionReason.trim(),
+                      )
+                    : s.rejectedMessageFallback
+                  : s.placeholderMessage
+            }
+            buttonLabel={
+              partnerApprovalStatus === "submitted"
+                ? s.pendingButton
+                : partnerApprovalStatus === "rejected"
+                  ? s.rejectedButton
+                  : s.placeholderButton
+            }
+            onPress={() => router.push("/(partner)/onboarding")}
+          />
+        ) : isLoading ? (
+          <View style={styles.loadingWrap}>
+            <ActivityIndicator color={c.white} />
+          </View>
+        ) : (
+          <>
+            <View style={styles.serviceCards}>
+              <ServiceBreakdownCard
+                title={s.dropOff}
+                total={data.dropOff.total}
+                washAndFold={data.dropOff.washAndFold}
+                dryCleaning={data.dropOff.dryCleaning}
+                tailoring={data.dropOff.tailoring}
+                s={s}
+              />
+              <ServiceBreakdownCard
+                title={s.delivery}
+                total={data.delivery.total}
+                washAndFold={data.delivery.washAndFold}
+                dryCleaning={data.delivery.dryCleaning}
+                tailoring={data.delivery.tailoring}
+                s={s}
+              />
+            </View>
+
+            <Text style={styles.sectionTitle}>{s.summary}</Text>
+            <View style={styles.summaryRow}>
+              <SummaryCard label={s.totalIncome} value={formatMoney(data.totalIncome)} />
+              <SummaryCard label={s.dropOffIncome} value={formatMoney(data.dropOffIncome)} />
+              <SummaryCard label={s.deliveryIncome} value={formatMoney(data.deliveryIncome)} />
+            </View>
+
+            <View style={styles.balanceCard}>
+              <Text style={styles.balanceLabel}>{s.balance}</Text>
+              <Text style={styles.balanceValue}>{formatMoney(data.balance)}</Text>
+              <View style={styles.chartWrap}>
+                <DashboardChart values={data.chartValues} />
+              </View>
+            </View>
+          </>
+        )}
       </ScrollView>
     </View>
   );
@@ -274,5 +360,46 @@ const styles = StyleSheet.create({
   chartWrap: {
     marginTop: 8,
     width: "100%",
+  },
+  loadingWrap: {
+    paddingVertical: 48,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  placeholderCard: {
+    backgroundColor: c.blue900,
+    borderRadius: CARD_RADIUS,
+    borderWidth: 1,
+    borderColor: c.outline,
+    padding: 24,
+    marginTop: 8,
+  },
+  placeholderTitle: {
+    fontSize: fs.titleMedium,
+    fontWeight: "700",
+    color: c.white,
+    marginBottom: 10,
+  },
+  placeholderMessage: {
+    fontSize: fs.smallText,
+    color: c.blue500,
+    lineHeight: 22,
+  },
+  placeholderButton: {
+    marginTop: 22,
+    borderRadius: 999,
+    backgroundColor: c.blue500,
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 48,
+    paddingHorizontal: 18,
+  },
+  placeholderButtonPressed: {
+    opacity: 0.85,
+  },
+  placeholderButtonText: {
+    fontSize: fs.smallText,
+    fontWeight: "700",
+    color: c.background,
   },
 });

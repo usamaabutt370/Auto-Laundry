@@ -8,6 +8,10 @@ import React, {
 } from "react";
 import type { Session } from "@supabase/supabase-js";
 
+import {
+  fetchPartnerOnboardingRequest,
+  type PartnerOnboardingRequestStatus,
+} from "@/lib/partner-onboarding-request";
 import { getSession, onAuthStateChange, supabase } from "@/lib/supabase";
 import type { UserRole } from "@/types/user";
 
@@ -17,8 +21,11 @@ export interface AuthState {
   role: UserRole | null;
   isLoading: boolean;
   isAuthenticated: boolean;
+  partnerApprovalStatus: PartnerOnboardingRequestStatus | null;
+  partnerRejectionReason: string | null;
   /** Call after updating profiles.role so the app reflects the new role and can redirect. */
   refreshRole: () => Promise<void>;
+  refreshPartnerApproval: () => Promise<void>;
 }
 
 const defaultState: AuthState = {
@@ -27,7 +34,10 @@ const defaultState: AuthState = {
   role: null,
   isLoading: true,
   isAuthenticated: false,
+  partnerApprovalStatus: null,
+  partnerRejectionReason: null,
   refreshRole: async () => {},
+  refreshPartnerApproval: async () => {},
 };
 
 const AuthContext = createContext<AuthState | null>(null);
@@ -51,11 +61,21 @@ async function fetchUserRole(userId: string): Promise<UserRole | null> {
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [role, setRole] = useState<UserRole | null>(null);
+  const [partnerApprovalStatus, setPartnerApprovalStatus] =
+    useState<PartnerOnboardingRequestStatus | null>(null);
+  const [partnerRejectionReason, setPartnerRejectionReason] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const loadRole = useCallback(async (userId: string) => {
     const r = await fetchUserRole(userId);
     setRole(r);
+    return r;
+  }, []);
+
+  const loadPartnerApproval = useCallback(async (userId: string) => {
+    const { data } = await fetchPartnerOnboardingRequest(userId);
+    setPartnerApprovalStatus(data?.status ?? null);
+    setPartnerRejectionReason(data?.rejection_reason ?? null);
   }, []);
 
   useEffect(() => {
@@ -65,11 +85,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!mounted) return;
       setSession(data.session);
       if (data.session?.user?.id) {
-        loadRole(data.session.user.id).finally(() => {
+        Promise.all([
+          loadRole(data.session.user.id),
+          loadPartnerApproval(data.session.user.id),
+        ]).finally(() => {
           if (mounted) setIsLoading(false);
         });
       } else {
         setRole(null);
+        setPartnerApprovalStatus(null);
+        setPartnerRejectionReason(null);
         setIsLoading(false);
       }
     });
@@ -79,8 +104,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(newSession);
       if (newSession?.user?.id) {
         loadRole(newSession.user.id);
+        loadPartnerApproval(newSession.user.id);
       } else {
         setRole(null);
+        setPartnerApprovalStatus(null);
+        setPartnerRejectionReason(null);
       }
     });
 
@@ -88,13 +116,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       mounted = false;
       unsubscribe();
     };
-  }, [loadRole]);
+  }, [loadPartnerApproval, loadRole]);
 
   const refreshRole = useCallback(async () => {
     if (session?.user?.id) {
       await loadRole(session.user.id);
     }
   }, [session?.user?.id, loadRole]);
+
+  const refreshPartnerApproval = useCallback(async () => {
+    if (session?.user?.id) {
+      await loadPartnerApproval(session.user.id);
+    }
+  }, [session?.user?.id, loadPartnerApproval]);
 
   const value = useMemo<AuthState>(
     () => ({
@@ -103,9 +137,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       role,
       isLoading,
       isAuthenticated: Boolean(session),
+      partnerApprovalStatus,
+      partnerRejectionReason,
       refreshRole,
+      refreshPartnerApproval,
     }),
-    [session, role, isLoading, refreshRole]
+    [
+      session,
+      role,
+      isLoading,
+      partnerApprovalStatus,
+      partnerRejectionReason,
+      refreshRole,
+      refreshPartnerApproval,
+    ]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
