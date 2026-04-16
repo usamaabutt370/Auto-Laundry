@@ -6,7 +6,7 @@ import type {
   PartnerOnboardingStatus,
 } from "@/features/admin/types/admin-partner-kyc";
 import { theme } from "@/lib/theme/theme";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 
 type PartnerKycDetailProps = {
   partner: AdminPartnerKycDetail;
@@ -46,11 +46,6 @@ export function PartnerKycDetail({ partner }: PartnerKycDetailProps) {
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase() ?? "")
     .join("");
-  const notesPretty = useMemo(
-    () => JSON.stringify(partner.request.notes ?? partner.request.notesRaw ?? {}, null, 2),
-    [partner.request.notes, partner.request.notesRaw],
-  );
-
   async function submitDecision(action: "approve" | "reject") {
     const reason = rejectionReason.trim();
     if (action === "reject" && !reason) {
@@ -263,15 +258,6 @@ export function PartnerKycDetail({ partner }: PartnerKycDetailProps) {
             </li>
           ))}
         </ul>
-      </section>
-      <section className="rounded-2xl border p-4 sm:p-5" style={{ borderColor: theme.colors.outline, backgroundColor: theme.colors.sidebarBackground }}>
-        <h2 className="text-[15px] font-bold text-white sm:text-[17px]">Submission snapshot (`notes`)</h2>
-        <pre
-          className="mt-3 overflow-x-auto rounded-lg border p-3 text-[12px] leading-relaxed text-white/85"
-          style={{ borderColor: "rgba(255,255,255,0.12)", backgroundColor: "rgba(0,0,0,0.2)" }}
-        >
-          {notesPretty}
-        </pre>
       </section>
     </section>
   );
