@@ -38,29 +38,32 @@ export function useLaundererDashboard(
     setError(null);
 
     try {
-      const periodDays = period === "year" ? 365 : period === "month" ? 30 : 7;
-      const since = new Date();
-      since.setDate(since.getDate() - periodDays);
-
       const { data: orders, error: ordersError } = await supabase
         .from("customer_orders")
         .select(
           "id,status,estimated_total,estimated_partial_total,pickup_fee,pickup_day_label,pickup_time_slot_label,delivery_day_label,delivery_time_slot_label,submitted_at"
         )
-        .eq("partner_id", user.id)
-        .gte("submitted_at", since.toISOString());
+        .eq("partner_id", user.id);
 
       if (ordersError) throw new Error(ordersError.message);
 
       const rows = orders ?? [];
 
-      // Use all orders in the period for high-level drop-off / delivery stats,
-      // regardless of whether they are completed yet.
+      // Active drop-off / delivery orders for high-level stats:
+      // exclude completed / rejected so cards reflect current work.
+      const isActive = (status: string) =>
+        status !== "completed" && status !== "rejected" && status !== "cancelled";
+
       const dropOffOrders = rows.filter(
-        (row) => !row.pickup_day_label && !row.pickup_time_slot_label
+        (row) =>
+          isActive(row.status) &&
+          !row.pickup_day_label &&
+          !row.pickup_time_slot_label
       );
       const deliveryOrders = rows.filter(
-        (row) => row.pickup_day_label || row.pickup_time_slot_label
+        (row) =>
+          isActive(row.status) &&
+          (row.pickup_day_label || row.pickup_time_slot_label)
       );
 
       const totalFrom = (list: typeof rows) =>

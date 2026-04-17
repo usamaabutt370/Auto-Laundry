@@ -24,6 +24,7 @@ export default function PartnerLayout() {
           initialRouteName="index"
         >
           <Stack.Screen name="index" />
+          <Stack.Screen name="dashboard-orders" />
           <Stack.Screen name="order" />
           <Stack.Screen name="order-detail" />
           <Stack.Screen name="settings" />

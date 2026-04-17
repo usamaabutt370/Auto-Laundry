@@ -1,5 +1,5 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Alert,
@@ -25,15 +25,23 @@ const c = theme.colors;
 const fs = theme.fontSize;
 const H_PAD = 24;
 
-type OrderFilter = "pending" | "accepted" | "rejected";
+type OrderFilter = "pending" | "accepted" | "completed" | "rejected";
 
 export default function PartnerOrderScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ filter?: string }>();
   const { locale } = useLocale();
   const s = getStrings(locale).partner.order;
 
   const [filterOpen, setFilterOpen] = useState(false);
-  const [orderFilter, setOrderFilter] = useState<OrderFilter>("pending");
+  const initialFilter =
+    params.filter === "accepted" ||
+    params.filter === "completed" ||
+    params.filter === "rejected" ||
+    params.filter === "pending"
+      ? params.filter
+      : "pending";
+  const [orderFilter, setOrderFilter] = useState<OrderFilter>(initialFilter);
   const [orders, setOrders] = useState<PartnerOrderListItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [actionOrderId, setActionOrderId] = useState<string | null>(null);
@@ -58,6 +66,7 @@ export default function PartnerOrderScreen() {
   const filterLabels: Record<OrderFilter, string> = {
     pending: "Pending",
     accepted: "Accepted",
+    completed: "Completed",
     rejected: "Rejected",
   };
 
@@ -77,10 +86,32 @@ export default function PartnerOrderScreen() {
   }, []);
 
   useEffect(() => {
-    loadOrders();
-  }, [loadOrders]);
+    setOrderFilter(initialFilter);
+  }, [initialFilter]);
 
-  const filteredOrders = orders.filter((order) => order.status === orderFilter);
+  useFocusEffect(
+    useCallback(() => {
+      void loadOrders();
+    }, [loadOrders]),
+  );
+
+  const filteredOrders = orders.filter((order) => {
+    if (orderFilter === "pending") {
+      return order.rawStatus === "submitted";
+    }
+    if (orderFilter === "accepted") {
+      return (
+        order.rawStatus === "accepted" ||
+        order.rawStatus === "in_progress" ||
+        order.rawStatus === "ready"
+      );
+    }
+    if (orderFilter === "completed") {
+      return order.rawStatus === "completed";
+    }
+    // rejected
+    return order.rawStatus === "rejected" || order.rawStatus === "cancelled";
+  });
 
   const handleSelectFilter = useCallback((filter: OrderFilter) => {
     setOrderFilter(filter);
@@ -103,12 +134,6 @@ export default function PartnerOrderScreen() {
               : order,
           ),
         );
-        if (status === "accepted") {
-          Alert.alert(
-            "Order accepted",
-            `Charged: ${result.charged} credits\nCurrent balance: ${result.balance} credits`,
-          );
-        }
       } catch (error) {
         Alert.alert(
           `Unable to ${status === "accepted" ? "accept" : "reject"} order`,

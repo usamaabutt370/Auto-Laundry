@@ -139,7 +139,9 @@ export default function PartnerOrderDetailScreen() {
 
   const resolvedDetail = liveDetail ?? detail;
 
-  const handleOrderAction = async (target: "accepted" | "rejected") => {
+  const handleOrderAction = async (
+    target: "accepted" | "rejected" | "ready" | "completed",
+  ) => {
     if (!orderIdParam || !isUuid(orderIdParam)) {
       Alert.alert(
         "Demo order",
@@ -149,26 +151,57 @@ export default function PartnerOrderDetailScreen() {
     }
 
     try {
-      target === "accepted" ? setIsConfirming(true) : setIsRejecting(true);
+      if (target === "rejected") {
+        setIsRejecting(true);
+      } else {
+        setIsConfirming(true);
+      }
       const result = await partnerUpdateOrderStatus(orderIdParam, target);
       setLiveDetail((prev) =>
         prev
           ? {
               ...prev,
-              status: target === "accepted" ? "accepted" : "rejected",
+              status:
+                target === "rejected"
+                  ? "rejected"
+                  : target === "completed"
+                    ? "accepted"
+                    : "accepted",
               rawStatus: result.status,
             }
           : prev,
       );
-      Alert.alert(
-        target === "accepted" ? "Order accepted" : "Order rejected",
-        target === "accepted"
-          ? `Charged: ${result.charged} credits\nCurrent balance: ${result.balance} credits`
-          : "The order has been rejected.",
-      );
+      if (target === "ready") {
+        Alert.alert("Order marked ready", "Order is ready for pick up / delivery.");
+      } else if (target === "completed") {
+        Alert.alert(
+          "Order completed",
+          `Charged: ${result.charged} credits\nCurrent balance: ${result.balance} credits`,
+          [
+            {
+              text: "OK",
+              onPress: () =>
+                router.navigate({
+                  pathname: "/(partner)/order",
+                  params: { filter: "accepted" },
+                }),
+            },
+          ],
+        );
+      } else {
+        Alert.alert("Order rejected", "The order has been rejected.");
+      }
     } catch (error) {
+      const actionLabel =
+        target === "accepted"
+          ? "accept"
+          : target === "ready"
+            ? "mark ready"
+            : target === "completed"
+              ? "complete"
+              : "reject";
       Alert.alert(
-        target === "accepted" ? "Unable to accept order" : "Unable to reject order",
+        `Unable to ${actionLabel} order`,
         error instanceof Error ? error.message : "Please try again.",
       );
     } finally {
@@ -364,6 +397,35 @@ export default function PartnerOrderDetailScreen() {
             >
               <Text style={styles.secondaryActionText}>
                 {isRejecting ? "Rejecting..." : "Reject order"}
+              </Text>
+            </Pressable>
+          </View>
+        ) : finalDetail.rawStatus !== "completed" && finalDetail.status !== "rejected" ? (
+          <View style={styles.actionsRow}>
+            <Pressable
+              onPress={() => handleOrderAction("ready")}
+              disabled={isConfirming || isRejecting}
+              style={({ pressed }) => [
+                styles.secondaryAction,
+                pressed && !(isConfirming || isRejecting) && styles.pressed,
+                (isConfirming || isRejecting) && styles.disabled,
+              ]}
+            >
+              <Text style={styles.secondaryActionText}>
+                {isConfirming ? "Updating..." : "Mark ready"}
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => handleOrderAction("completed")}
+              disabled={isConfirming || isRejecting}
+              style={({ pressed }) => [
+                styles.primaryAction,
+                pressed && !(isConfirming || isRejecting) && styles.pressed,
+                (isConfirming || isRejecting) && styles.disabled,
+              ]}
+            >
+              <Text style={styles.primaryActionText}>
+                {isConfirming ? "Completing..." : "Complete order"}
               </Text>
             </Pressable>
           </View>

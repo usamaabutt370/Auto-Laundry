@@ -213,8 +213,8 @@ const styles = StyleSheet.create({
     borderColor: c.filledButtonBorder,
   },
   rejectButton: {
-    backgroundColor: "transparent",
-    borderColor: "#D9534F",
+    backgroundColor: c.white,
+    borderColor: c.white,
   },
   actionText: {
     color: c.white,

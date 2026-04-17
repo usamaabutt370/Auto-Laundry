@@ -9,7 +9,7 @@ export type PartnerOrderStatus =
   | "completed"
   | "cancelled";
 
-export type PartnerOrderCardStatus = "pending" | "accepted" | "rejected";
+export type PartnerOrderCardStatus = "pending" | "accepted" | "completed" | "rejected";
 
 export interface PartnerOrderListItem {
   id: string;
@@ -17,6 +17,7 @@ export interface PartnerOrderListItem {
   initial: string;
   avatarUrl?: string | null;
   subtitle: string;
+  orderType: "dropoff" | "delivery";
   status: PartnerOrderCardStatus;
   rawStatus: PartnerOrderStatus;
   rightIcon: "scooter" | "bag";
@@ -102,6 +103,7 @@ type ProfileRow = {
 
 function mapToCardStatus(status: PartnerOrderStatus): PartnerOrderCardStatus {
   if (status === "submitted") return "pending";
+  if (status === "completed") return "completed";
   if (status === "rejected" || status === "cancelled") return "rejected";
   return "accepted";
 }
@@ -191,6 +193,7 @@ export async function fetchPartnerOrders(): Promise<PartnerOrderListItem[]> {
       status: mapToCardStatus(order.status),
       rawStatus: order.status,
       rightIcon: hasPickup ? "scooter" : "bag",
+      orderType: hasPickup ? "delivery" : "dropoff",
     };
   });
 }
