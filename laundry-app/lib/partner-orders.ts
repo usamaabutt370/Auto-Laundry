@@ -21,6 +21,12 @@ export interface PartnerOrderListItem {
   status: PartnerOrderCardStatus;
   rawStatus: PartnerOrderStatus;
   rightIcon: "scooter" | "bag";
+  /** Formatted estimated total for list cards (e.g. "$12.00"). */
+  estimatedTotalLabel: string;
+  /** Comma-separated service names from order_services. */
+  servicesSummary: string;
+  /** First line of customer address, truncated for the card. */
+  addressPreview: string;
 }
 
 export interface PartnerOrderDetailBag {
@@ -139,6 +145,35 @@ function serviceTypeLabel(serviceType: OrderServiceRow["service_type"]): string 
   }
 }
 
+function formatUsd(amount: number): string {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+  }).format(amount);
+}
+
+function addressPreviewLine(addr: string | null | undefined, maxLen = 56): string {
+  if (!addr?.trim()) return "";
+  const line = addr.trim().split(/\n/)[0]?.trim() ?? "";
+  if (line.length <= maxLen) return line;
+  return `${line.slice(0, maxLen - 1)}…`;
+}
+
+function summarizeServiceTypesForOrder(
+  types: OrderServiceRow["service_type"][],
+): string {
+  const labels: string[] = [];
+  const seen = new Set<string>();
+  for (const t of types) {
+    const label = serviceTypeLabel(t);
+    if (!seen.has(label)) {
+      seen.add(label);
+      labels.push(label);
+    }
+  }
+  return labels.length > 0 ? labels.join(", ") : "";
+}
+
 async function fetchProfilesByIds(userIds: string[]): Promise<Map<string, ProfileRow>> {
   const ids = Array.from(new Set(userIds.filter(Boolean)));
   if (!supabase || ids.length === 0) return new Map();
@@ -160,7 +195,7 @@ export async function fetchPartnerOrders(): Promise<PartnerOrderListItem[]> {
   const { data, error } = await supabase
     .from("customer_orders")
     .select(
-      "id,customer_id,status,pickup_day_label,pickup_time_slot_label,delivery_day_label,delivery_time_slot_label",
+      "id,customer_id,status,estimated_total,estimated_partial_total,pickup_day_label,pickup_time_slot_label,delivery_day_label,delivery_time_slot_label",
     )
     .order("created_at", { ascending: false });
   if (error) {
@@ -170,10 +205,30 @@ export async function fetchPartnerOrders(): Promise<PartnerOrderListItem[]> {
   const orders = (data ?? []) as CustomerOrderRow[];
   const profiles = await fetchProfilesByIds(orders.map((order) => order.customer_id));
 
+  const orderIds = orders.map((o) => o.id);
+  const serviceTypesByOrderId = new Map<string, OrderServiceRow["service_type"][]>();
+
+  if (supabase && orderIds.length > 0) {
+    const { data: svcRows, error: svcError } = await supabase
+      .from("order_services")
+      .select("order_id,service_type")
+      .in("order_id", orderIds);
+    if (!svcError && svcRows) {
+      for (const row of svcRows as { order_id: string; service_type: OrderServiceRow["service_type"] }[]) {
+        const list = serviceTypesByOrderId.get(row.order_id) ?? [];
+        list.push(row.service_type);
+        serviceTypesByOrderId.set(row.order_id, list);
+      }
+    }
+  }
+
   return orders.map((order) => {
     const profile = profiles.get(order.customer_id);
     const customerName = formatPersonName(profile);
     const hasPickup = Boolean(order.pickup_day_label || order.pickup_time_slot_label);
+    const svcTypes = serviceTypesByOrderId.get(order.id) ?? [];
+    const servicesSummary = summarizeServiceTypesForOrder(svcTypes);
+    const totalAmount = order.estimated_total ?? order.estimated_partial_total ?? 0;
     return {
       id: order.id,
       customerName,
@@ -194,6 +249,9 @@ export async function fetchPartnerOrders(): Promise<PartnerOrderListItem[]> {
       rawStatus: order.status,
       rightIcon: hasPickup ? "scooter" : "bag",
       orderType: hasPickup ? "delivery" : "dropoff",
+      estimatedTotalLabel: formatUsd(totalAmount),
+      servicesSummary,
+      addressPreview: addressPreviewLine(profile?.address),
     };
   });
 }

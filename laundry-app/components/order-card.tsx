@@ -34,6 +34,12 @@ export interface OrderCardProps {
   onAccept?: () => void;
   /** Optional reject action. */
   onReject?: () => void;
+  /** Mark order complete (e.g. accepted / in progress). */
+  onComplete?: () => void;
+  /** Label for the complete action. */
+  completeLabel?: string;
+  /** Extra lines under the subtitle (e.g. total, services, address). */
+  detailRows?: { label: string; value: string }[];
   /** Disable action buttons. */
   actionsDisabled?: boolean;
 }
@@ -54,6 +60,9 @@ export function OrderCard({
   statusLabel,
   onAccept,
   onReject,
+  onComplete,
+  completeLabel = "Complete",
+  detailRows,
   actionsDisabled = false,
 }: OrderCardProps) {
   const initialChar =
@@ -73,13 +82,32 @@ export function OrderCard({
       <View style={styles.cardBody}>
         <Text style={styles.customerName}>{customerName}</Text>
         <Text style={styles.subtitle}>{subtitle}</Text>
-        {statusLabel ? (
-          <View style={styles.statusWrap}>
-            <Text style={styles.statusText}>{statusLabel}</Text>
+        {detailRows && detailRows.length > 0 ? (
+          <View style={styles.detailBlock}>
+            {detailRows.map((row, index) => (
+              <View key={`${row.label}-${index}`} style={styles.detailItem}>
+                <Text style={styles.detailLabel}>{row.label}</Text>
+                <Text style={styles.detailValue} numberOfLines={4}>
+                  {row.value}
+                </Text>
+              </View>
+            ))}
           </View>
         ) : null}
-        {(onAccept || onReject) && (
-          <View style={styles.actionsRow}>
+        {(statusLabel || onAccept || onReject || onComplete) ? (
+          <View
+            style={[
+              styles.bottomBar,
+              !statusLabel && (onAccept || onReject || onComplete) && styles.bottomBarActionsOnly,
+            ]}
+          >
+            {statusLabel ? (
+              <View style={styles.statusPill}>
+                <Text style={styles.statusPillText} numberOfLines={1}>
+                  {statusLabel}
+                </Text>
+              </View>
+            ) : null}
             {onAccept ? (
               <Pressable
                 onPress={onAccept}
@@ -105,11 +133,27 @@ export function OrderCard({
                   actionsDisabled && styles.actionDisabled,
                 ]}
               >
-                <Text style={[styles.actionText, styles.rejectActionText]}>Reject</Text>
+                <Text style={[styles.actionText, styles.rejectActionText]}>
+                  Reject
+                </Text>
+              </Pressable>
+            ) : null}
+            {onComplete ? (
+              <Pressable
+                onPress={onComplete}
+                disabled={actionsDisabled}
+                style={({ pressed }) => [
+                  styles.actionButton,
+                  styles.acceptButton,
+                  pressed && !actionsDisabled && styles.pressed,
+                  actionsDisabled && styles.actionDisabled,
+                ]}
+              >
+                <Text style={styles.actionText}>{completeLabel}</Text>
               </Pressable>
             ) : null}
           </View>
-        )}
+        ) : null}
       </View>
     </>
   );
@@ -135,7 +179,7 @@ export function OrderCard({
 const styles = StyleSheet.create({
   card: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     backgroundColor: c.blue900,
     borderRadius: CARD_RADIUS,
     borderWidth: 1,
@@ -183,24 +227,52 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     opacity: 0.85,
   },
-  statusWrap: {
-    alignSelf: "flex-start",
+  detailBlock: {
     marginTop: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 999,
-    backgroundColor: c.blue900,
+    gap: 8,
   },
-  statusText: {
+  detailItem: {
+    gap: 2,
+  },
+  detailLabel: {
+    fontSize: fs.xxSmallText,
+    fontWeight: "600",
+    color: c.blue500,
+    textTransform: "uppercase",
+    letterSpacing: 0.3,
+    opacity: 0.9,
+  },
+  detailValue: {
+    fontSize: fs.descText,
+    color: c.white,
+    lineHeight: 18,
+  },
+  bottomBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    marginTop: 12,
+    gap: 8,
+  },
+  /** When there is no status chip, keep action buttons aligned to the end. */
+  bottomBarActionsOnly: {
+    justifyContent: "flex-end",
+  },
+  /** Same outline treatment as Accept / Complete (pending, accepted, etc.). */
+  statusPill: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: c.filledButtonBorder,
+    backgroundColor: c.blue900,
+    flexShrink: 1,
+  },
+  statusPillText: {
     color: c.white,
     fontSize: fs.descText,
     fontWeight: "600",
     textTransform: "capitalize",
-  },
-  actionsRow: {
-    flexDirection: "row",
-    gap: 10,
-    marginTop: 12,
   },
   actionButton: {
     paddingHorizontal: 14,

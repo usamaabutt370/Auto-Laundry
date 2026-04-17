@@ -1,10 +1,7 @@
-import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Alert,
-  Dimensions,
-  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -33,7 +30,6 @@ export default function PartnerOrderScreen() {
   const { locale } = useLocale();
   const s = getStrings(locale).partner.order;
 
-  const [filterOpen, setFilterOpen] = useState(false);
   const initialFilter =
     params.filter === "accepted" ||
     params.filter === "completed" ||
@@ -45,23 +41,6 @@ export default function PartnerOrderScreen() {
   const [orders, setOrders] = useState<PartnerOrderListItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [actionOrderId, setActionOrderId] = useState<string | null>(null);
-  /** Anchor for filter dropdown: opens just below the filter button */
-  const filterTriggerRef = useRef<View>(null);
-  const [filterDropdownPos, setFilterDropdownPos] = useState<{
-    top: number;
-    right: number;
-  } | null>(null);
-
-  const openFilterModal = useCallback(() => {
-    const screenW = Dimensions.get("window").width;
-    filterTriggerRef.current?.measureInWindow((x, y, w, h) => {
-      setFilterDropdownPos({
-        top: y + h + 6,
-        right: screenW - x - w,
-      });
-      setFilterOpen(true);
-    });
-  }, []);
 
   const filterLabels: Record<OrderFilter, string> = {
     pending: "Pending",
@@ -113,11 +92,6 @@ export default function PartnerOrderScreen() {
     return order.rawStatus === "rejected" || order.rawStatus === "cancelled";
   });
 
-  const handleSelectFilter = useCallback((filter: OrderFilter) => {
-    setOrderFilter(filter);
-    setFilterOpen(false);
-  }, []);
-
   const handleOrderAction = useCallback(
     async (orderId: string, status: "accepted" | "rejected") => {
       try {
@@ -146,7 +120,30 @@ export default function PartnerOrderScreen() {
     [],
   );
 
-  const sectionHeading = filterLabels[orderFilter];
+  const handleCompleteOrder = useCallback(async (orderId: string) => {
+    try {
+      setActionOrderId(orderId);
+      const result = await partnerUpdateOrderStatus(orderId, "completed");
+      setOrders((prev) =>
+        prev.map((order) =>
+          order.id === orderId
+            ? {
+                ...order,
+                status: "completed",
+                rawStatus: result.status,
+              }
+            : order,
+        ),
+      );
+    } catch (error) {
+      Alert.alert(
+        "Unable to complete order",
+        error instanceof Error ? error.message : "Please try again.",
+      );
+    } finally {
+      setActionOrderId(null);
+    }
+  }, []);
 
   return (
     <View style={styles.container}>
@@ -159,31 +156,40 @@ export default function PartnerOrderScreen() {
         />
       </SafeAreaView>
 
-      <View style={styles.headingRow}>
-        <Text style={styles.sectionHeading} numberOfLines={1}>
-          {sectionHeading}
-        </Text>
-        <View ref={filterTriggerRef} collapsable={false}>
-        <Pressable
-          onPress={openFilterModal}
-          style={({ pressed }) => [
-            styles.filterTrigger,
-            pressed && styles.pressed,
-          ]}
-          accessibilityRole="button"
-          accessibilityLabel={s.filterLabel}
-        >
-          <Text style={styles.filterTriggerText} numberOfLines={1}>
-            {filterLabels[orderFilter]}
-          </Text>
-          <MaterialCommunityIcons
-            name="chevron-down"
-            size={20}
-            color={c.white}
-          />
-        </Pressable>
-        </View>
-      </View>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.filterScroll}
+        contentContainerStyle={styles.filterRow}
+      >
+        {(Object.keys(filterLabels) as OrderFilter[]).map((key) => {
+          const selected = orderFilter === key;
+          return (
+            <Pressable
+              key={key}
+              onPress={() => setOrderFilter(key)}
+              style={({ pressed }) => [
+                styles.filterChip,
+                selected && styles.filterChipSelected,
+                pressed && styles.pressed,
+              ]}
+              accessibilityRole="button"
+              accessibilityState={{ selected }}
+              accessibilityLabel={`${filterLabels[key]} orders`}
+            >
+              <Text
+                style={[
+                  styles.filterChipText,
+                  selected && styles.filterChipTextSelected,
+                ]}
+                numberOfLines={1}
+              >
+                {filterLabels[key]}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {isLoading ? (
@@ -195,85 +201,56 @@ export default function PartnerOrderScreen() {
             <Text style={styles.emptyText}>{s.emptyList}</Text>
           </View>
         ) : (
-          filteredOrders.map((order) => (
-            <OrderCard
-              key={order.id}
-              customerName={order.customerName}
-              initial={order.initial}
-              subtitle={order.subtitle}
-              rightIcon={order.rightIcon ?? "none"}
-              statusLabel={order.status}
-              onAccept={
-                order.status === "pending"
-                  ? () => handleOrderAction(order.id, "accepted")
-                  : undefined
-              }
-              onReject={
-                order.status === "pending"
-                  ? () => handleOrderAction(order.id, "rejected")
-                  : undefined
-              }
-              actionsDisabled={actionOrderId === order.id}
-              onPress={() =>
-                router.push({
-                  pathname: "/(partner)/order-detail",
-                  params: { orderId: order.id },
-                })
-              }
-            />
-          ))
+          filteredOrders.map((order) => {
+            const detailRows = [
+              { label: s.cardEstTotal, value: order.estimatedTotalLabel },
+              ...(order.servicesSummary
+                ? [{ label: s.cardServices, value: order.servicesSummary }]
+                : []),
+              ...(order.addressPreview
+                ? [{ label: s.cardAddress, value: order.addressPreview }]
+                : []),
+            ];
+            const canComplete =
+              order.rawStatus === "accepted" ||
+              order.rawStatus === "in_progress" ||
+              order.rawStatus === "ready";
+
+            return (
+              <OrderCard
+                key={order.id}
+                customerName={order.customerName}
+                initial={order.initial}
+                subtitle={order.subtitle}
+                rightIcon={order.rightIcon ?? "none"}
+                statusLabel={order.status}
+                detailRows={detailRows}
+                onAccept={
+                  order.status === "pending"
+                    ? () => handleOrderAction(order.id, "accepted")
+                    : undefined
+                }
+                onReject={
+                  order.status === "pending"
+                    ? () => handleOrderAction(order.id, "rejected")
+                    : undefined
+                }
+                onComplete={
+                  canComplete ? () => handleCompleteOrder(order.id) : undefined
+                }
+                completeLabel={s.completeOrder}
+                actionsDisabled={actionOrderId === order.id}
+                onPress={() =>
+                  router.push({
+                    pathname: "/(partner)/order-detail",
+                    params: { orderId: order.id },
+                  })
+                }
+              />
+            );
+          })
         )}
       </ScrollView>
-
-      {/* Status filter popup – positioned just below filter button */}
-      <Modal
-        visible={filterOpen}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setFilterOpen(false)}
-      >
-        <Pressable
-          style={styles.modalOverlay}
-          onPress={() => setFilterOpen(false)}
-        >
-          {filterDropdownPos != null && (
-            <View
-              style={[
-                styles.filterPopup,
-                {
-                  position: "absolute",
-                  top: filterDropdownPos.top,
-                  right: filterDropdownPos.right,
-                },
-              ]}
-              onStartShouldSetResponder={() => true}
-            >
-            {(Object.keys(filterLabels) as OrderFilter[]).map((key) => (
-              <Pressable
-                key={key}
-                onPress={() => handleSelectFilter(key)}
-                style={({ pressed }) => [
-                  styles.filterOption,
-                  orderFilter === key && styles.filterOptionSelected,
-                  pressed && styles.pressed,
-                ]}
-              >
-                <Text style={styles.filterOptionText}>
-                  {filterLabels[key]}
-                </Text>
-                {orderFilter === key && (
-                  <MaterialCommunityIcons
-                    name="check"
-                    size={20}
-                    color={c.outline}
-                  />
-                )}
-              </Pressable>
-            ))}
-            </View>
-          )}
-        </Pressable>
-      </Modal>
     </View>
   );
 }
@@ -287,36 +264,38 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   pressed: { opacity: 0.85 },
-  headingRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: H_PAD,
+  filterScroll: {
+    flexGrow: 0,
     marginBottom: 12,
+    maxHeight: 44,
   },
-  filterTrigger: {
+  filterRow: {
     flexDirection: "row",
     alignItems: "center",
-    flexShrink: 0,
-    gap: 6,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
+    gap: 8,
+    paddingHorizontal: H_PAD,
+    paddingVertical: 2,
+  },
+  filterChip: {
+    paddingVertical: 8,
+    paddingHorizontal: 14,
     borderRadius: 999,
-    backgroundColor: c.blue900,
     borderWidth: 1,
+    borderColor: "rgba(171, 233, 254, 0.45)",
+    backgroundColor: "transparent",
+  },
+  filterChipSelected: {
+    backgroundColor: c.blue900,
     borderColor: c.outline,
   },
-  filterTriggerText: {
-    fontSize: fs.smallText,
+  filterChipText: {
+    fontSize: fs.descText,
     fontWeight: "500",
-    color: c.white,
+    color: c.blue500,
   },
-  sectionHeading: {
-    flex: 1,
-    marginRight: 12,
-    fontSize: fs.titleMedium,
-    fontWeight: "600",
+  filterChipTextSelected: {
     color: c.white,
+    fontWeight: "600",
   },
   scroll: {
     flex: 1,
@@ -334,34 +313,5 @@ const styles = StyleSheet.create({
     fontSize: fs.smallText,
     color: c.blue500,
     textAlign: "center",
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "transparent",
-  },
-  filterPopup: {
-    backgroundColor: c.blue900,
-    borderRadius: 20,
-    minWidth: 200,
-    maxHeight: 320,
-    borderWidth: 1,
-    borderColor: c.modalBorder,
-    overflow: "hidden",
-  },
-  filterOption: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: 14,
-    paddingHorizontal: 18,
-    gap: 10,
-  },
-  filterOptionSelected: {
-    backgroundColor: "rgba(59, 127, 149, 0.35)",
-  },
-  filterOptionText: {
-    fontSize: fs.smallText,
-    fontWeight: "500",
-    color: c.white,
   },
 });
