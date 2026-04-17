@@ -243,7 +243,7 @@ export function PartnerProfileScreen() {
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
         <Pressable style={styles.avatarWrap} onPress={pickAndUploadImage} disabled={uploadingImage}>
           {partnerImageUri ? (
-            <Image source={{ uri: partnerImageUri, cache: "reload" }} style={styles.avatar} />
+            <Image source={{ uri: partnerImageUri }} style={styles.avatar} />
           ) : (
             <Image source={assets.images.profile_placeholder} style={styles.avatar} />
           )}

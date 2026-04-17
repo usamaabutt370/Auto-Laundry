@@ -19,6 +19,8 @@ import { Image } from "expo-image";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { requestPhoneOtp } from "@/lib/phone-otp";
+import { parsePhoneNumberFromString } from "libphonenumber-js";
+import { type CountryCode } from "react-native-country-picker-modal";
 
 const c = theme.colors;
 
@@ -29,6 +31,8 @@ export default function SignUpScreen() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [mobileNumber, setMobileNumber] = useState("");
+  const [countryCode, setCountryCode] = useState<CountryCode>("PK");
+  const [callingCode, setCallingCode] = useState("92");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -47,9 +51,9 @@ export default function SignUpScreen() {
     if (digits.startsWith("0")) {
       digits = digits.slice(1);
     }
-    // Limit to 10 digits max
-    if (digits.length > 10) {
-      digits = digits.slice(0, 10);
+    // Most international numbers are 15 digits max
+    if (digits.length > 15) {
+      digits = digits.slice(0, 15);
     }
     setMobileNumber(digits);
     setErrors((prev) => ({ ...prev, mobileNumber: undefined }));
@@ -71,9 +75,11 @@ export default function SignUpScreen() {
     if (!email) nextErrors.email = "Email is required.";
     if (!password) nextErrors.password = "Password is required.";
 
-    if (mobileNumber && mobileNumber.length !== 10) {
-      nextErrors.mobileNumber =
-        "Enter a valid 10-digit Pakistani mobile number (without the leading 0).";
+    const fullNumber = `+${callingCode}${mobileNumber}`;
+    const phoneNumber = parsePhoneNumberFromString(fullNumber);
+
+    if (mobileNumber && (!phoneNumber || !phoneNumber.isValid())) {
+      nextErrors.mobileNumber = `Enter a valid mobile number for ${countryCode}.`;
     }
 
     if (Object.keys(nextErrors).length > 0) {
@@ -85,8 +91,9 @@ export default function SignUpScreen() {
     try {
       const fullName = `${firstName} ${lastName}`.trim();
 
-      // Normalize Pakistan phone number: user types 306xxxxxxx, we store +92306xxxxxxx
-      const normalizedPhone = `+92${mobileNumber.replace(/^0+/, "")}`;
+      // Normalize phone number to E.164
+      const phoneNumber = parsePhoneNumberFromString(`+${callingCode}${mobileNumber}`);
+      const normalizedPhone = phoneNumber ? phoneNumber.number : `+${callingCode}${mobileNumber}`;
 
       // 1) Create auth user with email + password (no email OTP).
       const { data, error } = await supabase.auth.signUp({
@@ -160,7 +167,7 @@ export default function SignUpScreen() {
       <StatusBar style="light" />
       <KeyboardAvoidingView
         style={styles.keyboardView}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
         <ThemedView style={styles.header}>
           <Pressable
@@ -222,6 +229,13 @@ export default function SignUpScreen() {
             placeholder={s.mobileNumber}
             value={mobileNumber}
             onChangeText={handleMobileChange}
+            selectedCca2={countryCode}
+            selectedCallingCode={callingCode}
+            onCountrySelect={(c) => {
+              setCountryCode(c.cca2);
+              setCallingCode(c.callingCode);
+              setErrors((prev) => ({ ...prev, mobileNumber: undefined }));
+            }}
             {...inputProps}
           />
           {errors.mobileNumber && (

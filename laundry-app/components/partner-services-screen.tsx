@@ -1,6 +1,15 @@
 import { useRouter } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useState } from "react";
 
@@ -150,11 +159,16 @@ export function PartnerServicesScreen({ mode }: PartnerServicesScreenProps) {
         leftAccessibilityLabel={onboardingStrings.back}
       />
 
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
+      <KeyboardAvoidingView
+        style={styles.keyboardView}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
         <Text style={styles.heading}>
           {onboardingStrings.chooseServicesHeading}
         </Text>
@@ -267,6 +281,7 @@ export function PartnerServicesScreen({ mode }: PartnerServicesScreenProps) {
           />
         )}
       </ScrollView>
+    </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -277,6 +292,9 @@ const styles = StyleSheet.create({
     backgroundColor: c.background,
   },
   scroll: {
+    flex: 1,
+  },
+  keyboardView: {
     flex: 1,
   },
   content: {

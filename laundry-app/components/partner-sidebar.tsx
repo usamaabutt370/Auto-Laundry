@@ -214,7 +214,7 @@ export function PartnerSidebar() {
             <Image
               source={
                 avatarUrl
-                  ? { uri: avatarUrl, cache: "reload" as const }
+                  ? { uri: avatarUrl }
                   : assets.images.profile_placeholder
               }
               style={styles.avatar}

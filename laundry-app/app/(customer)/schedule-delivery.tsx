@@ -2,7 +2,9 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useMemo, useState } from "react";
 import {
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -206,12 +208,16 @@ export default function ScheduleDeliveryScreen() {
         <View style={styles.headerRight} />
       </SafeAreaView>
 
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
+      <KeyboardAvoidingView
+        style={styles.keyboardView}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
         {/* Date / calendar section */}
         <View style={styles.calendarBlock}>
           <View style={styles.calendarHeader}>
@@ -333,6 +339,7 @@ export default function ScheduleDeliveryScreen() {
           <Text style={styles.confirmLabel}>{s.confirm}</Text>
         </Pressable>
       </ScrollView>
+    </KeyboardAvoidingView>
 
       <Modal
         visible={monthPickerVisible}
@@ -518,6 +525,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: c.background,
+  },
+  keyboardView: {
+    flex: 1,
   },
   header: {
     flexDirection: "row",

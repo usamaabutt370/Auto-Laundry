@@ -262,7 +262,6 @@ export default function CustomerProfileScreen() {
                         profile.image_url,
                         profile.updated_at,
                       ) as string,
-                      cache: "reload" as const,
                     }
                   : assets.images.profile_placeholder
               }

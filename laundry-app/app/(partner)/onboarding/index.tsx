@@ -3,7 +3,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Alert,
   FlatList,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -24,6 +26,8 @@ import { useAuth } from "@/contexts/auth-context";
 import { getStrings } from "@/locales";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { getCoordinatesWithFallback } from "@/utils/geocoding";
+import { parsePhoneNumberFromString } from "libphonenumber-js";
+import { type CountryCode } from "react-native-country-picker-modal";
 
 const PHONE_DIGITS_MAX = 10;
 const HOURS = Array.from({ length: 12 }, (_, idx) => idx + 1);
@@ -31,12 +35,13 @@ const MINUTES = Array.from({ length: 60 }, (_, idx) => idx);
 const PERIODS = ["AM", "PM"] as const;
 const WHEEL_ITEM_HEIGHT = 40;
 
-function normalizePkPhoneDigits(rawValue: string): string {
+function normalizePhoneDigits(rawValue: string): string {
   let digits = rawValue.replace(/\D/g, "");
   if (digits.startsWith("0")) {
     digits = digits.slice(1);
   }
-  return digits.slice(0, PHONE_DIGITS_MAX);
+  // Most international numbers are 15 digits max
+  return digits.slice(0, 15);
 }
 
 function formatTimeLabel(date: Date): string {
@@ -73,6 +78,8 @@ export default function PartnerOnboardingStep1() {
   const [businessName, setBusinessName] = useState("");
   const [businessDescription, setBusinessDescription] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
+  const [countryCode, setCountryCode] = useState<CountryCode>("PK");
+  const [callingCode, setCallingCode] = useState("92");
   const [startTime, setStartTime] = useState<Date | null>(null);
   const [endTime, setEndTime] = useState<Date | null>(null);
   const [activePicker, setActivePicker] = useState<"start" | "end" | null>(null);
@@ -86,8 +93,6 @@ export default function PartnerOnboardingStep1() {
   const minuteRef = useRef<FlatList<number> | null>(null);
   const periodRef = useRef<FlatList<(typeof PERIODS)[number]> | null>(null);
 
-  const phoneDigits = phoneNumber.replace(/\D/g, "");
-  const isPhoneValid = phoneDigits.length === PHONE_DIGITS_MAX;
   const startTimeLabel = startTime ? formatTimeLabel(startTime) : "";
   const endTimeLabel = endTime ? formatTimeLabel(endTime) : "";
   const isAvailableTimeValid =
@@ -111,9 +116,18 @@ export default function PartnerOnboardingStep1() {
           setBusinessName(data.business_name ?? "");
           setBusinessDescription(data.business_description ?? "");
           const rawPhone = data.phone_number ?? "";
-          setPhoneNumber(
-            normalizePkPhoneDigits(String(rawPhone).replace(/^\+92/, ""))
-          );
+          if (rawPhone.startsWith("+")) {
+            const parsed = parsePhoneNumberFromString(rawPhone);
+            if (parsed) {
+              setPhoneNumber(parsed.nationalNumber as string);
+              setCountryCode(parsed.country as CountryCode);
+              setCallingCode(parsed.countryCallingCode as string);
+            } else {
+              setPhoneNumber(normalizePhoneDigits(rawPhone));
+            }
+          } else {
+            setPhoneNumber(normalizePhoneDigits(rawPhone));
+          }
           const rawAvailable = (data.available_time ?? "").trim();
           const [rawStart = "", rawEnd = ""] = rawAvailable
             .split("-")
@@ -129,6 +143,10 @@ export default function PartnerOnboardingStep1() {
   const isBusinessDescriptionMissing = businessDescription.trim().length === 0;
   const isAddressMissing = address.trim().length === 0;
   const isPhoneMissing = phoneNumber.trim().length === 0;
+  const fullPhone = `+${callingCode}${phoneNumber}`;
+  const parsedPhoneObj = parsePhoneNumberFromString(fullPhone);
+  const isPhoneValid = Boolean(parsedPhoneObj && parsedPhoneObj.isValid());
+
   const isAvailableTimeMissing = !startTime || !endTime;
   const isFormValid =
     !isBusinessNameMissing &&
@@ -205,6 +223,10 @@ export default function PartnerOnboardingStep1() {
     setIsSaving(true);
     try {
       const coords = await getCoordinatesWithFallback(address.trim());
+      const fullPhone = `+${callingCode}${phoneNumber}`;
+      const parsedPhoneObj = parsePhoneNumberFromString(fullPhone);
+      const normalizedPhone = parsedPhoneObj ? parsedPhoneObj.number : fullPhone;
+
       const payload: {
         id: string;
         business_name: string;
@@ -219,7 +241,7 @@ export default function PartnerOnboardingStep1() {
         id: user.id,
         business_name: businessName.trim(),
         business_description: businessDescription.trim(),
-        phone_number: `+92${phoneNumber}`,
+        phone_number: normalizedPhone,
         available_time: normalizedAvailableTime.toUpperCase(),
         address: address.trim(),
         updated_at: new Date().toISOString(),
@@ -268,12 +290,16 @@ export default function PartnerOnboardingStep1() {
         leftAccessibilityLabel={s.back}
       />
 
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
+      <KeyboardAvoidingView
+        style={styles.keyboardView}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
         <Text style={styles.businessNameLabel}>Business Name</Text>
         <FormTextInput
           placeholder={s.businessNamePlaceholder}
@@ -290,7 +316,13 @@ export default function PartnerOnboardingStep1() {
           variant="phone"
           placeholder={s.phoneNumberPlaceholder}
           value={phoneNumber}
-          onChangeText={(value) => setPhoneNumber(normalizePkPhoneDigits(value))}
+          onChangeText={(value) => setPhoneNumber(normalizePhoneDigits(value))}
+          selectedCca2={countryCode}
+          selectedCallingCode={callingCode}
+          onCountrySelect={(c) => {
+            setCountryCode(c.cca2);
+            setCallingCode(c.callingCode);
+          }}
           containerStyle={styles.phoneInput}
         />
         <Text style={styles.businessNameLabel}>Business Available Time</Text>
@@ -508,6 +540,7 @@ export default function PartnerOnboardingStep1() {
           accessibilityLabel={s.next}
         />
       </ScrollView>
+    </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -518,6 +551,9 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.background,
   },
   scroll: {
+    flex: 1,
+  },
+  keyboardView: {
     flex: 1,
   },
   content: {

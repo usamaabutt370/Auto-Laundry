@@ -2,6 +2,8 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import {
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -106,12 +108,16 @@ export default function DryCleanItemizedByUserScreen() {
         </Pressable>
       </SafeAreaView>
 
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
+      <KeyboardAvoidingView
+        style={styles.keyboardView}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
         <Text style={styles.lead}>
           Set quantities for each type. Line totals use your launderer’s prices
           when available.
@@ -177,6 +183,7 @@ export default function DryCleanItemizedByUserScreen() {
           textAlignVertical="top"
         />
       </ScrollView>
+    </KeyboardAvoidingView>
 
       <SafeAreaView style={styles.footer} edges={["bottom"]}>
         <CustomerLiveEstimateFooter
@@ -199,6 +206,7 @@ export default function DryCleanItemizedByUserScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: c.background },
+  keyboardView: { flex: 1 },
   header: {
     flexDirection: "row",
     alignItems: "center",

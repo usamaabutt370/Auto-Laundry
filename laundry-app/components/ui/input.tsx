@@ -10,6 +10,13 @@ import {
   View,
   type ViewStyle,
 } from "react-native";
+import { type CountryCode } from "react-native-country-picker-modal";
+import {
+  CountryCodePicker,
+  type SelectedCountry,
+} from "./country-code-picker";
+import { getExampleNumber } from "libphonenumber-js";
+import examples from "libphonenumber-js/examples.mobile.json";
 
 const PILL_RADIUS = 9999;
 const PASSWORD_ICON_PADDING = 44;
@@ -36,6 +43,12 @@ export interface InputProps extends Omit<TextInputProps, "style"> {
   focusUnderlineColor?: string;
   /** Color for the show/hide password icon (when secureTextEntry is true). */
   passwordIconColor?: string;
+  /** Phone variant: currently selected country cca2 (e.g. 'PK') */
+  selectedCca2?: CountryCode;
+  /** Phone variant: currently selected calling code (e.g. '92') */
+  selectedCallingCode?: string;
+  /** Phone variant: callback when country is changed */
+  onCountrySelect?: (country: SelectedCountry) => void;
 }
 
 /**
@@ -55,6 +68,9 @@ export function Input({
   passwordIconColor = "rgba(255,255,255,0.8)",
   editable = true,
   secureTextEntry = false,
+  selectedCca2 = "PK",
+  selectedCallingCode = "92",
+  onCountrySelect,
   ...rest
 }: InputProps) {
   const [isFocused, setIsFocused] = useState(false);
@@ -66,27 +82,51 @@ export function Input({
   const showPasswordToggle = isPasswordField;
   const effectiveSecureTextEntry = isPasswordField && !isPasswordVisible;
 
+  // Generate a dynamic placeholder if it's a phone input and no placeholder is provided or it's the default one
+  let dynamicPlaceholder = rest.placeholder;
+  if (isPhone && (!rest.placeholder || rest.placeholder === "Mobile Number")) {
+    try {
+      const example = getExampleNumber(selectedCca2 as any, examples);
+      if (example) {
+        dynamicPlaceholder = example.formatNational();
+      }
+    } catch (e) {
+      // Fallback
+    }
+  }
+
   return (
     <View style={[styles.wrapper, containerStyle]}>
-      <View style={styles.inputRow}>
+      <View
+        style={[
+          styles.inputRow,
+          {
+            backgroundColor: theme.colors.blue900 ?? "transparent",
+            borderColor: isFocused
+              ? focusUnderlineColor
+              : (borderColor ?? theme.colors.outline),
+          },
+          editable === false && styles.inputDisabled,
+        ]}
+      >
         {isPhone && (
-          <View pointerEvents="none" style={styles.phonePrefix}>
-            <Text style={styles.phonePrefixText}>+92</Text>
+          <View style={styles.phonePrefix}>
+            <CountryCodePicker
+              selectedCca2={selectedCca2}
+              selectedCallingCode={selectedCallingCode}
+              onSelect={onCountrySelect || (() => {})}
+            />
           </View>
         )}
         <TextInput
           style={[
             styles.input,
             {
-              backgroundColor: theme.colors.blue900 ?? "transparent",
-              borderColor: borderColor ?? theme.colors.outline,
               color: textColor ?? theme.colors.white,
-              paddingRight: showPasswordToggle ? PASSWORD_ICON_PADDING : 20,
-              paddingLeft: isPhone ? 56 : 20,
             },
-            editable === false && styles.inputDisabled,
             style,
           ]}
+          placeholder={dynamicPlaceholder}
           placeholderTextColor={placeholderTextColor ?? "rgba(255,255,255,0.7)"}
           keyboardType={keyboardType}
           editable={editable}
@@ -130,25 +170,25 @@ const styles = StyleSheet.create({
     backgroundColor: "transparent",
   },
   inputRow: {
-    position: "relative",
-    minHeight: 52,
-    backgroundColor: "transparent",
-  },
-  input: {
+    flexDirection: "row",
+    alignItems: "center",
     minHeight: 52,
     borderRadius: PILL_RADIUS,
-    paddingHorizontal: 20,
-    fontSize: 16,
     borderWidth: 1,
+    paddingHorizontal: 12,
+  },
+  input: {
+    flex: 1,
+    height: 52,
+    fontSize: 16,
+    paddingHorizontal: 8,
   },
   inputDisabled: {
     opacity: 0.6,
   },
   passwordToggle: {
-    position: "absolute",
-    right: 12,
-    top: 0,
-    bottom: 0,
+    paddingLeft: 8,
+    paddingRight: 4,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -156,21 +196,13 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: 20,
     right: 20,
-    bottom: 12,
+    bottom: 0,
     height: 2,
     borderRadius: 1,
   },
   phonePrefix: {
-    position: "absolute",
-    left: 26,
-    top: 0,
-    bottom: 0,
-    justifyContent: "center",
-    zIndex: 1,
-  },
-  phonePrefixText: {
-    color: theme.colors.white,
-    fontSize: 15,
-    opacity: 0.9,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingRight: 4,
   },
 });

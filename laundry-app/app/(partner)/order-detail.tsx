@@ -2,6 +2,8 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useMemo } from "react";
 import {
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -69,14 +71,19 @@ export default function PartnerOrderDetailScreen() {
   return (
     <View style={styles.container}>
       {header}
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={[
-          styles.scrollContent,
-          isCompact && styles.scrollContentCompact,
-        ]}
-        showsVerticalScrollIndicator={false}
+      <KeyboardAvoidingView
+        style={styles.keyboardView}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={[
+            styles.scrollContent,
+            isCompact && styles.scrollContentCompact,
+          ]}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
         <View style={[styles.card, isCompact && styles.cardCompact]}>
           {/* Order # and status */}
           <View style={styles.orderIdRow}>
@@ -196,6 +203,7 @@ export default function PartnerOrderDetailScreen() {
           />
         </View>
       </ScrollView>
+    </KeyboardAvoidingView>
     </View>
   );
 }
@@ -207,6 +215,9 @@ const styles = StyleSheet.create({
   },
   safeArea: {
     paddingBottom: 8,
+  },
+  keyboardView: {
+    flex: 1,
   },
   scroll: {
     flex: 1,

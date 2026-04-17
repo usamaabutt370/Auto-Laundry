@@ -1,6 +1,13 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { FormTextInput } from "@/components/form-text-input";
@@ -114,12 +121,16 @@ export default function PartnerOnboardingStep3() {
         leftAccessibilityLabel={onboardingStrings.back}
       />
 
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
+      <KeyboardAvoidingView
+        style={styles.keyboardView}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
         {/* Price per bag – same pill input as Business Detail */}
         <Text style={styles.sectionHeading}>
           {onboardingStrings.pricePerBagLabel}
@@ -166,6 +177,7 @@ export default function PartnerOnboardingStep3() {
           accessibilityLabel={settingsStrings.save}
         />
       </ScrollView>
+    </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -176,6 +188,9 @@ const styles = StyleSheet.create({
     backgroundColor: c.background,
   },
   scroll: {
+    flex: 1,
+  },
+  keyboardView: {
     flex: 1,
   },
   content: {

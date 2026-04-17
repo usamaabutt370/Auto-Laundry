@@ -93,7 +93,7 @@ export default function ResetPasswordScreen() {
       <StatusBar style="light" />
       <KeyboardAvoidingView
         style={styles.keyboardView}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
         <ThemedView style={styles.header}>
           <Pressable

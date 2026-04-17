@@ -2,6 +2,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import {
+  KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
@@ -311,12 +312,16 @@ export default function ServiceOtherScreen() {
         leftAccessibilityLabel={onboardingStrings.back}
       />
 
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
+      <KeyboardAvoidingView
+        style={styles.keyboardView}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
         {items.map((item) => (
           <View key={item.id} style={styles.card}>
             <Text style={styles.itemName} numberOfLines={1}>
@@ -370,6 +375,7 @@ export default function ServiceOtherScreen() {
           accessibilityLabel={onboardingStrings.continue}
         />
       </ScrollView>
+    </KeyboardAvoidingView>
 
       <Modal
         visible={addModalVisible}
@@ -477,6 +483,9 @@ const styles = StyleSheet.create({
     backgroundColor: c.background,
   },
   scroll: {
+    flex: 1,
+  },
+  keyboardView: {
     flex: 1,
   },
   content: {

@@ -2,6 +2,8 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import {
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -181,12 +183,16 @@ export default function WashFoldOrderScreen() {
         </Pressable>
       </SafeAreaView>
 
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
+      <KeyboardAvoidingView
+        style={styles.keyboardView}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
         <Text style={styles.lead}>{sOrder.lead}</Text>
 
         <Text style={styles.sectionLabel}>{sOrder.howPriced}</Text>
@@ -351,6 +357,7 @@ export default function WashFoldOrderScreen() {
 
         <Text style={styles.hint}>{sBags.hint}</Text>
       </ScrollView>
+    </KeyboardAvoidingView>
 
       <SafeAreaView edges={["bottom"]} style={styles.footerSafe}>
         <CustomerLiveEstimateFooter
@@ -374,6 +381,7 @@ export default function WashFoldOrderScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: c.background },
+  keyboardView: { flex: 1 },
   header: {
     flexDirection: "row",
     alignItems: "center",

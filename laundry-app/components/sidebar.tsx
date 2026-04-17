@@ -1,6 +1,7 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useEffect } from "react";
 import {
+  Alert,
   Dimensions,
   Modal,
   Pressable,
@@ -18,6 +19,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { strings } from "@/constants/strings";
 import { theme } from "@/constants/theme";
+import { useAuth } from "@/contexts/auth-context";
 import { useSidebar } from "@/contexts/sidebar-context";
 import { assets } from "@/assets/assets";
 import { Image } from "expo-image";
@@ -62,6 +64,7 @@ const MENU_ITEMS = [
 export function Sidebar() {
   const router = useRouter();
   const { isOpen, close } = useSidebar();
+  const { signOut } = useAuth();
   const insets = useSafeAreaInsets();
   const translateX = useSharedValue(-SIDEBAR_WIDTH);
   const overlayOpacity = useSharedValue(0);
@@ -97,8 +100,21 @@ export function Sidebar() {
     } else if (id === "faq") {
       router.push("/(customer)/faq");
     } else if (id === "signout") {
-      console.log("signout");
-      // TODO: Sign out logic
+      Alert.alert(strings.sidebar.signOut, "Are you sure you want to sign out?", [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: strings.sidebar.signOut,
+          style: "destructive",
+          onPress: async () => {
+            await signOut();
+            // Clear navigation history and reset to login
+            if (router.canDismiss()) {
+              router.dismissAll();
+            }
+            router.replace("/(auth)/login");
+          },
+        },
+      ]);
     }
   };
 
