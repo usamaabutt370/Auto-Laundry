@@ -1,10 +1,5 @@
-import { useState } from "react";
-import {
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { useCallback, useState } from "react";
+import { ScrollView, StyleSheet, Text, View, Pressable } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { DashboardChart } from "@/components/dashboard-chart";
@@ -12,6 +7,7 @@ import {
   DashboardPeriodSelector,
   type DashboardPeriod,
 } from "@/components/dashboard-period-selector";
+import { useFocusEffect, useRouter } from "expo-router";
 import { PartnerHeader } from "@/components/partner-header";
 import { theme } from "@/constants/theme";
 import { useLocale } from "@/contexts/locale-context";
@@ -40,6 +36,7 @@ function ServiceBreakdownCard({
   dryCleaning,
   tailoring,
   s,
+  onPress,
 }: {
   title: string;
   total: number;
@@ -47,9 +44,17 @@ function ServiceBreakdownCard({
   dryCleaning: number;
   tailoring: number;
   s: ReturnType<typeof getStrings>["partner"]["dashboard"];
+  onPress?: () => void;
 }) {
   return (
-    <View style={styles.serviceCard}>
+    <Pressable
+      onPress={onPress}
+      disabled={!onPress}
+      style={({ pressed }) => [
+        styles.serviceCard,
+        pressed && onPress && styles.serviceCardPressed,
+      ]}
+    >
       <View style={styles.serviceCircleWrap}>
         <View style={styles.serviceCircle}>
           <Text style={styles.serviceCircleTitle}>{title}</Text>
@@ -67,7 +72,7 @@ function ServiceBreakdownCard({
           {s.tailoring}: {tailoring}
         </Text>
       </View>
-    </View>
+    </Pressable>
   );
 }
 
@@ -92,14 +97,21 @@ function SummaryCard({
  * Data from useLaundererDashboard (zero until backend is wired).
  */
 export default function PartnerDashboardScreen() {
+  const router = useRouter();
   const { open: openSidebar } = useSidebar();
   const { locale } = useLocale();
   const s = getStrings(locale).partner.dashboard;
   const [period, setPeriod] = useState<DashboardPeriod>("week");
 
-  const { data } = useLaundererDashboard(true, period);
+  const { data, refresh } = useLaundererDashboard(true, period);
 
   const subtitle = `${s.numberOfUsers}: ${data.numberOfUsers}`;
+
+  useFocusEffect(
+    useCallback(() => {
+      void refresh();
+    }, [refresh]),
+  );
 
   return (
     <View style={styles.container}>
@@ -132,6 +144,12 @@ export default function PartnerDashboardScreen() {
             dryCleaning={data.dropOff.dryCleaning}
             tailoring={data.dropOff.tailoring}
             s={s}
+            onPress={() =>
+              router.push({
+                pathname: "/(partner)/dashboard-orders",
+                params: { kind: "dropoff" },
+              })
+            }
           />
           <ServiceBreakdownCard
             title={s.delivery}
@@ -140,6 +158,12 @@ export default function PartnerDashboardScreen() {
             dryCleaning={data.delivery.dryCleaning}
             tailoring={data.delivery.tailoring}
             s={s}
+            onPress={() =>
+              router.push({
+                pathname: "/(partner)/dashboard-orders",
+                params: { kind: "delivery" },
+              })
+            }
           />
         </View>
 
@@ -189,6 +213,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: c.outline,
     padding: 20,
+  },
+  serviceCardPressed: {
+    opacity: 0.9,
   },
   serviceCircleWrap: {
     marginRight: 20,

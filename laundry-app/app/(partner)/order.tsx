@@ -1,9 +1,7 @@
-import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import { useCallback, useEffect, useState } from "react";
 import {
-  Dimensions,
-  Modal,
+  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -15,155 +13,137 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { OrderCard } from "@/components/order-card";
 import { PartnerHeader } from "@/components/partner-header";
 import { theme } from "@/constants/theme";
-import {
-  DEMO_ORDERS,
-  type DemoOrderStatus,
-  type MonthKey,
-} from "@/data/demo-orders";
 import { useLocale } from "@/contexts/locale-context";
+import { partnerUpdateOrderStatus } from "@/lib/partner-order-status";
+import { fetchPartnerOrders, type PartnerOrderListItem } from "@/lib/partner-orders";
 import { getStrings } from "@/locales";
 
 const c = theme.colors;
 const fs = theme.fontSize;
 const H_PAD = 24;
 
-const MONTH_KEYS: MonthKey[] = [
-  "january",
-  "february",
-  "march",
-  "april",
-  "may",
-  "june",
-  "july",
-  "august",
-  "september",
-  "october",
-  "november",
-  "december",
-];
-
-function getMonthLabel(
-  s: ReturnType<typeof getStrings>["partner"]["order"],
-  key: MonthKey,
-): string {
-  const map: Record<MonthKey, string> = {
-    january: s.monthJanuary,
-    february: s.monthFebruary,
-    march: s.monthMarch,
-    april: s.monthApril,
-    may: s.monthMay,
-    june: s.monthJune,
-    july: s.monthJuly,
-    august: s.monthAugust,
-    september: s.monthSeptember,
-    october: s.monthOctober,
-    november: s.monthNovember,
-    december: s.monthDecember,
-  };
-  return map[key];
-}
+type OrderFilter = "pending" | "accepted" | "completed" | "rejected";
 
 export default function PartnerOrderScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ filter?: string }>();
   const { locale } = useLocale();
   const s = getStrings(locale).partner.order;
 
-  const [filterOpen, setFilterOpen] = useState(false);
-  const [monthOpen, setMonthOpen] = useState(false);
-  const [orderFilter, setOrderFilter] =
-    useState<DemoOrderStatus>("orders");
-  const [monthKey, setMonthKey] = useState<MonthKey>("april");
-  /** Anchor for filter dropdown: opens just below the filter button */
-  const filterTriggerRef = useRef<View>(null);
-  const [filterDropdownPos, setFilterDropdownPos] = useState<{
-    top: number;
-    right: number;
-  } | null>(null);
+  const initialFilter =
+    params.filter === "accepted" ||
+    params.filter === "completed" ||
+    params.filter === "rejected" ||
+    params.filter === "pending"
+      ? params.filter
+      : "pending";
+  const [orderFilter, setOrderFilter] = useState<OrderFilter>(initialFilter);
+  const [orders, setOrders] = useState<PartnerOrderListItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [actionOrderId, setActionOrderId] = useState<string | null>(null);
 
-  const openFilterModal = useCallback(() => {
-    const screenW = Dimensions.get("window").width;
-    filterTriggerRef.current?.measureInWindow((x, y, w, h) => {
-      setFilterDropdownPos({
-        top: y + h + 6,
-        right: screenW - x - w,
-      });
-      setFilterOpen(true);
-    });
-  }, []);
-
-  /** Month dropdown opens just below the header month pill */
-  const monthTriggerRef = useRef<View>(null);
-  const [monthDropdownPos, setMonthDropdownPos] = useState<{
-    top: number;
-    right: number;
-  } | null>(null);
-
-  const openMonthModal = useCallback(() => {
-    const screenW = Dimensions.get("window").width;
-    monthTriggerRef.current?.measureInWindow((x, y, w, h) => {
-      setMonthDropdownPos({
-        top: y + h + 6,
-        right: screenW - x - w,
-      });
-      setMonthOpen(true);
-    });
-  }, []);
-
-  const filterLabels: Record<DemoOrderStatus, string> = {
-    orders: s.filterOrders,
-    assigned: s.filterAssigned,
-    completed: s.filterCompleted,
+  const filterLabels: Record<OrderFilter, string> = {
+    pending: "Pending",
+    accepted: "Accepted",
+    completed: "Completed",
+    rejected: "Rejected",
   };
 
-  const sectionHeading =
-    orderFilter === "orders"
-      ? s.newOrdersHeading
-      : orderFilter === "assigned"
-        ? s.assignedHeading
-        : s.completedHeading;
-
-  const filteredOrders = useMemo(() => {
-    return DEMO_ORDERS.filter(
-      (o) => o.status === orderFilter && o.monthKey === monthKey,
-    );
-  }, [orderFilter, monthKey]);
-
-  const handleSelectFilter = useCallback((filter: DemoOrderStatus) => {
-    setOrderFilter(filter);
-    setFilterOpen(false);
+  const loadOrders = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const data = await fetchPartnerOrders();
+      setOrders(data);
+    } catch (error) {
+      Alert.alert(
+        "Unable to load orders",
+        error instanceof Error ? error.message : "Please try again.",
+      );
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
-  const handleSelectMonth = useCallback((key: MonthKey) => {
-    setMonthKey(key);
-    setMonthOpen(false);
-  }, []);
+  useEffect(() => {
+    setOrderFilter(initialFilter);
+  }, [initialFilter]);
 
-  const requestedPickupText = (date: string, time: string) =>
-    s.requestedPickup.replace("{{date}}", date).replace("{{time}}", time);
-
-  /** One filter in header top-right (month) – status stays below. */
-  const headerRightMonthOnly = (
-    <View ref={monthTriggerRef} collapsable={false}>
-      <Pressable
-        onPress={openMonthModal}
-        style={({ pressed }) => [
-          styles.headerFilterPill,
-          pressed && styles.pressed,
-        ]}
-        accessibilityRole="button"
-        accessibilityLabel={s.monthLabel}
-      >
-        <Text style={styles.headerFilterText} numberOfLines={1}>
-          {getMonthLabel(s, monthKey)}
-        </Text>
-        <MaterialCommunityIcons
-          name="chevron-down"
-          size={18}
-          color={c.white}
-        />
-      </Pressable>
-    </View>
+  useFocusEffect(
+    useCallback(() => {
+      void loadOrders();
+    }, [loadOrders]),
   );
+
+  const filteredOrders = orders.filter((order) => {
+    if (orderFilter === "pending") {
+      return order.rawStatus === "submitted";
+    }
+    if (orderFilter === "accepted") {
+      return (
+        order.rawStatus === "accepted" ||
+        order.rawStatus === "in_progress" ||
+        order.rawStatus === "ready"
+      );
+    }
+    if (orderFilter === "completed") {
+      return order.rawStatus === "completed";
+    }
+    // rejected
+    return order.rawStatus === "rejected" || order.rawStatus === "cancelled";
+  });
+
+  const handleOrderAction = useCallback(
+    async (orderId: string, status: "accepted" | "rejected") => {
+      try {
+        setActionOrderId(orderId);
+        const result = await partnerUpdateOrderStatus(orderId, status);
+        setOrders((prev) =>
+          prev.map((order) =>
+            order.id === orderId
+              ? {
+                  ...order,
+                  status: status === "rejected" ? "rejected" : "accepted",
+                  rawStatus: result.status,
+                }
+              : order,
+          ),
+        );
+      } catch (error) {
+        Alert.alert(
+          `Unable to ${status === "accepted" ? "accept" : "reject"} order`,
+          error instanceof Error ? error.message : "Please try again.",
+        );
+      } finally {
+        setActionOrderId(null);
+      }
+    },
+    [],
+  );
+
+  const handleCompleteOrder = useCallback(async (orderId: string) => {
+    try {
+      setActionOrderId(orderId);
+      const result = await partnerUpdateOrderStatus(orderId, "completed");
+      setOrders((prev) =>
+        prev.map((order) =>
+          order.id === orderId
+            ? {
+                ...order,
+                status: "completed",
+                rawStatus: result.status,
+              }
+            : order,
+        ),
+      );
+    } catch (error) {
+      Alert.alert(
+        "Unable to complete order",
+        error instanceof Error ? error.message : "Please try again.",
+      );
+    } finally {
+      setActionOrderId(null);
+    }
+  }, []);
 
   return (
     <View style={styles.container}>
@@ -173,167 +153,104 @@ export default function PartnerOrderScreen() {
           leftIcon="arrow-left"
           onLeftPress={() => router.back()}
           leftAccessibilityLabel={s.title}
-          rightElement={headerRightMonthOnly}
         />
       </SafeAreaView>
 
-      {/* Section heading left, filter button right, space between */}
-      <View style={styles.headingRow}>
-        <Text style={styles.sectionHeading} numberOfLines={1}>
-          {sectionHeading}
-        </Text>
-        <View ref={filterTriggerRef} collapsable={false}>
-        <Pressable
-          onPress={openFilterModal}
-          style={({ pressed }) => [
-            styles.filterTrigger,
-            pressed && styles.pressed,
-          ]}
-          accessibilityRole="button"
-          accessibilityLabel={s.filterLabel}
-        >
-          <Text style={styles.filterTriggerText} numberOfLines={1}>
-            {filterLabels[orderFilter]}
-          </Text>
-          <MaterialCommunityIcons
-            name="chevron-down"
-            size={20}
-            color={c.white}
-          />
-        </Pressable>
-        </View>
-      </View>
-
       <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.filterScroll}
+        contentContainerStyle={styles.filterRow}
       >
-        {filteredOrders.length === 0 ? (
+        {(Object.keys(filterLabels) as OrderFilter[]).map((key) => {
+          const selected = orderFilter === key;
+          return (
+            <Pressable
+              key={key}
+              onPress={() => setOrderFilter(key)}
+              style={({ pressed }) => [
+                styles.filterChip,
+                selected && styles.filterChipSelected,
+                pressed && styles.pressed,
+              ]}
+              accessibilityRole="button"
+              accessibilityState={{ selected }}
+              accessibilityLabel={`${filterLabels[key]} orders`}
+            >
+              <Text
+                style={[
+                  styles.filterChipText,
+                  selected && styles.filterChipTextSelected,
+                ]}
+                numberOfLines={1}
+              >
+                {filterLabels[key]}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        {isLoading ? (
+          <View style={styles.emptyWrap}>
+            <Text style={styles.emptyText}>Loading orders...</Text>
+          </View>
+        ) : filteredOrders.length === 0 ? (
           <View style={styles.emptyWrap}>
             <Text style={styles.emptyText}>{s.emptyList}</Text>
           </View>
         ) : (
-          filteredOrders.map((order) => (
-            <OrderCard
-              key={order.id}
-              customerName={order.customerName}
-              initial={order.initial}
-              subtitle={requestedPickupText(order.date, order.time)}
-              rightIcon={order.rightIcon ?? "none"}
-              onPress={() =>
-                router.push({
-                  pathname: "/(partner)/order-detail",
-                  params: { orderId: order.id },
-                })
-              }
-            />
-          ))
+          filteredOrders.map((order) => {
+            const detailRows = [
+              { label: s.cardEstTotal, value: order.estimatedTotalLabel },
+              ...(order.servicesSummary
+                ? [{ label: s.cardServices, value: order.servicesSummary }]
+                : []),
+              ...(order.addressPreview
+                ? [{ label: s.cardAddress, value: order.addressPreview }]
+                : []),
+            ];
+            const canComplete =
+              order.rawStatus === "accepted" ||
+              order.rawStatus === "in_progress" ||
+              order.rawStatus === "ready";
+
+            return (
+              <OrderCard
+                key={order.id}
+                customerName={order.customerName}
+                initial={order.initial}
+                subtitle={order.subtitle}
+                rightIcon={order.rightIcon ?? "none"}
+                statusLabel={order.status}
+                detailRows={detailRows}
+                onAccept={
+                  order.status === "pending"
+                    ? () => handleOrderAction(order.id, "accepted")
+                    : undefined
+                }
+                onReject={
+                  order.status === "pending"
+                    ? () => handleOrderAction(order.id, "rejected")
+                    : undefined
+                }
+                onComplete={
+                  canComplete ? () => handleCompleteOrder(order.id) : undefined
+                }
+                completeLabel={s.completeOrder}
+                actionsDisabled={actionOrderId === order.id}
+                onPress={() =>
+                  router.push({
+                    pathname: "/(partner)/order-detail",
+                    params: { orderId: order.id },
+                  })
+                }
+              />
+            );
+          })
         )}
       </ScrollView>
-
-      {/* Status filter popup – positioned just below filter button */}
-      <Modal
-        visible={filterOpen}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setFilterOpen(false)}
-      >
-        <Pressable
-          style={styles.modalOverlay}
-          onPress={() => setFilterOpen(false)}
-        >
-          {filterDropdownPos != null && (
-            <View
-              style={[
-                styles.filterPopup,
-                {
-                  position: "absolute",
-                  top: filterDropdownPos.top,
-                  right: filterDropdownPos.right,
-                },
-              ]}
-              onStartShouldSetResponder={() => true}
-            >
-            {(Object.keys(filterLabels) as DemoOrderStatus[]).map((key) => (
-              <Pressable
-                key={key}
-                onPress={() => handleSelectFilter(key)}
-                style={({ pressed }) => [
-                  styles.filterOption,
-                  orderFilter === key && styles.filterOptionSelected,
-                  pressed && styles.pressed,
-                ]}
-              >
-                <Text style={styles.filterOptionText}>
-                  {filterLabels[key]}
-                </Text>
-                {orderFilter === key && (
-                  <MaterialCommunityIcons
-                    name="check"
-                    size={20}
-                    color={c.outline}
-                  />
-                )}
-              </Pressable>
-            ))}
-            </View>
-          )}
-        </Pressable>
-      </Modal>
-
-      {/* Month filter popup – positioned just below header month pill */}
-      <Modal
-        visible={monthOpen}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setMonthOpen(false)}
-      >
-        <Pressable
-          style={styles.modalOverlay}
-          onPress={() => setMonthOpen(false)}
-        >
-          {monthDropdownPos != null && (
-            <ScrollView
-              style={[
-                styles.monthScrollAnchored,
-                {
-                  position: "absolute",
-                  top: monthDropdownPos.top,
-                  right: monthDropdownPos.right,
-                },
-              ]}
-              contentContainerStyle={styles.monthPopupContent}
-              showsVerticalScrollIndicator={false}
-            >
-              <View style={styles.monthPopup} onStartShouldSetResponder={() => true}>
-                {MONTH_KEYS.map((key) => (
-                  <Pressable
-                    key={key}
-                    onPress={() => handleSelectMonth(key)}
-                    style={({ pressed }) => [
-                      styles.filterOption,
-                      monthKey === key && styles.filterOptionSelected,
-                      pressed && styles.pressed,
-                    ]}
-                  >
-                    <Text style={styles.filterOptionText}>
-                      {getMonthLabel(s, key)}
-                    </Text>
-                    {monthKey === key && (
-                      <MaterialCommunityIcons
-                        name="check"
-                        size={20}
-                        color={c.outline}
-                      />
-                    )}
-                  </Pressable>
-                ))}
-              </View>
-            </ScrollView>
-          )}
-        </Pressable>
-      </Modal>
     </View>
   );
 }
@@ -346,55 +263,39 @@ const styles = StyleSheet.create({
   safeArea: {
     paddingBottom: 8,
   },
-  /** Single pill – month only in header top-right */
-  headerFilterPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 999,
-    backgroundColor: c.blue900,
-    borderWidth: 1,
-    borderColor: c.outline,
-  },
-  headerFilterText: {
-    fontSize: fs.smallText,
-    fontWeight: "500",
-    color: c.white,
-  },
   pressed: { opacity: 0.85 },
-  /** Heading left, filter right, space-between */
-  headingRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: H_PAD,
+  filterScroll: {
+    flexGrow: 0,
     marginBottom: 12,
+    maxHeight: 44,
   },
-  filterTrigger: {
+  filterRow: {
     flexDirection: "row",
     alignItems: "center",
-    flexShrink: 0,
-    gap: 6,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
+    gap: 8,
+    paddingHorizontal: H_PAD,
+    paddingVertical: 2,
+  },
+  filterChip: {
+    paddingVertical: 8,
+    paddingHorizontal: 14,
     borderRadius: 999,
-    backgroundColor: c.blue900,
     borderWidth: 1,
+    borderColor: "rgba(171, 233, 254, 0.45)",
+    backgroundColor: "transparent",
+  },
+  filterChipSelected: {
+    backgroundColor: c.blue900,
     borderColor: c.outline,
   },
-  filterTriggerText: {
-    fontSize: fs.smallText,
+  filterChipText: {
+    fontSize: fs.descText,
     fontWeight: "500",
-    color: c.white,
+    color: c.blue500,
   },
-  sectionHeading: {
-    flex: 1,
-    marginRight: 12,
-    fontSize: fs.titleMedium,
-    fontWeight: "600",
+  filterChipTextSelected: {
     color: c.white,
+    fontWeight: "600",
   },
   scroll: {
     flex: 1,
@@ -412,53 +313,5 @@ const styles = StyleSheet.create({
     fontSize: fs.smallText,
     color: c.blue500,
     textAlign: "center",
-  },
-  /** No background shadow – transparent so dropdowns only show. */
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "transparent",
-  },
-  /** Dropdown under filter button – top/right set from measureInWindow */
-  filterPopup: {
-    backgroundColor: c.blue900,
-    borderRadius: 20,
-    minWidth: 200,
-    maxHeight: 320,
-    borderWidth: 1,
-    borderColor: c.modalBorder,
-    overflow: "hidden",
-  },
-  filterOption: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: 14,
-    paddingHorizontal: 18,
-    gap: 10,
-  },
-  filterOptionSelected: {
-    backgroundColor: "rgba(59, 127, 149, 0.35)",
-  },
-  filterOptionText: {
-    fontSize: fs.smallText,
-    fontWeight: "500",
-    color: c.white,
-  },
-  /** Month list below header pill – absolute top/right from measureInWindow */
-  monthScrollAnchored: {
-    maxHeight: 320,
-    minWidth: 180,
-  },
-  monthPopupContent: {
-    borderRadius: 20,
-    overflow: "hidden",
-  },
-  monthPopup: {
-    backgroundColor: c.blue900,
-    borderRadius: 20,
-    minWidth: 180,
-    borderWidth: 1,
-    borderColor: c.modalBorder,
-    overflow: "hidden",
   },
 });
