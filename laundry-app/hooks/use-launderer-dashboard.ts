@@ -211,61 +211,7 @@ export function useLaundererDashboard(
 
       const now = new Date();
       const { starts: chartBucketStarts, labels: chartLabels } = buildChartBuckets(period, now);
-      const chartStart = chartBucketStarts[0];
-      const deductionChartValues = [0, 0, 0, 0, 0, 0, 0];
       const earningsChartValues = [0, 0, 0, 0, 0, 0, 0];
-
-      const { data: ledgerRows, error: ledgerError } = await supabase
-        .from("partner_credit_ledger")
-        .select("delta,created_at,event_type,metadata")
-        .eq("partner_id", user.id)
-        .eq("event_type", "order_charge")
-        .gte("created_at", chartStart.toISOString())
-        .order("created_at", { ascending: false });
-
-      if (ledgerError) throw new Error(ledgerError.message);
-
-      const orderStatusById = new Map<string, string>();
-      for (const row of rows) {
-        if (row.id) orderStatusById.set(String(row.id), String(row.status ?? ""));
-      }
-
-      const completedLedgerRows = (ledgerRows ?? []).filter((row) => {
-        const metadata = (row.metadata ?? {}) as { order_id?: string };
-        const orderId = metadata.order_id ? String(metadata.order_id) : "";
-        return orderStatusById.get(orderId) === "completed";
-      });
-
-      for (const row of completedLedgerRows) {
-        const createdAt = row.created_at ? new Date(row.created_at) : null;
-        if (!createdAt) continue;
-        const bucketIndex = findBucketIndex(chartBucketStarts, createdAt);
-        if (bucketIndex < 0 || bucketIndex > 6) continue;
-        deductionChartValues[bucketIndex] += Math.abs(Number(row.delta ?? 0));
-      }
-
-      const latestOrderDeduction =
-        Math.abs(Number(completedLedgerRows?.[0]?.delta ?? 0)) || 0;
-
-      const recentCompletedOrderDeductions = completedLedgerRows
-        .slice(0, 2)
-        .map((row) => {
-          const metadata = (row.metadata ?? {}) as {
-            order_id?: string;
-            order_amount?: number;
-          };
-          return {
-            orderId: metadata.order_id ? String(metadata.order_id) : "unknown",
-            deductedTokens: Math.abs(Number(row.delta ?? 0)),
-            orderAmount: Number(metadata.order_amount ?? 0),
-            chargedAtIso: String(row.created_at ?? new Date().toISOString()),
-          };
-        });
-
-      const completedOrderDeductionsTotal = completedLedgerRows.reduce(
-        (sum, row) => sum + Math.abs(Number(row.delta ?? 0)),
-        0,
-      );
 
       const getOrderEarningAmount = (row: (typeof completedOrders)[number]): number => {
         const base = row.estimated_total ?? row.estimated_partial_total ?? 0;
@@ -297,16 +243,6 @@ export function useLaundererDashboard(
         .sort((a, b) => new Date(b.earnedAtIso).getTime() - new Date(a.earnedAtIso).getTime())
         .slice(0, 2);
 
-      const { data: creditAccount, error: creditError } = await supabase
-        .from("partner_credit_accounts")
-        .select("balance")
-        .eq("partner_id", user.id)
-        .maybeSingle<{ balance: number }>();
-
-      if (creditError) throw new Error(creditError.message);
-
-      const balance = creditAccount?.balance ?? 0;
-
       const nextData: LaundererDashboardData = {
         numberOfUsers,
         dropOff: {
@@ -324,11 +260,6 @@ export function useLaundererDashboard(
         totalIncome,
         dropOffIncome,
         deliveryIncome,
-        balance,
-        latestOrderDeduction,
-        completedOrderDeductionsTotal,
-        recentCompletedOrderDeductions,
-        chartValues: toChartValues(deductionChartValues),
         earningsChartValues: toChartValues(earningsChartValues),
         chartLabels,
         recentCompletedEarnings,

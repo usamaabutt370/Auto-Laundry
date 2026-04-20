@@ -19,7 +19,9 @@ import { assets } from "@/assets/assets";
 import { PartnerHeader } from "@/components/partner-header";
 import { theme } from "@/constants/theme";
 import { useAuth } from "@/contexts/auth-context";
+import { useLocale } from "@/contexts/locale-context";
 import { avatarUrlWithCacheBuster } from "@/lib/avatar";
+import { getStrings } from "@/locales";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import type { UserRole } from "@/types/user";
 
@@ -54,12 +56,15 @@ type PartnerServiceRow = {
 export function PartnerProfileScreen() {
   const router = useRouter();
   const { user, refreshRole } = useAuth();
+  const { locale } = useLocale();
+  const sDashboard = getStrings(locale).partner.dashboard;
   const [loading, setLoading] = useState(true);
   const [updatingRole, setUpdatingRole] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [profileRole, setProfileRole] = useState<string | null>(null);
   const [partnerProfile, setPartnerProfile] = useState<PartnerProfileRow | null>(null);
   const [services, setServices] = useState<PartnerServiceRow[]>([]);
+  const [tokenBalance, setTokenBalance] = useState<number>(0);
 
   const loadData = useCallback(async () => {
     if (!isSupabaseConfigured() || !supabase || !user?.id) {
@@ -73,6 +78,7 @@ export function PartnerProfileScreen() {
         partnerCoreRes,
         partnerImageRes,
         { data: serviceData },
+        creditAccountRes,
       ] = await Promise.all([
         supabase.from("profiles").select("role").eq("id", user.id).maybeSingle<{ role: string | null }>(),
         supabase
@@ -93,6 +99,11 @@ export function PartnerProfileScreen() {
           .select("name,price_display,category")
           .eq("user_id", user.id)
           .order("created_at", { ascending: true }),
+        supabase
+          .from("partner_credit_accounts")
+          .select("balance")
+          .eq("partner_id", user.id)
+          .maybeSingle<{ balance: number }>(),
       ]);
       setProfileRole(pData?.role ?? null);
       const core = partnerCoreRes.data;
@@ -104,6 +115,7 @@ export function PartnerProfileScreen() {
         core ? { ...core, image_url: imageUrl } : null
       );
       setServices((serviceData ?? []) as PartnerServiceRow[]);
+      setTokenBalance(Number(creditAccountRes.data?.balance ?? 0));
     } finally {
       setLoading(false);
     }
@@ -255,6 +267,13 @@ export function PartnerProfileScreen() {
         </Pressable>
 
         <View style={styles.card}>
+          <Text style={styles.section}>{sDashboard.tokenBalance}</Text>
+          <Text style={styles.tokenValue}>
+            {tokenBalance} {sDashboard.tokensUnit}
+          </Text>
+        </View>
+
+        <View style={styles.card}>
           <Text style={styles.section}>Business details</Text>
           <Text style={styles.rowLabel}>Business name</Text>
           <Text style={styles.rowValue}>{partnerProfile?.business_name || "-"}</Text>
@@ -340,6 +359,7 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   section: { color: c.white, fontSize: fs.smallTitle, fontWeight: "700", marginBottom: 10 },
+  tokenValue: { color: c.white, fontSize: fs.titleMedium, fontWeight: "700" },
   rowLabel: { color: c.blue500, fontSize: fs.descText, marginTop: 6 },
   rowValue: { color: c.white, fontSize: fs.smallText },
   group: { marginBottom: 8 },
