@@ -440,7 +440,6 @@ export default function PartnerOrderDetailScreen() {
         
         <View style={styles.bottomSpacing} />
       </ScrollView>
-    </KeyboardAvoidingView>
     </View>
   );
 }
