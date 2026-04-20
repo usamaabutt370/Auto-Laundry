@@ -29,6 +29,14 @@ function formatMoney(value: number): string {
   }).format(value);
 }
 
+function formatMoneyCompact(value: number): string {
+  if (value >= 1000) {
+    const compact = value / 1000;
+    return `$${compact % 1 === 0 ? compact.toFixed(0) : compact.toFixed(1)}k`;
+  }
+  return `$${Math.round(value)}`;
+}
+
 function formatCount(value: number): string {
   return new Intl.NumberFormat("en-US", {
     maximumFractionDigits: 0,
@@ -119,6 +127,7 @@ export default function PartnerDashboardScreen() {
   const [period, setPeriod] = useState<DashboardPeriod>("week");
 
   const { data, refresh } = useLaundererDashboard(true, period);
+  const earningsTotalForPeriod = data.earningsChartValues.reduce((sum, value) => sum + value, 0);
 
   const subtitle = `${s.numberOfUsers}: ${data.numberOfUsers}`;
 
@@ -190,13 +199,67 @@ export default function PartnerDashboardScreen() {
         </View>
 
         <View style={styles.balanceCard}>
+          <Text style={styles.balanceLabel}>{s.earningsGraphLabel}</Text>
+          <Text style={styles.earningsTotalLabel}>
+            {s.periodEarningsTotal}: {formatMoney(earningsTotalForPeriod)}
+          </Text>
+          <View style={styles.chartWrap}>
+            <DashboardChart
+              values={data.earningsChartValues}
+              labels={data.chartLabels}
+              showPointLabels
+              valueLabelFormatter={formatMoneyCompact}
+              hideZeroPointLabels
+            />
+          </View>
+          <View style={styles.earningsListWrap}>
+            <Text style={styles.deductionListTitle}>{s.recentEarnings}</Text>
+            {data.recentCompletedEarnings.length === 0 ? (
+              <Text style={styles.deductionEmpty}>{s.noRecentEarnings}</Text>
+            ) : (
+              data.recentCompletedEarnings.map((item) => (
+                <Pressable
+                  key={`${item.orderId}-${item.earnedAtIso}`}
+                  onPress={() =>
+                    router.push({
+                      pathname: "/(partner)/order-detail",
+                      params: { orderId: item.orderId },
+                    })
+                  }
+                  style={({ pressed }) => [styles.deductionRow, pressed && styles.serviceCardPressed]}
+                >
+                  <View style={styles.deductionRowLeft}>
+                    <Text style={styles.deductionOrderId}>
+                      {s.orderIdLabel}: {item.orderId.slice(0, 8)}
+                    </Text>
+                    <Text style={styles.deductionMeta}>
+                      {formatShortDate(item.earnedAtIso)} • {s.viewOrderDetails}
+                    </Text>
+                  </View>
+                  <Text style={styles.earningAmount}>{formatMoney(item.earnedAmount)}</Text>
+                </Pressable>
+              ))
+            )}
+            <Pressable
+              onPress={() => router.push("/(partner)/earnings-history")}
+              style={({ pressed }) => [
+                styles.viewAllBtn,
+                pressed && styles.serviceCardPressed,
+              ]}
+            >
+              <Text style={styles.viewAllBtnText}>{s.viewAllEarnings}</Text>
+            </Pressable>
+          </View>
+        </View>
+
+        <View style={styles.balanceCard}>
           <Text style={styles.balanceLabel}>{s.tokenBalance}</Text>
           <Text style={styles.balanceValue}>
             {formatCount(data.balance)} {s.tokensUnit}
           </Text>
           <Text style={styles.tokenChartLabel}>{s.deductionGraphLabel}</Text>
           <View style={styles.chartWrap}>
-            <DashboardChart values={data.chartValues} />
+            <DashboardChart values={data.chartValues} labels={data.chartLabels} />
           </View>
           <View style={styles.deductionListWrap}>
             <Text style={styles.deductionListTitle}>{s.recentCompletedDeductions}</Text>
@@ -284,7 +347,7 @@ const styles = StyleSheet.create({
     width: 88,
     height: 88,
     borderRadius: 44,
-    backgroundColor: c.blue800,
+    backgroundColor: c.blue900,
     borderWidth: 1,
     borderColor: c.outline,
     alignItems: "center",
@@ -362,6 +425,12 @@ const styles = StyleSheet.create({
     marginTop: 8,
     width: "100%",
   },
+  earningsTotalLabel: {
+    marginTop: 2,
+    fontSize: fs.xxSmallText,
+    color: c.white,
+    fontWeight: "600",
+  },
   tokenChartLabel: {
     marginTop: 10,
     fontSize: fs.xxSmallText,
@@ -369,6 +438,13 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   deductionListWrap: {
+    marginTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: c.outline,
+    paddingTop: 12,
+    gap: 10,
+  },
+  earningsListWrap: {
     marginTop: 12,
     borderTopWidth: 1,
     borderTopColor: c.outline,
@@ -411,6 +487,11 @@ const styles = StyleSheet.create({
     color: c.white,
     fontWeight: "700",
   },
+  earningAmount: {
+    fontSize: fs.descText,
+    color: c.white,
+    fontWeight: "700",
+  },
   deductionDetailLink: {
     marginTop: 4,
     fontSize: fs.xxSmallText,
@@ -426,7 +507,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: c.outline,
     borderRadius: 999,
-    backgroundColor: c.blue800,
+    backgroundColor: c.blue900,
   },
   viewAllBtnText: {
     color: c.white,

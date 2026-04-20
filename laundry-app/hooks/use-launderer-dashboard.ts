@@ -13,6 +13,87 @@ export interface UseLaundererDashboardResult {
   refresh: () => Promise<void>;
 }
 
+type ChartValues = [number, number, number, number, number, number, number];
+type ChartLabels = [string, string, string, string, string, string, string];
+
+function startOfDay(date: Date): Date {
+  const next = new Date(date);
+  next.setHours(0, 0, 0, 0);
+  return next;
+}
+
+function startOfWeekMonday(date: Date): Date {
+  const next = startOfDay(date);
+  const day = next.getDay();
+  const offset = (day + 6) % 7;
+  next.setDate(next.getDate() - offset);
+  return next;
+}
+
+function startOfMonth(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), 1);
+}
+
+function addDays(date: Date, days: number): Date {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+function addWeeks(date: Date, weeks: number): Date {
+  return addDays(date, weeks * 7);
+}
+
+function addMonths(date: Date, months: number): Date {
+  return new Date(date.getFullYear(), date.getMonth() + months, 1);
+}
+
+function toChartValues(values: number[]): ChartValues {
+  return values as ChartValues;
+}
+
+function toChartLabels(values: string[]): ChartLabels {
+  return values as ChartLabels;
+}
+
+function buildChartBuckets(
+  period: DashboardPeriod,
+  now: Date,
+): { starts: Date[]; labels: ChartLabels } {
+  if (period === "year") {
+    const monthFmt = new Intl.DateTimeFormat("en-US", { month: "short" });
+    const currentMonthStart = startOfMonth(now);
+    const starts = Array.from({ length: 7 }, (_, i) => addMonths(currentMonthStart, i - 6));
+    return { starts, labels: toChartLabels(starts.map((d) => monthFmt.format(d))) };
+  }
+
+  if (period === "month") {
+    const weekFmt = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" });
+    const currentWeekStart = startOfWeekMonday(now);
+    const starts = Array.from({ length: 7 }, (_, i) => addWeeks(currentWeekStart, i - 6));
+    return { starts, labels: toChartLabels(starts.map((d) => weekFmt.format(d))) };
+  }
+
+  const dayFmt = new Intl.DateTimeFormat("en-US", { weekday: "short" });
+  const todayStart = startOfDay(now);
+  const starts = Array.from({ length: 7 }, (_, i) => addDays(todayStart, i - 6));
+  return { starts, labels: toChartLabels(starts.map((d) => dayFmt.format(d))) };
+}
+
+function findBucketIndex(starts: Date[], valueDate: Date): number {
+  const value = valueDate.getTime();
+  for (let i = 0; i < starts.length; i++) {
+    const startMs = starts[i].getTime();
+    const nextStartMs = starts[i + 1]?.getTime();
+    if (nextStartMs == null) {
+      if (value >= startMs) return i;
+      continue;
+    }
+    if (value >= startMs && value < nextStartMs) return i;
+  }
+  return -1;
+}
+
 /**
  * Returns launderer dashboard data for the Partner Dashboard screen.
  *
@@ -41,7 +122,7 @@ export function useLaundererDashboard(
       const { data: orders, error: ordersError } = await supabase
         .from("customer_orders")
         .select(
-          "id,status,estimated_total,estimated_partial_total,pickup_fee,pickup_day_label,pickup_time_slot_label,delivery_day_label,delivery_time_slot_label,submitted_at"
+          "id,status,estimated_total,estimated_partial_total,pickup_fee,pickup_day_label,pickup_time_slot_label,delivery_day_label,delivery_time_slot_label,submitted_at,created_at,updated_at"
         )
         .eq("partner_id", user.id);
 
@@ -128,13 +209,11 @@ export function useLaundererDashboard(
         breakDownServices(deliveryIds),
       ]);
 
-      const today = new Date();
-      const chartStart = new Date();
-      chartStart.setDate(today.getDate() - 6);
-      chartStart.setHours(0, 0, 0, 0);
-
-      const chartValues: [number, number, number, number, number, number, number] =
-        [0, 0, 0, 0, 0, 0, 0];
+      const now = new Date();
+      const { starts: chartBucketStarts, labels: chartLabels } = buildChartBuckets(period, now);
+      const chartStart = chartBucketStarts[0];
+      const deductionChartValues = [0, 0, 0, 0, 0, 0, 0];
+      const earningsChartValues = [0, 0, 0, 0, 0, 0, 0];
 
       const { data: ledgerRows, error: ledgerError } = await supabase
         .from("partner_credit_ledger")
@@ -160,12 +239,9 @@ export function useLaundererDashboard(
       for (const row of completedLedgerRows) {
         const createdAt = row.created_at ? new Date(row.created_at) : null;
         if (!createdAt) continue;
-        const diffDays = Math.floor(
-          (createdAt.getTime() - chartStart.getTime()) / (1000 * 60 * 60 * 24),
-        );
-        if (diffDays >= 0 && diffDays < 7) {
-          chartValues[diffDays] += Math.abs(Number(row.delta ?? 0));
-        }
+        const bucketIndex = findBucketIndex(chartBucketStarts, createdAt);
+        if (bucketIndex < 0 || bucketIndex > 6) continue;
+        deductionChartValues[bucketIndex] += Math.abs(Number(row.delta ?? 0));
       }
 
       const latestOrderDeduction =
@@ -190,6 +266,36 @@ export function useLaundererDashboard(
         (sum, row) => sum + Math.abs(Number(row.delta ?? 0)),
         0,
       );
+
+      const getOrderEarningAmount = (row: (typeof completedOrders)[number]): number => {
+        const base = row.estimated_total ?? row.estimated_partial_total ?? 0;
+        const pickupFee = row.pickup_fee ?? 0;
+        return Number(base) + Number(pickupFee);
+      };
+      const getOrderTimelineDate = (row: (typeof completedOrders)[number]): Date | null => {
+        const raw = row.submitted_at ?? row.created_at ?? row.updated_at ?? null;
+        if (!raw) return null;
+        const parsed = new Date(raw);
+        return Number.isNaN(parsed.getTime()) ? null : parsed;
+      };
+
+      for (const row of completedOrders) {
+        const timelineDate = getOrderTimelineDate(row);
+        if (!timelineDate) continue;
+        const bucketIndex = findBucketIndex(chartBucketStarts, timelineDate);
+        if (bucketIndex < 0 || bucketIndex > 6) continue;
+        earningsChartValues[bucketIndex] += getOrderEarningAmount(row);
+      }
+
+      const recentCompletedEarnings = completedOrders
+        .map((row) => ({
+          orderId: row.id ? String(row.id) : "unknown",
+          earnedAmount: getOrderEarningAmount(row),
+          earnedAtIso:
+            getOrderTimelineDate(row)?.toISOString() ?? new Date().toISOString(),
+        }))
+        .sort((a, b) => new Date(b.earnedAtIso).getTime() - new Date(a.earnedAtIso).getTime())
+        .slice(0, 2);
 
       const { data: creditAccount, error: creditError } = await supabase
         .from("partner_credit_accounts")
@@ -222,7 +328,10 @@ export function useLaundererDashboard(
         latestOrderDeduction,
         completedOrderDeductionsTotal,
         recentCompletedOrderDeductions,
-        chartValues,
+        chartValues: toChartValues(deductionChartValues),
+        earningsChartValues: toChartValues(earningsChartValues),
+        chartLabels,
+        recentCompletedEarnings,
       };
 
       setData(nextData);

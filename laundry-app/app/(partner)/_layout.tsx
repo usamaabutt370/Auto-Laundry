@@ -26,6 +26,7 @@ export default function PartnerLayout() {
           <Stack.Screen name="index" />
           <Stack.Screen name="dashboard-orders" />
           <Stack.Screen name="token-deductions" />
+          <Stack.Screen name="earnings-history" />
           <Stack.Screen name="order" />
           <Stack.Screen name="order-detail" />
           <Stack.Screen name="settings" />

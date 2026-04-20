@@ -1,8 +1,10 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -40,6 +42,7 @@ export default function PartnerOrderScreen() {
   const [orderFilter, setOrderFilter] = useState<OrderFilter>(initialFilter);
   const [orders, setOrders] = useState<PartnerOrderListItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [actionOrderId, setActionOrderId] = useState<string | null>(null);
 
   const filterLabels: Record<OrderFilter, string> = {
@@ -49,9 +52,9 @@ export default function PartnerOrderScreen() {
     rejected: "Rejected",
   };
 
-  const loadOrders = useCallback(async () => {
+  const loadOrders = useCallback(async (showLoader = true) => {
     try {
-      setIsLoading(true);
+      if (showLoader) setIsLoading(true);
       const data = await fetchPartnerOrders();
       setOrders(data);
     } catch (error) {
@@ -60,7 +63,7 @@ export default function PartnerOrderScreen() {
         error instanceof Error ? error.message : "Please try again.",
       );
     } finally {
-      setIsLoading(false);
+      if (showLoader) setIsLoading(false);
     }
   }, []);
 
@@ -70,9 +73,18 @@ export default function PartnerOrderScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      void loadOrders();
+      void loadOrders(true);
     }, [loadOrders]),
   );
+
+  const handleRefresh = useCallback(async () => {
+    try {
+      setIsRefreshing(true);
+      await loadOrders(false);
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [loadOrders]);
 
   const filteredOrders = orders.filter((order) => {
     if (orderFilter === "pending") {
@@ -191,9 +203,24 @@ export default function PartnerOrderScreen() {
         })}
       </ScrollView>
 
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {isLoading ? (
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={() => void handleRefresh()}
+            tintColor="#FFFFFF"
+            colors={["#FFFFFF"]}
+            progressBackgroundColor={c.blue900}
+            progressViewOffset={8}
+          />
+        }
+      >
+        {isLoading && !isRefreshing ? (
           <View style={styles.emptyWrap}>
+            <ActivityIndicator color={c.white} />
             <Text style={styles.emptyText}>Loading orders...</Text>
           </View>
         ) : filteredOrders.length === 0 ? (

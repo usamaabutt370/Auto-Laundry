@@ -46,6 +46,7 @@ export default function CustomerOrderScreen() {
   const { locale } = useLocale();
   const s = getStrings(locale).customer.ordersTab;
   const { orders, loading, error, refresh, deleteOrder } = useCustomerOrders(user?.id);
+  const isRefreshing = loading && orders.length > 0;
 
   const onRefresh = useCallback(() => {
     void refresh();
@@ -141,9 +142,12 @@ export default function CustomerOrderScreen() {
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
-              refreshing={loading && orders.length > 0}
+              refreshing={isRefreshing}
               onRefresh={onRefresh}
-              tintColor={c.white}
+              tintColor="#FFFFFF"
+              colors={["#FFFFFF"]}
+              progressBackgroundColor={c.blue900}
+              progressViewOffset={8}
             />
           }
         >

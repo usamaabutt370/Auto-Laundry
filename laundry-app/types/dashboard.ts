@@ -10,6 +10,12 @@ export interface PartnerTokenDeductionItem {
   chargedAtIso: string;
 }
 
+export interface PartnerEarningItem {
+  orderId: string;
+  earnedAmount: number;
+  earnedAtIso: string;
+}
+
 export interface LaundererDashboardData {
   numberOfUsers: number;
   dropOff: {
@@ -34,8 +40,14 @@ export interface LaundererDashboardData {
   completedOrderDeductionsTotal: number;
   /** Recent completed-order deductions (latest first). */
   recentCompletedOrderDeductions: PartnerTokenDeductionItem[];
-  /** 7 values for Mon–Sun (M T W T F S S) */
+  /** 7 values for selected period buckets (token deductions). */
   chartValues: [number, number, number, number, number, number, number];
+  /** 7 values for selected period buckets (earnings). */
+  earningsChartValues: [number, number, number, number, number, number, number];
+  /** 7 labels matching selected period buckets. */
+  chartLabels: [string, string, string, string, string, string, string];
+  /** Recent completed-order earnings (latest first). */
+  recentCompletedEarnings: PartnerEarningItem[];
 }
 
 /** Zero state when there is no activity. */
@@ -51,6 +63,9 @@ export const ZERO_DASHBOARD_DATA: LaundererDashboardData = {
   completedOrderDeductionsTotal: 0,
   recentCompletedOrderDeductions: [],
   chartValues: [0, 0, 0, 0, 0, 0, 0],
+  earningsChartValues: [0, 0, 0, 0, 0, 0, 0],
+  chartLabels: ["M", "T", "W", "T", "F", "S", "S"],
+  recentCompletedEarnings: [],
 };
 
 /** Demo data for dashboard UI/chart preview until backend is wired. */
@@ -86,4 +101,18 @@ export const DEMO_DASHBOARD_DATA: LaundererDashboardData = {
   ],
   /** Mon–Sun sample trend for chart. */
   chartValues: [3200, 4800, 4100, 6200, 5500, 7200, 6400],
+  earningsChartValues: [180, 320, 260, 410, 355, 520, 460],
+  chartLabels: ["M", "T", "W", "T", "F", "S", "S"],
+  recentCompletedEarnings: [
+    {
+      orderId: "demo-order-1",
+      earnedAmount: 120,
+      earnedAtIso: new Date().toISOString(),
+    },
+    {
+      orderId: "demo-order-2",
+      earnedAmount: 100,
+      earnedAtIso: new Date().toISOString(),
+    },
+  ],
 };
