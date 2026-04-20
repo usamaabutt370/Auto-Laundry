@@ -1,21 +1,45 @@
 import React, { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
-import Svg, { Defs, LinearGradient, Path, Stop } from "react-native-svg";
+import Svg, {
+  Circle,
+  Defs,
+  LinearGradient,
+  Path,
+  Stop,
+  Text as SvgText,
+} from "react-native-svg";
 
 import { theme } from "@/constants/theme";
 
 const c = theme.colors;
 const fs = theme.fontSize;
 
-const DAY_LABELS = ["M", "T", "W", "T", "F", "S", "S"];
+const DEFAULT_LABELS: [string, string, string, string, string, string, string] = [
+  "M",
+  "T",
+  "W",
+  "T",
+  "F",
+  "S",
+  "S",
+];
 const CHART_HEIGHT = 120;
 const X_LABEL_HEIGHT = 20;
 const PADDING_H = 8;
 const PADDING_TOP = 8;
+const POINT_LABEL_SIDE_PADDING = 20;
 
 interface DashboardChartProps {
-  /** 7 values for Mon–Sun (week). */
+  /** 7 values for selected period buckets. */
   values: [number, number, number, number, number, number, number];
+  /** Optional labels for the 7 buckets. */
+  labels?: [string, string, string, string, string, string, string];
+  /** Show value labels above points for better readability. */
+  showPointLabels?: boolean;
+  /** Optional formatter for point value labels. */
+  valueLabelFormatter?: (value: number) => string;
+  /** Hide labels for zero values to reduce clutter. */
+  hideZeroPointLabels?: boolean;
 }
 
 /** Compute a smooth cubic-bezier SVG path through the data points. */
@@ -38,7 +62,13 @@ function buildPath(
   return d;
 }
 
-export function DashboardChart({ values }: DashboardChartProps) {
+export function DashboardChart({
+  values,
+  labels = DEFAULT_LABELS,
+  showPointLabels = false,
+  valueLabelFormatter,
+  hideZeroPointLabels = false,
+}: DashboardChartProps) {
   const [width, setWidth] = useState(0);
 
   const maxVal = Math.max(...values, 1);
@@ -77,11 +107,50 @@ export function DashboardChart({ values }: DashboardChartProps) {
             strokeLinecap="round"
             strokeLinejoin="round"
           />
+          {points.map((point, idx) => (
+            <Circle key={`point-${idx}`} cx={point.x} cy={point.y} r={2.5} fill={c.white} />
+          ))}
+          {showPointLabels
+            ? points.map((point, idx) => {
+                const rawValue = values[idx];
+                if (hideZeroPointLabels && rawValue === 0) return null;
+                const text = valueLabelFormatter
+                  ? valueLabelFormatter(rawValue)
+                  : String(Math.round(rawValue));
+                const isFirst = idx === 0;
+                const isLast = idx === points.length - 1;
+                const textAnchor = isFirst ? "start" : isLast ? "end" : "middle";
+                const labelX = isFirst
+                  ? point.x + 4
+                  : isLast
+                    ? point.x - 4
+                    : point.x;
+                return (
+                  <SvgText
+                    key={`label-${idx}`}
+                    x={Math.max(
+                      POINT_LABEL_SIDE_PADDING,
+                      Math.min(width - POINT_LABEL_SIDE_PADDING, labelX),
+                    )}
+                    y={Math.max(14, point.y - 10)}
+                    fill={c.white}
+                    fontSize={10}
+                    fontWeight="600"
+                    textAnchor={textAnchor}
+                    stroke={c.blue500}
+                    strokeWidth={0.8}
+                    strokeOpacity={0.55}
+                  >
+                    {text}
+                  </SvgText>
+                );
+              })
+            : null}
         </Svg>
       )}
       {/* X-axis labels */}
       <View style={[styles.labelsRow, { paddingHorizontal: PADDING_H }]}>
-        {DAY_LABELS.map((label, i) => (
+        {labels.map((label, i) => (
           <Text key={i} style={styles.label}>
             {label}
           </Text>

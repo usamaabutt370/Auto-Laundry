@@ -125,7 +125,18 @@ function buildTimeSlots(): string[] {
 const TIME_SLOTS = buildTimeSlots();
 
 const CURRENT_YEAR = new Date().getFullYear();
-const YEAR_OPTIONS = Array.from({ length: 15 }, (_, i) => CURRENT_YEAR - 1 + i); // e.g. 2024–2029
+const CURRENT_MONTH = new Date().getMonth();
+const YEAR_OPTIONS = Array.from({ length: 15 }, (_, i) => CURRENT_YEAR + i);
+
+function startOfDay(date: Date): Date {
+  const next = new Date(date);
+  next.setHours(0, 0, 0, 0);
+  return next;
+}
+
+function isBeforeToday(date: Date, today: Date): boolean {
+  return startOfDay(date).getTime() < startOfDay(today).getTime();
+}
 
 export default function ScheduleDeliveryScreen() {
   const router = useRouter();
@@ -138,48 +149,55 @@ export default function ScheduleDeliveryScreen() {
   const now = new Date();
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth());
-  const [selectedDateIndex, setSelectedDateIndex] = useState(
-    Math.min(
-      now.getDate() - 1,
-      new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate() - 1,
-    ),
-  );
+  const [selectedDateIndex, setSelectedDateIndex] = useState(0);
   const [monthPickerVisible, setMonthPickerVisible] = useState(false);
   const [yearPickerVisible, setYearPickerVisible] = useState(false);
 
   const today = useMemo(() => new Date(), []);
-  const datesInMonth = useMemo(
+  const allDatesInMonth = useMemo(
     () => getDatesForMonth(selectedYear, selectedMonth),
     [selectedYear, selectedMonth],
   );
+  const datesInMonth = useMemo(
+    () => allDatesInMonth.filter((item) => !isBeforeToday(item.date, today)),
+    [allDatesInMonth, today],
+  );
+  const safeSelectedDateIndex =
+    datesInMonth.length === 0
+      ? 0
+      : Math.max(0, Math.min(selectedDateIndex, datesInMonth.length - 1));
   const dayLabel = useMemo(
     () =>
       getDayLabel(
-        datesInMonth[selectedDateIndex]?.date ?? today,
+        datesInMonth[safeSelectedDateIndex]?.date ?? today,
         today,
         s.today,
         s.tomorrow,
       ),
-    [datesInMonth, selectedDateIndex, today, s.today, s.tomorrow],
+    [datesInMonth, safeSelectedDateIndex, today, s.today, s.tomorrow],
   );
   const timeSlotLabel =
     TIME_SLOTS[selectedTimeSlotIndex] ?? s.timeSlotPlaceholder;
 
   const selectMonth = (monthIndex: number) => {
+    if (selectedYear === CURRENT_YEAR && monthIndex < CURRENT_MONTH) return;
     setSelectedMonth(monthIndex);
     setSelectedDateIndex(0);
     setMonthPickerVisible(false);
   };
 
   const selectYear = (year: number) => {
+    if (year < CURRENT_YEAR) return;
     setSelectedYear(year);
-    const daysInNewMonth = new Date(year, selectedMonth + 1, 0).getDate();
-    setSelectedDateIndex((prev) => Math.min(prev, daysInNewMonth - 1));
+    if (year === CURRENT_YEAR && selectedMonth < CURRENT_MONTH) {
+      setSelectedMonth(CURRENT_MONTH);
+    }
+    setSelectedDateIndex(0);
     setYearPickerVisible(false);
   };
 
   const handleConfirm = () => {
-    const selectedDate = datesInMonth[selectedDateIndex]?.date ?? today;
+    const selectedDate = datesInMonth[safeSelectedDateIndex]?.date ?? today;
     const y = selectedDate.getFullYear();
     const m = selectedDate.getMonth();
     const d = selectedDate.getDate();
@@ -263,7 +281,7 @@ export default function ScheduleDeliveryScreen() {
             contentContainerStyle={styles.dateRow}
           >
             {datesInMonth.map((item, index) => {
-              const isSelected = selectedDateIndex === index;
+              const isSelected = safeSelectedDateIndex === index;
               return (
                 <Pressable
                   key={index}
@@ -357,13 +375,21 @@ export default function ScheduleDeliveryScreen() {
               style={styles.monthPickerList}
               showsVerticalScrollIndicator={false}
             >
-              {MONTH_NAMES_EN.map((name, index) => (
+              {MONTH_NAMES_EN.map((name, index) => {
+                const isPastMonthInCurrentYear =
+                  selectedYear === CURRENT_YEAR && index < CURRENT_MONTH;
+                return (
                 <Pressable
                   key={index}
-                  onPress={() => selectMonth(index)}
+                  onPress={() => {
+                    if (isPastMonthInCurrentYear) return;
+                    selectMonth(index);
+                  }}
+                  disabled={isPastMonthInCurrentYear}
                   style={[
                     styles.monthPickerOption,
                     selectedMonth === index && styles.monthPickerOptionSelected,
+                    isPastMonthInCurrentYear && styles.pickerOptionDisabled,
                   ]}
                 >
                   <Text
@@ -383,7 +409,7 @@ export default function ScheduleDeliveryScreen() {
                     />
                   )}
                 </Pressable>
-              ))}
+              )})}
             </ScrollView>
             <Pressable
               style={({ pressed }) => [
@@ -690,6 +716,9 @@ const styles = StyleSheet.create({
   },
   monthPickerOptionTextSelected: {
     fontWeight: "700",
+  },
+  pickerOptionDisabled: {
+    opacity: 0.45,
   },
   monthPickerClose: {
     marginTop: 12,

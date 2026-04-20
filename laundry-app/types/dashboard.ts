@@ -3,6 +3,19 @@
  * When you have DB data: map your rows to this type (e.g. one object with these fields)
  * and return it from useLaundererDashboard() – the UI will use it directly. No extra wiring.
  */
+export interface PartnerTokenDeductionItem {
+  orderId: string;
+  deductedTokens: number;
+  orderAmount: number;
+  chargedAtIso: string;
+}
+
+export interface PartnerEarningItem {
+  orderId: string;
+  earnedAmount: number;
+  earnedAtIso: string;
+}
+
 export interface LaundererDashboardData {
   numberOfUsers: number;
   dropOff: {
@@ -21,8 +34,20 @@ export interface LaundererDashboardData {
   dropOffIncome: number;
   deliveryIncome: number;
   balance: number;
-  /** 7 values for Mon–Sun (M T W T F S S) */
+  /** Most recent token deduction value for one accepted order. */
+  latestOrderDeduction: number;
+  /** Sum of token deductions tied to completed orders. */
+  completedOrderDeductionsTotal: number;
+  /** Recent completed-order deductions (latest first). */
+  recentCompletedOrderDeductions: PartnerTokenDeductionItem[];
+  /** 7 values for selected period buckets (token deductions). */
   chartValues: [number, number, number, number, number, number, number];
+  /** 7 values for selected period buckets (earnings). */
+  earningsChartValues: [number, number, number, number, number, number, number];
+  /** 7 labels matching selected period buckets. */
+  chartLabels: [string, string, string, string, string, string, string];
+  /** Recent completed-order earnings (latest first). */
+  recentCompletedEarnings: PartnerEarningItem[];
 }
 
 /** Zero state when there is no activity. */
@@ -34,7 +59,13 @@ export const ZERO_DASHBOARD_DATA: LaundererDashboardData = {
   dropOffIncome: 0,
   deliveryIncome: 0,
   balance: 0,
+  latestOrderDeduction: 0,
+  completedOrderDeductionsTotal: 0,
+  recentCompletedOrderDeductions: [],
   chartValues: [0, 0, 0, 0, 0, 0, 0],
+  earningsChartValues: [0, 0, 0, 0, 0, 0, 0],
+  chartLabels: ["M", "T", "W", "T", "F", "S", "S"],
+  recentCompletedEarnings: [],
 };
 
 /** Demo data for dashboard UI/chart preview until backend is wired. */
@@ -46,6 +77,42 @@ export const DEMO_DASHBOARD_DATA: LaundererDashboardData = {
   dropOffIncome: 2890,
   deliveryIncome: 3359,
   balance: 27240,
+  latestOrderDeduction: 120,
+  completedOrderDeductionsTotal: 340,
+  recentCompletedOrderDeductions: [
+    {
+      orderId: "demo-order-1",
+      deductedTokens: 120,
+      orderAmount: 1200,
+      chargedAtIso: new Date().toISOString(),
+    },
+    {
+      orderId: "demo-order-2",
+      deductedTokens: 100,
+      orderAmount: 1000,
+      chargedAtIso: new Date().toISOString(),
+    },
+    {
+      orderId: "demo-order-3",
+      deductedTokens: 120,
+      orderAmount: 1200,
+      chargedAtIso: new Date().toISOString(),
+    },
+  ],
   /** Mon–Sun sample trend for chart. */
   chartValues: [3200, 4800, 4100, 6200, 5500, 7200, 6400],
+  earningsChartValues: [180, 320, 260, 410, 355, 520, 460],
+  chartLabels: ["M", "T", "W", "T", "F", "S", "S"],
+  recentCompletedEarnings: [
+    {
+      orderId: "demo-order-1",
+      earnedAmount: 120,
+      earnedAtIso: new Date().toISOString(),
+    },
+    {
+      orderId: "demo-order-2",
+      earnedAmount: 100,
+      earnedAtIso: new Date().toISOString(),
+    },
+  ],
 };

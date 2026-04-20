@@ -390,12 +390,12 @@ export default function PartnerOrderDetailScreen() {
               onPress={() => handleOrderAction("rejected")}
               disabled={isConfirming || isRejecting}
               style={({ pressed }) => [
-                styles.secondaryAction,
+                styles.rejectAction,
                 pressed && !(isConfirming || isRejecting) && styles.pressed,
                 (isConfirming || isRejecting) && styles.disabled,
               ]}
             >
-              <Text style={styles.secondaryActionText}>
+              <Text style={styles.rejectActionText}>
                 {isRejecting ? "Rejecting..." : "Reject order"}
               </Text>
             </Pressable>
@@ -440,7 +440,6 @@ export default function PartnerOrderDetailScreen() {
         
         <View style={styles.bottomSpacing} />
       </ScrollView>
-    </KeyboardAvoidingView>
     </View>
   );
 }
@@ -678,6 +677,21 @@ const styles = StyleSheet.create({
     borderColor: "#D9534F",
   },
   secondaryActionText: {
+    color: "#D9534F",
+    fontSize: fs.smallText,
+    fontWeight: "700",
+  },
+  rejectAction: {
+    flex: 1,
+    backgroundColor: c.white,
+    borderRadius: 999,
+    paddingVertical: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: c.white,
+  },
+  rejectActionText: {
     color: "#D9534F",
     fontSize: fs.smallText,
     fontWeight: "700",

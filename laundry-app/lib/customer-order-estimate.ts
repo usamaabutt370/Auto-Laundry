@@ -126,7 +126,7 @@ export function buildCustomerOrderEstimate(
     draft.washFold ??
     (draft.selectedServiceIds.includes("washAndFold")
       ? {
-          bagCount: 1,
+          bagCount: 0,
           pricingMode: "per_bag" as const,
           estimateIncludeBag: true,
           estimateIncludeItem: false,
