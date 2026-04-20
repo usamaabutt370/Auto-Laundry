@@ -154,6 +154,45 @@ export default function CustomerOrderScreen() {
           {orders.map((order) => {
             const st = statusStyles[order.displayStatus];
             const label = s[statusLabelKey(order.displayStatus)];
+            const metaItems: {
+              label: string;
+              value: string;
+              fullWidth?: boolean;
+              valueLines?: number;
+            }[] = [
+              {
+                label: s.services,
+                value: order.servicesSummary || s.servicesNone,
+                valueLines: 2,
+              },
+            ];
+            if (order.placedAtIso) {
+              metaItems.push({
+                label: s.placed,
+                value: new Date(order.placedAtIso).toLocaleDateString(
+                  locale === "ur" ? "ur-PK" : "en-US",
+                  {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                  },
+                ),
+              });
+            }
+            if (order.pickupFeeLabel) {
+              metaItems.push({
+                label: s.pickupFee,
+                value: order.pickupFeeLabel,
+              });
+            }
+            if (order.notesPreview) {
+              metaItems.push({
+                label: s.notes,
+                value: order.notesPreview,
+                fullWidth: true,
+                valueLines: 2,
+              });
+            }
             return (
               <Swipeable
                 key={order.id}
@@ -198,42 +237,23 @@ export default function CustomerOrderScreen() {
                       {line}
                     </Text>
                   ))}
-                  <View style={styles.metaBlock}>
-                    <View style={styles.metaRow}>
-                      <Text style={styles.metaLabel}>{s.services}</Text>
-                      <Text style={styles.metaValue} numberOfLines={3}>
-                        {order.servicesSummary || s.servicesNone}
-                      </Text>
-                    </View>
-                    {order.placedAtIso ? (
-                      <View style={styles.metaRow}>
-                        <Text style={styles.metaLabel}>{s.placed}</Text>
-                        <Text style={styles.metaValue}>
-                          {new Date(order.placedAtIso).toLocaleDateString(
-                            locale === "ur" ? "ur-PK" : "en-US",
-                            {
-                              month: "short",
-                              day: "numeric",
-                              year: "numeric",
-                            },
-                          )}
-                        </Text>
+                  <View style={styles.metaGrid}>
+                    {metaItems.map((item, index) => (
+                      <View
+                        key={`${item.label}-${index}`}
+                        style={[
+                          styles.metaCell,
+                          item.fullWidth ? styles.metaCellFull : styles.metaCellHalf,
+                        ]}
+                      >
+                        <View style={styles.metaCellRow}>
+                          <Text style={styles.metaLabel}>{item.label}</Text>
+                          <Text style={styles.metaValue} numberOfLines={item.valueLines ?? 1}>
+                            {item.value}
+                          </Text>
+                        </View>
                       </View>
-                    ) : null}
-                    {order.pickupFeeLabel ? (
-                      <View style={styles.metaRow}>
-                        <Text style={styles.metaLabel}>{s.pickupFee}</Text>
-                        <Text style={styles.metaValue}>{order.pickupFeeLabel}</Text>
-                      </View>
-                    ) : null}
-                    {order.notesPreview ? (
-                      <View style={styles.metaRow}>
-                        <Text style={styles.metaLabel}>{s.notes}</Text>
-                        <Text style={styles.metaValue} numberOfLines={4}>
-                          {order.notesPreview}
-                        </Text>
-                      </View>
-                    ) : null}
+                    ))}
                   </View>
                   <View style={styles.totalRow}>
                     <Text style={styles.totalLabel}>{s.estTotal}</Text>
@@ -349,14 +369,15 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: c.outline,
     backgroundColor: c.blue900,
-    padding: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
   },
   cardTop: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     gap: 8,
-    marginBottom: 8,
+    marginBottom: 6,
   },
   orderRef: {
     fontSize: fs.smallText,
@@ -382,48 +403,61 @@ const styles = StyleSheet.create({
     fontSize: fs.smallTitle,
     fontWeight: "600",
     color: c.white,
-    marginBottom: 6,
-  },
-  scheduleLine: {
-    fontSize: fs.smallText,
-    color: c.blue500,
-    lineHeight: 20,
-    opacity: 0.92,
     marginBottom: 4,
   },
-  metaBlock: {
-    marginTop: 10,
-    paddingTop: 10,
+  scheduleLine: {
+    fontSize: fs.descText,
+    color: c.blue500,
+    lineHeight: 16,
+    opacity: 0.92,
+    marginBottom: 2,
+  },
+  metaGrid: {
+    marginTop: 6,
+    paddingTop: 8,
     borderTopWidth: 1,
     borderTopColor: "rgba(171, 233, 254, 0.2)",
-    gap: 10,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    rowGap: 6,
+    columnGap: 8,
   },
-  metaRow: {
+  metaCell: {
+    minWidth: 0,
+  },
+  metaCellRow: {
     flexDirection: "row",
     alignItems: "flex-start",
-    gap: 12,
+    gap: 6,
+  },
+  metaCellHalf: {
+    flexBasis: "48%",
+    flexGrow: 1,
+  },
+  metaCellFull: {
+    flexBasis: "100%",
   },
   metaLabel: {
-    width: 88,
+    width: 56,
     fontSize: fs.xxSmallText,
     fontWeight: "700",
     color: c.blue500,
     textTransform: "uppercase",
     letterSpacing: 0.35,
-    paddingTop: 2,
+    paddingTop: 1,
   },
   metaValue: {
     flex: 1,
-    fontSize: fs.descText,
+    fontSize: fs.xxSmallText,
     color: c.white,
-    lineHeight: 20,
+    lineHeight: 15,
   },
   totalRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginTop: 12,
-    paddingTop: 12,
+    marginTop: 8,
+    paddingTop: 8,
     borderTopWidth: 1,
     borderTopColor: "rgba(171, 233, 254, 0.25)",
   },

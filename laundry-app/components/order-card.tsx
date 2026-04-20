@@ -67,101 +67,127 @@ export function OrderCard({
 }: OrderCardProps) {
   const initialChar =
     initial ?? (customerName.trim()[0]?.toUpperCase() ?? "?");
+  const isRejectedStatus = statusLabel?.trim().toLowerCase() === "rejected";
+  const isCompletedStatus = statusLabel?.trim().toLowerCase() === "completed";
   const handleStatusPillPress = (event: { stopPropagation?: () => void }) => {
     event.stopPropagation?.();
   };
 
   const content = (
     <>
-      <View style={styles.avatarWrap}>
-        {avatarUrl ? (
-          <Image source={{ uri: avatarUrl }} style={styles.avatarImage} />
-        ) : (
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{initialChar}</Text>
-          </View>
-        )}
-      </View>
-      <View style={styles.cardBody}>
-        <Text style={styles.customerName}>{customerName}</Text>
-        <Text style={styles.subtitle}>{subtitle}</Text>
-        {detailRows && detailRows.length > 0 ? (
-          <View style={styles.detailBlock}>
-            {detailRows.map((row, index) => (
-              <View key={`${row.label}-${index}`} style={styles.detailItem}>
-                <Text style={styles.detailLabel}>{row.label}</Text>
-                <Text style={styles.detailValue} numberOfLines={4}>
-                  {row.value}
-                </Text>
-              </View>
-            ))}
-          </View>
-        ) : null}
-        {(statusLabel || onAccept || onReject || onComplete) ? (
-          <View
-            style={[
-              styles.bottomBar,
-              !statusLabel && (onAccept || onReject || onComplete) && styles.bottomBarActionsOnly,
-            ]}
-          >
+      <View style={styles.mainRow}>
+        <View style={styles.avatarWrap}>
+          {avatarUrl ? (
+            <Image source={{ uri: avatarUrl }} style={styles.avatarImage} />
+          ) : (
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>{initialChar}</Text>
+            </View>
+          )}
+        </View>
+        <View style={styles.cardBody}>
+          <View style={styles.topRow}>
+            <Text style={styles.customerName}>{customerName}</Text>
             {statusLabel ? (
               <Pressable
                 onPress={handleStatusPillPress}
                 onPressIn={handleStatusPillPress}
-                style={styles.statusPill}
+                style={[
+                  styles.statusPill,
+                  isRejectedStatus && styles.statusPillRejected,
+                  isCompletedStatus && styles.statusPillCompleted,
+                ]}
               >
-                <Text style={styles.statusPillText} numberOfLines={1}>
+                <Text
+                  style={[
+                    styles.statusPillText,
+                    isRejectedStatus && styles.statusPillTextRejected,
+                    isCompletedStatus && styles.statusPillTextCompleted,
+                  ]}
+                  numberOfLines={1}
+                >
                   {statusLabel}
                 </Text>
               </Pressable>
             ) : null}
-            {onAccept ? (
-              <Pressable
-                onPress={onAccept}
-                disabled={actionsDisabled}
-                style={({ pressed }) => [
-                  styles.actionButton,
-                  styles.acceptButton,
-                  pressed && !actionsDisabled && styles.pressed,
-                  actionsDisabled && styles.actionDisabled,
-                ]}
-              >
-                <Text style={styles.actionText}>Accept</Text>
-              </Pressable>
-            ) : null}
-            {onReject ? (
-              <Pressable
-                onPress={onReject}
-                disabled={actionsDisabled}
-                style={({ pressed }) => [
-                  styles.actionButton,
-                  styles.rejectButton,
-                  pressed && !actionsDisabled && styles.pressed,
-                  actionsDisabled && styles.actionDisabled,
-                ]}
-              >
-                <Text style={[styles.actionText, styles.rejectActionText]}>
-                  Reject
-                </Text>
-              </Pressable>
-            ) : null}
-            {onComplete ? (
-              <Pressable
-                onPress={onComplete}
-                disabled={actionsDisabled}
-                style={({ pressed }) => [
-                  styles.actionButton,
-                  styles.acceptButton,
-                  pressed && !actionsDisabled && styles.pressed,
-                  actionsDisabled && styles.actionDisabled,
-                ]}
-              >
-                <Text style={styles.actionText}>{completeLabel}</Text>
-              </Pressable>
-            ) : null}
           </View>
-        ) : null}
+          <Text style={styles.subtitle}>{subtitle}</Text>
+          {detailRows && detailRows.length > 0 ? (
+            <View style={styles.detailGrid}>
+              {detailRows.map((row, index) => (
+                <View
+                  key={`${row.label}-${index}`}
+                  style={[
+                    styles.detailCell,
+                    index % 2 === 0 ? styles.detailCellLeft : styles.detailCellRight,
+                    index === detailRows.length - 1 &&
+                      detailRows.length % 2 === 1 &&
+                      styles.detailCellFull,
+                  ]}
+                >
+                  <Text style={styles.detailLabel}>{row.label}</Text>
+                  <Text style={styles.detailValue} numberOfLines={2}>
+                    {row.value}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
+        </View>
       </View>
+      {(onAccept || onReject || onComplete) ? (
+        <View
+          style={[
+            styles.bottomBar,
+            styles.bottomBarActionsOnly,
+          ]}
+        >
+          {onAccept ? (
+            <Pressable
+              onPress={onAccept}
+              disabled={actionsDisabled}
+              style={({ pressed }) => [
+                styles.actionButton,
+                styles.acceptButton,
+                pressed && !actionsDisabled && styles.pressed,
+                actionsDisabled && styles.actionDisabled,
+              ]}
+            >
+              <Text style={styles.actionText}>Accept</Text>
+            </Pressable>
+          ) : null}
+          {onReject ? (
+            <Pressable
+              onPress={onReject}
+              disabled={actionsDisabled}
+              style={({ pressed }) => [
+                styles.actionButton,
+                styles.rejectButton,
+                pressed && !actionsDisabled && styles.pressed,
+                actionsDisabled && styles.actionDisabled,
+              ]}
+            >
+              <Text style={[styles.actionText, styles.rejectActionText]}>
+                Reject
+              </Text>
+            </Pressable>
+          ) : null}
+          {onComplete ? (
+            <Pressable
+              onPress={onComplete}
+              disabled={actionsDisabled}
+              style={({ pressed }) => [
+                styles.actionButton,
+                styles.acceptButton,
+                pressed && !actionsDisabled && styles.pressed,
+                actionsDisabled && styles.actionDisabled,
+              ]}
+            >
+              <Text style={styles.actionText}>{completeLabel}</Text>
+            </Pressable>
+          ) : null}
+        </View>
+      ) : null}
     </>
   );
 
@@ -185,33 +211,37 @@ export function OrderCard({
 
 const styles = StyleSheet.create({
   card: {
-    flexDirection: "row",
-    alignItems: "flex-start",
+    flexDirection: "column",
     backgroundColor: c.blue900,
     borderRadius: CARD_RADIUS,
     borderWidth: 1,
     borderColor: c.outline,
-    padding: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  mainRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
   },
   pressed: {
     opacity: 0.9,
   },
   avatarWrap: {
-    marginRight: 14,
-    backgroundColor:'transparent',
+    marginRight: 10,
+    backgroundColor: "transparent",
   },
   avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: c.lightBlue,
     alignItems: "center",
     justifyContent: "center",
   },
   avatarImage: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     resizeMode: "cover",
   },
   avatarText: {
@@ -222,24 +252,45 @@ const styles = StyleSheet.create({
   cardBody: {
     flex: 1,
   },
+  topRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 8,
+    marginBottom: 2,
+  },
   customerName: {
-    fontSize: fs.smallTitle,
+    fontSize: fs.smallText,
     fontWeight: "600",
     color: c.white,
-    marginBottom: 4,
+    flex: 1,
   },
   subtitle: {
-    fontSize: fs.smallText,
+    fontSize: fs.descText,
     color: c.blue500,
-    lineHeight: 18,
+    lineHeight: 16,
     opacity: 0.85,
   },
-  detailBlock: {
-    marginTop: 10,
+  detailGrid: {
+    marginTop: 6,
+    flexDirection: "row",
+    alignItems: "stretch",
+    flexWrap: "wrap",
     gap: 8,
   },
-  detailItem: {
-    gap: 2,
+  detailCell: {
+    minWidth: 0,
+  },
+  detailCellLeft: {
+    flexBasis: "48%",
+    flexGrow: 1,
+  },
+  detailCellRight: {
+    flexBasis: "48%",
+    flexGrow: 1,
+  },
+  detailCellFull: {
+    flexBasis: "100%",
   },
   detailLabel: {
     fontSize: fs.xxSmallText,
@@ -248,44 +299,65 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 0.3,
     opacity: 0.9,
+    paddingTop: 1,
   },
   detailValue: {
-    fontSize: fs.descText,
+    fontSize: fs.xxSmallText,
     color: c.white,
-    lineHeight: 18,
+    lineHeight: 15,
   },
   bottomBar: {
     flexDirection: "row",
     alignItems: "center",
-    flexWrap: "wrap",
-    marginTop: 12,
+    flexWrap: "nowrap",
+    marginTop: 8,
     gap: 8,
+    width: "100%",
   },
   /** When there is no status chip, keep action buttons aligned to the end. */
   bottomBarActionsOnly: {
-    justifyContent: "flex-end",
+    justifyContent: "center",
+    alignSelf: "stretch",
   },
   /** Same outline treatment as Accept / Complete (pending, accepted, etc.). */
   statusPill: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 2,
     borderRadius: 999,
     borderWidth: 1,
     borderColor: c.filledButtonBorder,
     backgroundColor: c.blue900,
     flexShrink: 1,
   },
+  statusPillRejected: {
+    borderColor: "#f87171",
+    backgroundColor: "rgba(127, 29, 29, 0.2)",
+  },
+  statusPillCompleted: {
+    borderColor: "#86efac",
+    backgroundColor: "rgba(22, 101, 52, 0.2)",
+  },
   statusPillText: {
     color: c.white,
-    fontSize: fs.descText,
-    fontWeight: "600",
-    textTransform: "capitalize",
+    fontSize: fs.xxSmallText,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.1,
+  },
+  statusPillTextRejected: {
+    color: "#fecaca",
+  },
+  statusPillTextCompleted: {
+    color: "#ecfdf5",
   },
   actionButton: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    flex: 1,
+    minWidth: 0,
+    paddingVertical: 6,
     borderRadius: 999,
     borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
   },
   acceptButton: {
     backgroundColor: c.blue900,
@@ -302,6 +374,8 @@ const styles = StyleSheet.create({
   },
   rejectActionText: {
     color: "#D9534F",
+    fontSize: fs.descText,
+    fontWeight: "600",
   },
   actionDisabled: {
     opacity: 0.5,

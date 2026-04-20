@@ -37,12 +37,6 @@ function formatMoneyCompact(value: number): string {
   return `$${Math.round(value)}`;
 }
 
-function formatCount(value: number): string {
-  return new Intl.NumberFormat("en-US", {
-    maximumFractionDigits: 0,
-  }).format(value);
-}
-
 function formatShortDate(valueIso: string): string {
   const d = new Date(valueIso);
   if (Number.isNaN(d.getTime())) return "-";
@@ -252,58 +246,6 @@ export default function PartnerDashboardScreen() {
           </View>
         </View>
 
-        <View style={styles.balanceCard}>
-          <Text style={styles.balanceLabel}>{s.tokenBalance}</Text>
-          <Text style={styles.balanceValue}>
-            {formatCount(data.balance)} {s.tokensUnit}
-          </Text>
-          <Text style={styles.tokenChartLabel}>{s.deductionGraphLabel}</Text>
-          <View style={styles.chartWrap}>
-            <DashboardChart values={data.chartValues} labels={data.chartLabels} />
-          </View>
-          <View style={styles.deductionListWrap}>
-            <Text style={styles.deductionListTitle}>{s.recentCompletedDeductions}</Text>
-            {data.recentCompletedOrderDeductions.length === 0 ? (
-              <Text style={styles.deductionEmpty}>{s.noCompletedDeductions}</Text>
-            ) : (
-              data.recentCompletedOrderDeductions.map((item) => (
-                <Pressable
-                  key={`${item.orderId}-${item.chargedAtIso}`}
-                  onPress={() =>
-                    router.push({
-                      pathname: "/(partner)/order-detail",
-                      params: { orderId: item.orderId },
-                    })
-                  }
-                  style={({ pressed }) => [styles.deductionRow, pressed && styles.serviceCardPressed]}
-                >
-                  <View style={styles.deductionRowLeft}>
-                    <Text style={styles.deductionOrderId}>
-                      {s.orderIdLabel}: {item.orderId.slice(0, 8)}
-                    </Text>
-                    <Text style={styles.deductionMeta}>
-                      {formatShortDate(item.chargedAtIso)} • {s.orderAmountLabel}:{" "}
-                      {formatMoney(item.orderAmount)}
-                    </Text>
-                    <Text style={styles.deductionDetailLink}>{s.viewOrderDetails}</Text>
-                  </View>
-                  <Text style={styles.deductionTokens}>
-                    -{formatCount(item.deductedTokens)} {s.tokensUnit}
-                  </Text>
-                </Pressable>
-              ))
-            )}
-            <Pressable
-              onPress={() => router.push("/(partner)/token-deductions")}
-              style={({ pressed }) => [
-                styles.viewAllBtn,
-                pressed && styles.serviceCardPressed,
-              ]}
-            >
-              <Text style={styles.viewAllBtnText}>{s.viewAllDeductions}</Text>
-            </Pressable>
-          </View>
-        </View>
       </ScrollView>
     </View>
   );
@@ -431,19 +373,6 @@ const styles = StyleSheet.create({
     color: c.white,
     fontWeight: "600",
   },
-  tokenChartLabel: {
-    marginTop: 10,
-    fontSize: fs.xxSmallText,
-    color: c.blue500,
-    fontWeight: "600",
-  },
-  deductionListWrap: {
-    marginTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: c.outline,
-    paddingTop: 12,
-    gap: 10,
-  },
   earningsListWrap: {
     marginTop: 12,
     borderTopWidth: 1,
@@ -482,22 +411,10 @@ const styles = StyleSheet.create({
     fontSize: fs.xxSmallText,
     color: c.blue500,
   },
-  deductionTokens: {
-    fontSize: fs.descText,
-    color: c.white,
-    fontWeight: "700",
-  },
   earningAmount: {
     fontSize: fs.descText,
     color: c.white,
     fontWeight: "700",
-  },
-  deductionDetailLink: {
-    marginTop: 4,
-    fontSize: fs.xxSmallText,
-    color: c.white,
-    textDecorationLine: "underline",
-    fontWeight: "600",
   },
   viewAllBtn: {
     marginTop: 4,

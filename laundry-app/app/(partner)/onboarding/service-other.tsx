@@ -209,41 +209,30 @@ export default function ServiceOtherScreen() {
     closeEditModal();
   };
 
-  const canContinue =
-    serviceKey != null &&
-    items.length > 0 &&
-    items.every((item) => (prices[item.id]?.trim().length ?? 0) > 0);
+  const pricedRows = items
+    .map((item) => ({
+      label: item.label,
+      value: prices[item.id]?.trim() ?? "",
+    }))
+    .filter((row) => row.value.length > 0);
+
+  const canContinue = serviceKey != null && pricedRows.length > 0;
 
   const handleContinue = async () => {
     if (serviceKey == null) return;
     if (!canContinue) {
-      // All items removed (or incomplete): clear pricing so Services screen shows button only, not price card.
-      if (items.length === 0) {
-        if (serviceKey === "dryCleaning") {
-          setDryCleaningPricing(null);
-          setDryCleaningItemizeState(null);
-        } else if (serviceKey === "tailoring") {
-          setTailoringPricing(null);
-          setTailoringItemizeState(null);
-        }
-        router.back();
-        return;
-      }
       const state: ItemizeState = { items, prices };
       if (serviceKey === "dryCleaning") {
+        setDryCleaningPricing(null);
         setDryCleaningItemizeState(state);
       } else if (serviceKey === "tailoring") {
+        setTailoringPricing(null);
         setTailoringItemizeState(state);
       }
       router.back();
       return;
     }
-    const serviceName = getServiceLabel(settingsStrings, serviceKey);
-    const rows = items.map((item) => ({
-      label: item.label,
-      value: prices[item.id]?.trim() ?? "",
-    }));
-    const pricingWithRows = { rows };
+    const pricingWithRows = { rows: pricedRows };
 
     if (serviceKey === "dryCleaning") {
       setDryCleaningPricing(pricingWithRows);

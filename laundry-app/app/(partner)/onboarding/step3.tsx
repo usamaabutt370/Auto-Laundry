@@ -69,29 +69,36 @@ export default function PartnerOnboardingStep3() {
   );
 
   const r = washAndFoldPricing?.rows ?? [];
-  const [pricePerBag, setPricePerBag] = useState(r[0]?.value ?? "");
-  const [pricePerKg, setPricePerKg] = useState(r[1]?.value ?? "");
-  const [pricePerItem, setPricePerItem] = useState(r[2]?.value ?? "");
+  const getSavedValue = (label: string) =>
+    r.find((row) => row.label === label)?.value ?? "";
+  const [pricePerBag, setPricePerBag] = useState(() =>
+    getSavedValue(onboardingStrings.pricePerBagLabel),
+  );
+  const [pricePerKg, setPricePerKg] = useState(() =>
+    getSavedValue(onboardingStrings.pricePerKgLabel),
+  );
+  const [pricePerItem, setPricePerItem] = useState(() =>
+    getSavedValue(onboardingStrings.pricePerItemLabel),
+  );
 
-  const canSave =
-    serviceKey != null &&
-    pricePerBag.trim().length > 0 &&
-    pricePerKg.trim().length > 0 &&
+  const hasAtLeastOnePrice =
+    pricePerBag.trim().length > 0 ||
+    pricePerKg.trim().length > 0 ||
     pricePerItem.trim().length > 0;
 
   const handleSave = async () => {
     if (serviceKey == null) return;
-    if (!canSave) {
+    if (!hasAtLeastOnePrice) {
+      setWashAndFoldPricing(null);
       router.back();
       return;
     }
-    setWashAndFoldPricing({
-      rows: [
-        { label: onboardingStrings.pricePerBagLabel, value: pricePerBag.trim() },
-        { label: onboardingStrings.pricePerKgLabel, value: pricePerKg.trim() },
-        { label: onboardingStrings.pricePerItemLabel, value: pricePerItem.trim() },
-      ],
-    });
+    const rows = [
+      { label: onboardingStrings.pricePerBagLabel, value: pricePerBag.trim() },
+      { label: onboardingStrings.pricePerKgLabel, value: pricePerKg.trim() },
+      { label: onboardingStrings.pricePerItemLabel, value: pricePerItem.trim() },
+    ].filter((row) => row.value.length > 0);
+    setWashAndFoldPricing({ rows });
     router.back();
   };
 

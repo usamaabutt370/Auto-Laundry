@@ -3,13 +3,6 @@
  * When you have DB data: map your rows to this type (e.g. one object with these fields)
  * and return it from useLaundererDashboard() – the UI will use it directly. No extra wiring.
  */
-export interface PartnerTokenDeductionItem {
-  orderId: string;
-  deductedTokens: number;
-  orderAmount: number;
-  chargedAtIso: string;
-}
-
 export interface PartnerEarningItem {
   orderId: string;
   earnedAmount: number;
@@ -33,15 +26,6 @@ export interface LaundererDashboardData {
   totalIncome: number;
   dropOffIncome: number;
   deliveryIncome: number;
-  balance: number;
-  /** Most recent token deduction value for one accepted order. */
-  latestOrderDeduction: number;
-  /** Sum of token deductions tied to completed orders. */
-  completedOrderDeductionsTotal: number;
-  /** Recent completed-order deductions (latest first). */
-  recentCompletedOrderDeductions: PartnerTokenDeductionItem[];
-  /** 7 values for selected period buckets (token deductions). */
-  chartValues: [number, number, number, number, number, number, number];
   /** 7 values for selected period buckets (earnings). */
   earningsChartValues: [number, number, number, number, number, number, number];
   /** 7 labels matching selected period buckets. */
@@ -58,11 +42,6 @@ export const ZERO_DASHBOARD_DATA: LaundererDashboardData = {
   totalIncome: 0,
   dropOffIncome: 0,
   deliveryIncome: 0,
-  balance: 0,
-  latestOrderDeduction: 0,
-  completedOrderDeductionsTotal: 0,
-  recentCompletedOrderDeductions: [],
-  chartValues: [0, 0, 0, 0, 0, 0, 0],
   earningsChartValues: [0, 0, 0, 0, 0, 0, 0],
   chartLabels: ["M", "T", "W", "T", "F", "S", "S"],
   recentCompletedEarnings: [],
@@ -76,31 +55,6 @@ export const DEMO_DASHBOARD_DATA: LaundererDashboardData = {
   totalIncome: 7240,
   dropOffIncome: 2890,
   deliveryIncome: 3359,
-  balance: 27240,
-  latestOrderDeduction: 120,
-  completedOrderDeductionsTotal: 340,
-  recentCompletedOrderDeductions: [
-    {
-      orderId: "demo-order-1",
-      deductedTokens: 120,
-      orderAmount: 1200,
-      chargedAtIso: new Date().toISOString(),
-    },
-    {
-      orderId: "demo-order-2",
-      deductedTokens: 100,
-      orderAmount: 1000,
-      chargedAtIso: new Date().toISOString(),
-    },
-    {
-      orderId: "demo-order-3",
-      deductedTokens: 120,
-      orderAmount: 1200,
-      chargedAtIso: new Date().toISOString(),
-    },
-  ],
-  /** Mon–Sun sample trend for chart. */
-  chartValues: [3200, 4800, 4100, 6200, 5500, 7200, 6400],
   earningsChartValues: [180, 320, 260, 410, 355, 520, 460],
   chartLabels: ["M", "T", "W", "T", "F", "S", "S"],
   recentCompletedEarnings: [
