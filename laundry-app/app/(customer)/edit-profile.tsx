@@ -3,6 +3,8 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -15,11 +17,13 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import * as FileSystem from "expo-file-system";
 import * as ImagePicker from "expo-image-picker";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-
 import { theme } from "@/constants/theme";
 import { avatarUrlWithCacheBuster } from "@/lib/avatar";
 import { getPaymentMethod, setPaymentMethod } from "@/lib/payment-storage";
 import { getSession, isSupabaseConfigured, supabase } from "@/lib/supabase";
+import { parsePhoneNumberFromString } from "libphonenumber-js";
+import { type CountryCode } from "react-native-country-picker-modal";
+import { Input } from "@/components";
 
 const c = theme.colors;
 
@@ -51,6 +55,8 @@ export default function EditProfileScreen() {
   const [dateOfBirth, setDateOfBirth] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [countryCode, setCountryCode] = useState<CountryCode>("PK");
+  const [callingCode, setCallingCode] = useState("92");
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   /** Profile row updated_at – used to cache-bust avatar URL so same path shows new image after upload */
   const [profileUpdatedAt, setProfileUpdatedAt] = useState<string | null>(null);
@@ -97,7 +103,19 @@ export default function EditProfileScreen() {
         setAddress(data.address ?? "");
         setDateOfBirth(data.date_of_birth ?? "");
         setEmail(data.email ?? user.email ?? "");
-        setPhone(data.phone ?? "");
+        const phoneVal = data.phone ?? "";
+        if (phoneVal.startsWith("+")) {
+          const parsed = parsePhoneNumberFromString(phoneVal);
+          if (parsed) {
+            setPhone(parsed.nationalNumber as string);
+            setCountryCode(parsed.country as CountryCode);
+            setCallingCode(parsed.countryCallingCode as string);
+          } else {
+            setPhone(phoneVal);
+          }
+        } else {
+          setPhone(phoneVal);
+        }
         setImageUrl(data.image_url ?? null);
         setProfileUpdatedAt(data.updated_at ?? null);
         setLocalImageUri(null);
@@ -106,7 +124,19 @@ export default function EditProfileScreen() {
         setFirstName((meta.first_name as string) ?? "");
         setLastName((meta.last_name as string) ?? "");
         setEmail(user.email ?? (meta.email as string) ?? "");
-        setPhone((meta.phone as string) ?? "");
+        const phoneVal = (meta.phone as string) ?? "";
+        if (phoneVal.startsWith("+")) {
+          const parsed = parsePhoneNumberFromString(phoneVal);
+          if (parsed) {
+            setPhone(parsed.nationalNumber as string);
+            setCountryCode(parsed.country as CountryCode);
+            setCallingCode(parsed.countryCallingCode as string);
+          } else {
+            setPhone(phoneVal);
+          }
+        } else {
+          setPhone(phoneVal);
+        }
         setAddress("");
         setDateOfBirth("");
       }
@@ -182,9 +212,10 @@ export default function EditProfileScreen() {
       }
 
       const emailVal = email.trim() || (user.email ?? "") || "";
-      const phoneVal =
-        phone.trim() || ((user.user_metadata?.phone as string) ?? "") || "";
-      if (!emailVal || !phoneVal) {
+      const rawPhone = phone.trim();
+      const phoneNumberObj = parsePhoneNumberFromString(`+${callingCode}${rawPhone}`);
+
+      if (!emailVal || !rawPhone) {
         Alert.alert(
           "Missing required fields",
           "Email and phone are required to save your profile.",
@@ -192,6 +223,17 @@ export default function EditProfileScreen() {
         setSaving(false);
         return;
       }
+
+      if (!phoneNumberObj || !phoneNumberObj.isValid()) {
+        Alert.alert(
+          "Invalid phone",
+          `Please enter a valid mobile number for ${countryCode}.`,
+        );
+        setSaving(false);
+        return;
+      }
+
+      const phoneVal = phoneNumberObj.number;
 
       const now = new Date().toISOString();
       const upsertPayload = {
@@ -357,12 +399,16 @@ export default function EditProfileScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
+      <KeyboardAvoidingView
+        style={styles.keyboardView}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
         <Pressable style={styles.backBtn} onPress={() => router.back()}>
           <MaterialCommunityIcons
             name="arrow-left"
@@ -662,13 +708,18 @@ export default function EditProfileScreen() {
 
             <View style={styles.field}>
               <Text style={styles.label}>Phone</Text>
-              <TextInput
-                style={styles.input}
+              <Input
+                variant="phone"
                 value={phone}
-                onChangeText={setPhone}
-                placeholder="Phone"
+                onChangeText={(t) => setPhone(t.replace(/\D/g, ""))}
+                placeholder="306 1234567"
                 placeholderTextColor={c.blue500}
-                keyboardType="phone-pad"
+                selectedCca2={countryCode}
+                selectedCallingCode={callingCode}
+                onCountrySelect={(c) => {
+                  setCountryCode(c.cca2);
+                  setCallingCode(c.callingCode);
+                }}
               />
             </View>
 
@@ -688,7 +739,8 @@ export default function EditProfileScreen() {
             </Pressable>
           </View>
         )}
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -697,6 +749,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: c.background,
+  },
+  keyboardView: {
+    flex: 1,
   },
   scroll: {
     flex: 1,

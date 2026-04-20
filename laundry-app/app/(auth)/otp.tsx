@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import {
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
   Pressable,
   StyleSheet,
   TextInput,
@@ -83,7 +84,7 @@ export default function OtpScreen() {
       <StatusBar style="light" />
       <KeyboardAvoidingView
         style={styles.keyboardView}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
         <ThemedView style={styles.header}>
           <Pressable
@@ -103,73 +104,80 @@ export default function OtpScreen() {
           </ThemedView> */}
         </ThemedView>
 
-        <Spacer.Column numberOfSpaces={10} />
-        <ThemedView style={styles.headingContainer}>
-          <ThemedText style={styles.headingTitle}>{s.title}</ThemedText>
-        </ThemedView>
-        <Spacer.Column numberOfSpaces={10} />
-        <ThemedView style={styles.content}>
-          <ThemedText style={styles.subtitle}>{s.subtitle}</ThemedText>
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
           <Spacer.Column numberOfSpaces={10} />
-
-          <ThemedView style={styles.otpRow}>
-            {digits.map((digit, index) => (
-              <View
-                key={index}
-                style={styles.otpCircle}
-                pointerEvents="box-none"
-              >
-                <TextInput
-                  ref={(el) => {
-                    inputRefs.current[index] = el;
-                  }}
-                  style={styles.otpInput}
-                  value={digit}
-                  onChangeText={(v) => handleDigitChange(v, index)}
-                  onKeyPress={(e) => handleKeyPress(e, index)}
-                  keyboardType="number-pad"
-                  maxLength={1}
-                  selectTextOnFocus
-                  editable
-                  accessibilityLabel={`Digit ${index + 1}`}
-                />
-              </View>
-            ))}
+          <ThemedView style={styles.headingContainer}>
+            <ThemedText style={styles.headingTitle}>{s.title}</ThemedText>
           </ThemedView>
-
           <Spacer.Column numberOfSpaces={10} />
+          <ThemedView style={styles.content}>
+            <ThemedText style={styles.subtitle}>{s.subtitle}</ThemedText>
+            <Spacer.Column numberOfSpaces={10} />
 
-          <Pressable
-            onPress={handleContinue}
-            style={({ pressed }) => [
-              styles.continueButton,
-              pressed && styles.pressed,
-              (otpCode.length !== OTP_LENGTH || isVerifying) &&
-                styles.continueButtonDisabled,
-            ]}
-            disabled={otpCode.length !== OTP_LENGTH || isVerifying}
-            accessibilityRole="button"
-            accessibilityLabel={s.continue}
-          >
-            <ThemedText style={styles.continueButtonText}>
-              {isVerifying ? "Verifying..." : s.continue}
+            <ThemedView style={styles.otpRow}>
+              {digits.map((digit, index) => (
+                <View
+                  key={index}
+                  style={styles.otpCircle}
+                  pointerEvents="box-none"
+                >
+                  <TextInput
+                    ref={(el) => {
+                      inputRefs.current[index] = el;
+                    }}
+                    style={styles.otpInput}
+                    value={digit}
+                    onChangeText={(v) => handleDigitChange(v, index)}
+                    onKeyPress={(e) => handleKeyPress(e, index)}
+                    keyboardType="number-pad"
+                    maxLength={1}
+                    selectTextOnFocus
+                    editable
+                    accessibilityLabel={`Digit ${index + 1}`}
+                  />
+                </View>
+              ))}
+            </ThemedView>
+
+            <Spacer.Column numberOfSpaces={10} />
+
+            <Pressable
+              onPress={handleContinue}
+              style={({ pressed }) => [
+                styles.continueButton,
+                pressed && styles.pressed,
+                (otpCode.length !== OTP_LENGTH || isVerifying) &&
+                  styles.continueButtonDisabled,
+              ]}
+              disabled={otpCode.length !== OTP_LENGTH || isVerifying}
+              accessibilityRole="button"
+              accessibilityLabel={s.continue}
+            >
+              <ThemedText style={styles.continueButtonText}>
+                {isVerifying ? "Verifying..." : s.continue}
+              </ThemedText>
+            </Pressable>
+
+            <Spacer.Column numberOfSpaces={5} />
+
+            <ThemedText style={styles.didntReceive}>
+              {s.didntReceiveCode}
             </ThemedText>
-          </Pressable>
-
-          <Spacer.Column numberOfSpaces={5} />
-
-          <ThemedText style={styles.didntReceive}>
-            {s.didntReceiveCode}
-          </ThemedText>
-          <Pressable
-            onPress={handleResend}
-            style={({ pressed }) => [pressed && styles.pressed]}
-            accessibilityRole="button"
-            accessibilityLabel={s.resend}
-          >
-            <ThemedText style={styles.resendLink}>{s.resend}</ThemedText>
-          </Pressable>
-        </ThemedView>
+            <Pressable
+              onPress={handleResend}
+              style={({ pressed }) => [pressed && styles.pressed]}
+              accessibilityRole="button"
+              accessibilityLabel={s.resend}
+            >
+              <ThemedText style={styles.resendLink}>{s.resend}</ThemedText>
+            </Pressable>
+          </ThemedView>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -205,6 +213,12 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: c.white,
     backgroundColor: "transparent",
+  },
+  scroll: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 32,
   },
   headingContainer: {
     backgroundColor: "transparent",

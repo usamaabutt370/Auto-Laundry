@@ -177,7 +177,7 @@ export default function EditServiceScreen() {
       >
         <Pressable style={styles.modalOverlay} onPress={closeModal}>
           <KeyboardAvoidingView
-            behavior={Platform.OS === "ios" ? "padding" : undefined}
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
             style={styles.modalCenter}
           >
             <Pressable

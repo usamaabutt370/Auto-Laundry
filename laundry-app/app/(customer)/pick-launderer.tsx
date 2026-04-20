@@ -3,6 +3,8 @@ import { useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -283,7 +285,10 @@ export default function PickLaundererScreen() {
   }, [partnerCoordinates, partners, userCoordinates]);
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+    >
       <SafeAreaView style={styles.header} edges={["top"]}>
         <Pressable
           onPress={() => router.back()}
@@ -351,7 +356,7 @@ export default function PickLaundererScreen() {
           ))}
         </ScrollView>
       )}
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 

@@ -19,6 +19,7 @@ export interface AuthState {
   isAuthenticated: boolean;
   /** Call after updating profiles.role so the app reflects the new role and can redirect. */
   refreshRole: () => Promise<void>;
+  signOut: () => Promise<void>;
 }
 
 const defaultState: AuthState = {
@@ -27,7 +28,8 @@ const defaultState: AuthState = {
   role: null,
   isLoading: true,
   isAuthenticated: false,
-  refreshRole: async () => {},
+  refreshRole: async () => { },
+  signOut: async () => { },
 };
 
 const AuthContext = createContext<AuthState | null>(null);
@@ -96,6 +98,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [session?.user?.id, loadRole]);
 
+  const signOut = useCallback(async () => {
+    if (supabase) {
+      await supabase.auth.signOut();
+      // Manually clear state to ensure real-time UI updates
+      setSession(null);
+      setRole(null);
+    }
+  }, []);
+
   const value = useMemo<AuthState>(
     () => ({
       session,
@@ -104,8 +115,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isLoading,
       isAuthenticated: Boolean(session),
       refreshRole,
+      signOut,
     }),
-    [session, role, isLoading, refreshRole]
+    [session, role, isLoading, refreshRole, signOut]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

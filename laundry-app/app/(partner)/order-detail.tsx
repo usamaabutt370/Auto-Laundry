@@ -440,6 +440,7 @@ export default function PartnerOrderDetailScreen() {
         
         <View style={styles.bottomSpacing} />
       </ScrollView>
+    </KeyboardAvoidingView>
     </View>
   );
 }
@@ -451,6 +452,9 @@ const styles = StyleSheet.create({
   },
   safeArea: {
     paddingBottom: 8,
+  },
+  keyboardView: {
+    flex: 1,
   },
   scroll: {
     flex: 1,

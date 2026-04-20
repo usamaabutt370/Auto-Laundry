@@ -18,12 +18,16 @@ import {
   Text,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { parsePhoneNumberFromString } from "libphonenumber-js";
+import { type CountryCode } from "react-native-country-picker-modal";
 
 export default function LoginScreen() {
   const router = useRouter();
   const s = strings.auth.login;
 
   const [mobileNumber, setMobileNumber] = useState("");
+  const [countryCode, setCountryCode] = useState<CountryCode>("PK");
+  const [callingCode, setCallingCode] = useState("92");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<{
@@ -33,11 +37,13 @@ export default function LoginScreen() {
 
   const handleMobileChange = (raw: string) => {
     let digits = raw.replace(/\D/g, "");
+    // Many countries use 0 as a national prefix; we usually strip it for international format
     if (digits.startsWith("0")) {
       digits = digits.slice(1);
     }
-    if (digits.length > 10) {
-      digits = digits.slice(0, 10);
+    // Most international numbers (excluding calling code) are 15 digits max per ITU-T E.164
+    if (digits.length > 15) {
+      digits = digits.slice(0, 15);
     }
     setMobileNumber(digits);
     setErrors((prev) => ({ ...prev, mobileNumber: undefined }));
@@ -53,11 +59,13 @@ export default function LoginScreen() {
     }
 
     const nextErrors: typeof errors = {};
+    const fullNumber = `+${callingCode}${mobileNumber}`;
+    const phoneNumber = parsePhoneNumberFromString(fullNumber);
+
     if (!mobileNumber) {
       nextErrors.mobileNumber = "Mobile number is required.";
-    } else if (mobileNumber.length !== 10) {
-      nextErrors.mobileNumber =
-        "Enter a valid 10-digit Pakistani mobile number (without the leading 0).";
+    } else if (!phoneNumber || !phoneNumber.isValid()) {
+      nextErrors.mobileNumber = `Enter a valid mobile number for ${countryCode}.`;
     }
 
     if (!password) {
@@ -71,8 +79,9 @@ export default function LoginScreen() {
 
     setIsLoading(true);
     try {
-      // Normalize to the same Pakistan format we store: +92306xxxxxxx
-      const normalizedPhone = `+92${mobileNumber.replace(/^0+/, "")}`;
+      // Normalize to E.164 format: +[countryCode][number]
+      const phoneNumber = parsePhoneNumberFromString(`+${callingCode}${mobileNumber}`);
+      const normalizedPhone = phoneNumber ? phoneNumber.number : `+${callingCode}${mobileNumber}`;
 
       // 1) Look up email by phone number from profiles.
       const { data: profile, error: profileError } = await supabase
@@ -130,7 +139,7 @@ export default function LoginScreen() {
       <StatusBar style="light" />
       <KeyboardAvoidingView
         style={styles.keyboardView}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
         <ThemedView style={styles.header}>
           <Pressable
@@ -171,6 +180,13 @@ export default function LoginScreen() {
             placeholder={s.mobileNumber}
             value={mobileNumber}
             onChangeText={handleMobileChange}
+            selectedCca2={countryCode}
+            selectedCallingCode={callingCode}
+            onCountrySelect={(c) => {
+              setCountryCode(c.cca2);
+              setCallingCode(c.callingCode);
+              setErrors((prev) => ({ ...prev, mobileNumber: undefined }));
+            }}
             containerStyle={styles.inputSpacing}
             borderColor="rgba(255,255,255,0.5)"
             focusUnderlineColor={theme.colors.backgroundLight}
@@ -195,7 +211,10 @@ export default function LoginScreen() {
             )}
             <Pressable
               onPress={handleForgotPassword}
-              style={({ pressed }) => [pressed && styles.pressed]}
+              style={({ pressed }) => [
+                styles.forgotPasswordPressable,
+                pressed && styles.pressed,
+              ]}
               accessibilityRole="button"
               accessibilityLabel={s.forgotPassword}
             >
@@ -350,11 +369,13 @@ const styles = StyleSheet.create({
   passwordInputSpacing: {
     marginBottom: 6,
   },
+  forgotPasswordPressable: {
+    alignSelf: "flex-end",
+    marginBottom: 20,
+  },
   forgotPassword: {
     fontSize: 14,
     color: theme.colors.backgroundLight,
-    alignSelf: "flex-end",
-    marginBottom: 20,
   },
   signInButton: {
     height: 52,

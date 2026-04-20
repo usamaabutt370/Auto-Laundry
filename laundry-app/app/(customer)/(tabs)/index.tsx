@@ -7,7 +7,7 @@ import { strings } from "@/constants/strings";
 import { theme } from "@/constants/theme";
 import { assets } from "@/assets/assets";
 import { useSidebar } from "@/contexts/sidebar-context";
-import { Pressable, StyleSheet, TextInput, View } from "react-native";
+import { Platform, Pressable, StyleSheet, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const c = theme.colors;
@@ -42,7 +42,7 @@ export default function CustomerHomeScreen() {
             returnKeyType="done"
           />
           <Pressable
-            onPress={() => {}}
+            onPress={() => { }}
             style={({ pressed }) => [
               styles.locationIconInside,
               pressed && styles.pressed,
@@ -67,7 +67,7 @@ export default function CustomerHomeScreen() {
         </ThemedText>
         <View style={styles.serviceButtons}>
           <Pressable
-            onPress={() => {}}
+            onPress={() => { }}
             style={({ pressed }) => [
               styles.serviceBtn,
               pressed && styles.pressed,
@@ -189,21 +189,23 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 10,
+    gap: Platform.OS === "android" ? 6 : 7,
     height: 56,
     borderRadius: 14,
     backgroundColor: c.background,
     borderWidth: 1,
     borderColor: c.white,
+    paddingHorizontal: Platform.OS === "android" ? 4 : 0,
   },
   serviceBtnIcon: {
-    width: 28,
-    height: 28,
+    width: Platform.OS === "android" ? 22 : 28,
+    height: Platform.OS === "android" ? 22 : 28,
     tintColor: c.white,
   },
   serviceBtnText: {
-    fontSize: 15,
+    fontSize: Platform.OS === "android" ? 13 : 14,
     fontWeight: "600",
     color: c.white,
+    flexShrink: 1,
   },
 });

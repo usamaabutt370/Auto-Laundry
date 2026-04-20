@@ -2,7 +2,9 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams, useNavigation } from "expo-router";
 import { useState } from "react";
 import {
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -82,12 +84,16 @@ export default function LaundryBagDetailScreen() {
         </Pressable>
       </SafeAreaView>
 
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
+      <KeyboardAvoidingView
+        style={styles.keyboardView}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
         {/* Weight */}
         <Text style={styles.sectionTitle}>{s.weight}</Text>
         <Pressable
@@ -171,6 +177,7 @@ export default function LaundryBagDetailScreen() {
           textAlignVertical="top"
         />
       </ScrollView>
+    </KeyboardAvoidingView>
 
       <SafeAreaView style={styles.footer} edges={["bottom"]}>
         <Pressable
@@ -242,6 +249,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: c.background,
+  },
+  keyboardView: {
+    flex: 1,
   },
   header: {
     flexDirection: "row",
