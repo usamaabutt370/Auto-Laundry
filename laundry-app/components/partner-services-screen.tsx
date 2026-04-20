@@ -21,8 +21,14 @@ import {
 } from "@/components/partner-service-entry";
 import { AppButton } from "@/components/ui/button";
 import { theme } from "@/constants/theme";
+import { useAuth } from "@/contexts/auth-context";
 import { useLocale } from "@/contexts/locale-context";
 import { useMerchantServices } from "@/contexts/merchant-services-context";
+import {
+  PARTNER_ORDER_DEDUCTION_RATE_PERCENT,
+  awardWelcomeCredits,
+  isWelcomeCreditsRpcMissingError,
+} from "@/lib/partner-credits";
 import { getStrings } from "@/locales";
 import { allowDecimalOnly } from "@/utils/input-filter";
 
@@ -74,6 +80,7 @@ export interface PartnerServicesScreenProps {
  */
 export function PartnerServicesScreen({ mode }: PartnerServicesScreenProps) {
   const router = useRouter();
+  const { user } = useAuth();
   const { locale } = useLocale();
   const [inlineError, setInlineError] = useState<string | null>(null);
   const {
@@ -137,8 +144,39 @@ export function PartnerServicesScreen({ mode }: PartnerServicesScreenProps) {
       setInlineError(result.error ?? "Unable to save services. Please try again.");
       return;
     }
-    setInlineError(null);
-    router.replace("/(partner)");
+    if (!user?.id) {
+      setInlineError("Unable to set welcome credits. Please sign in again.");
+      return;
+    }
+    try {
+      const welcomeCredits = await awardWelcomeCredits();
+      const awarded = String(welcomeCredits.awarded);
+      const balance = String(welcomeCredits.balance);
+      router.replace({
+        pathname: "/(partner)/onboarding/credits-awarded",
+        params: {
+          awarded,
+          balance,
+          deductionRate: String(PARTNER_ORDER_DEDUCTION_RATE_PERCENT),
+        },
+      });
+      return;
+    } catch (error) {
+      if (isWelcomeCreditsRpcMissingError(error)) {
+        Alert.alert(
+          "Credits setup pending",
+          "Your onboarding is saved. Please deploy the latest Supabase migration for partner credits, then credits can be granted.",
+        );
+        router.replace("/(partner)");
+        return;
+      }
+      setInlineError(
+        error instanceof Error
+          ? error.message
+          : "Unable to set welcome credits. Please try again.",
+      );
+      return;
+    }
   };
 
   const handleSaveSettings = async () => {
