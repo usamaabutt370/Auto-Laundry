@@ -3,6 +3,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import {
   Alert,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -25,7 +26,6 @@ import { useAuth } from "@/contexts/auth-context";
 import { useLocale } from "@/contexts/locale-context";
 import { useMerchantServices } from "@/contexts/merchant-services-context";
 import {
-  PARTNER_ORDER_DEDUCTION_RATE_PERCENT,
   awardWelcomeCredits,
   isWelcomeCreditsRpcMissingError,
 } from "@/lib/partner-credits";
@@ -83,6 +83,9 @@ export function PartnerServicesScreen({ mode }: PartnerServicesScreenProps) {
   const { user } = useAuth();
   const { locale } = useLocale();
   const [inlineError, setInlineError] = useState<string | null>(null);
+  const [creditsModalVisible, setCreditsModalVisible] = useState(false);
+  const [awardedCredits, setAwardedCredits] = useState(0);
+  const [currentBalance, setCurrentBalance] = useState(0);
   const {
     washAndFoldPricing,
     dryCleaningPricing,
@@ -122,17 +125,22 @@ export function PartnerServicesScreen({ mode }: PartnerServicesScreenProps) {
     }
   };
 
+  const hasAtLeastOnePrice = (pricing: { rows: Array<{ value: string }> } | null) =>
+    (pricing?.rows ?? []).some((row) => row.value.trim().length > 0);
+
   const allCoreServicesAdded =
-    (washAndFoldPricing?.rows?.length ?? 0) > 0 &&
-    (dryCleaningPricing?.rows?.length ?? 0) > 0 &&
-    (tailoringPricing?.rows?.length ?? 0) > 0;
+    hasAtLeastOnePrice(washAndFoldPricing) &&
+    hasAtLeastOnePrice(dryCleaningPricing) &&
+    hasAtLeastOnePrice(tailoringPricing);
   const pickupAmountValid =
     !pickupDeliveryPricing.enabled || pickupDeliveryPricing.amount.trim().length > 0;
 
   const handleFinish = async () => {
     setInlineError(null);
     if (!allCoreServicesAdded) {
-      setInlineError("Please add prices for all services before finishing.");
+      setInlineError(
+        "Please add at least one priced item in Wash & Fold, Dry Cleaning, and Tailoring before finishing.",
+      );
       return;
     }
     if (!pickupAmountValid) {
@@ -150,16 +158,9 @@ export function PartnerServicesScreen({ mode }: PartnerServicesScreenProps) {
     }
     try {
       const welcomeCredits = await awardWelcomeCredits();
-      const awarded = String(welcomeCredits.awarded);
-      const balance = String(welcomeCredits.balance);
-      router.replace({
-        pathname: "/(partner)/onboarding/credits-awarded",
-        params: {
-          awarded,
-          balance,
-          deductionRate: String(PARTNER_ORDER_DEDUCTION_RATE_PERCENT),
-        },
-      });
+      setAwardedCredits(Math.max(0, Number(welcomeCredits.awarded) || 0));
+      setCurrentBalance(Math.max(0, Number(welcomeCredits.balance) || 0));
+      setCreditsModalVisible(true);
       return;
     } catch (error) {
       if (isWelcomeCreditsRpcMissingError(error)) {
@@ -320,6 +321,43 @@ export function PartnerServicesScreen({ mode }: PartnerServicesScreenProps) {
         )}
       </ScrollView>
     </KeyboardAvoidingView>
+      <Modal
+        visible={creditsModalVisible}
+        transparent
+        animationType="fade"
+        presentationStyle="overFullScreen"
+        statusBarTranslucent
+        onRequestClose={() => setCreditsModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>{onboardingStrings.creditsScreenTitle}</Text>
+            <Text style={styles.modalSubtitle}>{onboardingStrings.creditsScreenSubtitle}</Text>
+            <View style={styles.modalStats}>
+              <Text style={styles.modalStatsLabel}>{onboardingStrings.creditsAwardedLabel}</Text>
+              <Text style={styles.modalStatsValue}>
+                {awardedCredits} {onboardingStrings.creditsTokenLabel}
+              </Text>
+              <Text style={styles.modalBalanceLine}>
+                {onboardingStrings.creditsBalanceLabelPrefix} {currentBalance}{" "}
+                {onboardingStrings.creditsTokenLabel}
+              </Text>
+            </View>
+            <AppButton
+              label={onboardingStrings.creditsContinueToDashboard}
+              onPress={() => {
+                setCreditsModalVisible(false);
+                router.replace("/(partner)");
+              }}
+              variant="filled"
+              rightIcon="arrow-right"
+              fullWidth
+              style={styles.modalContinueBtn}
+              accessibilityLabel={onboardingStrings.creditsContinueToDashboard}
+            />
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -393,5 +431,62 @@ const styles = StyleSheet.create({
   pickupAmountLabel: {
     fontSize: fs.descText,
     color: c.blue500,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(3, 15, 27, 0.72)",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 20,
+  },
+  modalCard: {
+    width: "100%",
+    maxWidth: 340,
+    backgroundColor: c.blue900,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: "rgba(171, 233, 254, 0.45)",
+    paddingHorizontal: 20,
+    paddingVertical: 22,
+  },
+  modalTitle: {
+    color: c.white,
+    fontSize: fs.titleMedium,
+    fontWeight: "700",
+    lineHeight: 30,
+  },
+  modalSubtitle: {
+    marginTop: 8,
+    color: c.white,
+    fontSize: fs.descText,
+    lineHeight: 21,
+  },
+  modalStats: {
+    marginTop: 16,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "rgba(171, 233, 254, 0.45)",
+    backgroundColor: "rgba(12, 52, 74, 0.45)",
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    gap: 4,
+  },
+  modalStatsLabel: {
+    color: c.white,
+    fontSize: fs.descText,
+  },
+  modalStatsValue: {
+    color: c.white,
+    fontSize: fs.titleMedium,
+    fontWeight: "700",
+  },
+  modalBalanceLine: {
+    color: c.white,
+    fontSize: fs.smallText,
+    fontWeight: "600",
+  },
+  modalContinueBtn: {
+    marginTop: 18,
+    marginBottom: 12,
   },
 });

@@ -369,11 +369,13 @@ const styles = StyleSheet.create({
   },
   actionText: {
     color: c.white,
-    fontSize: fs.xxSmallText,
+    fontSize: fs.descText,
     fontWeight: "600",
   },
   rejectActionText: {
     color: "#D9534F",
+    fontSize: fs.descText,
+    fontWeight: "600",
   },
   actionDisabled: {
     opacity: 0.5,
