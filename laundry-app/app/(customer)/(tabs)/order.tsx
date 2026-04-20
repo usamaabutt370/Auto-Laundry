@@ -1,4 +1,5 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import { useCallback, useMemo } from "react";
 import {
   ActivityIndicator,
@@ -40,6 +41,7 @@ function statusLabelKey(
 }
 
 export default function CustomerOrderScreen() {
+  const router = useRouter();
   const { user } = useAuth();
   const { locale } = useLocale();
   const s = getStrings(locale).customer.ordersTab;
@@ -233,6 +235,22 @@ export default function CustomerOrderScreen() {
                     <Text style={styles.totalLabel}>{s.estTotal}</Text>
                     <Text style={styles.totalValue}>{order.estimatedTotalLabel}</Text>
                   </View>
+                  {order.displayStatus === "rejected" ? (
+                    <Pressable
+                      onPress={() =>
+                        router.push({
+                          pathname: "/(customer)/pick-launderer",
+                          params: { reorderOrderId: order.id },
+                        })
+                      }
+                      style={({ pressed }) => [
+                        styles.reorderButton,
+                        pressed && styles.pressed,
+                      ]}
+                    >
+                      <Text style={styles.reorderButtonText}>{s.reorderAction}</Text>
+                    </Pressable>
+                  ) : null}
                 </View>
               </Swipeable>
             );
@@ -416,5 +434,19 @@ const styles = StyleSheet.create({
     fontSize: fs.descText,
     fontWeight: "700",
     color: c.white,
+  },
+  reorderButton: {
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: c.filledButtonBorder,
+    borderRadius: 999,
+    paddingVertical: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  reorderButtonText: {
+    color: c.white,
+    fontSize: fs.descText,
+    fontWeight: "700",
   },
 });

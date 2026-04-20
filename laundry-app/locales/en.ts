@@ -117,11 +117,16 @@ export const en = {
     },
     pickLaunderer: {
       title: "Pick Up & Delivery",
+      reassignTitle: "Choose a new launderer",
       addressPlaceholder: "1465 5th Avenue APt 5C",
       hoursPlaceholder: "Hours not set",
       emptyList:
         "No launderers are available for pickup yet. Complete partner onboarding with pickup enabled to appear here.",
       retry: "Retry",
+      reassignSuccessTitle: "Order reassigned",
+      reassignSuccessMessage: "Your order is now pending with the new launderer.",
+      reassignErrorTitle: "Could not reassign order",
+      reassignErrorMessage: "Please try again.",
     },
     partnerPickupLinePrefix: "Pickup & delivery:",
     laundererDetail: {
@@ -239,6 +244,7 @@ export const en = {
         "This removes the order from your list. This cannot be undone.",
       deleteError: "Could not delete the order.",
       cancel: "Cancel",
+      reorderAction: "Reorder with another launderer",
     },
     explore: {
       title: "Explore",

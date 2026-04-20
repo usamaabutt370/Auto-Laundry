@@ -161,6 +161,34 @@ export async function deleteCustomerOrder(orderId: string): Promise<void> {
   }
 }
 
+export async function reassignRejectedCustomerOrder(
+  orderId: string,
+  newPartnerId: string,
+): Promise<void> {
+  if (!supabase) {
+    throw new Error("Supabase is not configured.");
+  }
+
+  const { data, error } = await supabase
+    .from("customer_orders")
+    .update({
+      partner_id: newPartnerId,
+      status: "submitted",
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", orderId)
+    .eq("status", "rejected")
+    .select("id")
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+  if (!data) {
+    throw new Error("Only rejected orders can be reassigned.");
+  }
+}
+
 export async function fetchCustomerOrders(customerId: string): Promise<CustomerOrderListItem[]> {
   if (!supabase) {
     throw new Error("Supabase is not configured.");

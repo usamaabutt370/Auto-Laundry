@@ -1,8 +1,9 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -23,6 +24,7 @@ import {
   fetchPickupPartners,
   type PartnerPublicRow,
 } from "@/lib/partner-discovery";
+import { reassignRejectedCustomerOrder } from "@/lib/customer-orders";
 import {
   getCoordinatesWithFallback,
   type Coordinates,
@@ -142,7 +144,10 @@ function LaundererCard({
 
 export default function PickLaundererScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ reorderOrderId?: string }>();
   const s = strings.customer.pickLaunderer;
+  const reorderOrderId = typeof params.reorderOrderId === "string" ? params.reorderOrderId : "";
+  const isReassignMode = reorderOrderId.length > 0;
   const [partners, setPartners] = useState<PartnerPublicRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -284,6 +289,34 @@ export default function PickLaundererScreen() {
     return next;
   }, [partnerCoordinates, partners, userCoordinates]);
 
+  const handlePartnerPress = useCallback(
+    async (partnerId: string) => {
+      if (!isReassignMode) {
+        router.push({
+          pathname: "/(customer)/launderer-detail",
+          params: { id: partnerId },
+        });
+        return;
+      }
+
+      try {
+        await reassignRejectedCustomerOrder(reorderOrderId, partnerId);
+        Alert.alert(s.reassignSuccessTitle, s.reassignSuccessMessage, [
+          {
+            text: "OK",
+            onPress: () => router.replace("/(customer)/(tabs)/order"),
+          },
+        ]);
+      } catch (error) {
+        Alert.alert(
+          s.reassignErrorTitle,
+          error instanceof Error ? error.message : s.reassignErrorMessage,
+        );
+      }
+    },
+    [isReassignMode, reorderOrderId, router, s],
+  );
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -318,7 +351,7 @@ export default function PickLaundererScreen() {
           <Image source={assets.icons.menu_icon} style={styles.headerRightIcon} />
         </Pressable>
       </SafeAreaView>
-      <Text style={styles.screenTitle}>{s.title}</Text>
+      <Text style={styles.screenTitle}>{isReassignMode ? s.reassignTitle : s.title}</Text>
 
       {loading ? (
         <View style={styles.centerBlock}>
@@ -346,12 +379,7 @@ export default function PickLaundererScreen() {
               key={partner.id}
               partner={partner}
               distanceLabel={partnerDistanceLabels[partner.id] ?? PARTNER_DISTANCE_PLACEHOLDER}
-              onPress={() =>
-                router.push({
-                  pathname: "/(customer)/launderer-detail",
-                  params: { id: partner.id },
-                })
-              }
+              onPress={() => void handlePartnerPress(partner.id)}
             />
           ))}
         </ScrollView>

@@ -116,11 +116,16 @@ export const ur = {
     },
     pickLaunderer: {
       title: "پک اپ اور ڈیلیوری",
+      reassignTitle: "نیا لانڈرر منتخب کریں",
       addressPlaceholder: "1465 5th Avenue APt 5C",
       hoursPlaceholder: "اوقات متعین نہیں",
       emptyList:
         "ابھی پک اپ کے لیے کوئی لانڈرر دستیاب نہیں۔ یہاں نظر آنے کے لیے پارٹنر آن بورڈنگ مکمل کریں۔",
       retry: "دوبارہ کوشش",
+      reassignSuccessTitle: "آرڈر دوبارہ تفویض ہو گیا",
+      reassignSuccessMessage: "آپ کا آرڈر نئے لانڈرر کے ساتھ زیرِ التوا ہے۔",
+      reassignErrorTitle: "آرڈر دوبارہ تفویض نہیں ہو سکا",
+      reassignErrorMessage: "براہِ کرم دوبارہ کوشش کریں۔",
     },
     partnerPickupLinePrefix: "پک اپ اور ڈیلیوری:",
     laundererDetail: {
@@ -236,6 +241,7 @@ export const ur = {
       deleteMessage: "یہ آپ کی فہرست سے آرڈر ہٹا دے گا۔ واپس نہیں ہو سکتا۔",
       deleteError: "آرڈر حذف نہیں ہو سکا۔",
       cancel: "منسوخ",
+      reorderAction: "کسی اور لانڈرر کے ساتھ دوبارہ آرڈر کریں",
     },
     explore: {
       title: "دریافت",
