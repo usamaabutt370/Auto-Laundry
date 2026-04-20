@@ -67,11 +67,11 @@ export default function WashFoldOrderScreen() {
   const sOrder = strings.customer.washFoldOrder;
   const sLive = strings.customer.liveEstimate;
 
-  const [bagCount, setBagCount] = useState(() => draft.washFold?.bagCount ?? 1);
+  const [bagCount, setBagCount] = useState(() => draft.washFold?.bagCount ?? 0);
   const [itemCount, setItemCount] = useState(() =>
     Math.max(
       MIN_ITEMS,
-      draft.washFold?.bagDetailsByIndex[1]?.itemCount ?? 1,
+      draft.washFold?.bagDetailsByIndex[1]?.itemCount ?? 0,
     ),
   );
   const [instructions, setInstructions] = useState(

@@ -58,7 +58,7 @@ const emptyDraft = (): CustomerOrderDraft => ({
   partnerId: null,
   partnerName: null,
   pickupDeliveryRequested: false,
-  selectedServiceIds: ["washAndFold"],
+  selectedServiceIds: [],
   washFold: null,
   dryClean: null,
   pickup: null,
@@ -131,7 +131,7 @@ export function CustomerOrderDraftProvider({
   const setWashFoldPricingMode = useCallback((pricingMode: WashFoldPricingMode) => {
     setDraft((p) => {
       const wf = p.washFold ?? {
-        bagCount: 1,
+        bagCount: 0,
         pricingMode,
         estimateIncludeBag: pricingMode === "per_bag",
         estimateIncludeItem: pricingMode === "per_item",
@@ -155,7 +155,7 @@ export function CustomerOrderDraftProvider({
     (bagIndex: number, detail: WashFoldBagDetail) => {
       setDraft((p) => {
         const wf = p.washFold ?? {
-          bagCount: 1,
+          bagCount: 0,
           pricingMode: "per_bag" as WashFoldPricingMode,
           estimateIncludeBag: true,
           estimateIncludeItem: false,

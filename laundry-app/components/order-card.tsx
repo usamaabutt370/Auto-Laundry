@@ -67,6 +67,9 @@ export function OrderCard({
 }: OrderCardProps) {
   const initialChar =
     initial ?? (customerName.trim()[0]?.toUpperCase() ?? "?");
+  const handleStatusPillPress = (event: { stopPropagation?: () => void }) => {
+    event.stopPropagation?.();
+  };
 
   const content = (
     <>
@@ -102,11 +105,15 @@ export function OrderCard({
             ]}
           >
             {statusLabel ? (
-              <View style={styles.statusPill}>
+              <Pressable
+                onPress={handleStatusPillPress}
+                onPressIn={handleStatusPillPress}
+                style={styles.statusPill}
+              >
                 <Text style={styles.statusPillText} numberOfLines={1}>
                   {statusLabel}
                 </Text>
-              </View>
+              </Pressable>
             ) : null}
             {onAccept ? (
               <Pressable

@@ -49,7 +49,7 @@ export function useLaundererDashboard(
 
       const rows = orders ?? [];
 
-      // Active drop-off / delivery orders for high-level stats:
+      // Active drop-off / delivery orders for high-level workload stats:
       // exclude completed / rejected so cards reflect current work.
       const isActive = (status: string) =>
         status !== "completed" && status !== "rejected" && status !== "cancelled";
@@ -66,6 +66,15 @@ export function useLaundererDashboard(
           (row.pickup_day_label || row.pickup_time_slot_label)
       );
 
+      // Income must be permanent and based on completed work only.
+      const completedOrders = rows.filter((row) => row.status === "completed");
+      const completedDropOffOrders = completedOrders.filter(
+        (row) => !row.pickup_day_label && !row.pickup_time_slot_label
+      );
+      const completedDeliveryOrders = completedOrders.filter(
+        (row) => Boolean(row.pickup_day_label || row.pickup_time_slot_label)
+      );
+
       const totalFrom = (list: typeof rows) =>
         list.reduce((sum, row) => {
           const base =
@@ -74,9 +83,9 @@ export function useLaundererDashboard(
           return sum + Number(base) + Number(pickupFee);
         }, 0);
 
-      const totalIncome = totalFrom(rows);
-      const dropOffIncome = totalFrom(dropOffOrders);
-      const deliveryIncome = totalFrom(deliveryOrders);
+      const totalIncome = totalFrom(completedOrders);
+      const dropOffIncome = totalFrom(completedDropOffOrders);
+      const deliveryIncome = totalFrom(completedDeliveryOrders);
 
       const partnerIds = Array.from(
         new Set(rows.map((_row) => user.id))
@@ -122,20 +131,65 @@ export function useLaundererDashboard(
       const today = new Date();
       const chartStart = new Date();
       chartStart.setDate(today.getDate() - 6);
+      chartStart.setHours(0, 0, 0, 0);
 
       const chartValues: [number, number, number, number, number, number, number] =
         [0, 0, 0, 0, 0, 0, 0];
 
-      rows.forEach((row) => {
-        const submittedAt = row.submitted_at ? new Date(row.submitted_at) : null;
-        if (!submittedAt) return;
+      const { data: ledgerRows, error: ledgerError } = await supabase
+        .from("partner_credit_ledger")
+        .select("delta,created_at,event_type,metadata")
+        .eq("partner_id", user.id)
+        .eq("event_type", "order_charge")
+        .gte("created_at", chartStart.toISOString())
+        .order("created_at", { ascending: false });
+
+      if (ledgerError) throw new Error(ledgerError.message);
+
+      const orderStatusById = new Map<string, string>();
+      for (const row of rows) {
+        if (row.id) orderStatusById.set(String(row.id), String(row.status ?? ""));
+      }
+
+      const completedLedgerRows = (ledgerRows ?? []).filter((row) => {
+        const metadata = (row.metadata ?? {}) as { order_id?: string };
+        const orderId = metadata.order_id ? String(metadata.order_id) : "";
+        return orderStatusById.get(orderId) === "completed";
+      });
+
+      for (const row of completedLedgerRows) {
+        const createdAt = row.created_at ? new Date(row.created_at) : null;
+        if (!createdAt) continue;
         const diffDays = Math.floor(
-          (submittedAt.getTime() - chartStart.getTime()) / (1000 * 60 * 60 * 24)
+          (createdAt.getTime() - chartStart.getTime()) / (1000 * 60 * 60 * 24),
         );
         if (diffDays >= 0 && diffDays < 7) {
-          chartValues[diffDays] += 1;
+          chartValues[diffDays] += Math.abs(Number(row.delta ?? 0));
         }
-      });
+      }
+
+      const latestOrderDeduction =
+        Math.abs(Number(completedLedgerRows?.[0]?.delta ?? 0)) || 0;
+
+      const recentCompletedOrderDeductions = completedLedgerRows
+        .slice(0, 2)
+        .map((row) => {
+          const metadata = (row.metadata ?? {}) as {
+            order_id?: string;
+            order_amount?: number;
+          };
+          return {
+            orderId: metadata.order_id ? String(metadata.order_id) : "unknown",
+            deductedTokens: Math.abs(Number(row.delta ?? 0)),
+            orderAmount: Number(metadata.order_amount ?? 0),
+            chargedAtIso: String(row.created_at ?? new Date().toISOString()),
+          };
+        });
+
+      const completedOrderDeductionsTotal = completedLedgerRows.reduce(
+        (sum, row) => sum + Math.abs(Number(row.delta ?? 0)),
+        0,
+      );
 
       const { data: creditAccount, error: creditError } = await supabase
         .from("partner_credit_accounts")
@@ -165,6 +219,9 @@ export function useLaundererDashboard(
         dropOffIncome,
         deliveryIncome,
         balance,
+        latestOrderDeduction,
+        completedOrderDeductionsTotal,
+        recentCompletedOrderDeductions,
         chartValues,
       };
 
