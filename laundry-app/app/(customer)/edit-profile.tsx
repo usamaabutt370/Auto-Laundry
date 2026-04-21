@@ -154,19 +154,19 @@ export default function EditProfileScreen() {
         getPaymentMethod(),
         isSupabaseConfigured()
           ? getSession().then(async ({ data }) => {
-              const user = data.session?.user;
-              if (!user || !supabase) return null;
-              const { data: row } = await supabase
-                .from("profiles")
-                .select("address, image_url, updated_at")
-                .eq("id", user.id)
-                .maybeSingle<{
-                  address: string | null;
-                  image_url: string | null;
-                  updated_at: string | null;
-                }>();
-              return row;
-            })
+            const user = data.session?.user;
+            if (!user || !supabase) return null;
+            const { data: row } = await supabase
+              .from("profiles")
+              .select("address, image_url, updated_at")
+              .eq("id", user.id)
+              .maybeSingle<{
+                address: string | null;
+                image_url: string | null;
+                updated_at: string | null;
+              }>();
+            return row;
+          })
           : Promise.resolve(null),
       ]);
       if (stored) {
@@ -224,7 +224,19 @@ export default function EditProfileScreen() {
         return;
       }
 
-      if (!phoneNumberObj || !phoneNumberObj.isValid()) {
+      const isPK = countryCode === "PK";
+      const isPKValid = isPK && rawPhone.length === 10;
+
+      if (isPK) {
+        if (!isPKValid) {
+          Alert.alert(
+            "Invalid phone",
+            "Pakistan mobile number must be 10 digits.",
+          );
+          setSaving(false);
+          return;
+        }
+      } else if (!phoneNumberObj || !phoneNumberObj.isValid()) {
         Alert.alert(
           "Invalid phone",
           `Please enter a valid mobile number for ${countryCode}.`,
@@ -233,7 +245,7 @@ export default function EditProfileScreen() {
         return;
       }
 
-      const phoneVal = phoneNumberObj.number;
+      const phoneVal = `+${callingCode}${rawPhone}`;
 
       const now = new Date().toISOString();
       const upsertPayload = {
@@ -409,336 +421,358 @@ export default function EditProfileScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-        <Pressable style={styles.backBtn} onPress={() => router.back()}>
-          <MaterialCommunityIcons
-            name="arrow-left"
-            size={24}
-            color={c.blue500}
-          />
-          <Text style={styles.backLabel}>Back</Text>
-        </Pressable>
+          <Pressable style={styles.backBtn} onPress={() => router.back()}>
+            <MaterialCommunityIcons
+              name="arrow-left"
+              size={24}
+              color={c.blue500}
+            />
+            <Text style={styles.backLabel}>Back</Text>
+          </Pressable>
 
-        <View style={styles.segmentWrap}>
-          <Text style={styles.segmentTitle}>
-            {isPaymentMode ? "Payment" : "Profile"}
-          </Text>
-        </View>
+          <View style={styles.segmentWrap}>
+            <Text style={styles.segmentTitle}>
+              {isPaymentMode ? "Payment" : "Profile"}
+            </Text>
+          </View>
 
-        <View style={styles.avatarWrap}>
-          {isPaymentMode ? (
-            <>
-              {imageUrl ? (
-                <Image
-                  key={
-                    avatarUrlWithCacheBuster(imageUrl, profileUpdatedAt) ??
-                    "server"
-                  }
-                  source={{
-                    uri:
+          <View style={styles.avatarWrap}>
+            {isPaymentMode ? (
+              <>
+                {imageUrl ? (
+                  <Image
+                    key={
                       avatarUrlWithCacheBuster(imageUrl, profileUpdatedAt) ??
-                      imageUrl,
-                  }}
-                  style={styles.avatar}
-                  resizeMode="cover"
-                />
-              ) : (
-                <View style={styles.avatarPlaceholder}>
-                  <MaterialCommunityIcons
-                    name="account"
-                    size={48}
-                    color={c.blue500}
+                      "server"
+                    }
+                    source={{
+                      uri:
+                        avatarUrlWithCacheBuster(imageUrl, profileUpdatedAt) ??
+                        imageUrl,
+                    }}
+                    style={styles.avatar}
+                    resizeMode="cover"
                   />
-                </View>
-              )}
-            </>
-          ) : (
-            <Pressable
-              style={StyleSheet.absoluteFill}
-              onPress={pickAndUploadImage}
-              disabled={uploadingImage}
-            >
-              {localImageUri || imageUrl ? (
-                <Image
-                  key={
-                    localImageUri
-                      ? `local:${localImageUri}`
-                      : (avatarUrlWithCacheBuster(imageUrl, profileUpdatedAt) ??
-                        "server")
-                  }
-                  source={{
-                    uri:
-                      localImageUri ??
-                      (imageUrl
-                        ? (avatarUrlWithCacheBuster(
+                ) : (
+                  <View style={styles.avatarPlaceholder}>
+                    <MaterialCommunityIcons
+                      name="account"
+                      size={48}
+                      color={c.blue500}
+                    />
+                  </View>
+                )}
+              </>
+            ) : (
+              <Pressable
+                style={StyleSheet.absoluteFill}
+                onPress={pickAndUploadImage}
+                disabled={uploadingImage}
+              >
+                {localImageUri || imageUrl ? (
+                  <Image
+                    key={
+                      localImageUri
+                        ? `local:${localImageUri}`
+                        : (avatarUrlWithCacheBuster(imageUrl, profileUpdatedAt) ??
+                          "server")
+                    }
+                    source={{
+                      uri:
+                        localImageUri ??
+                        (imageUrl
+                          ? (avatarUrlWithCacheBuster(
                             imageUrl,
                             profileUpdatedAt,
                           ) ?? imageUrl)
-                        : undefined),
-                  }}
-                  style={styles.avatar}
-                  resizeMode="cover"
-                />
-              ) : (
-                <View style={styles.avatarPlaceholder}>
-                  {uploadingImage ? (
-                    <ActivityIndicator color={c.blue500} size="small" />
-                  ) : (
-                    <>
-                      <MaterialCommunityIcons
-                        name="account"
-                        size={48}
-                        color={c.blue500}
-                      />
-                      <Text style={styles.addPhotoLabel}>Add photo</Text>
-                    </>
-                  )}
-                </View>
-              )}
-            </Pressable>
-          )}
-        </View>
+                          : undefined),
+                    }}
+                    style={styles.avatar}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <View style={styles.avatarPlaceholder}>
+                    {uploadingImage ? (
+                      <ActivityIndicator color={c.blue500} size="small" />
+                    ) : (
+                      <>
+                        <MaterialCommunityIcons
+                          name="account"
+                          size={48}
+                          color={c.blue500}
+                        />
+                        <Text style={styles.addPhotoLabel}>Add photo</Text>
+                      </>
+                    )}
+                  </View>
+                )}
+              </Pressable>
+            )}
+          </View>
 
-        {isPaymentMode ? (
-          <View style={styles.paymentForm}>
-            <View style={styles.field}>
-              <Text style={styles.label}>Full Name on Credit Card</Text>
-              <TextInput
-                style={styles.input}
-                value={cardName}
-                onChangeText={setCardName}
-                placeholder="John Doe"
-                placeholderTextColor={c.blue500}
-                autoCapitalize="words"
-              />
-            </View>
-            <View style={styles.field}>
-              <Text style={styles.label}>Credit Card Number</Text>
-              <TextInput
-                style={styles.input}
-                value={cardNumber}
-                onChangeText={(t) =>
-                  setCardNumber(
-                    t
-                      .replace(/\D/g, "")
-                      .replace(/(\d{4})(?=\d)/g, "$1 ")
-                      .slice(0, 19),
-                  )
-                }
-                placeholder="8654 2154 8125 4780"
-                placeholderTextColor={c.blue500}
-                keyboardType="number-pad"
-                maxLength={19}
-              />
-            </View>
-            <View style={styles.row}>
+          {isPaymentMode ? (
+            <View style={styles.paymentForm}>
               <View style={styles.field}>
-                <Text style={styles.label}>Expiration Date</Text>
+                <Text style={styles.label}>Full Name on Credit Card</Text>
                 <TextInput
                   style={styles.input}
-                  value={expiration}
-                  onChangeText={(t) => {
-                    const v = t.replace(/\D/g, "").slice(0, 4);
-                    if (v.length >= 2)
-                      setExpiration(`${v.slice(0, 2)}/${v.slice(2)}`);
-                    else setExpiration(v);
-                  }}
-                  placeholder="MM/YY"
+                  value={cardName}
+                  onChangeText={setCardName}
+                  placeholder="John Doe"
                   placeholderTextColor={c.blue500}
-                  keyboardType="number-pad"
-                  maxLength={5}
+                  autoCapitalize="words"
                 />
               </View>
               <View style={styles.field}>
-                <Text style={styles.label}>CVV</Text>
+                <Text style={styles.label}>Credit Card Number</Text>
                 <TextInput
                   style={styles.input}
-                  value={cvv}
-                  onChangeText={(t) => setCvv(t.replace(/\D/g, "").slice(0, 4))}
-                  placeholder="998"
-                  placeholderTextColor={c.blue500}
-                  keyboardType="number-pad"
-                  maxLength={4}
-                />
-              </View>
-            </View>
-            <Pressable
-              style={styles.checkboxRow}
-              onPress={() => {
-                const next = !useSameAddress;
-                setUseSameAddress(next);
-                if (next && address) setBillingAddress(address);
-              }}
-            >
-              <MaterialCommunityIcons
-                name={
-                  useSameAddress ? "checkbox-marked" : "checkbox-blank-outline"
-                }
-                size={24}
-                color={c.blue500}
-              />
-              <Text style={styles.checkboxLabel}>
-                Use same address from Profile
-              </Text>
-            </Pressable>
-            <View style={styles.field}>
-              <Text style={styles.label}>Address</Text>
-              <TextInput
-                style={styles.input}
-                value={billingAddress}
-                onChangeText={setBillingAddress}
-                placeholder="Street address"
-                placeholderTextColor={c.blue500}
-                editable={!useSameAddress}
-              />
-            </View>
-            <View style={styles.rowThree}>
-              <View style={styles.fieldThird}>
-                <Text style={styles.label}>Zip Code</Text>
-                <TextInput
-                  style={styles.input}
-                  value={zipCode}
+                  value={cardNumber}
                   onChangeText={(t) =>
-                    setZipCode(t.replace(/\D/g, "").slice(0, 10))
+                    setCardNumber(
+                      t
+                        .replace(/\D/g, "")
+                        .replace(/(\d{4})(?=\d)/g, "$1 ")
+                        .slice(0, 19),
+                    )
                   }
-                  placeholder="10001"
+                  placeholder="8654 2154 8125 4780"
                   placeholderTextColor={c.blue500}
                   keyboardType="number-pad"
+                  maxLength={19}
                 />
               </View>
-              <View style={styles.fieldThird}>
-                <Text style={styles.label}>State</Text>
-                <TextInput
-                  style={styles.input}
-                  value={state}
-                  onChangeText={setState}
-                  placeholder="NY"
-                  placeholderTextColor={c.blue500}
-                  autoCapitalize="characters"
-                  maxLength={2}
-                />
+              <View style={styles.row}>
+                <View style={styles.field}>
+                  <Text style={styles.label}>Expiration Date</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={expiration}
+                    onChangeText={(t) => {
+                      const v = t.replace(/\D/g, "").slice(0, 4);
+                      if (v.length >= 2)
+                        setExpiration(`${v.slice(0, 2)}/${v.slice(2)}`);
+                      else setExpiration(v);
+                    }}
+                    placeholder="MM/YY"
+                    placeholderTextColor={c.blue500}
+                    keyboardType="number-pad"
+                    maxLength={5}
+                  />
+                </View>
+                <View style={styles.field}>
+                  <Text style={styles.label}>CVV</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={cvv}
+                    onChangeText={(t) => setCvv(t.replace(/\D/g, "").slice(0, 4))}
+                    placeholder="998"
+                    placeholderTextColor={c.blue500}
+                    keyboardType="number-pad"
+                    maxLength={4}
+                  />
+                </View>
               </View>
-              <View style={styles.fieldThird}>
-                <Text style={styles.label}>Country</Text>
-                <TextInput
-                  style={styles.input}
-                  value={country}
-                  onChangeText={setCountry}
-                  placeholder="USA"
-                  placeholderTextColor={c.blue500}
-                  autoCapitalize="characters"
-                />
-              </View>
-            </View>
-            <Pressable
-              style={({ pressed }) => [
-                styles.saveBtn,
-                pressed && styles.pressed,
-              ]}
-              onPress={savePayment}
-              disabled={saving}
-            >
-              {saving ? (
-                <ActivityIndicator color={c.background} size="small" />
-              ) : (
-                <Text style={styles.saveLabel}>Save</Text>
-              )}
-            </Pressable>
-          </View>
-        ) : (
-          <View style={styles.form}>
-            <View style={styles.row}>
-              <View style={styles.field}>
-                <Text style={styles.label}>First Name</Text>
-                <TextInput
-                  style={styles.input}
-                  value={firstName}
-                  onChangeText={setFirstName}
-                  placeholder="First name"
-                  placeholderTextColor={c.blue500}
-                  autoCapitalize="words"
-                />
-              </View>
-              <View style={styles.field}>
-                <Text style={styles.label}>Last Name</Text>
-                <TextInput
-                  style={styles.input}
-                  value={lastName}
-                  onChangeText={setLastName}
-                  placeholder="Last name"
-                  placeholderTextColor={c.blue500}
-                  autoCapitalize="words"
-                />
-              </View>
-            </View>
-
-            <View style={styles.field}>
-              <Text style={styles.label}>Address</Text>
-              <TextInput
-                style={styles.input}
-                value={address}
-                onChangeText={setAddress}
-                placeholder="Address"
-                placeholderTextColor={c.blue500}
-              />
-            </View>
-
-            <View style={styles.field}>
-              <Text style={styles.label}>Date of Birth</Text>
-              <TextInput
-                style={styles.input}
-                value={dateOfBirth}
-                onChangeText={setDateOfBirth}
-                placeholder="YYYY-MM-DD"
-                placeholderTextColor={c.blue500}
-              />
-            </View>
-
-            <View style={styles.field}>
-              <Text style={styles.label}>Email</Text>
-              <TextInput
-                style={styles.input}
-                value={email}
-                onChangeText={setEmail}
-                placeholder="Email"
-                placeholderTextColor={c.blue500}
-                keyboardType="email-address"
-                autoCapitalize="none"
-              />
-            </View>
-
-            <View style={styles.field}>
-              <Text style={styles.label}>Phone</Text>
-              <Input
-                variant="phone"
-                value={phone}
-                onChangeText={(t) => setPhone(t.replace(/\D/g, ""))}
-                placeholder="306 1234567"
-                placeholderTextColor={c.blue500}
-                selectedCca2={countryCode}
-                selectedCallingCode={callingCode}
-                onCountrySelect={(c) => {
-                  setCountryCode(c.cca2);
-                  setCallingCode(c.callingCode);
+              <Pressable
+                style={styles.checkboxRow}
+                onPress={() => {
+                  const next = !useSameAddress;
+                  setUseSameAddress(next);
+                  if (next && address) setBillingAddress(address);
                 }}
-              />
+              >
+                <MaterialCommunityIcons
+                  name={
+                    useSameAddress ? "checkbox-marked" : "checkbox-blank-outline"
+                  }
+                  size={24}
+                  color={c.blue500}
+                />
+                <Text style={styles.checkboxLabel}>
+                  Use same address from Profile
+                </Text>
+              </Pressable>
+              <View style={styles.field}>
+                <Text style={styles.label}>Address</Text>
+                <TextInput
+                  style={styles.input}
+                  value={billingAddress}
+                  onChangeText={setBillingAddress}
+                  placeholder="Street address"
+                  placeholderTextColor={c.blue500}
+                  editable={!useSameAddress}
+                />
+              </View>
+              <View style={styles.rowThree}>
+                <View style={styles.fieldThird}>
+                  <Text style={styles.label}>Zip Code</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={zipCode}
+                    onChangeText={(t) =>
+                      setZipCode(t.replace(/\D/g, "").slice(0, 10))
+                    }
+                    placeholder="10001"
+                    placeholderTextColor={c.blue500}
+                    keyboardType="number-pad"
+                  />
+                </View>
+                <View style={styles.fieldThird}>
+                  <Text style={styles.label}>State</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={state}
+                    onChangeText={setState}
+                    placeholder="NY"
+                    placeholderTextColor={c.blue500}
+                    autoCapitalize="characters"
+                    maxLength={2}
+                  />
+                </View>
+                <View style={styles.fieldThird}>
+                  <Text style={styles.label}>Country</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={country}
+                    onChangeText={setCountry}
+                    placeholder="USA"
+                    placeholderTextColor={c.blue500}
+                    autoCapitalize="characters"
+                  />
+                </View>
+              </View>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.saveBtn,
+                  pressed && styles.pressed,
+                ]}
+                onPress={savePayment}
+                disabled={saving}
+              >
+                {saving ? (
+                  <ActivityIndicator color={c.background} size="small" />
+                ) : (
+                  <Text style={styles.saveLabel}>Save</Text>
+                )}
+              </Pressable>
             </View>
+          ) : (
+            <View style={styles.form}>
+              <View style={styles.row}>
+                <View style={styles.field}>
+                  <Text style={styles.label}>First Name</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={firstName}
+                    onChangeText={setFirstName}
+                    placeholder="First name"
+                    placeholderTextColor={c.blue500}
+                    autoCapitalize="words"
+                  />
+                </View>
+                <View style={styles.field}>
+                  <Text style={styles.label}>Last Name</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={lastName}
+                    onChangeText={setLastName}
+                    placeholder="Last name"
+                    placeholderTextColor={c.blue500}
+                    autoCapitalize="words"
+                  />
+                </View>
+              </View>
 
-            <Pressable
-              style={({ pressed }) => [
-                styles.saveBtn,
-                pressed && styles.pressed,
-              ]}
-              onPress={save}
-              disabled={saving}
-            >
-              {saving ? (
-                <ActivityIndicator color={c.background} size="small" />
-              ) : (
-                <Text style={styles.saveLabel}>Save</Text>
-              )}
-            </Pressable>
-          </View>
-        )}
+              <View style={styles.field}>
+                <Text style={styles.label}>Address</Text>
+                <TextInput
+                  style={styles.input}
+                  value={address}
+                  onChangeText={setAddress}
+                  placeholder="Address"
+                  placeholderTextColor={c.blue500}
+                />
+              </View>
+
+              <View style={styles.field}>
+                <Text style={styles.label}>Date of Birth</Text>
+                <TextInput
+                  style={styles.input}
+                  value={dateOfBirth}
+                  onChangeText={setDateOfBirth}
+                  placeholder="YYYY-MM-DD"
+                  placeholderTextColor={c.blue500}
+                />
+              </View>
+
+              <View style={styles.field}>
+                <Text style={styles.label}>Email</Text>
+                <TextInput
+                  style={styles.input}
+                  value={email}
+                  onChangeText={setEmail}
+                  placeholder="Email"
+                  placeholderTextColor={c.blue500}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                />
+              </View>
+
+              <View style={styles.field}>
+                <Text style={styles.label}>Phone</Text>
+                <Input
+                  variant="phone"
+                  value={phone}
+                  onChangeText={(t) => {
+                    let digits = t.replace(/\D/g, "");
+
+                    // Most countries use 0 as a national prefix; we strip it
+                    if (digits.startsWith("0")) {
+                      digits = digits.slice(1);
+                    }
+
+                    const isPK = countryCode === "PK";
+                    const maxLength = isPK ? 10 : 15;
+
+                    if (digits.length > maxLength) {
+                      digits = digits.slice(0, maxLength);
+                    }
+                    setPhone(digits);
+                  }}
+                  placeholder="0300 1234567"
+                  placeholderTextColor={c.blue500}
+                  selectedCca2={countryCode}
+                  selectedCallingCode={callingCode}
+                  onCountrySelect={(c) => {
+                    setCountryCode(c.cca2);
+                    setCallingCode(c.callingCode);
+
+                    // Truncate if too long for new country
+                    const isPK = c.cca2 === "PK";
+                    const maxLength = isPK ? 10 : 15;
+                    if (phone.length > maxLength) {
+                      setPhone(phone.slice(0, maxLength));
+                    }
+                  }}
+                />
+              </View>
+
+              <Pressable
+                style={({ pressed }) => [
+                  styles.saveBtn,
+                  pressed && styles.pressed,
+                ]}
+                onPress={save}
+                disabled={saving}
+              >
+                {saving ? (
+                  <ActivityIndicator color={c.background} size="small" />
+                ) : (
+                  <Text style={styles.saveLabel}>Save</Text>
+                )}
+              </Pressable>
+            </View>
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>

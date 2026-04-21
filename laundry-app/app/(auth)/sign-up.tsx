@@ -47,13 +47,18 @@ export default function SignUpScreen() {
   const handleMobileChange = (raw: string) => {
     // Keep only digits
     let digits = raw.replace(/\D/g, "");
-    // Drop any leading 0 (we want numbers like 3xxxxxxxxx)
+
+    // Most countries use 0 as a national prefix; we strip it
     if (digits.startsWith("0")) {
       digits = digits.slice(1);
     }
-    // Most international numbers are 15 digits max
-    if (digits.length > 15) {
-      digits = digits.slice(0, 15);
+
+    // For Pakistan, we want 10 digits (excluding the leading 0).
+    const isPK = countryCode === "PK";
+    const maxLength = isPK ? 10 : 15;
+
+    if (digits.length > maxLength) {
+      digits = digits.slice(0, maxLength);
     }
     setMobileNumber(digits);
     setErrors((prev) => ({ ...prev, mobileNumber: undefined }));
@@ -63,7 +68,7 @@ export default function SignUpScreen() {
     if (!isSupabaseConfigured()) {
       Alert.alert(
         "Configuration error",
-        "Supabase is not configured. Please add your Supabase URL and anon key to the environment."
+        "Supabase is not configured. Please add your Supabase URL and anon key to the environment.",
       );
       return;
     }
@@ -78,8 +83,17 @@ export default function SignUpScreen() {
     const fullNumber = `+${callingCode}${mobileNumber}`;
     const phoneNumber = parsePhoneNumberFromString(fullNumber);
 
-    if (mobileNumber && (!phoneNumber || !phoneNumber.isValid())) {
-      nextErrors.mobileNumber = `Enter a valid mobile number for ${countryCode}.`;
+    const isPK = countryCode === "PK";
+    const isPKValid = isPK && mobileNumber.length === 10;
+
+    if (mobileNumber) {
+      if (isPK) {
+        if (!isPKValid) {
+          nextErrors.mobileNumber = "Pakistan mobile number must be 10 digits.";
+        }
+      } else if (!phoneNumber || !phoneNumber.isValid()) {
+        nextErrors.mobileNumber = `Enter a valid mobile number for ${countryCode}.`;
+      }
     }
 
     if (Object.keys(nextErrors).length > 0) {
@@ -91,9 +105,8 @@ export default function SignUpScreen() {
     try {
       const fullName = `${firstName} ${lastName}`.trim();
 
-      // Normalize phone number to E.164
-      const phoneNumber = parsePhoneNumberFromString(`+${callingCode}${mobileNumber}`);
-      const normalizedPhone = phoneNumber ? phoneNumber.number : `+${callingCode}${mobileNumber}`;
+      // Use raw concatenation to preserve format
+      const normalizedPhone = `+${callingCode}${mobileNumber}`;
 
       // 1) Create auth user with email + password (no email OTP).
       const { data, error } = await supabase.auth.signUp({
@@ -153,8 +166,8 @@ export default function SignUpScreen() {
     }
   };
   const handleSignIn = () => router.replace("/(auth)/login");
-  const handleFacebook = () => {};
-  const handleGoogle = () => {};
+  const handleFacebook = () => { };
+  const handleGoogle = () => { };
 
   const inputProps = {
     borderColor: "rgba(255,255,255,0.5)",

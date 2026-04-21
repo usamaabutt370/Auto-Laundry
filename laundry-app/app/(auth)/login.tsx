@@ -37,13 +37,18 @@ export default function LoginScreen() {
 
   const handleMobileChange = (raw: string) => {
     let digits = raw.replace(/\D/g, "");
-    // Many countries use 0 as a national prefix; we usually strip it for international format
+
+    // Most countries use 0 as a national prefix; we strip it
     if (digits.startsWith("0")) {
       digits = digits.slice(1);
     }
-    // Most international numbers (excluding calling code) are 15 digits max per ITU-T E.164
-    if (digits.length > 15) {
-      digits = digits.slice(0, 15);
+
+    // For Pakistan, we want 10 digits (excluding the leading 0).
+    const isPK = countryCode === "PK";
+    const maxLength = isPK ? 10 : 15;
+
+    if (digits.length > maxLength) {
+      digits = digits.slice(0, maxLength);
     }
     setMobileNumber(digits);
     setErrors((prev) => ({ ...prev, mobileNumber: undefined }));
@@ -62,8 +67,15 @@ export default function LoginScreen() {
     const fullNumber = `+${callingCode}${mobileNumber}`;
     const phoneNumber = parsePhoneNumberFromString(fullNumber);
 
+    const isPK = countryCode === "PK";
+    const isPKValid = isPK && mobileNumber.length === 10;
+
     if (!mobileNumber) {
       nextErrors.mobileNumber = "Mobile number is required.";
+    } else if (isPK) {
+      if (!isPKValid) {
+        nextErrors.mobileNumber = "Pakistan mobile number must be 10 digits.";
+      }
     } else if (!phoneNumber || !phoneNumber.isValid()) {
       nextErrors.mobileNumber = `Enter a valid mobile number for ${countryCode}.`;
     }
@@ -79,9 +91,8 @@ export default function LoginScreen() {
 
     setIsLoading(true);
     try {
-      // Normalize to E.164 format: +[countryCode][number]
-      const phoneNumber = parsePhoneNumberFromString(`+${callingCode}${mobileNumber}`);
-      const normalizedPhone = phoneNumber ? phoneNumber.number : `+${callingCode}${mobileNumber}`;
+      // Use the raw concatenation for normalized phone to preserve the format the user wants
+      const normalizedPhone = `+${callingCode}${mobileNumber}`;
 
       // 1) Look up email by phone number from profiles.
       const { data: profile, error: profileError } = await supabase
@@ -131,8 +142,8 @@ export default function LoginScreen() {
   const handleSignUp = () => {
     router.push("/(auth)/sign-up");
   };
-  const handleFacebook = () => {};
-  const handleGoogle = () => {};
+  const handleFacebook = () => { };
+  const handleGoogle = () => { };
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>

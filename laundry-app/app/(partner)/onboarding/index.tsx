@@ -35,13 +35,19 @@ const MINUTES = Array.from({ length: 60 }, (_, idx) => idx);
 const PERIODS = ["AM", "PM"] as const;
 const WHEEL_ITEM_HEIGHT = 40;
 
-function normalizePhoneDigits(rawValue: string): string {
+function normalizePhoneDigits(rawValue: string, countryCode?: string): string {
   let digits = rawValue.replace(/\D/g, "");
+
+  // Most countries use 0 as a national prefix; we strip it for international format
   if (digits.startsWith("0")) {
     digits = digits.slice(1);
   }
-  // Most international numbers are 15 digits max
-  return digits.slice(0, 15);
+
+  // For Pakistan (PK), we want 10 digits (excluding the leading 0).
+  const isPK = countryCode === "PK";
+  const maxLength = isPK ? 10 : 15;
+
+  return digits.slice(0, maxLength);
 }
 
 function formatTimeLabel(date: Date): string {
@@ -98,7 +104,7 @@ export default function PartnerOnboardingStep1() {
   const isAvailableTimeValid =
     Boolean(startTime && endTime) &&
     startTime!.getHours() * 60 + startTime!.getMinutes() <
-      endTime!.getHours() * 60 + endTime!.getMinutes();
+    endTime!.getHours() * 60 + endTime!.getMinutes();
   const normalizedAvailableTime =
     startTime && endTime ? `${startTimeLabel} - ${endTimeLabel}` : "";
 
@@ -119,14 +125,18 @@ export default function PartnerOnboardingStep1() {
           if (rawPhone.startsWith("+")) {
             const parsed = parsePhoneNumberFromString(rawPhone);
             if (parsed) {
-              setPhoneNumber(parsed.nationalNumber as string);
+              if (parsed.country === "PK" && rawPhone.startsWith("+920")) {
+                setPhoneNumber(rawPhone.slice(3)); // slice +92, keep 0
+              } else {
+                setPhoneNumber(parsed.nationalNumber as string);
+              }
               setCountryCode(parsed.country as CountryCode);
               setCallingCode(parsed.countryCallingCode as string);
             } else {
-              setPhoneNumber(normalizePhoneDigits(rawPhone));
+              setPhoneNumber(normalizePhoneDigits(rawPhone, countryCode));
             }
           } else {
-            setPhoneNumber(normalizePhoneDigits(rawPhone));
+            setPhoneNumber(normalizePhoneDigits(rawPhone, countryCode));
           }
           const rawAvailable = (data.available_time ?? "").trim();
           const [rawStart = "", rawEnd = ""] = rawAvailable
@@ -145,7 +155,10 @@ export default function PartnerOnboardingStep1() {
   const isPhoneMissing = phoneNumber.trim().length === 0;
   const fullPhone = `+${callingCode}${phoneNumber}`;
   const parsedPhoneObj = parsePhoneNumberFromString(fullPhone);
-  const isPhoneValid = Boolean(parsedPhoneObj && parsedPhoneObj.isValid());
+
+  const isPK = countryCode === "PK";
+  const isPKValid = isPK && phoneNumber.length === 10;
+  const isPhoneValid = isPK ? isPKValid : Boolean(parsedPhoneObj && parsedPhoneObj.isValid());
 
   const isAvailableTimeMissing = !startTime || !endTime;
   const isFormValid =
@@ -224,8 +237,7 @@ export default function PartnerOnboardingStep1() {
     try {
       const coords = await getCoordinatesWithFallback(address.trim());
       const fullPhone = `+${callingCode}${phoneNumber}`;
-      const parsedPhoneObj = parsePhoneNumberFromString(fullPhone);
-      const normalizedPhone = parsedPhoneObj ? parsedPhoneObj.number : fullPhone;
+      const normalizedPhone = fullPhone; // Preserve format
 
       const payload: {
         id: string;
@@ -300,247 +312,260 @@ export default function PartnerOnboardingStep1() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-        <Text style={styles.businessNameLabel}>Business Name</Text>
-        <FormTextInput
-          placeholder={s.businessNamePlaceholder}
-          value={businessName}
-          onChangeText={setBusinessName}
-        />
-        <Text style={styles.businessNameLabel}>Business Contact Number</Text>
-        {submitAttempted && isBusinessNameMissing ? (
-          <Text style={styles.errorText}>
-            {s.requiredFieldError ?? "This field is required."}
-          </Text>
-        ) : null}
-        <Input
-          variant="phone"
-          placeholder={s.phoneNumberPlaceholder}
-          value={phoneNumber}
-          onChangeText={(value) => setPhoneNumber(normalizePhoneDigits(value))}
-          selectedCca2={countryCode}
-          selectedCallingCode={callingCode}
-          onCountrySelect={(c) => {
-            setCountryCode(c.cca2);
-            setCallingCode(c.callingCode);
-          }}
-          containerStyle={styles.phoneInput}
-        />
-        <Text style={styles.businessNameLabel}>Business Available Time</Text>
+          <Text style={styles.businessNameLabel}>Business Name</Text>
+          <FormTextInput
+            placeholder={s.businessNamePlaceholder}
+            value={businessName}
+            onChangeText={setBusinessName}
+          />
+          <Text style={styles.businessNameLabel}>Business Contact Number</Text>
+          {submitAttempted && isBusinessNameMissing ? (
+            <Text style={styles.errorText}>
+              {s.requiredFieldError ?? "This field is required."}
+            </Text>
+          ) : null}
+          <Input
+            variant="phone"
+            placeholder={s.phoneNumberPlaceholder}
+            value={phoneNumber}
+            onChangeText={(value) => {
+              let normalized = normalizePhoneDigits(value, countryCode);
+              if (countryCode === "PK" && normalized.startsWith("0")) {
+                normalized = normalized.slice(1);
+              }
+              setPhoneNumber(normalized);
+            }}
+            selectedCca2={countryCode}
+            selectedCallingCode={callingCode}
+            onCountrySelect={(c) => {
+              setCountryCode(c.cca2);
+              setCallingCode(c.callingCode);
 
-        {submitAttempted && isPhoneMissing ? (
-          <Text style={styles.errorText}>
-            {s.requiredFieldError ?? "This field is required."}
-          </Text>
-        ) : null}
-        {submitAttempted && !isPhoneMissing && !isPhoneValid ? (
-          <Text style={styles.errorText}>
-            {s.phoneNumberHintInvalid ?? "Enter a valid 10-digit phone number."}
-          </Text>
-        ) : null}
-        <View style={styles.timeRow}>
-          <Pressable
-            style={styles.timeInputHalf}
-            onPress={() => openPicker("start")}
-            accessibilityRole="button"
-            accessibilityLabel={s.startTimePlaceholder}
-          >
-            <Text
-              style={[
-                styles.timeInputText,
-                !startTimeLabel && styles.timeInputPlaceholder,
-              ]}
-            >
-              {startTimeLabel || s.startTimePlaceholder}
+              // Truncate if too long for new country
+              const isPK = c.cca2 === "PK";
+              const maxLength = isPK ? 10 : 15;
+              if (phoneNumber.length > maxLength) {
+                setPhoneNumber(phoneNumber.slice(0, maxLength));
+              }
+            }}
+            containerStyle={styles.phoneInput}
+          />
+          <Text style={styles.businessNameLabel}>Business Available Time</Text>
+
+          {submitAttempted && isPhoneMissing ? (
+            <Text style={styles.errorText}>
+              {s.requiredFieldError ?? "This field is required."}
             </Text>
-          </Pressable>
-          <Pressable
-            style={styles.timeInputHalf}
-            onPress={() => openPicker("end")}
-            accessibilityRole="button"
-            accessibilityLabel={s.endTimePlaceholder}
-          >
-            <Text
-              style={[
-                styles.timeInputText,
-                !endTimeLabel && styles.timeInputPlaceholder,
-              ]}
-            >
-              {endTimeLabel || s.endTimePlaceholder}
+          ) : null}
+          {submitAttempted && !isPhoneMissing && !isPhoneValid ? (
+            <Text style={styles.errorText}>
+              {isPK ? "Enter a valid 10-digit phone number." : (s.phoneNumberHintInvalid ?? "Enter a valid mobile number.")}
             </Text>
-          </Pressable>
-        </View>
-        {submitAttempted && isAvailableTimeMissing ? (
-          <Text style={styles.errorText}>
-            {s.requiredFieldError ?? "This field is required."}
-          </Text>
-        ) : null}
-        {submitAttempted && !isAvailableTimeMissing && !isAvailableTimeValid ? (
-          <Text style={styles.errorText}>
-            {s.availableTimeRangeInvalid ?? "End time must be after start time."}
-          </Text>
-        ) : null}
-        <Modal transparent visible={Boolean(activePicker)} animationType="fade">
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalCard}>
-              <Text style={styles.pickerTitle}>
-                {activePicker === "start" ? s.startTimePlaceholder : s.endTimePlaceholder}
+          ) : null}
+          <View style={styles.timeRow}>
+            <Pressable
+              style={styles.timeInputHalf}
+              onPress={() => openPicker("start")}
+              accessibilityRole="button"
+              accessibilityLabel={s.startTimePlaceholder}
+            >
+              <Text
+                style={[
+                  styles.timeInputText,
+                  !startTimeLabel && styles.timeInputPlaceholder,
+                ]}
+              >
+                {startTimeLabel || s.startTimePlaceholder}
               </Text>
-              <View style={styles.wheelContainer}>
-                <View style={styles.wheelHighlight} />
-                <FlatList
-                  ref={hourRef}
-                  data={HOURS}
-                  keyExtractor={(item) => `hour-${item}`}
-                  showsVerticalScrollIndicator={false}
-                  snapToInterval={WHEEL_ITEM_HEIGHT}
-                  decelerationRate="fast"
-                  getItemLayout={(_, index) => ({
-                    length: WHEEL_ITEM_HEIGHT,
-                    offset: WHEEL_ITEM_HEIGHT * index,
-                    index,
-                  })}
-                  onMomentumScrollEnd={(event) => {
-                    const idx = Math.min(11, Math.max(0, getWheelIndex(event)));
-                    setPickerHour(HOURS[idx]);
-                  }}
-                  style={styles.wheelList}
-                  contentContainerStyle={styles.wheelContent}
-                  renderItem={({ item }) => (
-                    <View style={styles.wheelItem}>
-                      <Text
-                        style={[
-                          styles.wheelText,
-                          item === pickerHour && styles.wheelTextSelected,
-                        ]}
-                      >
-                        {String(item).padStart(2, "0")}
-                      </Text>
-                    </View>
-                  )}
-                />
-                <FlatList
-                  ref={minuteRef}
-                  data={MINUTES}
-                  keyExtractor={(item) => `minute-${item}`}
-                  showsVerticalScrollIndicator={false}
-                  snapToInterval={WHEEL_ITEM_HEIGHT}
-                  decelerationRate="fast"
-                  getItemLayout={(_, index) => ({
-                    length: WHEEL_ITEM_HEIGHT,
-                    offset: WHEEL_ITEM_HEIGHT * index,
-                    index,
-                  })}
-                  onMomentumScrollEnd={(event) => {
-                    const idx = Math.min(59, Math.max(0, getWheelIndex(event)));
-                    setPickerMinute(MINUTES[idx]);
-                  }}
-                  style={styles.wheelList}
-                  contentContainerStyle={styles.wheelContent}
-                  renderItem={({ item }) => (
-                    <View style={styles.wheelItem}>
-                      <Text
-                        style={[
-                          styles.wheelText,
-                          item === pickerMinute && styles.wheelTextSelected,
-                        ]}
-                      >
-                        {String(item).padStart(2, "0")}
-                      </Text>
-                    </View>
-                  )}
-                />
-                <FlatList
-                  ref={periodRef}
-                  data={PERIODS}
-                  keyExtractor={(item) => `period-${item}`}
-                  showsVerticalScrollIndicator={false}
-                  snapToInterval={WHEEL_ITEM_HEIGHT}
-                  decelerationRate="fast"
-                  getItemLayout={(_, index) => ({
-                    length: WHEEL_ITEM_HEIGHT,
-                    offset: WHEEL_ITEM_HEIGHT * index,
-                    index,
-                  })}
-                  onMomentumScrollEnd={(event) => {
-                    const idx = Math.min(1, Math.max(0, getWheelIndex(event)));
-                    setPickerPeriod(PERIODS[idx]);
-                  }}
-                  style={styles.wheelList}
-                  contentContainerStyle={styles.wheelContent}
-                  renderItem={({ item }) => (
-                    <View style={styles.wheelItem}>
-                      <Text
-                        style={[
-                          styles.wheelText,
-                          item === pickerPeriod && styles.wheelTextSelected,
-                        ]}
-                      >
-                        {item}
-                      </Text>
-                    </View>
-                  )}
-                />
-                <View pointerEvents="none" style={styles.wheelFadeTop} />
-                <View pointerEvents="none" style={styles.wheelFadeBottom} />
-              </View>
-              <View style={styles.pickerActions}>
-                <Pressable
-                  style={styles.cancelBtn}
-                  onPress={() => setActivePicker(null)}
-                  accessibilityRole="button"
-                  accessibilityLabel={s.back}
-                >
-                  <Text style={styles.cancelBtnText}>{s.back}</Text>
-                </Pressable>
-                <Pressable
-                  style={styles.doneBtn}
-                  onPress={handlePickerConfirm}
-                  accessibilityRole="button"
-                  accessibilityLabel={s.confirm}
-                >
-                  <Text style={styles.doneBtnText}>{s.confirm}</Text>
-                </Pressable>
+            </Pressable>
+            <Pressable
+              style={styles.timeInputHalf}
+              onPress={() => openPicker("end")}
+              accessibilityRole="button"
+              accessibilityLabel={s.endTimePlaceholder}
+            >
+              <Text
+                style={[
+                  styles.timeInputText,
+                  !endTimeLabel && styles.timeInputPlaceholder,
+                ]}
+              >
+                {endTimeLabel || s.endTimePlaceholder}
+              </Text>
+            </Pressable>
+          </View>
+          {submitAttempted && isAvailableTimeMissing ? (
+            <Text style={styles.errorText}>
+              {s.requiredFieldError ?? "This field is required."}
+            </Text>
+          ) : null}
+          {submitAttempted && !isAvailableTimeMissing && !isAvailableTimeValid ? (
+            <Text style={styles.errorText}>
+              {s.availableTimeRangeInvalid ?? "End time must be after start time."}
+            </Text>
+          ) : null}
+          <Modal transparent visible={Boolean(activePicker)} animationType="fade">
+            <View style={styles.modalOverlay}>
+              <View style={styles.modalCard}>
+                <Text style={styles.pickerTitle}>
+                  {activePicker === "start" ? s.startTimePlaceholder : s.endTimePlaceholder}
+                </Text>
+                <View style={styles.wheelContainer}>
+                  <View style={styles.wheelHighlight} />
+                  <FlatList
+                    ref={hourRef}
+                    data={HOURS}
+                    keyExtractor={(item) => `hour-${item}`}
+                    showsVerticalScrollIndicator={false}
+                    snapToInterval={WHEEL_ITEM_HEIGHT}
+                    decelerationRate="fast"
+                    getItemLayout={(_, index) => ({
+                      length: WHEEL_ITEM_HEIGHT,
+                      offset: WHEEL_ITEM_HEIGHT * index,
+                      index,
+                    })}
+                    onMomentumScrollEnd={(event) => {
+                      const idx = Math.min(11, Math.max(0, getWheelIndex(event)));
+                      setPickerHour(HOURS[idx]);
+                    }}
+                    style={styles.wheelList}
+                    contentContainerStyle={styles.wheelContent}
+                    renderItem={({ item }) => (
+                      <View style={styles.wheelItem}>
+                        <Text
+                          style={[
+                            styles.wheelText,
+                            item === pickerHour && styles.wheelTextSelected,
+                          ]}
+                        >
+                          {String(item).padStart(2, "0")}
+                        </Text>
+                      </View>
+                    )}
+                  />
+                  <FlatList
+                    ref={minuteRef}
+                    data={MINUTES}
+                    keyExtractor={(item) => `minute-${item}`}
+                    showsVerticalScrollIndicator={false}
+                    snapToInterval={WHEEL_ITEM_HEIGHT}
+                    decelerationRate="fast"
+                    getItemLayout={(_, index) => ({
+                      length: WHEEL_ITEM_HEIGHT,
+                      offset: WHEEL_ITEM_HEIGHT * index,
+                      index,
+                    })}
+                    onMomentumScrollEnd={(event) => {
+                      const idx = Math.min(59, Math.max(0, getWheelIndex(event)));
+                      setPickerMinute(MINUTES[idx]);
+                    }}
+                    style={styles.wheelList}
+                    contentContainerStyle={styles.wheelContent}
+                    renderItem={({ item }) => (
+                      <View style={styles.wheelItem}>
+                        <Text
+                          style={[
+                            styles.wheelText,
+                            item === pickerMinute && styles.wheelTextSelected,
+                          ]}
+                        >
+                          {String(item).padStart(2, "0")}
+                        </Text>
+                      </View>
+                    )}
+                  />
+                  <FlatList
+                    ref={periodRef}
+                    data={PERIODS}
+                    keyExtractor={(item) => `period-${item}`}
+                    showsVerticalScrollIndicator={false}
+                    snapToInterval={WHEEL_ITEM_HEIGHT}
+                    decelerationRate="fast"
+                    getItemLayout={(_, index) => ({
+                      length: WHEEL_ITEM_HEIGHT,
+                      offset: WHEEL_ITEM_HEIGHT * index,
+                      index,
+                    })}
+                    onMomentumScrollEnd={(event) => {
+                      const idx = Math.min(1, Math.max(0, getWheelIndex(event)));
+                      setPickerPeriod(PERIODS[idx]);
+                    }}
+                    style={styles.wheelList}
+                    contentContainerStyle={styles.wheelContent}
+                    renderItem={({ item }) => (
+                      <View style={styles.wheelItem}>
+                        <Text
+                          style={[
+                            styles.wheelText,
+                            item === pickerPeriod && styles.wheelTextSelected,
+                          ]}
+                        >
+                          {item}
+                        </Text>
+                      </View>
+                    )}
+                  />
+                  <View pointerEvents="none" style={styles.wheelFadeTop} />
+                  <View pointerEvents="none" style={styles.wheelFadeBottom} />
+                </View>
+                <View style={styles.pickerActions}>
+                  <Pressable
+                    style={styles.cancelBtn}
+                    onPress={() => setActivePicker(null)}
+                    accessibilityRole="button"
+                    accessibilityLabel={s.back}
+                  >
+                    <Text style={styles.cancelBtnText}>{s.back}</Text>
+                  </Pressable>
+                  <Pressable
+                    style={styles.doneBtn}
+                    onPress={handlePickerConfirm}
+                    accessibilityRole="button"
+                    accessibilityLabel={s.confirm}
+                  >
+                    <Text style={styles.doneBtnText}>{s.confirm}</Text>
+                  </Pressable>
+                </View>
               </View>
             </View>
-          </View>
-        </Modal>
-        <Text style={styles.businessNameLabel}>Business Address</Text>
-        <FormTextInput
-          placeholder={s.addressPlaceholder}
-          value={address}
-          onChangeText={setAddress}
-        />
-        {submitAttempted && isAddressMissing ? (
-          <Text style={styles.errorText}>
-            {s.requiredFieldError ?? "This field is required."}
-          </Text>
-        ) : null}
-        <Text style={styles.businessNameLabel}>Business Description</Text>
-        <FormTextInput
-          placeholder={s.businessDescriptionPlaceholder}
-          value={businessDescription}
-          onChangeText={setBusinessDescription}
-          multiline
-          numberOfLines={4}
-        />
-        {submitAttempted && isBusinessDescriptionMissing ? (
-          <Text style={styles.errorText}>
-            {s.requiredFieldError ?? "This field is required."}
-          </Text>
-        ) : null}
-        <AppButton
-          label={s.next}
-          onPress={handleNext}
-          variant="filled"
-          rightIcon="arrow-right"
-          fullWidth
-          loading={isSaving}
-          disabled={isSaving}
-          style={styles.nextBtn}
-          accessibilityLabel={s.next}
-        />
-      </ScrollView>
-    </KeyboardAvoidingView>
+          </Modal>
+          <Text style={styles.businessNameLabel}>Business Address</Text>
+          <FormTextInput
+            placeholder={s.addressPlaceholder}
+            value={address}
+            onChangeText={setAddress}
+          />
+          {submitAttempted && isAddressMissing ? (
+            <Text style={styles.errorText}>
+              {s.requiredFieldError ?? "This field is required."}
+            </Text>
+          ) : null}
+          <Text style={styles.businessNameLabel}>Business Description</Text>
+          <FormTextInput
+            placeholder={s.businessDescriptionPlaceholder}
+            value={businessDescription}
+            onChangeText={setBusinessDescription}
+            multiline
+            numberOfLines={4}
+          />
+          {submitAttempted && isBusinessDescriptionMissing ? (
+            <Text style={styles.errorText}>
+              {s.requiredFieldError ?? "This field is required."}
+            </Text>
+          ) : null}
+          <AppButton
+            label={s.next}
+            onPress={handleNext}
+            variant="filled"
+            rightIcon="arrow-right"
+            fullWidth
+            loading={isSaving}
+            disabled={isSaving}
+            style={styles.nextBtn}
+            accessibilityLabel={s.next}
+          />
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
