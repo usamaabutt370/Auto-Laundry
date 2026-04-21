@@ -16,7 +16,7 @@ import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { assets } from "@/assets/assets";
-import { PartnerHeader } from "@/components/partner-header";
+import { AppHeader } from "@/components/app-header";
 import { theme } from "@/constants/theme";
 import { useAuth } from "@/contexts/auth-context";
 import { useLocale } from "@/contexts/locale-context";
@@ -231,7 +231,7 @@ export function PartnerProfileScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.container} edges={["top"]}>
-        <PartnerHeader
+        <AppHeader
           title="Launderer Profile"
           leftIcon="arrow-left"
           onLeftPress={handleBack}
@@ -246,7 +246,7 @@ export function PartnerProfileScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
-      <PartnerHeader
+      <AppHeader
         title="Launderer Profile"
         leftIcon="arrow-left"
         onLeftPress={handleBack}

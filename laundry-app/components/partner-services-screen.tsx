@@ -15,7 +15,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useState } from "react";
 
 import { FormTextInput } from "@/components/form-text-input";
-import { PartnerHeader } from "@/components/partner-header";
+import { AppHeader } from "@/components/app-header";
 import {
   ServiceNoPricesButton,
   ServiceWithPricesCard,
@@ -191,7 +191,7 @@ export function PartnerServicesScreen({ mode }: PartnerServicesScreenProps) {
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
-      <PartnerHeader
+      <AppHeader
         title={title}
         leftIcon="arrow-left"
         onLeftPress={() => router.back()}

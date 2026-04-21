@@ -19,7 +19,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Input } from "@/components";
 import { FormTextInput } from "@/components/form-text-input";
 import { AppButton } from "@/components/ui/button";
-import { PartnerHeader } from "@/components/partner-header";
+import { AppHeader } from "@/components/app-header";
 import { theme } from "@/constants/theme";
 import { useLocale } from "@/contexts/locale-context";
 import { useAuth } from "@/contexts/auth-context";
@@ -282,7 +282,7 @@ export default function PartnerOnboardingStep1() {
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
-      <PartnerHeader
+      <AppHeader
         title={s.step1Title}
         // subtitle={s.step1Subtitle}
         leftIcon="arrow-left"
