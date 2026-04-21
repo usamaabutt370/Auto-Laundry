@@ -4,7 +4,7 @@ import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { OrderCard } from "@/components/order-card";
-import { PartnerHeader } from "@/components/partner-header";
+import { AppHeader } from "@/components/app-header";
 import { theme } from "@/constants/theme";
 import { useLocale } from "@/contexts/locale-context";
 import { fetchPartnerOrders, type PartnerOrderListItem } from "@/lib/partner-orders";
@@ -20,7 +20,7 @@ export default function DashboardOrdersScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ kind?: string }>();
   const { locale } = useLocale();
-  const s = getStrings(locale).partner.dashboard;
+  const orderStrings = getStrings(locale).partner.order;
 
   const kind: DashboardOrderKind =
     params.kind === "delivery" ? "delivery" : "dropoff";
@@ -58,7 +58,7 @@ export default function DashboardOrdersScreen() {
   return (
     <View style={styles.container}>
       <SafeAreaView edges={["top"]} style={styles.safeArea}>
-        <PartnerHeader
+        <AppHeader
           title={title}
           leftIcon="arrow-left"
           onLeftPress={() => router.back()}
@@ -82,7 +82,7 @@ export default function DashboardOrdersScreen() {
           </View>
         ) : orders.length === 0 ? (
           <View style={styles.emptyWrap}>
-            <Text style={styles.emptyText}>{s.emptyList}</Text>
+            <Text style={styles.emptyText}>{orderStrings.emptyList}</Text>
           </View>
         ) : (
           <View style={styles.list}>

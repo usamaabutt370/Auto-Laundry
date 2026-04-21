@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { PartnerHeader } from "@/components/partner-header";
+import { AppHeader } from "@/components/app-header";
 import { theme } from "@/constants/theme";
 import { getOrderDetail, type DemoOrderDetail } from "@/data/demo-order-details";
 import { useLocale } from "@/contexts/locale-context";
@@ -212,7 +212,7 @@ export default function PartnerOrderDetailScreen() {
 
   const header = (
     <SafeAreaView edges={["top"]} style={styles.safeArea}>
-      <PartnerHeader
+      <AppHeader
         title={s.orderDetailTitle}
         leftIcon="arrow-left"
         onLeftPress={handleBack}

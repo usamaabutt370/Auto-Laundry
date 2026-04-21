@@ -14,7 +14,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { PartnerHeader } from "@/components/partner-header";
+import { AppHeader } from "@/components/app-header";
 import { AppButton } from "@/components/ui/button";
 import { theme } from "@/constants/theme";
 import { useLocale } from "@/contexts/locale-context";
@@ -280,7 +280,7 @@ export default function ServiceOtherScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
-      <PartnerHeader
+      <AppHeader
         title={title}
         leftIcon="arrow-left"
         onLeftPress={handleBack}

@@ -6,13 +6,12 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { FormTextInput } from "@/components/form-text-input";
 import { AppButton } from "@/components/ui/button";
-import { PartnerHeader } from "@/components/partner-header";
+import { AppHeader } from "@/components/app-header";
 import { theme } from "@/constants/theme";
 import { useLocale } from "@/contexts/locale-context";
 import { useMerchantServices } from "@/contexts/merchant-services-context";
@@ -121,7 +120,7 @@ export default function PartnerOnboardingStep3() {
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
-      <PartnerHeader
+      <AppHeader
         title={serviceName}
         leftIcon="arrow-left"
         onLeftPress={() => router.back()}

@@ -13,7 +13,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { OrderCard } from "@/components/order-card";
-import { PartnerHeader } from "@/components/partner-header";
+import { AppHeader } from "@/components/app-header";
 import { theme } from "@/constants/theme";
 import { useLocale } from "@/contexts/locale-context";
 import { partnerUpdateOrderStatus } from "@/lib/partner-order-status";
@@ -160,7 +160,7 @@ export default function PartnerOrderScreen() {
   return (
     <View style={styles.container}>
       <SafeAreaView edges={["top"]} style={styles.safeArea}>
-        <PartnerHeader
+        <AppHeader
           title={s.title}
           leftIcon="arrow-left"
           onLeftPress={() => router.back()}

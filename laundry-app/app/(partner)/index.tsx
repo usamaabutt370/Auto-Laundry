@@ -8,7 +8,7 @@ import {
   type DashboardPeriod,
 } from "@/components/dashboard-period-selector";
 import { useFocusEffect, useRouter } from "expo-router";
-import { PartnerHeader } from "@/components/partner-header";
+import { AppHeader } from "@/components/app-header";
 import { theme } from "@/constants/theme";
 import { useLocale } from "@/contexts/locale-context";
 import { useSidebar } from "@/contexts/sidebar-context";
@@ -134,7 +134,7 @@ export default function PartnerDashboardScreen() {
   return (
     <View style={styles.container}>
       <SafeAreaView edges={["top"]} style={styles.safeArea}>
-        <PartnerHeader
+        <AppHeader
           title={s.title}
           subtitle={subtitle}
           leftIcon="menu"

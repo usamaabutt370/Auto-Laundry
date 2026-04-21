@@ -15,7 +15,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { LanguageSelector } from "@/components/language-selector";
-import { PartnerHeader } from "@/components/partner-header";
+import { AppHeader } from "@/components/app-header";
 import { ServicePricingCard } from "@/components/service-pricing-card";
 import { AppButton } from "@/components/ui/button";
 import { theme } from "@/constants/theme";
@@ -86,7 +86,7 @@ export default function AddServiceScreen() {
   return (
     <View style={styles.container}>
       <SafeAreaView edges={["top"]} style={styles.safeArea}>
-        <PartnerHeader
+        <AppHeader
           title={s.merchantServices}
           leftIcon="arrow-left"
           onLeftPress={() => router.back()}

@@ -3,7 +3,7 @@ import { useCallback, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { PartnerHeader } from "@/components/partner-header";
+import { AppHeader } from "@/components/app-header";
 import { theme } from "@/constants/theme";
 import { useAuth } from "@/contexts/auth-context";
 import { useLocale } from "@/contexts/locale-context";
@@ -108,7 +108,7 @@ export default function EarningsHistoryScreen() {
   return (
     <View style={styles.container}>
       <SafeAreaView edges={["top"]} style={styles.safeArea}>
-        <PartnerHeader
+        <AppHeader
           title={s.earningsHistoryTitle}
           leftIcon="arrow-left"
           onLeftPress={() => router.back()}
