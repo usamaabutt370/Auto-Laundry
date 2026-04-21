@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   Image,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -29,6 +30,8 @@ const c = theme.colors;
 
 const AVATAR_BUCKET = "avatars";
 const AVATAR_PATH_PREFIX = "avatar"; // file will be avatar.jpg or avatar.png
+const DOB_ITEM_HEIGHT = 44;
+const DOB_VISIBLE_ROWS = 5;
 
 type ProfileRow = {
   first_name: string | null;
@@ -63,6 +66,13 @@ export default function EditProfileScreen() {
   /** Local URI from picker – shown immediately so user sees selected image before upload finishes */
   const [localImageUri, setLocalImageUri] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [dobPickerVisible, setDobPickerVisible] = useState(false);
+  const [dobDay, setDobDay] = useState(1);
+  const [dobMonth, setDobMonth] = useState(1);
+  const [dobYear, setDobYear] = useState(2000);
+  const dayWheelRef = useRef<ScrollView | null>(null);
+  const monthWheelRef = useRef<ScrollView | null>(null);
+  const yearWheelRef = useRef<ScrollView | null>(null);
 
   const [cardName, setCardName] = useState("");
   const [cardNumber, setCardNumber] = useState("");
@@ -73,6 +83,63 @@ export default function EditProfileScreen() {
   const [zipCode, setZipCode] = useState("");
   const [state, setState] = useState("");
   const [country, setCountry] = useState("");
+  const daysInMonth = useCallback((month: number, year: number) => {
+    return new Date(year, month, 0).getDate();
+  }, []);
+  const monthOptions = useMemo(() => Array.from({ length: 12 }, (_, i) => i + 1), []);
+  const yearOptions = useMemo(
+    () => Array.from({ length: 90 }, (_, i) => new Date().getFullYear() - i),
+    [],
+  );
+  const dayOptions = useMemo(
+    () => Array.from({ length: daysInMonth(dobMonth, dobYear) }, (_, i) => i + 1),
+    [dobMonth, dobYear, daysInMonth],
+  );
+
+  const parseStoredDate = useCallback((value: string) => {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(trimmed);
+    if (iso) {
+      const year = Number(iso[1]);
+      const month = Number(iso[2]);
+      const day = Number(iso[3]);
+      if (year >= 1900 && month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+        return { day, month, year };
+      }
+    }
+    const dmy = /^(\d{2})-(\d{2})-(\d{4})$/.exec(trimmed);
+    if (dmy) {
+      const day = Number(dmy[1]);
+      const month = Number(dmy[2]);
+      const year = Number(dmy[3]);
+      if (year >= 1900 && month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+        return { day, month, year };
+      }
+    }
+    return null;
+  }, []);
+
+  const formatDobDisplay = useCallback((value: string) => {
+    const parsed = parseStoredDate(value);
+    if (!parsed) return "";
+    const day = String(parsed.day).padStart(2, "0");
+    const month = String(parsed.month).padStart(2, "0");
+    return `${day}-${month}-${parsed.year}`;
+  }, [parseStoredDate]);
+
+  const openDobPicker = useCallback(() => {
+    const parsed = parseStoredDate(dateOfBirth);
+    const now = new Date();
+    const nextYear = parsed?.year ?? now.getFullYear() - 18;
+    const nextMonth = parsed?.month ?? 1;
+    const maxDay = daysInMonth(nextMonth, nextYear);
+    const nextDay = Math.min(parsed?.day ?? 1, maxDay);
+    setDobYear(nextYear);
+    setDobMonth(nextMonth);
+    setDobDay(nextDay);
+    setDobPickerVisible(true);
+  }, [dateOfBirth, daysInMonth, parseStoredDate]);
 
   const loadProfile = useCallback(async () => {
     if (!isSupabaseConfigured()) {
@@ -197,6 +264,33 @@ export default function EditProfileScreen() {
       loadProfile();
     }
   }, [isPaymentMode, loadProfile, loadPayment]);
+
+  useEffect(() => {
+    const maxDay = daysInMonth(dobMonth, dobYear);
+    if (dobDay > maxDay) {
+      setDobDay(maxDay);
+    }
+  }, [dobDay, dobMonth, dobYear, daysInMonth]);
+
+  useEffect(() => {
+    if (!dobPickerVisible) return;
+    const sync = () => {
+      const dayIdx = Math.max(0, dayOptions.findIndex((v) => v === dobDay));
+      const monthIdx = Math.max(0, monthOptions.findIndex((v) => v === dobMonth));
+      const yearIdx = Math.max(0, yearOptions.findIndex((v) => v === dobYear));
+      dayWheelRef.current?.scrollTo({ y: dayIdx * DOB_ITEM_HEIGHT, animated: false });
+      monthWheelRef.current?.scrollTo({ y: monthIdx * DOB_ITEM_HEIGHT, animated: false });
+      yearWheelRef.current?.scrollTo({ y: yearIdx * DOB_ITEM_HEIGHT, animated: false });
+    };
+    const t = setTimeout(sync, 0);
+    return () => clearTimeout(t);
+  }, [dayOptions, dobDay, dobMonth, dobPickerVisible, dobYear, monthOptions, yearOptions]);
+
+  const getSelectedIndex = useCallback((offsetY: number, length: number) => {
+    if (length <= 1) return 0;
+    const raw = Math.round(offsetY / DOB_ITEM_HEIGHT);
+    return Math.max(0, Math.min(raw, length - 1));
+  }, []);
 
   const save = useCallback(async () => {
     if (!isSupabaseConfigured()) return;
@@ -684,13 +778,20 @@ export default function EditProfileScreen() {
 
             <View style={styles.field}>
               <Text style={styles.label}>Date of Birth</Text>
-              <TextInput
-                style={styles.input}
-                value={dateOfBirth}
-                onChangeText={setDateOfBirth}
-                placeholder="YYYY-MM-DD"
-                placeholderTextColor={c.blue500}
-              />
+              <Pressable
+                onPress={openDobPicker}
+                style={({ pressed }) => [styles.input, styles.dateInput, pressed && styles.pressed]}
+              >
+                <Text
+                  style={[
+                    styles.dateInputText,
+                    !dateOfBirth.trim() && styles.dateInputPlaceholder,
+                  ]}
+                >
+                  {dateOfBirth.trim() ? formatDobDisplay(dateOfBirth) : "dd-mm-yyyy"}
+                </Text>
+                <MaterialCommunityIcons name="calendar-month-outline" size={20} color={c.blue500} />
+              </Pressable>
             </View>
 
             <View style={styles.field}>
@@ -741,6 +842,109 @@ export default function EditProfileScreen() {
         )}
         </ScrollView>
       </KeyboardAvoidingView>
+      <Modal
+        visible={dobPickerVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setDobPickerVisible(false)}
+      >
+        <View style={styles.dobOverlay}>
+          <Pressable style={styles.dobBackdrop} onPress={() => setDobPickerVisible(false)} />
+          <View style={styles.dobCard}>
+            <Text style={styles.dobTitle}>Select Date of Birth</Text>
+            <View style={styles.dobPickerRow}>
+              <ScrollView
+                ref={dayWheelRef}
+                style={styles.dobWheel}
+                contentContainerStyle={styles.dobWheelContent}
+                showsVerticalScrollIndicator={false}
+                snapToInterval={DOB_ITEM_HEIGHT}
+                decelerationRate="fast"
+                onMomentumScrollEnd={(event) => {
+                  const idx = getSelectedIndex(event.nativeEvent.contentOffset.y, dayOptions.length);
+                  setDobDay(dayOptions[idx]);
+                }}
+                onScrollEndDrag={(event) => {
+                  const idx = getSelectedIndex(event.nativeEvent.contentOffset.y, dayOptions.length);
+                  setDobDay(dayOptions[idx]);
+                }}
+              >
+                {dayOptions.map((value) => (
+                  <View key={`d-${value}`} style={styles.dobItem}>
+                    <Text style={[styles.dobItemText, dobDay === value && styles.dobItemTextActive]}>
+                      {String(value).padStart(2, "0")}
+                    </Text>
+                  </View>
+                ))}
+              </ScrollView>
+              <ScrollView
+                ref={monthWheelRef}
+                style={styles.dobWheel}
+                contentContainerStyle={styles.dobWheelContent}
+                showsVerticalScrollIndicator={false}
+                snapToInterval={DOB_ITEM_HEIGHT}
+                decelerationRate="fast"
+                onMomentumScrollEnd={(event) => {
+                  const idx = getSelectedIndex(event.nativeEvent.contentOffset.y, monthOptions.length);
+                  setDobMonth(monthOptions[idx]);
+                }}
+                onScrollEndDrag={(event) => {
+                  const idx = getSelectedIndex(event.nativeEvent.contentOffset.y, monthOptions.length);
+                  setDobMonth(monthOptions[idx]);
+                }}
+              >
+                {monthOptions.map((value) => (
+                  <View key={`m-${value}`} style={styles.dobItem}>
+                    <Text style={[styles.dobItemText, dobMonth === value && styles.dobItemTextActive]}>
+                      {String(value).padStart(2, "0")}
+                    </Text>
+                  </View>
+                ))}
+              </ScrollView>
+              <ScrollView
+                ref={yearWheelRef}
+                style={styles.dobWheel}
+                contentContainerStyle={styles.dobWheelContent}
+                showsVerticalScrollIndicator={false}
+                snapToInterval={DOB_ITEM_HEIGHT}
+                decelerationRate="fast"
+                onMomentumScrollEnd={(event) => {
+                  const idx = getSelectedIndex(event.nativeEvent.contentOffset.y, yearOptions.length);
+                  setDobYear(yearOptions[idx]);
+                }}
+                onScrollEndDrag={(event) => {
+                  const idx = getSelectedIndex(event.nativeEvent.contentOffset.y, yearOptions.length);
+                  setDobYear(yearOptions[idx]);
+                }}
+              >
+                {yearOptions.map((value) => (
+                  <View key={`y-${value}`} style={styles.dobItem}>
+                    <Text style={[styles.dobItemText, dobYear === value && styles.dobItemTextActive]}>
+                      {value}
+                    </Text>
+                  </View>
+                ))}
+              </ScrollView>
+              <View pointerEvents="none" style={styles.dobFocusBand} />
+            </View>
+            <View style={styles.dobActions}>
+              <Pressable style={styles.dobActionBtn} onPress={() => setDobPickerVisible(false)}>
+                <Text style={styles.dobActionText}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.dobActionBtn, styles.dobActionPrimary]}
+                onPress={() => {
+                  const iso = `${dobYear}-${String(dobMonth).padStart(2, "0")}-${String(dobDay).padStart(2, "0")}`;
+                  setDateOfBirth(iso);
+                  setDobPickerVisible(false);
+                }}
+              >
+                <Text style={styles.dobActionTextPrimary}>Done</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -856,6 +1060,101 @@ const styles = StyleSheet.create({
     color: c.white,
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.2)",
+  },
+  dateInput: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  dateInputText: {
+    color: c.white,
+    fontSize: 16,
+  },
+  dateInputPlaceholder: {
+    color: c.blue500,
+  },
+  dobOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    justifyContent: "center",
+    paddingHorizontal: 20,
+  },
+  dobBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  dobCard: {
+    backgroundColor: c.blue900,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.2)",
+    padding: 16,
+  },
+  dobTitle: {
+    fontSize: 16,
+    color: c.white,
+    fontWeight: "700",
+    textAlign: "center",
+    marginBottom: 12,
+  },
+  dobPickerRow: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  dobWheel: {
+    flex: 1,
+    maxHeight: DOB_ITEM_HEIGHT * DOB_VISIBLE_ROWS,
+    borderRadius: 12,
+    backgroundColor: c.background,
+  },
+  dobWheelContent: {
+    paddingVertical: DOB_ITEM_HEIGHT * 2,
+  },
+  dobItem: {
+    height: DOB_ITEM_HEIGHT,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  dobItemText: {
+    color: c.blue500,
+    fontSize: 16,
+  },
+  dobItemTextActive: {
+    color: c.white,
+    fontWeight: "700",
+  },
+  dobFocusBand: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    top: DOB_ITEM_HEIGHT * 2,
+    height: DOB_ITEM_HEIGHT,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.35)",
+    borderRadius: 10,
+    backgroundColor: "rgba(255,255,255,0.06)",
+  },
+  dobActions: {
+    marginTop: 14,
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: 10,
+  },
+  dobActionBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    backgroundColor: c.background,
+  },
+  dobActionPrimary: {
+    backgroundColor: c.blue500,
+  },
+  dobActionText: {
+    color: c.white,
+    fontWeight: "600",
+  },
+  dobActionTextPrimary: {
+    color: c.background,
+    fontWeight: "700",
   },
   saveBtn: {
     marginTop: 16,
