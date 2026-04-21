@@ -54,14 +54,18 @@ export default function PickupServicesScreen() {
         .filter((id): id is ServiceId => SERVICE_KEYS.includes(id))
         .filter((id, idx, arr) => arr.indexOf(id) === idx);
       setPartnerServiceTypes(available);
-      setPickupDeliveryEnabled(Boolean(profile?.pickup_delivery_enabled));
+      const pickupEnabled = Boolean(profile?.pickup_delivery_amount?.trim());
+      setPickupDeliveryEnabled(pickupEnabled);
       setPickupFeeLabel(profile?.pickup_delivery_amount?.trim() || null);
+      if (!pickupEnabled) {
+        setPickupDeliveryRequested(false);
+      }
     };
     loadPartnerServices();
     return () => {
       cancelled = true;
     };
-  }, [draft.partnerId]);
+  }, [draft.partnerId, setPickupDeliveryRequested]);
 
   const servicesToShow = useMemo(() => {
     if (partnerServiceTypes.length > 0) return partnerServiceTypes;

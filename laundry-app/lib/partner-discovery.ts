@@ -25,6 +25,8 @@ export type PartnerServiceLine = {
   category: string | null;
 };
 
+export type PartnerFulfillmentMode = "dropoff" | "pickupDelivery";
+
 /** Partners who offer pickup & delivery (for customer Pick Up & Delivery list). */
 export async function fetchPickupPartners(): Promise<{
   data: PartnerPublicRow[] | null;
@@ -47,6 +49,44 @@ export async function fetchPickupPartners(): Promise<{
   const rows = (data ?? []).filter(
     (r) => typeof r.business_name === "string" && r.business_name.trim().length > 0
   ) as PartnerPublicRow[];
+  return { data: rows, error: null };
+}
+
+/** Partners filtered by fulfillment mode for customer home buttons. */
+export async function fetchPartnersByFulfillmentMode(
+  mode: PartnerFulfillmentMode,
+): Promise<{
+  data: PartnerPublicRow[] | null;
+  error: string | null;
+}> {
+  if (!isSupabaseConfigured() || !supabase) {
+    return { data: [], error: null };
+  }
+
+  let query = supabase
+    .from("partner_profiles")
+    .select(
+      "id, business_name, phone_number, available_time, address, latitude, longitude, image_url, updated_at, pickup_delivery_amount",
+    )
+    .order("business_name", { ascending: true });
+
+  if (mode === "pickupDelivery") {
+    query = query.neq("pickup_delivery_amount", "");
+  } else {
+    query = query.or("pickup_delivery_amount.is.null,pickup_delivery_amount.eq.");
+  }
+
+  const { data, error } = await query;
+  if (error) {
+    return { data: null, error: error.message };
+  }
+  const rows = (data ?? []).filter((r) => {
+    if (typeof r.business_name !== "string" || r.business_name.trim().length === 0) {
+      return false;
+    }
+    const amount = typeof r.pickup_delivery_amount === "string" ? r.pickup_delivery_amount.trim() : "";
+    return mode === "pickupDelivery" ? amount.length > 0 : amount.length === 0;
+  }) as PartnerPublicRow[];
   return { data: rows, error: null };
 }
 

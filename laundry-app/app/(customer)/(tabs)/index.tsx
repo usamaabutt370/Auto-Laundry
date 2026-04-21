@@ -67,7 +67,12 @@ export default function CustomerHomeScreen() {
         </ThemedText>
         <View style={styles.serviceButtons}>
           <Pressable
-            onPress={() => { }}
+            onPress={() =>
+              router.push({
+                pathname: "/(customer)/pick-launderer",
+                params: { mode: "dropoff" },
+              })
+            }
             style={({ pressed }) => [
               styles.serviceBtn,
               pressed && styles.pressed,
@@ -80,7 +85,12 @@ export default function CustomerHomeScreen() {
             <ThemedText style={styles.serviceBtnText}>{s.dropOff}</ThemedText>
           </Pressable>
           <Pressable
-            onPress={() => router.push("/(customer)/pick-launderer")}
+            onPress={() =>
+              router.push({
+                pathname: "/(customer)/pick-launderer",
+                params: { mode: "pickupDelivery" },
+              })
+            }
             style={({ pressed }) => [
               styles.serviceBtn,
               pressed && styles.pressed,
