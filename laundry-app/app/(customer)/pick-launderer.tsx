@@ -21,7 +21,8 @@ import { strings } from "@/constants/strings";
 import { theme } from "@/constants/theme";
 import { avatarUrlWithCacheBuster } from "@/lib/avatar";
 import {
-  fetchPickupPartners,
+  fetchPartnersByFulfillmentMode,
+  type PartnerFulfillmentMode,
   type PartnerPublicRow,
 } from "@/lib/partner-discovery";
 import { reassignRejectedCustomerOrder } from "@/lib/customer-orders";
@@ -144,10 +145,14 @@ function LaundererCard({
 
 export default function PickLaundererScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ reorderOrderId?: string }>();
+  const params = useLocalSearchParams<{ reorderOrderId?: string; mode?: string }>();
   const s = strings.customer.pickLaunderer;
+  const sHome = strings.customer.home;
   const reorderOrderId = typeof params.reorderOrderId === "string" ? params.reorderOrderId : "";
+  const fulfillmentMode: PartnerFulfillmentMode =
+    params.mode === "pickupDelivery" ? "pickupDelivery" : "dropoff";
   const isReassignMode = reorderOrderId.length > 0;
+  const defaultTitle = fulfillmentMode === "dropoff" ? sHome.dropOff : sHome.pickUpDelivery;
   const [partners, setPartners] = useState<PartnerPublicRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -161,7 +166,7 @@ export default function PickLaundererScreen() {
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const { data, error: err } = await fetchPickupPartners();
+    const { data, error: err } = await fetchPartnersByFulfillmentMode(fulfillmentMode);
     if (err) {
       setError(err);
       setPartners([]);
@@ -169,7 +174,7 @@ export default function PickLaundererScreen() {
       setPartners(data ?? []);
     }
     setLoading(false);
-  }, []);
+  }, [fulfillmentMode]);
 
   useEffect(() => {
     load();
@@ -294,7 +299,7 @@ export default function PickLaundererScreen() {
       if (!isReassignMode) {
         router.push({
           pathname: "/(customer)/launderer-detail",
-          params: { id: partnerId },
+          params: { id: partnerId, mode: fulfillmentMode },
         });
         return;
       }
@@ -314,7 +319,7 @@ export default function PickLaundererScreen() {
         );
       }
     },
-    [isReassignMode, reorderOrderId, router, s],
+    [fulfillmentMode, isReassignMode, reorderOrderId, router, s],
   );
 
   return (
@@ -351,7 +356,7 @@ export default function PickLaundererScreen() {
           <Image source={assets.icons.menu_icon} style={styles.headerRightIcon} />
         </Pressable>
       </SafeAreaView>
-      <Text style={styles.screenTitle}>{isReassignMode ? s.reassignTitle : s.title}</Text>
+      <Text style={styles.screenTitle}>{isReassignMode ? s.reassignTitle : defaultTitle}</Text>
 
       {loading ? (
         <View style={styles.centerBlock}>
