@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   Image,
   KeyboardAvoidingView,
+  FlatList,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -11,6 +13,8 @@ import {
   Text,
   TextInput,
   View,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
@@ -29,6 +33,24 @@ const c = theme.colors;
 
 const AVATAR_BUCKET = "avatars";
 const AVATAR_PATH_PREFIX = "avatar"; // file will be avatar.jpg or avatar.png
+
+const WHEEL_ITEM_HEIGHT = 40;
+const CURRENT_YEAR = new Date().getFullYear();
+const YEARS = Array.from({ length: 100 }, (_, i) => CURRENT_YEAR - i);
+const MONTH_NAMES = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
 
 type ProfileRow = {
   first_name: string | null;
@@ -73,6 +95,15 @@ export default function EditProfileScreen() {
   const [zipCode, setZipCode] = useState("");
   const [state, setState] = useState("");
   const [country, setCountry] = useState("");
+
+  const [isDatePickerVisible, setIsDatePickerVisible] = useState(false);
+  const [pickerYear, setPickerYear] = useState(CURRENT_YEAR);
+  const [pickerMonth, setPickerMonth] = useState(new Date().getMonth());
+  const [pickerDay, setPickerDay] = useState(new Date().getDate());
+
+  const yearRef = useRef<FlatList>(null);
+  const monthRef = useRef<FlatList>(null);
+  const dayRef = useRef<FlatList>(null);
 
   const loadProfile = useCallback(async () => {
     if (!isSupabaseConfigured()) {
@@ -140,12 +171,65 @@ export default function EditProfileScreen() {
         setAddress("");
         setDateOfBirth("");
       }
-    } catch {
-      // leave form as-is
     } finally {
       setLoading(false);
     }
   }, []);
+
+  const openDatePicker = useCallback(() => {
+    let initialYear = CURRENT_YEAR;
+    let initialMonth = new Date().getMonth();
+    let initialDay = new Date().getDate();
+
+    if (dateOfBirth) {
+      const parts = dateOfBirth.split("-");
+      if (parts.length === 3) {
+        initialYear = parseInt(parts[0], 10);
+        initialMonth = parseInt(parts[1], 10) - 1;
+        initialDay = parseInt(parts[2], 10);
+      }
+    }
+
+    setPickerYear(initialYear);
+    setPickerMonth(initialMonth);
+    setPickerDay(initialDay);
+    setIsDatePickerVisible(true);
+
+    // Precise scroll after modal render
+    setTimeout(() => {
+      const yIdx = YEARS.indexOf(initialYear);
+      if (yIdx !== -1) {
+        yearRef.current?.scrollToOffset({
+          offset: yIdx * WHEEL_ITEM_HEIGHT,
+          animated: false,
+        });
+      }
+      monthRef.current?.scrollToOffset({
+        offset: initialMonth * WHEEL_ITEM_HEIGHT,
+        animated: false,
+      });
+      dayRef.current?.scrollToOffset({
+        offset: (initialDay - 1) * WHEEL_ITEM_HEIGHT,
+        animated: false,
+      });
+    }, 100);
+  }, [dateOfBirth]);
+
+  const confirmDatePicker = useCallback(() => {
+    const formatted = `${pickerYear}-${String(pickerMonth + 1).padStart(
+      2,
+      "0",
+    )}-${String(pickerDay).padStart(2, "0")}`;
+    setDateOfBirth(formatted);
+    setIsDatePickerVisible(false);
+  }, [pickerYear, pickerMonth, pickerDay]);
+
+  const getDaysInMonth = (year: number, month: number) => {
+    return new Date(year, month + 1, 0).getDate();
+  };
+
+  const getWheelIndex = (event: NativeSyntheticEvent<NativeScrollEvent>) =>
+    Math.round(event.nativeEvent.contentOffset.y / WHEEL_ITEM_HEIGHT);
 
   const loadPayment = useCallback(async () => {
     setLoading(true);
@@ -696,14 +780,156 @@ export default function EditProfileScreen() {
 
               <View style={styles.field}>
                 <Text style={styles.label}>Date of Birth</Text>
-                <TextInput
-                  style={styles.input}
-                  value={dateOfBirth}
-                  onChangeText={setDateOfBirth}
-                  placeholder="YYYY-MM-DD"
-                  placeholderTextColor={c.blue500}
-                />
+                <Pressable onPress={openDatePicker} style={styles.pickerTrigger}>
+                  <Text
+                    style={[
+                      styles.pickerTriggerText,
+                      !dateOfBirth && { color: "rgba(255,255,255,0.7)" },
+                    ]}
+                  >
+                    {dateOfBirth || "YYYY-MM-DD"}
+                  </Text>
+                  <MaterialCommunityIcons
+                    name="calendar"
+                    size={20}
+                    color={c.blue500}
+                  />
+                </Pressable>
               </View>
+
+              <Modal
+                transparent
+                visible={isDatePickerVisible}
+                animationType="fade"
+              >
+                <View style={styles.modalOverlay}>
+                  <View style={styles.modalCard}>
+                    <Text style={styles.pickerTitle}>Select Date of Birth</Text>
+                    <View style={styles.wheelContainer}>
+                      <View style={styles.wheelHighlight} />
+
+                      {/* Day Wheel */}
+                      <FlatList
+                        ref={dayRef}
+                        data={Array.from(
+                          { length: getDaysInMonth(pickerYear, pickerMonth) },
+                          (_, i) => i + 1,
+                        )}
+                        keyExtractor={(item) => `day-${item}`}
+                        showsVerticalScrollIndicator={false}
+                        snapToInterval={WHEEL_ITEM_HEIGHT}
+                        decelerationRate="fast"
+                        onMomentumScrollEnd={(event) => {
+                          const maxDays = getDaysInMonth(
+                            pickerYear,
+                            pickerMonth,
+                          );
+                          const idx = Math.min(
+                            maxDays - 1,
+                            Math.max(0, getWheelIndex(event)),
+                          );
+                          setPickerDay(idx + 1);
+                        }}
+                        style={styles.wheelList}
+                        contentContainerStyle={styles.wheelContent}
+                        renderItem={({ item }) => (
+                          <View style={styles.wheelItem}>
+                            <Text
+                              style={[
+                                styles.wheelText,
+                                item === pickerDay && styles.wheelTextSelected,
+                              ]}
+                            >
+                              {String(item).padStart(2, "0")}
+                            </Text>
+                          </View>
+                        )}
+                      />
+
+                      {/* Month Wheel */}
+                      <FlatList
+                        ref={monthRef}
+                        data={MONTH_NAMES}
+                        keyExtractor={(item) => `month-${item}`}
+                        showsVerticalScrollIndicator={false}
+                        snapToInterval={WHEEL_ITEM_HEIGHT}
+                        decelerationRate="fast"
+                        onMomentumScrollEnd={(event) => {
+                          const idx = Math.min(
+                            11,
+                            Math.max(0, getWheelIndex(event)),
+                          );
+                          setPickerMonth(idx);
+                        }}
+                        style={styles.wheelList}
+                        contentContainerStyle={styles.wheelContent}
+                        renderItem={({ item, index }) => (
+                          <View style={styles.wheelItem}>
+                            <Text
+                              style={[
+                                styles.wheelText,
+                                index === pickerMonth &&
+                                  styles.wheelTextSelected,
+                              ]}
+                            >
+                              {item.substring(0, 3)}
+                            </Text>
+                          </View>
+                        )}
+                      />
+
+                      {/* Year Wheel */}
+                      <FlatList
+                        ref={yearRef}
+                        data={YEARS}
+                        keyExtractor={(item) => `year-${item}`}
+                        showsVerticalScrollIndicator={false}
+                        snapToInterval={WHEEL_ITEM_HEIGHT}
+                        decelerationRate="fast"
+                        onMomentumScrollEnd={(event) => {
+                          const idx = Math.min(
+                            YEARS.length - 1,
+                            Math.max(0, getWheelIndex(event)),
+                          );
+                          setPickerYear(YEARS[idx]);
+                        }}
+                        style={styles.wheelList}
+                        contentContainerStyle={styles.wheelContent}
+                        renderItem={({ item }) => (
+                          <View style={styles.wheelItem}>
+                            <Text
+                              style={[
+                                styles.wheelText,
+                                item === pickerYear && styles.wheelTextSelected,
+                              ]}
+                            >
+                              {item}
+                            </Text>
+                          </View>
+                        )}
+                      />
+
+                      <View pointerEvents="none" style={styles.wheelFadeTop} />
+                      <View pointerEvents="none" style={styles.wheelFadeBottom} />
+                    </View>
+
+                    <View style={styles.pickerActions}>
+                      <Pressable
+                        style={styles.cancelBtn}
+                        onPress={() => setIsDatePickerVisible(false)}
+                      >
+                        <Text style={styles.cancelBtnText}>Cancel</Text>
+                      </Pressable>
+                      <Pressable
+                        style={styles.doneBtn}
+                        onPress={confirmDatePicker}
+                      >
+                        <Text style={styles.doneBtnText}>Confirm</Text>
+                      </Pressable>
+                    </View>
+                  </View>
+                </View>
+              </Modal>
 
               <View style={styles.field}>
                 <Text style={styles.label}>Email</Text>
@@ -907,5 +1133,133 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.8,
+  },
+  pickerTrigger: {
+    backgroundColor: c.blue900,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    minHeight: 52,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.2)",
+  },
+  pickerTriggerText: {
+    fontSize: 16,
+    color: c.white,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 24,
+  },
+  modalCard: {
+    width: "100%",
+    maxWidth: 340,
+    backgroundColor: c.blue900,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+    padding: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  pickerTitle: {
+    color: c.white,
+    fontSize: 18,
+    fontWeight: "700",
+    marginBottom: 20,
+    textAlign: "center",
+  },
+  wheelContainer: {
+    flexDirection: "row",
+    gap: 10,
+    height: WHEEL_ITEM_HEIGHT * 5,
+    position: "relative",
+    overflow: "hidden",
+  },
+  wheelHighlight: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    top: WHEEL_ITEM_HEIGHT * 2,
+    height: WHEEL_ITEM_HEIGHT,
+    borderRadius: 10,
+    backgroundColor: "rgba(255,255,255,0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.15)",
+    zIndex: 2,
+  },
+  wheelList: {
+    flex: 1,
+  },
+  wheelContent: {
+    paddingVertical: WHEEL_ITEM_HEIGHT * 2,
+  },
+  wheelItem: {
+    height: WHEEL_ITEM_HEIGHT,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  wheelText: {
+    color: "rgba(255,255,255,0.4)",
+    fontSize: 16,
+    fontWeight: "500",
+  },
+  wheelTextSelected: {
+    color: c.white,
+    fontSize: 20,
+    fontWeight: "700",
+  },
+  wheelFadeTop: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    top: 0,
+    height: WHEEL_ITEM_HEIGHT * 1.5,
+    backgroundColor: "transparent",
+    zIndex: 3,
+  },
+  wheelFadeBottom: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: WHEEL_ITEM_HEIGHT * 1.5,
+    backgroundColor: "transparent",
+    zIndex: 3,
+  },
+  pickerActions: {
+    marginTop: 24,
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: 12,
+  },
+  cancelBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  cancelBtnText: {
+    color: c.blue500,
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  doneBtn: {
+    backgroundColor: c.blue500,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  doneBtnText: {
+    color: c.background,
+    fontSize: 15,
+    fontWeight: "700",
   },
 });
