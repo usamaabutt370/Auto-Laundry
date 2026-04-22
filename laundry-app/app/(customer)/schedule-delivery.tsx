@@ -208,7 +208,7 @@ export default function ScheduleDeliveryScreen() {
       dayLabel,
       instructions: instructions.trim(),
     });
-    router.push("/(customer)/order-summary");
+    router.replace("/(customer)/order-summary");
   };
 
   return (

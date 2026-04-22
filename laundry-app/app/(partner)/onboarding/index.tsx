@@ -2,6 +2,7 @@ import { useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Alert,
+  Image,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -12,9 +13,11 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import * as FileSystem from "expo-file-system";
+import * as ImagePicker from "expo-image-picker";
 
-import { Input } from "@/components";
 import { FormTextInput } from "@/components/form-text-input";
+import { Input } from "@/components/ui/input";
 import { AppButton } from "@/components/ui/button";
 import { AppHeader } from "@/components/app-header";
 import { theme } from "@/constants/theme";
@@ -26,11 +29,17 @@ import { getCoordinatesWithFallback } from "@/utils/geocoding";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
 import { type CountryCode } from "react-native-country-picker-modal";
 
-const PHONE_DIGITS_MAX = 10;
 const HOURS = Array.from({ length: 12 }, (_, idx) => idx + 1);
 const MINUTES = Array.from({ length: 60 }, (_, idx) => idx);
 const PERIODS = ["AM", "PM"] as const;
 const WHEEL_ITEM_HEIGHT = 40;
+const MAX_BUSINESS_IMAGES = 10;
+const BUSINESS_IMAGES_BUCKET = "business-images";
+type StagedBusinessImage = {
+  id: string;
+  uri: string;
+  uploaded: boolean;
+};
 
 function normalizePhoneDigits(rawValue: string): string {
   let digits = rawValue.replace(/\D/g, "");
@@ -86,6 +95,7 @@ export default function PartnerOnboardingStep1() {
   const [address, setAddress] = useState("");
   const [submitAttempted, setSubmitAttempted] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [businessImages, setBusinessImages] = useState<StagedBusinessImage[]>([]);
   const hourRef = useRef<ScrollView | null>(null);
   const minuteRef = useRef<ScrollView | null>(null);
   const periodRef = useRef<ScrollView | null>(null);
@@ -104,7 +114,7 @@ export default function PartnerOnboardingStep1() {
     supabase
       .from("partner_profiles")
       .select(
-        "business_name, business_description, phone_number, available_time, address, latitude, longitude"
+        "business_name, business_description, phone_number, available_time, address, latitude, longitude, business_images"
       )
       .eq("id", user.id)
       .maybeSingle()
@@ -117,7 +127,6 @@ export default function PartnerOnboardingStep1() {
             const parsed = parsePhoneNumberFromString(rawPhone);
             if (parsed) {
               setPhoneNumber(parsed.nationalNumber as string);
-              setCountryCode(parsed.country as CountryCode);
               setCallingCode(parsed.countryCallingCode as string);
             } else {
               setPhoneNumber(normalizePhoneDigits(rawPhone));
@@ -132,6 +141,38 @@ export default function PartnerOnboardingStep1() {
           setStartTime(parseTimeLabelToDate(rawStart));
           setEndTime(parseTimeLabelToDate(rawEnd));
           setAddress(data.address ?? "");
+          const imagesRaw = (data as { business_images?: unknown }).business_images;
+          if (Array.isArray(imagesRaw)) {
+            setBusinessImages(
+              imagesRaw
+                .filter((v): v is string => typeof v === "string")
+                .map((url) => ({
+                  id: `remote-${url}`,
+                  uri: url,
+                  uploaded: true,
+                })),
+            );
+          }
+        }
+      });
+
+    supabase
+      .from("profiles")
+      .select("phone")
+      .eq("id", user.id)
+      .maybeSingle<{ phone: string | null }>()
+      .then(({ data }) => {
+        if (data?.phone?.trim() && phoneNumber.trim().length === 0) {
+          const parsed = parsePhoneNumberFromString(data.phone.trim());
+          if (parsed) {
+            if (parsed.country) {
+              setCountryCode(parsed.country as CountryCode);
+            }
+            setCallingCode(parsed.countryCallingCode as string);
+            setPhoneNumber(parsed.nationalNumber as string);
+          } else {
+            setPhoneNumber(normalizePhoneDigits(data.phone));
+          }
         }
       });
   }, [user?.id]);
@@ -140,9 +181,9 @@ export default function PartnerOnboardingStep1() {
   const isBusinessDescriptionMissing = businessDescription.trim().length === 0;
   const isAddressMissing = address.trim().length === 0;
   const isPhoneMissing = phoneNumber.trim().length === 0;
-  const fullPhone = `+${callingCode}${phoneNumber}`;
-  const parsedPhoneObj = parsePhoneNumberFromString(fullPhone);
-  const isPhoneValid = Boolean(parsedPhoneObj && parsedPhoneObj.isValid());
+  const isPhoneValid = !isPhoneMissing
+    ? Boolean(parsePhoneNumberFromString(`+${callingCode}${phoneNumber}`)?.isValid())
+    : false;
 
   const isAvailableTimeMissing = !startTime || !endTime;
   const isFormValid =
@@ -154,7 +195,18 @@ export default function PartnerOnboardingStep1() {
 
   const openPicker = useCallback(
     (type: "start" | "end") => {
-      const base = type === "start" ? startTime ?? new Date() : endTime ?? new Date();
+      const base = (() => {
+        if (type === "start") {
+          if (startTime) return startTime;
+          const defaultStart = new Date();
+          defaultStart.setHours(7, 0, 0, 0);
+          return defaultStart;
+        }
+        if (endTime) return endTime;
+        const defaultEnd = new Date();
+        defaultEnd.setHours(19, 0, 0, 0);
+        return defaultEnd;
+      })();
       const hours = base.getHours();
       const hour = hours % 12 || 12;
       const minute = base.getMinutes();
@@ -196,6 +248,45 @@ export default function PartnerOnboardingStep1() {
     return Math.max(0, Math.min(length - 1, idx));
   };
 
+  const pickBusinessImages = useCallback(async () => {
+    if (!supabase || !user?.id) return;
+    if (businessImages.length >= MAX_BUSINESS_IMAGES) {
+      Alert.alert("Limit reached", `Maximum ${MAX_BUSINESS_IMAGES} business images allowed.`);
+      return;
+    }
+
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert("Permission needed", "Please allow photo access to upload business images.");
+      return;
+    }
+
+    const remaining = MAX_BUSINESS_IMAGES - businessImages.length;
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsEditing: false,
+      allowsMultipleSelection: true,
+      selectionLimit: remaining,
+      quality: 0.8,
+    });
+    if (result.canceled || !result.assets?.length) return;
+
+    const staged: StagedBusinessImage[] = [];
+    result.assets.forEach((asset, index) => {
+      if (typeof asset.uri !== "string" || asset.uri.length === 0) return;
+      staged.push({
+        id: `local-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 8)}`,
+        uri: asset.uri,
+        uploaded: false,
+      });
+    });
+    setBusinessImages((prev) => [...prev, ...staged].slice(0, MAX_BUSINESS_IMAGES));
+  }, [businessImages.length, user?.id]);
+
+  const removeBusinessImage = useCallback((imageId: string) => {
+    setBusinessImages((prev) => prev.filter((item) => item.id !== imageId));
+  }, []);
+
   const handleNext = useCallback(async () => {
     if (isSaving) return;
     setSubmitAttempted(true);
@@ -220,6 +311,33 @@ export default function PartnerOnboardingStep1() {
       const parsedPhoneObj = parsePhoneNumberFromString(fullPhone);
       const normalizedPhone = parsedPhoneObj ? parsedPhoneObj.number : fullPhone;
 
+      const uploadedImageUrls: string[] = [];
+      for (let i = 0; i < businessImages.length; i += 1) {
+        const image = businessImages[i];
+        if (image.uploaded) {
+          uploadedImageUrls.push(image.uri);
+          continue;
+        }
+
+        const lower = image.uri.toLowerCase();
+        const isJpeg = lower.endsWith(".jpg") || lower.endsWith(".jpeg");
+        const ext = isJpeg ? "jpg" : "png";
+        const contentType = isJpeg ? "image/jpeg" : "image/png";
+        const path = `${user.id}/${Date.now()}-${i}.${ext}`;
+        const file = new FileSystem.File(image.uri);
+        const bytes = await file.arrayBuffer();
+        const { error: uploadError } = await supabase.storage
+          .from(BUSINESS_IMAGES_BUCKET)
+          .upload(path, bytes, { upsert: true, contentType });
+        if (uploadError) {
+          throw new Error(uploadError.message);
+        }
+        const {
+          data: { publicUrl },
+        } = supabase.storage.from(BUSINESS_IMAGES_BUCKET).getPublicUrl(path);
+        uploadedImageUrls.push(publicUrl);
+      }
+
       const payload: {
         id: string;
         business_name: string;
@@ -227,6 +345,7 @@ export default function PartnerOnboardingStep1() {
         phone_number: string;
         available_time: string;
         address: string;
+        business_images: string[];
         updated_at: string;
         latitude?: number;
         longitude?: number;
@@ -237,6 +356,7 @@ export default function PartnerOnboardingStep1() {
         phone_number: normalizedPhone,
         available_time: normalizedAvailableTime.toUpperCase(),
         address: address.trim(),
+        business_images: uploadedImageUrls,
         updated_at: new Date().toISOString(),
       };
       if (coords) {
@@ -254,6 +374,14 @@ export default function PartnerOnboardingStep1() {
         return;
       }
 
+      setBusinessImages(
+        uploadedImageUrls.map((url) => ({
+          id: `remote-${url}`,
+          uri: url,
+          uploaded: true,
+        })),
+      );
+
       router.push("/(partner)/onboarding/step2");
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Unable to save details.";
@@ -268,6 +396,7 @@ export default function PartnerOnboardingStep1() {
     businessName,
     businessDescription,
     phoneNumber,
+    businessImages,
     normalizedAvailableTime,
     address,
     router,
@@ -300,14 +429,14 @@ export default function PartnerOnboardingStep1() {
           onChangeText={setBusinessName}
         />
         <Text style={styles.businessNameLabel}>Business Contact Number</Text>
-        {submitAttempted && isBusinessNameMissing ? (
+        {submitAttempted && isPhoneMissing ? (
           <Text style={styles.errorText}>
             {s.requiredFieldError ?? "This field is required."}
           </Text>
         ) : null}
         <Input
           variant="phone"
-          placeholder={s.phoneNumberPlaceholder}
+          placeholder="Business contact number"
           value={phoneNumber}
           onChangeText={(value) => setPhoneNumber(normalizePhoneDigits(value))}
           selectedCca2={countryCode}
@@ -318,16 +447,13 @@ export default function PartnerOnboardingStep1() {
           }}
           containerStyle={styles.phoneInput}
         />
+        <Text style={styles.phoneHintText}>
+          This number is shown as your business contact and can be different from your profile phone.
+        </Text>
         <Text style={styles.businessNameLabel}>Business Available Time</Text>
-
-        {submitAttempted && isPhoneMissing ? (
-          <Text style={styles.errorText}>
-            {s.requiredFieldError ?? "This field is required."}
-          </Text>
-        ) : null}
         {submitAttempted && !isPhoneMissing && !isPhoneValid ? (
           <Text style={styles.errorText}>
-            {s.phoneNumberHintInvalid ?? "Enter a valid 10-digit phone number."}
+            Enter a valid mobile number for {countryCode}.
           </Text>
         ) : null}
         <View style={styles.timeRow}>
@@ -519,6 +645,32 @@ export default function PartnerOnboardingStep1() {
             {s.requiredFieldError ?? "This field is required."}
           </Text>
         ) : null}
+        <Text style={styles.businessNameLabel}>
+          Business Images ({businessImages.length}/{MAX_BUSINESS_IMAGES})
+        </Text>
+        <View style={styles.businessImagesWrap}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.businessImagesRow}>
+            {businessImages.map((image) => (
+              <View key={image.id} style={styles.businessImageItem}>
+                <Image source={{ uri: image.uri }} style={styles.businessImage} />
+                {!image.uploaded ? <View style={styles.imageDraftBadge}><Text style={styles.imageDraftBadgeText}>Draft</Text></View> : null}
+                <Pressable style={styles.businessImageRemove} onPress={() => removeBusinessImage(image.id)}>
+                  <Text style={styles.businessImageRemoveText}>x</Text>
+                </Pressable>
+              </View>
+            ))}
+            {businessImages.length < MAX_BUSINESS_IMAGES ? (
+              <Pressable
+                onPress={pickBusinessImages}
+                style={({ pressed }) => [styles.addBusinessImageBtn, pressed && styles.pressed]}
+              >
+                <Text style={styles.addBusinessImageText}>
+                  + Add image
+                </Text>
+              </Pressable>
+            ) : null}
+          </ScrollView>
+        </View>
         <AppButton
           label={s.next}
           onPress={handleNext}
@@ -555,7 +707,13 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   phoneInput: {
-    marginBottom: 16,
+    marginBottom: 8,
+  },
+  phoneHintText: {
+    color: theme.colors.blue500,
+    fontSize: theme.fontSize.descText,
+    marginBottom: 12,
+    paddingHorizontal: 8,
   },
   timeInput: {
     backgroundColor: theme.colors.blue900,
@@ -685,5 +843,75 @@ const styles = StyleSheet.create({
     fontSize: theme.fontSize.xSmallText,
     color: theme.colors.white,
     marginBottom: 8,
+  },
+  businessImagesWrap: {
+    marginBottom: 16,
+  },
+  businessImagesRow: {
+    gap: 10,
+    paddingRight: 8,
+  },
+  businessImageItem: {
+    width: 84,
+    height: 84,
+    borderRadius: 12,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: theme.colors.outline,
+    backgroundColor: theme.colors.blue900,
+  },
+  businessImage: {
+    width: "100%",
+    height: "100%",
+  },
+  businessImageRemove: {
+    position: "absolute",
+    top: 4,
+    right: 4,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  businessImageRemoveText: {
+    color: theme.colors.white,
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  imageDraftBadge: {
+    position: "absolute",
+    left: 6,
+    bottom: 6,
+    borderRadius: 8,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  imageDraftBadgeText: {
+    color: theme.colors.white,
+    fontSize: 10,
+    fontWeight: "700",
+  },
+  addBusinessImageBtn: {
+    width: 120,
+    height: 84,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: theme.colors.outline,
+    backgroundColor: theme.colors.blue900,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 8,
+  },
+  addBusinessImageText: {
+    color: theme.colors.white,
+    fontSize: theme.fontSize.smallText,
+    fontWeight: "600",
+    textAlign: "center",
+  },
+  pressed: {
+    opacity: 0.8,
   },
 });

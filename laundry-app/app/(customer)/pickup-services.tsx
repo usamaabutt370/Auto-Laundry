@@ -15,11 +15,19 @@ import { Image } from "expo-image";
 
 import { Spacer } from "@/components";
 import { assets } from "@/assets/assets";
+import { DRY_CLEAN_ITEM_DEFS } from "@/constants/dry-clean-items";
 import { strings } from "@/constants/strings";
+import { TAILORING_ITEM_DEFS } from "@/constants/tailoring-items";
 import type { LaundererServiceType } from "@/constants/launderers";
 import { theme } from "@/constants/theme";
 import { useCustomerOrderDraft } from "@/contexts/customer-order-draft-context";
 import { fetchPartnerDetail, serviceCategoriesToTypes } from "@/lib/partner-discovery";
+import {
+  dryCleanUnitForItem,
+  tailoringUnitForItem,
+  washFoldUnitForMode,
+} from "@/lib/customer-order-estimate";
+import { formatMoney } from "@/utils/format-money";
 
 const c = theme.colors;
 
@@ -38,6 +46,9 @@ export default function PickupServicesScreen() {
   const s = strings.customer.pickupServices;
   const selectedIds = draft.selectedServiceIds;
   const [partnerServiceTypes, setPartnerServiceTypes] = useState<ServiceId[]>([]);
+  const [partnerServiceRows, setPartnerServiceRows] = useState<
+    Awaited<ReturnType<typeof fetchPartnerDetail>>["services"]
+  >([]);
   const [pickupDeliveryEnabled, setPickupDeliveryEnabled] = useState(false);
   const [pickupFeeLabel, setPickupFeeLabel] = useState<string | null>(null);
 
@@ -46,10 +57,12 @@ export default function PickupServicesScreen() {
     const loadPartnerServices = async () => {
       if (!draft.partnerId) {
         setPartnerServiceTypes([]);
+        setPartnerServiceRows([]);
         return;
       }
       const { profile, services } = await fetchPartnerDetail(draft.partnerId);
       if (cancelled) return;
+      setPartnerServiceRows(services);
       const available = serviceCategoriesToTypes(services.map((row) => row.category))
         .filter((id): id is ServiceId => SERVICE_KEYS.includes(id))
         .filter((id, idx, arr) => arr.indexOf(id) === idx);
@@ -71,6 +84,82 @@ export default function PickupServicesScreen() {
     if (partnerServiceTypes.length > 0) return partnerServiceTypes;
     return draft.partnerId ? [] : (["washAndFold", "dryCleaning"] as ServiceId[]);
   }, [draft.partnerId, partnerServiceTypes]);
+
+  const selectedItemsByService = useMemo(() => {
+    const currencyPrefix = "Rs ";
+
+    const formatLinePrice = (unitAmount: number | null, qty: number, fallbackLabel: string) => {
+      if (unitAmount == null) return fallbackLabel;
+      const total = Math.round(unitAmount * qty * 100) / 100;
+      const unit = formatMoney(currencyPrefix, unitAmount);
+      const line = formatMoney(currencyPrefix, total);
+      return `${qty} x ${unit} = ${line}`;
+    };
+
+    const byService: Record<ServiceId, { name: string; qtyLabel: string; priceLabel: string }[]> = {
+      washAndFold: [],
+      dryCleaning: [],
+      tailoring: [],
+    };
+
+    const washBagCount = Math.max(0, draft.washFold?.bagCount ?? 0);
+    const washItemCount = Math.max(0, draft.washFold?.bagDetailsByIndex[1]?.itemCount ?? 0);
+    const perBagUnit = washFoldUnitForMode(partnerServiceRows, "per_bag");
+    const perItemUnit = washFoldUnitForMode(partnerServiceRows, "per_item");
+    if (washBagCount > 0) {
+      byService.washAndFold.push({
+        name: "Wash & Fold (Per Bag)",
+        qtyLabel: `${washBagCount} bag(s)`,
+        priceLabel: formatLinePrice(perBagUnit.amount, washBagCount, perBagUnit.priceLabel),
+      });
+    }
+    if (washItemCount > 0) {
+      byService.washAndFold.push({
+        name: "Wash & Fold (Per Item)",
+        qtyLabel: `${washItemCount} item(s)`,
+        priceLabel: formatLinePrice(perItemUnit.amount, washItemCount, perItemUnit.priceLabel),
+      });
+    }
+
+    byService.dryCleaning = DRY_CLEAN_ITEM_DEFS
+      .map((def) => ({
+        name: def.name,
+        qty: Math.max(0, draft.dryClean?.itemizedQuantities?.[def.id] ?? 0),
+      }))
+      .filter((item) => item.qty > 0)
+      .map((item) => {
+        const unit = dryCleanUnitForItem(partnerServiceRows, item.name);
+        return {
+          name: item.name,
+          qtyLabel: `${item.qty} item(s)`,
+          priceLabel: formatLinePrice(unit.amount, item.qty, unit.priceLabel),
+        };
+      });
+
+    byService.tailoring = TAILORING_ITEM_DEFS
+      .map((def) => ({
+        name: def.name,
+        qty: Math.max(0, draft.tailoring?.itemizedQuantities?.[def.id] ?? 0),
+      }))
+      .filter((item) => item.qty > 0)
+      .map((item) => {
+        const unit = tailoringUnitForItem(partnerServiceRows, item.name);
+        return {
+          name: item.name,
+          qtyLabel: `${item.qty} item(s)`,
+          priceLabel: formatLinePrice(unit.amount, item.qty, unit.priceLabel),
+        };
+      });
+
+    return byService;
+  }, [
+    draft.dryClean?.itemizedQuantities,
+    draft.tailoring?.itemizedQuantities,
+    draft.washFold?.bagCount,
+    draft.washFold?.bagDetailsByIndex,
+    draft.washFold?.pricingMode,
+    partnerServiceRows,
+  ]);
 
   useEffect(() => {
     if (servicesToShow.length === 0) return;
@@ -120,10 +209,10 @@ export default function PickupServicesScreen() {
       return;
     }
     if (draft.pickupDeliveryRequested) {
-      router.push("/(customer)/schedule-pickup");
+      router.replace("/(customer)/schedule-pickup");
       return;
     }
-    router.push("/(customer)/order-summary");
+    router.replace("/(customer)/order-summary");
   };
 
   return (
@@ -154,43 +243,62 @@ export default function PickupServicesScreen() {
           <Spacer.Column numberOfSpaces={10} />
           {servicesToShow.map((id) => {
             const isSelected = selectedIds.includes(id);
+            const selectedItems = selectedItemsByService[id];
             return (
-              <Pressable
-                key={id}
-                onPress={() => toggle(id)}
-                style={({ pressed }) => [
-                  styles.servicePill,
-                  isSelected
-                    ? styles.servicePillSelected
-                    : styles.servicePillUnselected,
-                  pressed && styles.pressed,
-                ]}
-              >
-                <View
-                  style={[
-                    styles.radioOuter,
-                    isSelected && styles.radioOuterSelected,
-                  ]}
-                >
-                  {isSelected && (
-                    <MaterialCommunityIcons
-                      name="check"
-                      size={18}
-                      color={c.white}
-                    />
-                  )}
-                </View>
-                <Text
-                  style={[
-                    styles.serviceLabel,
+              <View key={id} style={styles.serviceBlock}>
+                <Pressable
+                  onPress={() => toggle(id)}
+                  style={({ pressed }) => [
+                    styles.servicePill,
                     isSelected
-                      ? styles.serviceLabelSelected
-                      : styles.serviceLabelUnselected,
+                      ? styles.servicePillSelected
+                      : styles.servicePillUnselected,
+                    pressed && styles.pressed,
                   ]}
                 >
-                  {s[id]}
-                </Text>
-              </Pressable>
+                  <View
+                    style={[
+                      styles.radioOuter,
+                      isSelected && styles.radioOuterSelected,
+                    ]}
+                  >
+                    {isSelected && (
+                      <MaterialCommunityIcons
+                        name="check"
+                        size={18}
+                        color={c.white}
+                      />
+                    )}
+                  </View>
+                  <Text
+                    style={[
+                      styles.serviceLabel,
+                      isSelected
+                        ? styles.serviceLabelSelected
+                        : styles.serviceLabelUnselected,
+                    ]}
+                  >
+                    {s[id]}
+                  </Text>
+                </Pressable>
+                {isSelected ? (
+                  <View style={styles.selectedItemsCard}>
+                    {selectedItems.length > 0 ? (
+                      selectedItems.map((item, idx) => (
+                        <View key={`${id}-${item.name}-${idx}`} style={styles.selectedItemRow}>
+                          <Text style={styles.selectedItemName}>{item.name}</Text>
+                          <View style={styles.selectedItemRight}>
+                            <Text style={styles.selectedItemQty}>{item.qtyLabel}</Text>
+                            <Text style={styles.selectedItemPrice}>{item.priceLabel}</Text>
+                          </View>
+                        </View>
+                      ))
+                    ) : (
+                      <Text style={styles.selectedItemsEmpty}>No items selected yet</Text>
+                    )}
+                  </View>
+                ) : null}
+              </View>
             );
           })}
           {draft.partnerId && servicesToShow.length === 0 ? (
@@ -281,6 +389,9 @@ const styles = StyleSheet.create({
   servicesBlock: {
     flexShrink: 0,
   },
+  serviceBlock: {
+    marginBottom: 12,
+  },
   chooseHeading: {
     fontSize: 18,
     fontWeight: "700",
@@ -295,7 +406,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 20,
     borderRadius: 999,
-    marginBottom: 14,
+    marginBottom: 0,
     backgroundColor: "transparent",
   },
   servicePillSelected: {
@@ -349,6 +460,52 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "rgba(255,255,255,0.75)",
     marginTop: 4,
+  },
+  selectedItemsCard: {
+    marginTop: 8,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.22)",
+    backgroundColor: "rgba(0,0,0,0.14)",
+    overflow: "hidden",
+  },
+  selectedItemRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255,255,255,0.08)",
+  },
+  selectedItemName: {
+    flex: 1,
+    color: c.white,
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  selectedItemQty: {
+    color: c.white,
+    fontSize: 12,
+    fontWeight: "700",
+    textAlign: "right",
+  },
+  selectedItemRight: {
+    alignItems: "flex-end",
+    gap: 2,
+  },
+  selectedItemPrice: {
+    color: c.lightBlue,
+    fontSize: 12,
+    fontWeight: "700",
+    textAlign: "right",
+  },
+  selectedItemsEmpty: {
+    color: "rgba(255,255,255,0.7)",
+    fontSize: 13,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
   },
   pickupRow: {
     marginTop: 10,

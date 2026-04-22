@@ -1,8 +1,10 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -51,6 +53,9 @@ export default function LaundererDetailScreen() {
   const [services, setServices] = useState<
     Awaited<ReturnType<typeof fetchPartnerDetail>>["services"]
   >([]);
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const [heroWidth, setHeroWidth] = useState(0);
+  const heroScrollRef = useRef<ScrollView | null>(null);
 
   const load = useCallback(async () => {
     if (!partnerId) {
@@ -82,7 +87,26 @@ export default function LaundererDetailScreen() {
     [services]
   );
 
-  const heroUri = avatarUrlWithCacheBuster(profile?.image_url, profile?.updated_at);
+  const businessImageUris = useMemo(
+    () =>
+      Array.isArray(profile?.business_images)
+        ? profile.business_images.filter(
+            (item): item is string => typeof item === "string" && item.trim().length > 0
+          )
+        : [],
+    [profile?.business_images]
+  );
+  const fallbackHeroUri = avatarUrlWithCacheBuster(profile?.image_url, profile?.updated_at);
+  const carouselImages = useMemo(() => {
+    if (businessImageUris.length > 0) return businessImageUris;
+    if (fallbackHeroUri) return [fallbackHeroUri];
+    return [];
+  }, [businessImageUris, fallbackHeroUri]);
+  const hasCarousel = carouselImages.length > 1;
+
+  useEffect(() => {
+    setActiveImageIndex(0);
+  }, [profile?.id]);
 
   const handleSelect = () => {
     if (partnerId) {
@@ -150,6 +174,21 @@ export default function LaundererDetailScreen() {
     profile.available_time?.trim() ||
     strings.customer.pickLaunderer.hoursPlaceholder;
 
+  const handleHeroScrollEnd = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const width = event.nativeEvent.layoutMeasurement.width;
+    if (!width) return;
+    const nextIndex = Math.round(event.nativeEvent.contentOffset.x / width);
+    const clampedIndex = Math.max(0, Math.min(carouselImages.length - 1, nextIndex));
+    setActiveImageIndex(clampedIndex);
+  };
+
+  const scrollToImage = (index: number) => {
+    if (!heroWidth || !heroScrollRef.current) return;
+    const nextIndex = Math.max(0, Math.min(carouselImages.length - 1, index));
+    heroScrollRef.current.scrollTo({ x: nextIndex * heroWidth, animated: true });
+    setActiveImageIndex(nextIndex);
+  };
+
   return (
     <View style={styles.container}>
       <SafeAreaView style={styles.header} edges={["top"]}>
@@ -169,8 +208,59 @@ export default function LaundererDetailScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {heroUri ? (
-          <Image source={{ uri: heroUri }} style={styles.heroImage} contentFit="cover" />
+        {carouselImages.length > 0 ? (
+          <View
+            style={styles.heroWrap}
+            onLayout={(event) => setHeroWidth(event.nativeEvent.layout.width)}
+          >
+            <ScrollView
+              ref={heroScrollRef}
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              onMomentumScrollEnd={handleHeroScrollEnd}
+            >
+              {carouselImages.map((uri, index) => (
+                <Image
+                  key={`${uri}-${index}`}
+                  source={{ uri }}
+                  style={[styles.heroImage, heroWidth ? { width: heroWidth } : null]}
+                  contentFit="cover"
+                />
+              ))}
+            </ScrollView>
+            {hasCarousel ? (
+              <>
+                <Pressable
+                  onPress={() => scrollToImage(activeImageIndex - 1)}
+                  style={[styles.carouselArrow, styles.carouselArrowLeft]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Previous business image"
+                >
+                  <MaterialCommunityIcons name="chevron-left" size={18} color={c.white} />
+                </Pressable>
+                <Pressable
+                  onPress={() => scrollToImage(activeImageIndex + 1)}
+                  style={[styles.carouselArrow, styles.carouselArrowRight]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Next business image"
+                >
+                  <MaterialCommunityIcons name="chevron-right" size={18} color={c.white} />
+                </Pressable>
+                <View style={styles.carouselDots}>
+                  {carouselImages.map((_, index) => (
+                    <View
+                      key={`dot-${index}`}
+                      style={[
+                        styles.carouselDot,
+                        index === activeImageIndex && styles.carouselDotActive,
+                      ]}
+                    />
+                  ))}
+                </View>
+              </>
+            ) : null}
+          </View>
         ) : (
           <Image
             source={assets.onboarding.slide2}
@@ -305,11 +395,52 @@ const styles = StyleSheet.create({
   },
   heroImage: {
     height: 200,
-    marginTop: 8,
-    width: "100%",
     borderRadius: 16,
     resizeMode: "cover",
     backgroundColor: c.blue900,
+  },
+  heroWrap: {
+    marginTop: 8,
+    borderRadius: 16,
+    overflow: "hidden",
+    position: "relative",
+  },
+  carouselArrow: {
+    position: "absolute",
+    top: "50%",
+    marginTop: -14,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(35, 58, 80, 0.65)",
+  },
+  carouselArrowLeft: {
+    left: 8,
+  },
+  carouselArrowRight: {
+    right: 8,
+  },
+  carouselDots: {
+    position: "absolute",
+    bottom: 10,
+    left: 0,
+    right: 0,
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 6,
+  },
+  carouselDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 999,
+    backgroundColor: "rgba(255,255,255,0.45)",
+  },
+  carouselDotActive: {
+    width: 16,
+    backgroundColor: c.white,
   },
   infoBlock: {
     padding: 16,

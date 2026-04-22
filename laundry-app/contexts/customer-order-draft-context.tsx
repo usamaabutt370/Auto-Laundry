@@ -93,7 +93,25 @@ export function CustomerOrderDraftProvider({
   const [draft, setDraft] = useState<CustomerOrderDraft>(emptyDraft);
 
   const setPartner = useCallback((partnerId: string, partnerName: string | null) => {
-    setDraft((p) => ({ ...p, partnerId, partnerName }));
+    setDraft((p) => {
+      // Keep current draft when re-selecting the same partner.
+      if (p.partnerId === partnerId) {
+        return { ...p, partnerName };
+      }
+      // Switching partner must start a fresh order draft for that partner.
+      return {
+        ...p,
+        partnerId,
+        partnerName,
+        pickupDeliveryRequested: false,
+        selectedServiceIds: [],
+        washFold: null,
+        dryClean: null,
+        tailoring: null,
+        pickup: null,
+        delivery: null,
+      };
+    });
   }, []);
 
   const setPickupDeliveryRequested = useCallback((enabled: boolean) => {

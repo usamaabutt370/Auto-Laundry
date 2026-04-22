@@ -37,7 +37,6 @@ const PLACEHOLDER_RATING = 4.5;
 const DEFAULT_ADDRESS = "1465 5th Avenue APt 5C";
 const DISTANCE_PLACEHOLDER = "—";
 const PARTNER_DISTANCE_PLACEHOLDER = `${DISTANCE_PLACEHOLDER} km`;
-const USER_GEO_DEBOUNCE_MS = 500;
 
 function toRadians(value: number): number {
   return (value * Math.PI) / 180;
@@ -75,7 +74,13 @@ function LaundererCard({
   distanceLabel: string;
   onPress: () => void;
 }) {
-  const imageUri = avatarUrlWithCacheBuster(partner.image_url, partner.updated_at);
+  const businessImageUri = Array.isArray(partner.business_images)
+    ? partner.business_images.find(
+        (item): item is string => typeof item === "string" && item.trim().length > 0
+      )
+    : null;
+  const imageUri =
+    businessImageUri ?? avatarUrlWithCacheBuster(partner.image_url, partner.updated_at);
   const hours =
     partner.available_time?.trim() || strings.customer.pickLaunderer.hoursPlaceholder;
   const phone = partner.phone_number?.trim() || "—";
@@ -156,7 +161,7 @@ export default function PickLaundererScreen() {
   const [partners, setPartners] = useState<PartnerPublicRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [addressInput, setAddressInput] = useState(DEFAULT_ADDRESS);
+  const [searchQuery, setSearchQuery] = useState("");
   const [userCoordinates, setUserCoordinates] = useState<Coordinates | null>(null);
   const [partnerCoordinates, setPartnerCoordinates] = useState<Record<string, Coordinates | null>>(
     {}
@@ -179,22 +184,6 @@ export default function PickLaundererScreen() {
   useEffect(() => {
     load();
   }, [load]);
-
-  useEffect(() => {
-    let cancelled = false;
-    const timeoutId = setTimeout(() => {
-      getCoordinatesWithFallback(addressInput).then((coords) => {
-        if (!cancelled) {
-          setUserCoordinates(coords);
-        }
-      });
-    }, USER_GEO_DEBOUNCE_MS);
-
-    return () => {
-      cancelled = true;
-      clearTimeout(timeoutId);
-    };
-  }, [addressInput]);
 
   useEffect(() => {
     let cancelled = false;
@@ -294,6 +283,14 @@ export default function PickLaundererScreen() {
     return next;
   }, [partnerCoordinates, partners, userCoordinates]);
 
+  const filteredPartners = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return partners;
+    return partners.filter((partner) =>
+      (partner.business_name ?? "").trim().toLowerCase().startsWith(query)
+    );
+  }, [partners, searchQuery]);
+
   const handlePartnerPress = useCallback(
     async (partnerId: string) => {
       if (!isReassignMode) {
@@ -339,22 +336,15 @@ export default function PickLaundererScreen() {
         <View style={styles.addressWrap}>
           <Image source={assets.icons.location_icon} style={styles.addressIcon} />
           <TextInput
-            placeholder={s.addressPlaceholder}
+            placeholder="Search laundromat name"
             placeholderTextColor={c.gray50}
             style={styles.addressInput}
-            value={addressInput}
-            onChangeText={setAddressInput}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
             editable
             returnKeyType="done"
           />
         </View>
-        <Pressable
-          style={({ pressed }) => [styles.headerRight, pressed && styles.pressed]}
-          accessibilityRole="button"
-          accessibilityLabel="Filter"
-        >
-          <Image source={assets.icons.menu_icon} style={styles.headerRightIcon} />
-        </Pressable>
       </SafeAreaView>
       <Text style={styles.screenTitle}>{isReassignMode ? s.reassignTitle : defaultTitle}</Text>
 
@@ -369,7 +359,7 @@ export default function PickLaundererScreen() {
             <Text style={styles.retryText}>{s.retry}</Text>
           </Pressable>
         </View>
-      ) : partners.length === 0 ? (
+      ) : filteredPartners.length === 0 ? (
         <View style={styles.centerBlock}>
           <Text style={styles.emptyText}>{s.emptyList}</Text>
         </View>
@@ -379,7 +369,7 @@ export default function PickLaundererScreen() {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          {partners.map((partner) => (
+          {filteredPartners.map((partner) => (
             <LaundererCard
               key={partner.id}
               partner={partner}
@@ -425,12 +415,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: c.themeBlack,
     paddingVertical: 0,
-  },
-  headerRight: { padding: 8 },
-  headerRightIcon: {
-    width: 20,
-    height: 20,
-    tintColor: c.white,
   },
   pressed: { opacity: 0.8 },
   screenTitle: {

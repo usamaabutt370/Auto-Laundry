@@ -19,6 +19,7 @@ import * as FileSystem from "expo-file-system";
 import * as ImagePicker from "expo-image-picker";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { theme } from "@/constants/theme";
+import { AppHeader } from "@/components/app-header";
 import { avatarUrlWithCacheBuster } from "@/lib/avatar";
 import { getPaymentMethod, setPaymentMethod } from "@/lib/payment-storage";
 import { getSession, isSupabaseConfigured, supabase } from "@/lib/supabase";
@@ -497,27 +498,17 @@ export default function EditProfileScreen() {
         style={styles.keyboardView}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
+        <AppHeader
+          title={isPaymentMode ? "Payment" : "Profile"}
+          leftIcon="arrow-left"
+          onLeftPress={() => router.back()}
+        />
         <ScrollView
           style={styles.scroll}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-        <Pressable style={styles.backBtn} onPress={() => router.back()}>
-          <MaterialCommunityIcons
-            name="arrow-left"
-            size={24}
-            color={c.blue500}
-          />
-          <Text style={styles.backLabel}>Back</Text>
-        </Pressable>
-
-        <View style={styles.segmentWrap}>
-          <Text style={styles.segmentTitle}>
-            {isPaymentMode ? "Payment" : "Profile"}
-          </Text>
-        </View>
-
         <View style={styles.avatarWrap}>
           {isPaymentMode ? (
             <>
@@ -969,25 +960,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-  },
-  backBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 24,
-  },
-  backLabel: {
-    fontSize: 16,
-    color: c.blue500,
-    fontWeight: "600",
-  },
-  segmentWrap: {
-    marginBottom: 28,
-  },
-  segmentTitle: {
-    fontSize: 18,
-    color: c.white,
-    fontWeight: "700",
   },
   avatarWrap: {
     width: 120,
