@@ -30,6 +30,7 @@ export default function CustomerLayout() {
           <Stack.Screen name="schedule-pickup" />
           <Stack.Screen name="schedule-delivery" />
           <Stack.Screen name="order-summary" />
+          <Stack.Screen name="order-detail" />
           <Stack.Screen name="pick-launderer" />
           <Stack.Screen name="launderer-detail" />
         </Stack>

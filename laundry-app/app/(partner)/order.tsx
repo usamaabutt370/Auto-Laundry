@@ -3,11 +3,13 @@ import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Modal,
   Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -23,6 +25,14 @@ import { getStrings } from "@/locales";
 const c = theme.colors;
 const fs = theme.fontSize;
 const H_PAD = 24;
+const REJECTION_OPTIONS = [
+  "Items not serviceable",
+  "Capacity full for selected slot",
+  "Pickup area not covered",
+  "Pricing mismatch",
+  "Other",
+] as const;
+type RejectionOption = (typeof REJECTION_OPTIONS)[number];
 
 type OrderFilter = "pending" | "accepted" | "completed" | "rejected";
 
@@ -44,6 +54,10 @@ export default function PartnerOrderScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [actionOrderId, setActionOrderId] = useState<string | null>(null);
+  const [rejectModalVisible, setRejectModalVisible] = useState(false);
+  const [pendingRejectOrderId, setPendingRejectOrderId] = useState<string | null>(null);
+  const [selectedRejectionOption, setSelectedRejectionOption] = useState<RejectionOption | null>(null);
+  const [otherRejectionReason, setOtherRejectionReason] = useState("");
 
   const filterLabels: Record<OrderFilter, string> = {
     pending: "Pending",
@@ -105,10 +119,14 @@ export default function PartnerOrderScreen() {
   });
 
   const handleOrderAction = useCallback(
-    async (orderId: string, status: "accepted" | "rejected") => {
+    async (
+      orderId: string,
+      status: "accepted" | "rejected",
+      rejectionPayload?: { option: string; details?: string },
+    ) => {
       try {
         setActionOrderId(orderId);
-        const result = await partnerUpdateOrderStatus(orderId, status);
+        const result = await partnerUpdateOrderStatus(orderId, status, rejectionPayload);
         setOrders((prev) =>
           prev.map((order) =>
             order.id === orderId
@@ -131,6 +149,33 @@ export default function PartnerOrderScreen() {
     },
     [],
   );
+
+  const openRejectModal = useCallback((orderId: string) => {
+    setPendingRejectOrderId(orderId);
+    setSelectedRejectionOption(null);
+    setOtherRejectionReason("");
+    setRejectModalVisible(true);
+  }, []);
+
+  const submitRejection = useCallback(() => {
+    if (!pendingRejectOrderId) return;
+    if (!selectedRejectionOption) {
+      Alert.alert("Select rejection reason", "Please choose a reason before rejecting this order.");
+      return;
+    }
+    const details = selectedRejectionOption === "Other" ? otherRejectionReason.trim() : "";
+    if (selectedRejectionOption === "Other" && details.length === 0) {
+      Alert.alert("Add details", "Please explain the rejection reason in the input box.");
+      return;
+    }
+    const orderId = pendingRejectOrderId;
+    setRejectModalVisible(false);
+    setPendingRejectOrderId(null);
+    void handleOrderAction(orderId, "rejected", {
+      option: selectedRejectionOption,
+      details,
+    });
+  }, [handleOrderAction, otherRejectionReason, pendingRejectOrderId, selectedRejectionOption]);
 
   const handleCompleteOrder = useCallback(async (orderId: string) => {
     try {
@@ -259,7 +304,7 @@ export default function PartnerOrderScreen() {
                 }
                 onReject={
                   order.status === "pending"
-                    ? () => handleOrderAction(order.id, "rejected")
+                    ? () => openRejectModal(order.id)
                     : undefined
                 }
                 onComplete={
@@ -278,6 +323,70 @@ export default function PartnerOrderScreen() {
           })
         )}
       </ScrollView>
+      <Modal
+        visible={rejectModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setRejectModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <Pressable style={styles.modalBackdrop} onPress={() => setRejectModalVisible(false)} />
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Reject order</Text>
+            <Text style={styles.modalSubtitle}>Select a reason to notify the customer.</Text>
+            <View style={styles.reasonList}>
+              {REJECTION_OPTIONS.map((option) => {
+                const selected = selectedRejectionOption === option;
+                return (
+                  <Pressable
+                    key={option}
+                    onPress={() => setSelectedRejectionOption(option)}
+                    style={({ pressed }) => [
+                      styles.reasonOption,
+                      selected && styles.reasonOptionSelected,
+                      pressed && styles.pressed,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.reasonOptionText,
+                        selected && styles.reasonOptionTextSelected,
+                      ]}
+                    >
+                      {option}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+            {selectedRejectionOption === "Other" ? (
+              <TextInput
+                multiline
+                value={otherRejectionReason}
+                onChangeText={setOtherRejectionReason}
+                placeholder="Write reason for rejection"
+                placeholderTextColor={c.blue500}
+                style={styles.otherReasonInput}
+                textAlignVertical="top"
+              />
+            ) : null}
+            <View style={styles.modalActions}>
+              <Pressable
+                onPress={() => setRejectModalVisible(false)}
+                style={({ pressed }) => [styles.modalCancelBtn, pressed && styles.pressed]}
+              >
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                onPress={submitRejection}
+                style={({ pressed }) => [styles.modalRejectBtn, pressed && styles.pressed]}
+              >
+                <Text style={styles.modalRejectText}>Reject order</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -340,5 +449,100 @@ const styles = StyleSheet.create({
     fontSize: fs.smallText,
     color: c.blue500,
     textAlign: "center",
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: H_PAD,
+  },
+  modalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(5, 14, 25, 0.65)",
+  },
+  modalCard: {
+    width: "100%",
+    backgroundColor: c.blue900,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: c.outline,
+    padding: 16,
+  },
+  modalTitle: {
+    color: c.white,
+    fontSize: fs.smallTitle,
+    fontWeight: "700",
+  },
+  modalSubtitle: {
+    color: c.blue500,
+    fontSize: fs.descText,
+    marginTop: 4,
+    marginBottom: 12,
+  },
+  reasonList: {
+    gap: 8,
+  },
+  reasonOption: {
+    borderWidth: 1,
+    borderColor: c.outline,
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    backgroundColor: c.background,
+  },
+  reasonOptionSelected: {
+    borderColor: c.filledButtonBorder,
+    backgroundColor: "rgba(31, 200, 255, 0.1)",
+  },
+  reasonOptionText: {
+    color: c.white,
+    fontSize: fs.descText,
+  },
+  reasonOptionTextSelected: {
+    color: c.lightBlue,
+    fontWeight: "700",
+  },
+  otherReasonInput: {
+    marginTop: 12,
+    minHeight: 84,
+    borderWidth: 1,
+    borderColor: c.outline,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    color: c.white,
+    fontSize: fs.descText,
+  },
+  modalActions: {
+    marginTop: 14,
+    flexDirection: "row",
+    gap: 10,
+  },
+  modalCancelBtn: {
+    flex: 1,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: c.outline,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  modalCancelText: {
+    color: c.white,
+    fontSize: fs.descText,
+    fontWeight: "700",
+  },
+  modalRejectBtn: {
+    flex: 1,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#D9534F",
+    backgroundColor: c.white,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  modalRejectText: {
+    color: "#D9534F",
+    fontSize: fs.descText,
+    fontWeight: "700",
   },
 });
