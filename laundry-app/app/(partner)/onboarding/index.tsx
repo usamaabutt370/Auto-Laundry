@@ -2,7 +2,6 @@ import { useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Alert,
-  FlatList,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -11,8 +10,6 @@ import {
   StyleSheet,
   Text,
   View,
-  type NativeScrollEvent,
-  type NativeSyntheticEvent,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -89,9 +86,9 @@ export default function PartnerOnboardingStep1() {
   const [address, setAddress] = useState("");
   const [submitAttempted, setSubmitAttempted] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const hourRef = useRef<FlatList<number> | null>(null);
-  const minuteRef = useRef<FlatList<number> | null>(null);
-  const periodRef = useRef<FlatList<(typeof PERIODS)[number]> | null>(null);
+  const hourRef = useRef<ScrollView | null>(null);
+  const minuteRef = useRef<ScrollView | null>(null);
+  const periodRef = useRef<ScrollView | null>(null);
 
   const startTimeLabel = startTime ? formatTimeLabel(startTime) : "";
   const endTimeLabel = endTime ? formatTimeLabel(endTime) : "";
@@ -167,16 +164,10 @@ export default function PartnerOnboardingStep1() {
       setPickerPeriod(period);
       setActivePicker(type);
       setTimeout(() => {
-        hourRef.current?.scrollToOffset({
-          offset: (hour - 1) * WHEEL_ITEM_HEIGHT,
-          animated: false,
-        });
-        minuteRef.current?.scrollToOffset({
-          offset: minute * WHEEL_ITEM_HEIGHT,
-          animated: false,
-        });
-        periodRef.current?.scrollToOffset({
-          offset: (period === "AM" ? 0 : 1) * WHEEL_ITEM_HEIGHT,
+        hourRef.current?.scrollTo({ y: (hour - 1) * WHEEL_ITEM_HEIGHT, animated: false });
+        minuteRef.current?.scrollTo({ y: minute * WHEEL_ITEM_HEIGHT, animated: false });
+        periodRef.current?.scrollTo({
+          y: (period === "AM" ? 0 : 1) * WHEEL_ITEM_HEIGHT,
           animated: false,
         });
       }, 0);
@@ -200,8 +191,10 @@ export default function PartnerOnboardingStep1() {
     setActivePicker(null);
   }, [activePicker, pickerHour, pickerMinute, pickerPeriod]);
 
-  const getWheelIndex = (event: NativeSyntheticEvent<NativeScrollEvent>) =>
-    Math.round(event.nativeEvent.contentOffset.y / WHEEL_ITEM_HEIGHT);
+  const getWheelIndex = (offsetY: number, length: number) => {
+    const idx = Math.round(offsetY / WHEEL_ITEM_HEIGHT);
+    return Math.max(0, Math.min(length - 1, idx));
+  };
 
   const handleNext = useCallback(async () => {
     if (isSaving) return;
@@ -379,34 +372,38 @@ export default function PartnerOnboardingStep1() {
             {s.availableTimeRangeInvalid ?? "End time must be after start time."}
           </Text>
         ) : null}
-        <Modal transparent visible={Boolean(activePicker)} animationType="fade">
+        <Modal
+          transparent
+          visible={Boolean(activePicker)}
+          animationType="fade"
+          onRequestClose={() => setActivePicker(null)}
+        >
           <View style={styles.modalOverlay}>
+            <Pressable style={styles.modalBackdrop} onPress={() => setActivePicker(null)} />
             <View style={styles.modalCard}>
               <Text style={styles.pickerTitle}>
                 {activePicker === "start" ? s.startTimePlaceholder : s.endTimePlaceholder}
               </Text>
               <View style={styles.wheelContainer}>
                 <View style={styles.wheelHighlight} />
-                <FlatList
+                <ScrollView
                   ref={hourRef}
-                  data={HOURS}
-                  keyExtractor={(item) => `hour-${item}`}
                   showsVerticalScrollIndicator={false}
                   snapToInterval={WHEEL_ITEM_HEIGHT}
                   decelerationRate="fast"
-                  getItemLayout={(_, index) => ({
-                    length: WHEEL_ITEM_HEIGHT,
-                    offset: WHEEL_ITEM_HEIGHT * index,
-                    index,
-                  })}
                   onMomentumScrollEnd={(event) => {
-                    const idx = Math.min(11, Math.max(0, getWheelIndex(event)));
+                    const idx = getWheelIndex(event.nativeEvent.contentOffset.y, HOURS.length);
+                    setPickerHour(HOURS[idx]);
+                  }}
+                  onScrollEndDrag={(event) => {
+                    const idx = getWheelIndex(event.nativeEvent.contentOffset.y, HOURS.length);
                     setPickerHour(HOURS[idx]);
                   }}
                   style={styles.wheelList}
                   contentContainerStyle={styles.wheelContent}
-                  renderItem={({ item }) => (
-                    <View style={styles.wheelItem}>
+                >
+                  {HOURS.map((item) => (
+                    <View key={`hour-${item}`} style={styles.wheelItem}>
                       <Text
                         style={[
                           styles.wheelText,
@@ -416,28 +413,26 @@ export default function PartnerOnboardingStep1() {
                         {String(item).padStart(2, "0")}
                       </Text>
                     </View>
-                  )}
-                />
-                <FlatList
+                  ))}
+                </ScrollView>
+                <ScrollView
                   ref={minuteRef}
-                  data={MINUTES}
-                  keyExtractor={(item) => `minute-${item}`}
                   showsVerticalScrollIndicator={false}
                   snapToInterval={WHEEL_ITEM_HEIGHT}
                   decelerationRate="fast"
-                  getItemLayout={(_, index) => ({
-                    length: WHEEL_ITEM_HEIGHT,
-                    offset: WHEEL_ITEM_HEIGHT * index,
-                    index,
-                  })}
                   onMomentumScrollEnd={(event) => {
-                    const idx = Math.min(59, Math.max(0, getWheelIndex(event)));
+                    const idx = getWheelIndex(event.nativeEvent.contentOffset.y, MINUTES.length);
+                    setPickerMinute(MINUTES[idx]);
+                  }}
+                  onScrollEndDrag={(event) => {
+                    const idx = getWheelIndex(event.nativeEvent.contentOffset.y, MINUTES.length);
                     setPickerMinute(MINUTES[idx]);
                   }}
                   style={styles.wheelList}
                   contentContainerStyle={styles.wheelContent}
-                  renderItem={({ item }) => (
-                    <View style={styles.wheelItem}>
+                >
+                  {MINUTES.map((item) => (
+                    <View key={`minute-${item}`} style={styles.wheelItem}>
                       <Text
                         style={[
                           styles.wheelText,
@@ -447,28 +442,26 @@ export default function PartnerOnboardingStep1() {
                         {String(item).padStart(2, "0")}
                       </Text>
                     </View>
-                  )}
-                />
-                <FlatList
+                  ))}
+                </ScrollView>
+                <ScrollView
                   ref={periodRef}
-                  data={PERIODS}
-                  keyExtractor={(item) => `period-${item}`}
                   showsVerticalScrollIndicator={false}
                   snapToInterval={WHEEL_ITEM_HEIGHT}
                   decelerationRate="fast"
-                  getItemLayout={(_, index) => ({
-                    length: WHEEL_ITEM_HEIGHT,
-                    offset: WHEEL_ITEM_HEIGHT * index,
-                    index,
-                  })}
                   onMomentumScrollEnd={(event) => {
-                    const idx = Math.min(1, Math.max(0, getWheelIndex(event)));
+                    const idx = getWheelIndex(event.nativeEvent.contentOffset.y, PERIODS.length);
+                    setPickerPeriod(PERIODS[idx]);
+                  }}
+                  onScrollEndDrag={(event) => {
+                    const idx = getWheelIndex(event.nativeEvent.contentOffset.y, PERIODS.length);
                     setPickerPeriod(PERIODS[idx]);
                   }}
                   style={styles.wheelList}
                   contentContainerStyle={styles.wheelContent}
-                  renderItem={({ item }) => (
-                    <View style={styles.wheelItem}>
+                >
+                  {PERIODS.map((item) => (
+                    <View key={`period-${item}`} style={styles.wheelItem}>
                       <Text
                         style={[
                           styles.wheelText,
@@ -478,10 +471,8 @@ export default function PartnerOnboardingStep1() {
                         {item}
                       </Text>
                     </View>
-                  )}
-                />
-                <View pointerEvents="none" style={styles.wheelFadeTop} />
-                <View pointerEvents="none" style={styles.wheelFadeBottom} />
+                  ))}
+                </ScrollView>
               </View>
               <View style={styles.pickerActions}>
                 <Pressable
@@ -603,6 +594,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: 24,
   },
+  modalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+  },
   modalCard: {
     width: "100%",
     maxWidth: 340,
@@ -656,24 +650,6 @@ const styles = StyleSheet.create({
     color: theme.colors.white,
     fontSize: theme.fontSize.smallTitle,
     fontWeight: "700",
-  },
-  wheelFadeTop: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    top: 0,
-    height: WHEEL_ITEM_HEIGHT * 1.5,
-    backgroundColor: "rgba(52,116,136,0.55)",
-    zIndex: 3,
-  },
-  wheelFadeBottom: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: WHEEL_ITEM_HEIGHT * 1.5,
-    backgroundColor: "rgba(52,116,136,0.55)",
-    zIndex: 3,
   },
   pickerActions: {
     marginTop: 10,
