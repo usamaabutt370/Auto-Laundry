@@ -208,7 +208,7 @@ export default function SchedulePickupScreen() {
       dayLabel,
       instructions: instructions.trim(),
     });
-    router.push("/(customer)/schedule-delivery");
+    router.replace("/(customer)/schedule-delivery");
   };
 
   return (

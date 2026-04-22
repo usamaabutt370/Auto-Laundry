@@ -37,8 +37,6 @@ const PLACEHOLDER_RATING = 4.5;
 const DEFAULT_ADDRESS = "1465 5th Avenue APt 5C";
 const DISTANCE_PLACEHOLDER = "—";
 const PARTNER_DISTANCE_PLACEHOLDER = `${DISTANCE_PLACEHOLDER} km`;
-const USER_GEO_DEBOUNCE_MS = 500;
-type SearchMode = "address" | "laundromat";
 
 function toRadians(value: number): number {
   return (value * Math.PI) / 180;
@@ -163,16 +161,12 @@ export default function PickLaundererScreen() {
   const [partners, setPartners] = useState<PartnerPublicRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [searchMode, setSearchMode] = useState<SearchMode>("address");
   const [searchQuery, setSearchQuery] = useState("");
-  const [hasChosenSearchMode, setHasChosenSearchMode] = useState(false);
   const [userCoordinates, setUserCoordinates] = useState<Coordinates | null>(null);
   const [partnerCoordinates, setPartnerCoordinates] = useState<Record<string, Coordinates | null>>(
     {}
   );
   const geocodeCacheRef = useRef<Map<string, Coordinates | null>>(new Map());
-  const searchInputRef = useRef<TextInput | null>(null);
-  const skipNextFocusPromptRef = useRef(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -190,28 +184,6 @@ export default function PickLaundererScreen() {
   useEffect(() => {
     load();
   }, [load]);
-
-  useEffect(() => {
-    if (searchMode !== "address") return;
-    let cancelled = false;
-    const trimmedQuery = searchQuery.trim();
-    if (!trimmedQuery) {
-      setUserCoordinates(null);
-      return;
-    }
-    const timeoutId = setTimeout(() => {
-      getCoordinatesWithFallback(trimmedQuery).then((coords) => {
-        if (!cancelled) {
-          setUserCoordinates(coords);
-        }
-      });
-    }, USER_GEO_DEBOUNCE_MS);
-
-    return () => {
-      cancelled = true;
-      clearTimeout(timeoutId);
-    };
-  }, [searchMode, searchQuery]);
 
   useEffect(() => {
     let cancelled = false;
@@ -312,44 +284,12 @@ export default function PickLaundererScreen() {
   }, [partnerCoordinates, partners, userCoordinates]);
 
   const filteredPartners = useMemo(() => {
-    if (!hasChosenSearchMode) return partners;
     const query = searchQuery.trim().toLowerCase();
     if (!query) return partners;
-    if (searchMode === "address") {
-      return partners.filter((partner) =>
-        (partner.address ?? "").trim().toLowerCase().startsWith(query)
-      );
-    }
     return partners.filter((partner) =>
       (partner.business_name ?? "").trim().toLowerCase().startsWith(query)
     );
-  }, [hasChosenSearchMode, partners, searchMode, searchQuery]);
-
-  const openSearchModePicker = useCallback(() => {
-    Alert.alert("Search option", "Choose how to search", [
-      {
-        text: "Address",
-        onPress: () => {
-          setHasChosenSearchMode(true);
-          setSearchMode("address");
-          setSearchQuery("");
-          skipNextFocusPromptRef.current = true;
-          setTimeout(() => searchInputRef.current?.focus(), 0);
-        },
-      },
-      {
-        text: "Laundromat name",
-        onPress: () => {
-          setHasChosenSearchMode(true);
-          setSearchMode("laundromat");
-          setSearchQuery("");
-          skipNextFocusPromptRef.current = true;
-          setTimeout(() => searchInputRef.current?.focus(), 0);
-        },
-      },
-      { text: "Cancel", style: "cancel" },
-    ]);
-  }, []);
+  }, [partners, searchQuery]);
 
   const handlePartnerPress = useCallback(
     async (partnerId: string) => {
@@ -396,28 +336,13 @@ export default function PickLaundererScreen() {
         <View style={styles.addressWrap}>
           <Image source={assets.icons.location_icon} style={styles.addressIcon} />
           <TextInput
-            ref={searchInputRef}
-            placeholder={
-              !hasChosenSearchMode
-                ? "Choose filter option"
-                : searchMode === "address"
-                ? s.addressPlaceholder
-                : "Search laundromat name"
-            }
+            placeholder="Search laundromat name"
             placeholderTextColor={c.gray50}
             style={styles.addressInput}
             value={searchQuery}
             onChangeText={setSearchQuery}
             editable
             returnKeyType="done"
-            onFocus={() => {
-              if (skipNextFocusPromptRef.current) {
-                skipNextFocusPromptRef.current = false;
-                return;
-              }
-              searchInputRef.current?.blur();
-              openSearchModePicker();
-            }}
           />
         </View>
       </SafeAreaView>

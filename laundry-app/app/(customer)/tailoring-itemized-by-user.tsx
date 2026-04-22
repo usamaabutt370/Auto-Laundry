@@ -84,7 +84,7 @@ export default function TailoringItemizedByUserScreen() {
   };
 
   const handleSave = () => {
-    router.push("/(customer)/pickup-services");
+    router.back();
   };
 
   const currencyPrefix = estimate.currencyPrefix;

@@ -17,14 +17,11 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { theme } from "@/constants/theme";
 import { useAuth } from "@/contexts/auth-context";
 import { avatarUrlWithCacheBuster } from "@/lib/avatar";
-import { getPaymentMethod, type PaymentMethod } from "@/lib/payment-storage";
 import { getSession, isSupabaseConfigured, supabase } from "@/lib/supabase";
 import type { UserRole } from "@/types/user";
 import { assets } from "@/assets/assets";
 
 const c = theme.colors;
-
-type ProfileTabId = "profile" | "payment";
 
 type ProfileRow = {
   first_name: string | null;
@@ -49,15 +46,11 @@ function formatDateDisplay(iso: string | null | undefined): string {
 export default function CustomerProfileScreen() {
   const router = useRouter();
   const { user, refreshRole } = useAuth();
-  const [activeTab, setActiveTab] = useState<ProfileTabId>("profile");
   const [profile, setProfile] = useState<ProfileRow | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdatingRole, setIsUpdatingRole] = useState(false);
   /** Optimistic switch state so user sees ON before navigation; null = use profile.role */
   const [roleSwitchValue, setRoleSwitchValue] = useState<boolean | null>(null);
-  const [paymentDetails, setPaymentDetails] = useState<PaymentMethod | null>(
-    null,
-  );
 
   const loadProfile = useCallback(async () => {
     if (!isSupabaseConfigured()) {
@@ -136,7 +129,6 @@ export default function CustomerProfileScreen() {
   useFocusEffect(
     useCallback(() => {
       loadProfile();
-      getPaymentMethod().then(setPaymentDetails);
     }, [loadProfile]),
   );
 
@@ -190,54 +182,9 @@ export default function CustomerProfileScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Segment: QR Code | Profile | Payment */}
-        <View style={styles.segmentWrap}>
-          <View style={styles.segmentBg}>
-            <Pressable
-              style={[
-                styles.segmentItem,
-                activeTab === "profile" && styles.segmentItemActive,
-              ]}
-              onPress={() => setActiveTab("profile")}
-            >
-              <Text
-                style={[
-                  styles.segmentLabel,
-                  activeTab === "profile" && styles.segmentLabelActive,
-                ]}
-              >
-                Profile
-              </Text>
-            </Pressable>
-            <Pressable
-              style={[
-                styles.segmentItem,
-                activeTab === "payment" && styles.segmentItemActive,
-              ]}
-              onPress={() => setActiveTab("payment")}
-            >
-              <Text
-                style={[
-                  styles.segmentLabel,
-                  activeTab === "payment" && styles.segmentLabelActive,
-                ]}
-              >
-                Payment
-              </Text>
-            </Pressable>
-          </View>
-        </View>
-
-        {/* Edit: profile when on Profile tab, payment when on Payment tab */}
         <Pressable
           style={styles.editBtn}
-          onPress={() => {
-            if (activeTab === "payment") {
-              router.push("/(customer)/edit-profile?mode=payment");
-            } else {
-              router.push("/(customer)/edit-profile");
-            }
-          }}
+          onPress={() => router.push("/(customer)/edit-profile")}
         >
           <MaterialCommunityIcons
             name="cog-outline"
@@ -275,7 +222,7 @@ export default function CustomerProfileScreen() {
           <View style={styles.loadingWrap}>
             <ActivityIndicator color={c.white} size="small" />
           </View>
-        ) : activeTab === "profile" ? (
+        ) : (
           <View style={styles.detailsCard}>
             <View style={styles.detailRow}>
               <View style={styles.detailCol}>
@@ -324,71 +271,6 @@ export default function CustomerProfileScreen() {
               </View>
               <Text style={styles.roleHint}>
                 Offer laundry services and manage orders as a launderer.
-              </Text>
-            </View>
-          </View>
-        ) : (
-          <View style={styles.paymentCard}>
-            <View style={styles.paymentDetailBlock}>
-              <Text style={styles.paymentDetailLabel}>
-                Full Name on Credit Card
-              </Text>
-              <Text
-                style={[
-                  paymentDetails?.cardName
-                    ? styles.paymentDetailValue
-                    : styles.paymentDetailValuePlaceholder,
-                ]}
-              >
-                {paymentDetails?.cardName || "Usama Butt"}
-              </Text>
-            </View>
-            <View style={styles.paymentDetailBlock}>
-              <Text style={styles.paymentDetailLabel}>Credit Card Number</Text>
-              <Text
-                style={[
-                  paymentDetails?.cardNumberLast4
-                    ? styles.paymentDetailValue
-                    : styles.paymentDetailValuePlaceholder,
-                ]}
-              >
-                {paymentDetails?.cardNumberLast4
-                  ? `•••• •••• •••• ${paymentDetails.cardNumberLast4}`
-                  : "•••• •••• •••• ••••"}
-              </Text>
-            </View>
-            <View style={styles.paymentDetailRow}>
-              <View style={styles.paymentDetailBlock}>
-                <Text style={styles.paymentDetailLabel}>Expiration Date</Text>
-                <Text
-                  style={[
-                    paymentDetails?.cardName
-                      ? styles.paymentDetailValue
-                      : styles.paymentDetailValuePlaceholder,
-                  ]}
-                >
-                  {paymentDetails?.expiration || "MM/YY"}
-                </Text>
-              </View>
-              <View style={styles.paymentDetailBlock}>
-                <Text style={styles.paymentDetailLabel}>CVV</Text>
-                <Text
-                  style={[
-                    paymentDetails?.cvv
-                      ? styles.paymentDetailValue
-                      : styles.paymentDetailValuePlaceholder,
-                  ]}
-                >
-                  {paymentDetails?.cvv || "•••"}
-                </Text>
-              </View>
-            </View>
-            <View style={styles.paymentDetailBlock}>
-              <Text style={styles.paymentDetailLabel}>
-                Use same address from Profile
-              </Text>
-              <Text style={styles.paymentDetailValue}>
-                {profile?.address || "—"}
               </Text>
             </View>
           </View>
