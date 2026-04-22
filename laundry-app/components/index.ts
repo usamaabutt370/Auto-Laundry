@@ -12,3 +12,4 @@ export { LanguageSelector } from "./language-selector";
 export type { LanguageSelectorProps } from "./language-selector";
 export { ServicePricingCard } from "./service-pricing-card";
 export type { ServicePricingCardProps } from "./service-pricing-card";
+export { AuthErrorModal } from "./auth-error-modal";
