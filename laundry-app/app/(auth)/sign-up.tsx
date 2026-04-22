@@ -14,7 +14,6 @@ import { AuthErrorModal, Input, Spacer, ThemedText, ThemedView } from "@/compone
 import { theme } from "@/constants/theme";
 import { strings } from "@/constants/strings";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
-import { requestPhoneOtp } from "@/lib/phone-otp";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
 import { type CountryCode } from "react-native-country-picker-modal";
 
@@ -29,14 +28,12 @@ export default function SignUpScreen() {
   const [mobileNumber, setMobileNumber] = useState("");
   const [countryCode, setCountryCode] = useState<CountryCode>("PK");
   const [callingCode, setCallingCode] = useState("92");
-  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<{
     firstName?: string;
     lastName?: string;
     mobileNumber?: string;
-    email?: string;
     password?: string;
   }>({});
   const [authError, setAuthError] = useState<{ title: string; message: string } | null>(null);
@@ -73,7 +70,6 @@ export default function SignUpScreen() {
     if (!firstName) nextErrors.firstName = "First name is required.";
     if (!lastName) nextErrors.lastName = "Last name is required.";
     if (!mobileNumber) nextErrors.mobileNumber = "Mobile number is required.";
-    if (!email) nextErrors.email = "Email is required.";
     if (!password) nextErrors.password = "Password is required.";
 
     const fullNumber = `+${callingCode}${mobileNumber}`;
@@ -95,10 +91,11 @@ export default function SignUpScreen() {
       // Normalize phone number to E.164
       const phoneNumber = parsePhoneNumberFromString(`+${callingCode}${mobileNumber}`);
       const normalizedPhone = phoneNumber ? phoneNumber.number : `+${callingCode}${mobileNumber}`;
+      const generatedEmail = `${normalizedPhone.replace(/\D/g, "")}@autolaundry.app`;
 
       // 1) Create auth user with email + password (no email OTP).
       const { data, error } = await supabase.auth.signUp({
-        email,
+        email: generatedEmail,
         password,
         options: {
           data: {
@@ -123,7 +120,7 @@ export default function SignUpScreen() {
           await supabase.from("profiles").upsert(
             {
               id: user.id,
-              email,
+              email: generatedEmail,
               phone: normalizedPhone,
               full_name: fullName,
               first_name: firstName,
@@ -137,14 +134,8 @@ export default function SignUpScreen() {
         }
       }
 
-      // 3) Request a phone OTP (stub for now, real SMS later).
-      await requestPhoneOtp(normalizedPhone);
-
-      // 4) Go to phone OTP screen. We pass the phone so future verification logic has it.
-      router.push({
-        pathname: "/(auth)/otp",
-        params: { phone: normalizedPhone },
-      });
+      // Go directly to customer dashboard after signup.
+      router.replace("/(customer)");
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : "Something went wrong. Please try again.";
@@ -226,16 +217,6 @@ export default function SignUpScreen() {
           {errors.mobileNumber && (
             <Text style={styles.errorText}>{errors.mobileNumber}</Text>
           )}
-          <Spacer.Column numberOfSpaces={1} />
-          <Input
-            placeholder={s.email}
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            {...inputProps}
-          />
-          {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
           <Spacer.Column numberOfSpaces={1} />
           <Input
             placeholder={s.password}

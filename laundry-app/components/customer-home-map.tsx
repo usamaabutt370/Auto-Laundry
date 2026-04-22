@@ -1,7 +1,7 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, TextInput, View } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { WebView } from "react-native-webview";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -59,6 +59,7 @@ export function CustomerHomeMap({
     {},
   );
   const [loadingPartners, setLoadingPartners] = useState(true);
+  const [selectedPartnerId, setSelectedPartnerId] = useState<string | null>(null);
 
   const resolveUserCoordinates = useCallback(async (address: string) => {
     const coords = await getCoordinatesWithFallback(address);
@@ -171,6 +172,14 @@ export function CustomerHomeMap({
         .filter((item): item is { partner: PartnerMapMarker; coords: Coordinates } => Boolean(item.coords)),
     [partnerCoordinates, partners],
   );
+  const markerById = useMemo(() => {
+    const map = new Map<string, PartnerMapMarker>();
+    for (const partner of partners) {
+      map.set(partner.id, partner);
+    }
+    return map;
+  }, [partners]);
+  const selectedPartner = selectedPartnerId ? markerById.get(selectedPartnerId) ?? null : null;
 
   const mapMarkers = useMemo<WebMapMarker[]>(
     () =>
@@ -304,7 +313,7 @@ export function CustomerHomeMap({
               typeof payload.partnerId === "string" &&
               (payload.mode === "dropoff" || payload.mode === "pickupDelivery")
             ) {
-              onPartnerPress(payload.partnerId, payload.mode);
+              setSelectedPartnerId(payload.partnerId);
             }
           } catch {
             // Ignore malformed webview messages.
@@ -364,6 +373,55 @@ export function CustomerHomeMap({
       >
         <MaterialCommunityIcons name="crosshairs-gps" size={20} color={c.background} />
       </Pressable>
+
+      {selectedPartner ? (
+        <View style={styles.modalOverlay} pointerEvents="box-none">
+          <View
+            style={[
+              styles.partnerSheetWrap,
+              { bottom: Math.max(12, recenterBottomOffset - 58) },
+            ]}
+          >
+            <View style={styles.partnerSheet}>
+              <View style={styles.partnerSheetTop}>
+                <View style={styles.partnerInfoWrap}>
+                  <Text style={styles.partnerSheetTitle}>{selectedPartner.business_name.trim()}</Text>
+                  <Text style={styles.partnerSheetSubtitle}>
+                    {selectedPartner.fulfillmentMode === "pickupDelivery"
+                      ? strings.pickUpDelivery
+                      : strings.dropOff}
+                  </Text>
+                  {selectedPartner.phone_number?.trim() ? (
+                    <Text style={styles.partnerSheetMeta}>{selectedPartner.phone_number.trim()}</Text>
+                  ) : null}
+                  {selectedPartner.address?.trim() ? (
+                    <Text style={styles.partnerSheetMeta} numberOfLines={2}>
+                      {selectedPartner.address.trim()}
+                    </Text>
+                  ) : null}
+                </View>
+                <Pressable
+                  onPress={() => setSelectedPartnerId(null)}
+                  style={({ pressed }) => [styles.partnerSheetClose, pressed && styles.pressed]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Close partner details"
+                >
+                  <MaterialCommunityIcons name="close" size={20} color={c.background} />
+                </Pressable>
+              </View>
+              <Pressable
+                onPress={() => {
+                  onPartnerPress(selectedPartner.id, selectedPartner.fulfillmentMode);
+                  setSelectedPartnerId(null);
+                }}
+                style={({ pressed }) => [styles.partnerSheetAction, pressed && styles.pressed]}
+              >
+                <Text style={styles.partnerSheetActionText}>View partner details</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      ) : null}
     </>
   );
 }
@@ -444,5 +502,75 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     tintColor: c.background,
+  },
+  partnerSheetWrap: {
+    position: "absolute",
+    left: 12,
+    right: 12,
+    zIndex: 120,
+    elevation: 12,
+    marginBottom: -100
+  },
+  modalOverlay: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  partnerSheet: {
+    backgroundColor: c.white,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    padding: 14,
+    shadowColor: "#000",
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
+  },
+  partnerSheetTop: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 10,
+  },
+  partnerInfoWrap: {
+    flex: 1,
+  },
+  partnerSheetTitle: {
+    color: c.background,
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  partnerSheetSubtitle: {
+    marginTop: 2,
+    color: c.gray50,
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  partnerSheetMeta: {
+    marginTop: 4,
+    color: c.gray50,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  partnerSheetClose: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#F3F4F6",
+  },
+  partnerSheetAction: {
+    marginTop: 12,
+    borderRadius: 12,
+    backgroundColor: c.background,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 11,
+  },
+  partnerSheetActionText: {
+    color: c.white,
+    fontSize: 14,
+    fontWeight: "700",
   },
 });
