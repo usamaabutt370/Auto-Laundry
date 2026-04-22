@@ -1,7 +1,6 @@
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import {
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -11,14 +10,10 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
-import { Input, Spacer, ThemedText, ThemedView } from "@/components";
+import { AuthErrorModal, Input, Spacer, ThemedText, ThemedView } from "@/components";
 import { theme } from "@/constants/theme";
 import { strings } from "@/constants/strings";
-import { assets } from "@/assets/assets";
-import { Image } from "expo-image";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
-import { requestPhoneOtp } from "@/lib/phone-otp";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
 import { type CountryCode } from "react-native-country-picker-modal";
 
@@ -33,16 +28,19 @@ export default function SignUpScreen() {
   const [mobileNumber, setMobileNumber] = useState("");
   const [countryCode, setCountryCode] = useState<CountryCode>("PK");
   const [callingCode, setCallingCode] = useState("92");
-  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<{
     firstName?: string;
     lastName?: string;
     mobileNumber?: string;
-    email?: string;
     password?: string;
   }>({});
+  const [authError, setAuthError] = useState<{ title: string; message: string } | null>(null);
+
+  const showAuthError = (title: string, message: string) => {
+    setAuthError({ title, message });
+  };
 
   const handleMobileChange = (raw: string) => {
     // Keep only digits
@@ -61,9 +59,9 @@ export default function SignUpScreen() {
 
   const handleContinue = async () => {
     if (!isSupabaseConfigured()) {
-      Alert.alert(
+      showAuthError(
         "Configuration error",
-        "Supabase is not configured. Please add your Supabase URL and anon key to the environment."
+        "Supabase is not configured. Please add your Supabase URL and anon key to the environment.",
       );
       return;
     }
@@ -72,7 +70,6 @@ export default function SignUpScreen() {
     if (!firstName) nextErrors.firstName = "First name is required.";
     if (!lastName) nextErrors.lastName = "Last name is required.";
     if (!mobileNumber) nextErrors.mobileNumber = "Mobile number is required.";
-    if (!email) nextErrors.email = "Email is required.";
     if (!password) nextErrors.password = "Password is required.";
 
     const fullNumber = `+${callingCode}${mobileNumber}`;
@@ -94,10 +91,11 @@ export default function SignUpScreen() {
       // Normalize phone number to E.164
       const phoneNumber = parsePhoneNumberFromString(`+${callingCode}${mobileNumber}`);
       const normalizedPhone = phoneNumber ? phoneNumber.number : `+${callingCode}${mobileNumber}`;
+      const generatedEmail = `${normalizedPhone.replace(/\D/g, "")}@autolaundry.app`;
 
       // 1) Create auth user with email + password (no email OTP).
       const { data, error } = await supabase.auth.signUp({
-        email,
+        email: generatedEmail,
         password,
         options: {
           data: {
@@ -110,7 +108,7 @@ export default function SignUpScreen() {
       });
 
       if (error) {
-        Alert.alert("Sign up failed", error.message);
+        showAuthError("Sign up failed", error.message);
         return;
       }
 
@@ -122,7 +120,7 @@ export default function SignUpScreen() {
           await supabase.from("profiles").upsert(
             {
               id: user.id,
-              email,
+              email: generatedEmail,
               phone: normalizedPhone,
               full_name: fullName,
               first_name: firstName,
@@ -136,26 +134,17 @@ export default function SignUpScreen() {
         }
       }
 
-      // 3) Request a phone OTP (stub for now, real SMS later).
-      await requestPhoneOtp(normalizedPhone);
-
-      // 4) Go to phone OTP screen. We pass the phone so future verification logic has it.
-      router.push({
-        pathname: "/(auth)/otp",
-        params: { phone: normalizedPhone },
-      });
+      // Go directly to customer dashboard after signup.
+      router.replace("/(customer)");
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : "Something went wrong. Please try again.";
-      Alert.alert("Sign up error", message);
+      showAuthError("Sign up error", message);
     } finally {
       setIsLoading(false);
     }
   };
   const handleSignIn = () => router.replace("/(auth)/login");
-  const handleFacebook = () => {};
-  const handleGoogle = () => {};
-
   const inputProps = {
     borderColor: "rgba(255,255,255,0.5)",
     focusUnderlineColor: c.backgroundLight,
@@ -165,35 +154,22 @@ export default function SignUpScreen() {
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       <StatusBar style="light" />
+      <AuthErrorModal
+        visible={Boolean(authError)}
+        title={authError?.title ?? ""}
+        message={authError?.message ?? ""}
+        onClose={() => setAuthError(null)}
+      />
       <KeyboardAvoidingView
         style={styles.keyboardView}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
-        <ThemedView style={styles.header}>
-          <Pressable
-            onPress={() => router.back()}
-            style={({ pressed }) => [styles.backBtn, pressed && styles.pressed]}
-            accessibilityRole="button"
-            accessibilityLabel="Go back"
-          >
-            <MaterialCommunityIcons
-              name="arrow-left"
-              size={24}
-              color={c.white}
-            />
-          </Pressable>
-          {/* <ThemedView style={styles.headerTitleWrap}>
-            <ThemedText style={styles.headerTitle}>{s.title}</ThemedText>
-          </ThemedView> */}
-        </ThemedView>
-
         <ScrollView
           style={styles.scroll}
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <Spacer.Column numberOfSpaces={10} />
           <ThemedView style={styles.headingContainer}>
             <ThemedText style={styles.headingTitle}>
               {strings.auth.signUpScreen.title}
@@ -243,16 +219,6 @@ export default function SignUpScreen() {
           )}
           <Spacer.Column numberOfSpaces={1} />
           <Input
-            placeholder={s.email}
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            {...inputProps}
-          />
-          {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
-          <Spacer.Column numberOfSpaces={1} />
-          <Input
             placeholder={s.password}
             value={password}
             onChangeText={setPassword}
@@ -278,39 +244,6 @@ export default function SignUpScreen() {
               {isLoading ? "Creating account..." : s.continue}
             </ThemedText>
           </Pressable>
-          <ThemedText style={styles.orText}>{s.orSignUpWithSocial}</ThemedText>
-          <ThemedView style={styles.socialButtons}>
-            <Pressable
-              onPress={handleFacebook}
-              style={({ pressed }) => [
-                styles.socialCircle,
-                styles.googleCircle,
-                pressed && styles.pressed,
-              ]}
-              accessibilityRole="button"
-              accessibilityLabel="Sign up with Facebook"
-            >
-              <Image
-                source={assets.icons.facebook_icon}
-                style={styles.socialIcon}
-              />
-            </Pressable>
-            <Pressable
-              onPress={handleGoogle}
-              style={({ pressed }) => [
-                styles.socialCircle,
-                styles.googleCircle,
-                pressed && styles.pressed,
-              ]}
-              accessibilityRole="button"
-              accessibilityLabel="Sign up with Google"
-            >
-              <Image
-                source={assets.icons.google_icon}
-                style={styles.socialIcon}
-              />
-            </Pressable>
-          </ThemedView>
           <ThemedView style={styles.footer}>
             <ThemedText style={styles.haveAccount}>{s.haveAccount}</ThemedText>
             <Pressable
@@ -336,35 +269,15 @@ const styles = StyleSheet.create({
   keyboardView: {
     flex: 1,
   },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    backgroundColor: "transparent",
-  },
-  backBtn: {
-    padding: 4,
-    marginRight: 12,
-    backgroundColor: "transparent",
-  },
-  headerTitleWrap: {
-    flex: 1,
-    justifyContent: "center",
-    backgroundColor: "transparent",
-  },
   pressed: {
     opacity: 0.8,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: c.white,
-    backgroundColor: "transparent",
   },
   scroll: {
     flex: 1,
   },
   scrollContent: {
+    flexGrow: 1,
+    justifyContent: "center",
     paddingHorizontal: 24,
     paddingBottom: 32,
   },
@@ -392,8 +305,8 @@ const styles = StyleSheet.create({
   errorText: {
     color: "#ffb3b3",
     fontSize: 12,
-    marginTop: -8,
-    marginBottom: 4,
+    marginTop: 6,
+    marginBottom: 8,
   },
   continueButton: {
     height: 52,
@@ -412,37 +325,6 @@ const styles = StyleSheet.create({
   },
   continueButtonDisabled: {
     opacity: 0.7,
-  },
-  orText: {
-    fontSize: 15,
-    color: c.white,
-    textAlign: "center",
-    marginBottom: 20,
-    backgroundColor: "transparent",
-  },
-  socialButtons: {
-    flexDirection: "row",
-    justifyContent: "center",
-    gap: 24,
-    backgroundColor: "transparent",
-  },
-  socialCircle: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  socialIcon: {
-    width: 28,
-    height: 28,
-    resizeMode: "contain",
-  },
-  facebookCircle: {
-    backgroundColor: "#1877f2",
-  },
-  googleCircle: {
-    backgroundColor: c.white,
   },
   footer: {
     flexDirection: "row",

@@ -1,15 +1,11 @@
-import { assets } from "@/assets/assets";
-import { Input, Spacer, ThemedText, ThemedView } from "@/components";
+import { AuthErrorModal, Input, Spacer, ThemedText, ThemedView } from "@/components";
 import { strings } from "@/constants/strings";
 import { theme } from "@/constants/theme";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useState } from "react";
 import {
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -34,6 +30,11 @@ export default function LoginScreen() {
     mobileNumber?: string;
     password?: string;
   }>({});
+  const [authError, setAuthError] = useState<{ title: string; message: string } | null>(null);
+
+  const showAuthError = (title: string, message: string) => {
+    setAuthError({ title, message });
+  };
 
   const handleMobileChange = (raw: string) => {
     let digits = raw.replace(/\D/g, "");
@@ -51,7 +52,7 @@ export default function LoginScreen() {
 
   const handleSignIn = async () => {
     if (!isSupabaseConfigured()) {
-      Alert.alert(
+      showAuthError(
         "Configuration error",
         "Supabase is not configured. Please add your Supabase URL and anon key to the environment.",
       );
@@ -94,7 +95,7 @@ export default function LoginScreen() {
         throw profileError;
       }
       if (!profile?.email) {
-        Alert.alert(
+        showAuthError(
           "Account not found",
           "We couldn’t find an account with that phone number. Please check it or sign up first.",
         );
@@ -108,7 +109,7 @@ export default function LoginScreen() {
       });
 
       if (signInError) {
-        Alert.alert("Sign in failed", signInError.message);
+        showAuthError("Sign in failed", signInError.message);
         return;
       }
 
@@ -120,7 +121,7 @@ export default function LoginScreen() {
         err instanceof Error
           ? err.message
           : "Something went wrong. Please try again.";
-      Alert.alert("Sign in error", message);
+      showAuthError("Sign in error", message);
     } finally {
       setIsLoading(false);
     }
@@ -131,46 +132,28 @@ export default function LoginScreen() {
   const handleSignUp = () => {
     router.push("/(auth)/sign-up");
   };
-  const handleFacebook = () => {};
-  const handleGoogle = () => {};
-
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       <StatusBar style="light" />
+      <AuthErrorModal
+        visible={Boolean(authError)}
+        title={authError?.title ?? ""}
+        message={authError?.message ?? ""}
+        onClose={() => setAuthError(null)}
+      />
       <KeyboardAvoidingView
         style={styles.keyboardView}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
-        <ThemedView style={styles.header}>
-          <Pressable
-            onPress={() => router.back()}
-            style={({ pressed }) => [styles.backBtn, pressed && styles.pressed]}
-            accessibilityRole="button"
-            accessibilityLabel="Go back"
-          >
-            <MaterialCommunityIcons
-              name="arrow-left"
-              size={24}
-              color={theme.colors.white}
-            />
-          </Pressable>
-          {/* <ThemedText style={styles.headerTitle}>
-            {strings.auth.signIn}
-          </ThemedText> */}
-        </ThemedView>
-
         <ScrollView
           style={styles.scroll}
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <Spacer.Column numberOfSpaces={10} />
           <ThemedView style={styles.headingContainer}>
             <ThemedText style={styles.headingTitle}>{s.heading}</ThemedText>
           </ThemedView>
-          <Spacer.Column numberOfSpaces={5} />
-          <ThemedText style={styles.title}>{s.title}</ThemedText>
           <Spacer.Column numberOfSpaces={5} />
           <ThemedText style={styles.subtitle}>{s.subtitle}</ThemedText>
           <Spacer.Column numberOfSpaces={5} />
@@ -240,41 +223,6 @@ export default function LoginScreen() {
             </ThemedText>
           </Pressable>
 
-          <ThemedText style={styles.orText}>{s.orSignInWithSocial}</ThemedText>
-          <ThemedView style={styles.socialButtons}>
-            <Pressable
-              onPress={handleFacebook}
-              style={({ pressed }) => [
-                styles.socialCircle,
-                styles.googleCircle,
-                pressed && styles.pressed,
-              ]}
-              accessibilityRole="button"
-              accessibilityLabel="Sign in with Facebook"
-            >
-              <Image
-                source={assets.icons.facebook_icon}
-                style={styles.googleIcon}
-              />
-            </Pressable>
-            <Pressable
-              onPress={handleGoogle}
-              style={({ pressed }) => [
-                styles.socialCircle,
-                styles.googleCircle,
-                pressed && styles.pressed,
-              ]}
-              accessibilityRole="button"
-              accessibilityLabel="Sign in with Google"
-            >
-              <Image
-                source={assets.icons.google_icon}
-                style={styles.googleIcon}
-              />
-              {/* <MaterialCommunityIcons name="google" size={28} color="#4285F4" /> */}
-            </Pressable>
-          </ThemedView>
-
           <ThemedView style={styles.footer}>
             <ThemedText style={styles.noAccount}>{s.noAccount}</ThemedText>
             <Pressable
@@ -300,28 +248,15 @@ const styles = StyleSheet.create({
   keyboardView: {
     flex: 1,
   },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    backgroundColor: "transparent",
-  },
-  backBtn: {
-    padding: 4,
-    marginRight: 12,
-  },
   pressed: {
     opacity: 0.8,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: theme.colors.white,
   },
   scroll: {
     flex: 1,
   },
   scrollContent: {
+    flexGrow: 1,
+    justifyContent: "center",
     paddingHorizontal: 24,
     paddingBottom: 32,
   },
@@ -333,15 +268,6 @@ const styles = StyleSheet.create({
     lineHeight: 32,
     fontWeight: "700",
     color: theme.colors.white,
-    backgroundColor: "transparent",
-    textAlign: "center",
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: theme.colors.white,
-    marginTop: 24,
-    marginBottom: 8,
     backgroundColor: "transparent",
     textAlign: "center",
   },
@@ -359,8 +285,8 @@ const styles = StyleSheet.create({
   errorText: {
     color: "#ffb3b3",
     fontSize: 12,
-    marginTop: -8,
-    marginBottom: 4,
+    marginTop: 6,
+    marginBottom: 8,
   },
   passwordRow: {
     marginBottom: 8,
@@ -392,36 +318,6 @@ const styles = StyleSheet.create({
   },
   signInButtonDisabled: {
     opacity: 0.7,
-  },
-  orText: {
-    fontSize: 15,
-    color: theme.colors.white,
-    textAlign: "center",
-    marginBottom: 20,
-  },
-  socialButtons: {
-    flexDirection: "row",
-    justifyContent: "center",
-    gap: 24,
-    backgroundColor: "transparent",
-  },
-  socialCircle: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  facebookCircle: {
-    backgroundColor: "#1877f2",
-  },
-  googleCircle: {
-    backgroundColor: theme.colors.white,
-  },
-  googleIcon: {
-    width: 28,
-    height: 28,
-    resizeMode: "contain",
   },
   footer: {
     flexDirection: "row",

@@ -13,10 +13,10 @@ const ICON_SIZE = 24;
 const HIT_SLOP = 44;
 
 export interface AppHeaderProps {
-  title: string;
+  title?: string;
   subtitle?: string | null;
-  leftIcon: IconName;
-  onLeftPress: () => void;
+  leftIcon?: IconName;
+  onLeftPress?: () => void;
   rightIcon?: IconName | null;
   onRightPress?: () => void;
   rightElement?: React.ReactNode;
@@ -99,7 +99,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingVertical: 5,
   },
   titleWrap: {
     ...StyleSheet.absoluteFillObject,

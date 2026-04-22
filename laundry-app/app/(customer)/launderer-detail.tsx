@@ -162,13 +162,6 @@ export default function LaundererDetailScreen() {
           <MaterialCommunityIcons name="arrow-left" size={24} color={c.white} />
         </Pressable>
         <Text style={styles.headerTitle}>{s.title}</Text>
-        <Pressable
-          style={({ pressed }) => [styles.headerRight, pressed && styles.pressed]}
-          accessibilityRole="button"
-          accessibilityLabel="Options"
-        >
-          <Image source={assets.icons.menu_icon} style={styles.headerRightIcon} />
-        </Pressable>
       </SafeAreaView>
 
       <ScrollView

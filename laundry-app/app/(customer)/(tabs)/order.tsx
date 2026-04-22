@@ -14,8 +14,10 @@ import {
 import { Swipeable } from "react-native-gesture-handler";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { AppHeader } from "@/components/app-header";
 import { useAuth } from "@/contexts/auth-context";
 import { useLocale } from "@/contexts/locale-context";
+import { useSidebar } from "@/contexts/sidebar-context";
 import { useCustomerOrders } from "@/hooks/use-customer-orders";
 import type { CustomerOrderDisplayStatus } from "@/lib/customer-orders";
 import { getStrings } from "@/locales";
@@ -44,6 +46,7 @@ export default function CustomerOrderScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const { locale } = useLocale();
+  const { open: openSidebar } = useSidebar();
   const s = getStrings(locale).customer.ordersTab;
   const { orders, loading, error, refresh, deleteOrder } = useCustomerOrders(user?.id);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -113,10 +116,14 @@ export default function CustomerOrderScreen() {
   return (
     <View style={styles.container}>
       <SafeAreaView style={styles.safeTop} edges={["top"]}>
-        <Text style={styles.title}>{s.title}</Text>
-        <Text style={styles.hint}>{s.liveHint}</Text>
+        <AppHeader
+          title={s.title}
+          // subtitle={s.liveHint}
+          onLeftPress={openSidebar}
+          leftAccessibilityLabel="Menu"
+        />
       </SafeAreaView>
-
+      <Text style={styles.hint}>{s.liveHint}</Text>
       {!user?.id ? (
         <View style={styles.center}>
           <MaterialCommunityIcons name="account-outline" size={48} color={c.blue500} />
@@ -327,19 +334,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: PAD,
     paddingBottom: 8,
   },
-  title: {
-    fontSize: fs.titleMedium,
-    fontWeight: "700",
-    color: c.white,
-  },
   hint: {
-    marginTop: 6,
+    marginHorizontal: PAD,
     fontSize: fs.descText,
     color: c.blue500,
     lineHeight: 18,
     opacity: 0.9,
-  },
-  scroll: {
+    marginBottom: 15,
+  },  scroll: {
     flex: 1,
   },
   scrollContent: {
