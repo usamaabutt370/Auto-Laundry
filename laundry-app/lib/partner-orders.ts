@@ -65,6 +65,8 @@ export interface PartnerOrderDetailData {
   totalItems: string;
   servicesSummary: string;
   notes: string;
+  rejectionReasonOption: string | null;
+  rejectionReasonDetails: string | null;
   bags: PartnerOrderDetailBag[];
   serviceGroups: PartnerOrderServiceGroup[];
 }
@@ -79,6 +81,8 @@ type CustomerOrderRow = {
   pickup_time_slot_label: string | null;
   delivery_day_label: string | null;
   delivery_time_slot_label: string | null;
+  rejection_reason_option: string | null;
+  rejection_reason_details: string | null;
 };
 
 type OrderServiceRow = {
@@ -195,7 +199,7 @@ export async function fetchPartnerOrders(): Promise<PartnerOrderListItem[]> {
   const { data, error } = await supabase
     .from("customer_orders")
     .select(
-      "id,customer_id,status,estimated_total,estimated_partial_total,pickup_day_label,pickup_time_slot_label,delivery_day_label,delivery_time_slot_label",
+      "id,customer_id,status,estimated_total,estimated_partial_total,pickup_day_label,pickup_time_slot_label,delivery_day_label,delivery_time_slot_label,rejection_reason_option,rejection_reason_details",
     )
     .order("created_at", { ascending: false });
   if (error) {
@@ -266,7 +270,7 @@ export async function fetchPartnerOrderDetail(
   const { data, error } = await supabase
     .from("customer_orders")
     .select(
-      "id,customer_id,status,estimated_total,estimated_partial_total,pickup_day_label,pickup_time_slot_label,delivery_day_label,delivery_time_slot_label",
+      "id,customer_id,status,estimated_total,estimated_partial_total,pickup_day_label,pickup_time_slot_label,delivery_day_label,delivery_time_slot_label,rejection_reason_option,rejection_reason_details",
     )
     .eq("id", orderId)
     .maybeSingle();
@@ -396,6 +400,8 @@ export async function fetchPartnerOrderDetail(
     totalItems: String(totalItems),
     servicesSummary,
     notes: notes || "No special instructions",
+    rejectionReasonOption: order.rejection_reason_option?.trim() || null,
+    rejectionReasonDetails: order.rejection_reason_details?.trim() || null,
     bags,
     serviceGroups,
   };

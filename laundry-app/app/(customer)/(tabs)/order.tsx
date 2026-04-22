@@ -1,6 +1,6 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -46,10 +46,17 @@ export default function CustomerOrderScreen() {
   const { locale } = useLocale();
   const s = getStrings(locale).customer.ordersTab;
   const { orders, loading, error, refresh, deleteOrder } = useCustomerOrders(user?.id);
-  const isRefreshing = loading && orders.length > 0;
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const onRefresh = useCallback(() => {
-    void refresh();
+    void (async () => {
+      setIsRefreshing(true);
+      try {
+        await refresh();
+      } finally {
+        setIsRefreshing(false);
+      }
+    })();
   }, [refresh]);
 
   const confirmDelete = useCallback(
@@ -193,6 +200,17 @@ export default function CustomerOrderScreen() {
                 valueLines: 2,
               });
             }
+            if (order.displayStatus === "rejected" && order.rejectionReasonOption) {
+              const rejectionText = order.rejectionReasonDetails
+                ? `${order.rejectionReasonOption} - ${order.rejectionReasonDetails}`
+                : order.rejectionReasonOption;
+              metaItems.push({
+                label: "Rejection",
+                value: rejectionText,
+                fullWidth: true,
+                valueLines: 3,
+              });
+            }
             return (
               <Swipeable
                 key={order.id}
@@ -219,7 +237,15 @@ export default function CustomerOrderScreen() {
                   </View>
                 )}
               >
-                <View style={styles.card}>
+                <Pressable
+                  onPress={() =>
+                    router.push({
+                      pathname: "/(customer)/order-detail",
+                      params: { orderId: order.id },
+                    })
+                  }
+                  style={({ pressed }) => [styles.card, pressed && styles.pressed]}
+                >
                   <View style={styles.cardTop}>
                     <Text style={styles.orderRef}>
                       {s.orderRef.replace("{{ref}}", order.orderRef)}
@@ -262,10 +288,17 @@ export default function CustomerOrderScreen() {
                   {order.displayStatus === "rejected" ? (
                     <Pressable
                       onPress={() =>
-                        router.push({
-                          pathname: "/(customer)/pick-launderer",
-                          params: { reorderOrderId: order.id },
-                        })
+                        Alert.alert(
+                          "Order rejected",
+                          "This order was rejected by the launderer. Please place a new order.",
+                          [
+                            { text: s.cancel, style: "cancel" },
+                            {
+                              text: "Reorder now",
+                              onPress: () => router.push("/(customer)/(tabs)"),
+                            },
+                          ],
+                        )
                       }
                       style={({ pressed }) => [
                         styles.reorderButton,
@@ -275,7 +308,7 @@ export default function CustomerOrderScreen() {
                       <Text style={styles.reorderButtonText}>{s.reorderAction}</Text>
                     </Pressable>
                   ) : null}
-                </View>
+                </Pressable>
               </Swipeable>
             );
           })}

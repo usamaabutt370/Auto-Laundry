@@ -32,9 +32,46 @@ export interface CustomerOrderListItem {
   pickupFeeLabel: string | null;
   /** Truncated combined instructions, or null */
   notesPreview: string | null;
+  rejectionReasonOption: string | null;
+  rejectionReasonDetails: string | null;
   displayStatus: CustomerOrderDisplayStatus;
   rawStatus: CustomerOrderDbStatus;
   updatedAt: string;
+}
+
+export interface CustomerOrderDetailLineItem {
+  id: string;
+  name: string;
+  quantity: number;
+  estimatedPriceLabel: string;
+  preferences: string;
+}
+
+export interface CustomerOrderDetailServiceGroup {
+  id: string;
+  title: string;
+  instructions: string;
+  estimatedPriceLabel: string;
+  items: CustomerOrderDetailLineItem[];
+}
+
+export interface CustomerOrderDetailData {
+  id: string;
+  orderRef: string;
+  partnerName: string;
+  partnerPhone: string;
+  partnerAddress: string;
+  displayStatus: CustomerOrderDisplayStatus;
+  rawStatus: CustomerOrderDbStatus;
+  pickupSchedule: string;
+  deliverySchedule: string;
+  estimatedTotalLabel: string;
+  totalItems: number;
+  notes: string;
+  rejectionReasonOption: string | null;
+  rejectionReasonDetails: string | null;
+  serviceGroups: CustomerOrderDetailServiceGroup[];
+  placedAtIso: string | null;
 }
 
 type OrderRow = {
@@ -50,19 +87,34 @@ type OrderRow = {
   delivery_day_label: string | null;
   delivery_time_slot_label: string | null;
   delivery_instructions: string;
+  rejection_reason_option: string | null;
+  rejection_reason_details: string | null;
   submitted_at: string | null;
   created_at: string;
   updated_at: string;
 };
 
 type OrderServiceRow = {
+  id?: string;
   order_id: string;
   service_type: "washAndFold" | "dryCleaning" | "tailoring";
+  instructions?: string;
+  estimated_amount?: number | null;
 };
 
 type PartnerRow = {
   id: string;
   business_name: string;
+  phone_number?: string | null;
+  address?: string | null;
+};
+
+type OrderServiceItemDetailRow = {
+  id: string;
+  order_service_id: string;
+  item_name: string;
+  quantity: number;
+  line_total_amount: number | null;
 };
 
 function formatUsd(amount: number): string {
@@ -174,6 +226,8 @@ export async function reassignRejectedCustomerOrder(
     .update({
       partner_id: newPartnerId,
       status: "submitted",
+      rejection_reason_option: null,
+      rejection_reason_details: null,
       updated_at: new Date().toISOString(),
     })
     .eq("id", orderId)
@@ -197,7 +251,7 @@ export async function fetchCustomerOrders(customerId: string): Promise<CustomerO
   const { data, error } = await supabase
     .from("customer_orders")
     .select(
-      "id,partner_id,status,estimated_total,estimated_partial_total,pickup_fee,pickup_day_label,pickup_time_slot_label,pickup_instructions,delivery_day_label,delivery_time_slot_label,delivery_instructions,submitted_at,created_at,updated_at",
+      "id,partner_id,status,estimated_total,estimated_partial_total,pickup_fee,pickup_day_label,pickup_time_slot_label,pickup_instructions,delivery_day_label,delivery_time_slot_label,delivery_instructions,rejection_reason_option,rejection_reason_details,submitted_at,created_at,updated_at",
     )
     .eq("customer_id", customerId)
     .neq("status", "draft")
@@ -283,9 +337,139 @@ export async function fetchCustomerOrders(customerId: string): Promise<CustomerO
       estimatedTotalLabel: formatUsd(total),
       pickupFeeLabel,
       notesPreview: notesPreview(order.pickup_instructions, order.delivery_instructions),
+      rejectionReasonOption: order.rejection_reason_option?.trim() || null,
+      rejectionReasonDetails: order.rejection_reason_details?.trim() || null,
       displayStatus: mapDbStatusForCustomer(order.status),
       rawStatus: order.status,
       updatedAt: order.updated_at,
     };
   });
+}
+
+export async function fetchCustomerOrderDetail(
+  customerId: string,
+  orderId: string,
+): Promise<CustomerOrderDetailData | null> {
+  if (!supabase) {
+    throw new Error("Supabase is not configured.");
+  }
+
+  const { data, error } = await supabase
+    .from("customer_orders")
+    .select(
+      "id,partner_id,status,estimated_total,estimated_partial_total,pickup_day_label,pickup_time_slot_label,pickup_instructions,delivery_day_label,delivery_time_slot_label,delivery_instructions,rejection_reason_option,rejection_reason_details,submitted_at,created_at",
+    )
+    .eq("id", orderId)
+    .eq("customer_id", customerId)
+    .maybeSingle();
+  if (error) {
+    throw new Error(error.message);
+  }
+  if (!data) return null;
+
+  const order = data as OrderRow & { customer_id?: string };
+
+  const { data: partnerData } = await supabase
+    .from("partner_profiles")
+    .select("id,business_name,phone_number,address")
+    .eq("id", order.partner_id)
+    .maybeSingle();
+  const partner = (partnerData as PartnerRow | null) ?? null;
+
+  const { data: serviceData, error: serviceError } = await supabase
+    .from("order_services")
+    .select("id,order_id,service_type,instructions,estimated_amount")
+    .eq("order_id", order.id);
+  if (serviceError) {
+    throw new Error(serviceError.message);
+  }
+  const serviceRows = (serviceData ?? []) as Array<
+    Required<Pick<OrderServiceRow, "id" | "order_id" | "service_type">> &
+      Pick<OrderServiceRow, "instructions" | "estimated_amount">
+  >;
+
+  const serviceIds = serviceRows.map((row) => row.id);
+  const itemsByServiceId = new Map<string, OrderServiceItemDetailRow[]>();
+  if (serviceIds.length > 0) {
+    const { data: itemData, error: itemError } = await supabase
+      .from("order_service_items")
+      .select("id,order_service_id,item_name,quantity,line_total_amount")
+      .in("order_service_id", serviceIds);
+    if (itemError) {
+      throw new Error(itemError.message);
+    }
+    for (const item of (itemData ?? []) as OrderServiceItemDetailRow[]) {
+      const list = itemsByServiceId.get(item.order_service_id) ?? [];
+      list.push(item);
+      itemsByServiceId.set(item.order_service_id, list);
+    }
+  }
+
+  const serviceGroups: CustomerOrderDetailServiceGroup[] = serviceRows.map((service) => {
+    const serviceItems = itemsByServiceId.get(service.id) ?? [];
+    const fallbackAmount = service.estimated_amount ?? 0;
+    const items: CustomerOrderDetailLineItem[] =
+      serviceItems.length > 0
+        ? serviceItems.map((item) => ({
+            id: item.id,
+            name: item.item_name,
+            quantity: item.quantity,
+            estimatedPriceLabel: formatUsd(item.line_total_amount ?? 0),
+            preferences: service.instructions?.trim() || "None",
+          }))
+        : [
+            {
+              id: service.id,
+              name: serviceTypeLabel(service.service_type),
+              quantity: 0,
+              estimatedPriceLabel: formatUsd(fallbackAmount),
+              preferences: service.instructions?.trim() || "None",
+            },
+          ];
+
+    return {
+      id: service.id,
+      title: serviceTypeLabel(service.service_type),
+      instructions: service.instructions?.trim() || "No special instructions",
+      estimatedPriceLabel: formatUsd(fallbackAmount),
+      items,
+    };
+  });
+
+  const notes = Array.from(
+    new Set(serviceGroups.map((group) => group.instructions).filter(Boolean)),
+  ).join("\n");
+  const totalItems = serviceGroups.reduce(
+    (sum, group) =>
+      sum + group.items.reduce((innerSum, item) => innerSum + (item.quantity > 0 ? item.quantity : 0), 0),
+    0,
+  );
+  const totalAmount = order.estimated_total ?? order.estimated_partial_total ?? 0;
+
+  return {
+    id: order.id,
+    orderRef: order.id.replace(/-/g, "").slice(0, 8).toUpperCase(),
+    partnerName: partner?.business_name?.trim() || "Launderer",
+    partnerPhone: partner?.phone_number?.trim() || "Not provided",
+    partnerAddress: partner?.address?.trim() || "Address not available",
+    displayStatus: mapDbStatusForCustomer(order.status),
+    rawStatus: order.status,
+    pickupSchedule: formatSchedule(
+      order.pickup_day_label,
+      order.pickup_time_slot_label,
+      "Not scheduled",
+    ),
+    deliverySchedule: formatSchedule(
+      order.delivery_day_label,
+      order.delivery_time_slot_label,
+      "Not scheduled",
+    ),
+    estimatedTotalLabel: formatUsd(totalAmount),
+    totalItems,
+    notes: notes || "No special instructions",
+    rejectionReasonOption: order.rejection_reason_option?.trim() || null,
+    rejectionReasonDetails: order.rejection_reason_details?.trim() || null,
+    serviceGroups,
+    placedAtIso: order.submitted_at ?? order.created_at,
+  };
 }

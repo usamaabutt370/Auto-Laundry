@@ -15,9 +15,15 @@ export interface PartnerOrderStatusUpdateResult {
   balance: number;
 }
 
+export interface PartnerOrderRejectionPayload {
+  option: string;
+  details?: string;
+}
+
 export async function partnerUpdateOrderStatus(
   orderId: string,
   status: PartnerOrderStatusTarget,
+  rejection?: PartnerOrderRejectionPayload,
 ): Promise<PartnerOrderStatusUpdateResult> {
   if (!supabase) {
     throw new Error("Supabase is not configured.");
@@ -27,6 +33,8 @@ export async function partnerUpdateOrderStatus(
     p_order_id: orderId,
     p_new_status: status,
     p_charge_rate_pct: PARTNER_ORDER_DEDUCTION_RATE_PERCENT,
+    p_rejection_reason_option: status === "rejected" ? rejection?.option ?? null : null,
+    p_rejection_reason_details: status === "rejected" ? rejection?.details ?? null : null,
   });
   if (error) {
     throw new Error(error.message);
