@@ -104,6 +104,7 @@ export type Database = {
         Row: {
           id: string;
           business_name?: string | null;
+          status?: string | null;
           business_description?: string | null;
           pickup_delivery_enabled?: boolean | null;
           pickup_delivery_amount?: string | null;
@@ -112,6 +113,7 @@ export type Database = {
         Insert: {
           id?: string;
           business_name?: string | null;
+          status?: string | null;
           business_description?: string | null;
           pickup_delivery_enabled?: boolean | null;
           pickup_delivery_amount?: string | null;

@@ -17,11 +17,10 @@ type StatusFilter = "all" | PartnerOnboardingStatus;
 
 const PAGE_SIZE = 10;
 
-const KYC_STATUSES: PartnerOnboardingStatus[] = ["draft", "submitted", "approved", "rejected"];
+const KYC_STATUSES: PartnerOnboardingStatus[] = ["pending", "approved", "rejected"];
 
 const STATUS_PILL: Record<PartnerOnboardingStatus, { bg: string; fg: string; border: string }> = {
-  draft: { bg: "rgba(255,255,255,0.1)", fg: "#E5E7EB", border: "rgba(255,255,255,0.25)" },
-  submitted: { bg: "rgba(246, 211, 107, 0.2)", fg: "#F6D36B", border: "rgba(246, 211, 107, 0.45)" },
+  pending: { bg: "rgba(246, 211, 107, 0.2)", fg: "#F6D36B", border: "rgba(246, 211, 107, 0.45)" },
   approved: { bg: "rgba(110, 231, 168, 0.2)", fg: "#6EE7A8", border: "rgba(110, 231, 168, 0.45)" },
   rejected: { bg: "rgba(241, 140, 140, 0.22)", fg: "#F18C8C", border: "rgba(241, 140, 140, 0.45)" },
 };
@@ -48,10 +47,10 @@ function matchesQuery(row: AdminPartnerKycListItem, q: string): boolean {
 }
 
 function formatStatus(status: PartnerOnboardingStatus): string {
-  if (status === "submitted") return "Pending";
+  if (status === "pending") return "Pending";
   if (status === "approved") return "Approved";
   if (status === "rejected") return "Rejected";
-  return "Draft";
+  return "Pending";
 }
 
 function formatDate(iso: string | null): string {

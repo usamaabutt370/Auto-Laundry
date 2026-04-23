@@ -16,8 +16,8 @@ type PartnerOnboardingRequestRow =
 export async function listPartnerKycRequestsForAdmin(): Promise<AdminPartnerKycListItem[]> {
   const supabase = createSupabaseAdminClient();
   const [profilesResult, partnerProfilesResult, requestsResult] = await Promise.all([
-    supabase.from("profiles").select("id, full_name, first_name, last_name, email, phone"),
-    supabase.from("partner_profiles").select("id, business_name"),
+    supabase.from("profiles").select("id, full_name, first_name, last_name, email, phone, role"),
+    supabase.from("partner_profiles").select("*"),
     supabase
       .from("partner_onboarding_requests")
       .select("id, user_id, status, submitted_at, reviewed_at, reviewed_by, updated_at, notes")
@@ -36,29 +36,35 @@ export async function listPartnerKycRequestsForAdmin(): Promise<AdminPartnerKycL
   const partnerProfilesById = new Map((partnerProfilesResult.data ?? []).map((p) => [p.id, p]));
   const latestRequestByUserId = buildLatestRequestByUserMap(requestsResult.data ?? []);
 
-  const list: AdminPartnerKycListItem[] = Array.from(latestRequestByUserId.entries()).map(
-    ([userId, req]) => {
-      const profile = profilesById.get(userId);
-      const partnerProfile = partnerProfilesById.get(userId);
-      return {
-        userId,
-        partnerName:
-          (profile ? buildFullName(profile) : null) ??
-          readSnapshotText(req.notes, "businessProfile", "contactName") ??
-          "N/A",
-        businessName:
-          asText(partnerProfile?.business_name) ||
-          readSnapshotText(req.notes, "businessProfile", "businessName") ||
-          "N/A",
-        email: asText(profile?.email) || "N/A",
-        phone: asText(profile?.phone) || "N/A",
-        status: normalizeStatus(req.status),
-        submittedAt: asTextOrNull(req.submitted_at),
-        reviewedAt: asTextOrNull(req.reviewed_at),
-        reviewedBy: asTextOrNull(req.reviewed_by),
-      };
-    },
-  );
+  const allPartnerIds = new Set<string>();
+  for (const partner of partnerProfilesById.values()) allPartnerIds.add(partner.id);
+  for (const [userId] of latestRequestByUserId.entries()) allPartnerIds.add(userId);
+  for (const profile of profilesById.values()) {
+    if (asText(profile.role).toLowerCase() === "launderer") allPartnerIds.add(profile.id);
+  }
+
+  const list: AdminPartnerKycListItem[] = Array.from(allPartnerIds).map((userId) => {
+    const req = latestRequestByUserId.get(userId);
+    const profile = profilesById.get(userId);
+    const partnerProfile = partnerProfilesById.get(userId);
+    return {
+      userId,
+      partnerName:
+        (profile ? buildFullName(profile) : null) ??
+        readSnapshotText(req?.notes, "businessProfile", "contactName") ??
+        "N/A",
+      businessName:
+        asText(partnerProfile?.business_name) ||
+        readSnapshotText(req?.notes, "businessProfile", "businessName") ||
+        "N/A",
+      email: asText(profile?.email) || "N/A",
+      phone: asText(profile?.phone) || "N/A",
+      status: resolvePartnerStatus(partnerProfile?.status, req?.status),
+      submittedAt: asTextOrNull(req?.submitted_at),
+      reviewedAt: asTextOrNull(req?.reviewed_at),
+      reviewedBy: asTextOrNull(req?.reviewed_by),
+    };
+  });
 
   return list.sort((a, b) => sortIsoDesc(a.submittedAt, b.submittedAt));
 }
@@ -73,9 +79,7 @@ export async function getPartnerKycDetailForAdmin(userId: string): Promise<Admin
       .maybeSingle(),
     supabase
       .from("partner_profiles")
-      .select(
-        "id, business_name, business_description, pickup_delivery_enabled, pickup_delivery_amount",
-      )
+      .select("*")
       .eq("id", userId)
       .maybeSingle(),
     supabase
@@ -138,7 +142,7 @@ export async function getPartnerKycDetailForAdmin(userId: string): Promise<Admin
     services: buildServiceRows(servicesResult.data ?? [], request?.notes),
     request: {
       id: asTextOrNull(request?.id),
-      status: normalizeStatus(request?.status),
+      status: resolvePartnerStatus(partnerProfileResult.data?.status, request?.status),
       submittedAt: asTextOrNull(request?.submitted_at),
       reviewedAt: asTextOrNull(request?.reviewed_at),
       reviewedBy: asTextOrNull(request?.reviewed_by),
@@ -156,19 +160,31 @@ export async function approvePartnerKycRequest(input: {
 }): Promise<void> {
   const supabase = createSupabaseAdminClient();
   const now = new Date().toISOString();
-  const updateResult = await supabase
+  const upsertResult = await supabase
     .from("partner_onboarding_requests")
-    .update({
+    .upsert({
+      user_id: input.userId,
       status: "approved",
       reviewed_at: now,
       reviewed_by: input.reviewedBy ?? null,
       rejection_reason: null,
       updated_at: now,
-    })
-    .eq("user_id", input.userId);
+    }, { onConflict: "user_id" });
 
-  if (updateResult.error) {
-    throw new Error(`approve partner_onboarding_requests failed: ${updateResult.error.message}`);
+  if (upsertResult.error) {
+    throw new Error(`approve partner_onboarding_requests failed: ${upsertResult.error.message}`);
+  }
+
+  const profileStatusResult = await supabase
+    .from("partner_profiles")
+    .update({
+      status: "approved",
+      updated_at: now,
+    })
+    .eq("id", input.userId);
+
+  if (profileStatusResult.error && !isMissingPartnerStatusColumnError(profileStatusResult.error)) {
+    throw new Error(`approve partner_profiles status failed: ${profileStatusResult.error.message}`);
   }
 }
 
@@ -179,19 +195,31 @@ export async function rejectPartnerKycRequest(input: {
 }): Promise<void> {
   const supabase = createSupabaseAdminClient();
   const now = new Date().toISOString();
-  const updateResult = await supabase
+  const upsertResult = await supabase
     .from("partner_onboarding_requests")
-    .update({
+    .upsert({
+      user_id: input.userId,
       status: "rejected",
       reviewed_at: now,
       reviewed_by: input.reviewedBy ?? null,
       rejection_reason: input.reason,
       updated_at: now,
-    })
-    .eq("user_id", input.userId);
+    }, { onConflict: "user_id" });
 
-  if (updateResult.error) {
-    throw new Error(`reject partner_onboarding_requests failed: ${updateResult.error.message}`);
+  if (upsertResult.error) {
+    throw new Error(`reject partner_onboarding_requests failed: ${upsertResult.error.message}`);
+  }
+
+  const profileStatusResult = await supabase
+    .from("partner_profiles")
+    .update({
+      status: "rejected",
+      updated_at: now,
+    })
+    .eq("id", input.userId);
+
+  if (profileStatusResult.error && !isMissingPartnerStatusColumnError(profileStatusResult.error)) {
+    throw new Error(`reject partner_profiles status failed: ${profileStatusResult.error.message}`);
   }
 }
 
@@ -245,10 +273,25 @@ function buildFullName(row: ProfileRow): string {
 
 function normalizeStatus(raw: unknown): PartnerOnboardingStatus {
   const value = asText(raw).toLowerCase();
-  if (value === "submitted" || value === "approved" || value === "rejected" || value === "draft") {
-    return value;
-  }
-  return "draft";
+  if (value === "approved") return "approved";
+  if (value === "rejected") return "rejected";
+  // Both legacy workflow states map to pending in admin UX.
+  if (value === "submitted" || value === "draft" || value === "pending") return "pending";
+  return "pending";
+}
+
+function resolvePartnerStatus(
+  partnerProfileStatus: unknown,
+  onboardingStatus: unknown,
+): PartnerOnboardingStatus {
+  const fromPartnerProfile = normalizeStatus(partnerProfileStatus);
+  if (fromPartnerProfile !== "pending") return fromPartnerProfile;
+  return normalizeStatus(onboardingStatus);
+}
+
+function isMissingPartnerStatusColumnError(error: { code?: string | null; message?: string | null }): boolean {
+  const message = (error.message ?? "").toLowerCase();
+  return error.code === "42703" || message.includes("column") && message.includes("status") && message.includes("does not exist");
 }
 
 function parseSnapshot(value: unknown): PartnerKycSnapshot | null {

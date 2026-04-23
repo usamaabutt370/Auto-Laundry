@@ -22,6 +22,5 @@ export async function getAdminUsers(): Promise<AdminUser[]> {
       "Supabase is not configured. Set EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY (or NEXT_PUBLIC_* aliases) in .env.local.",
     );
   }
-
   return listCustomerProfilesForAdmin();
 }

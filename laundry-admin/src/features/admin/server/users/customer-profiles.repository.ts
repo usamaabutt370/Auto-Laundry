@@ -15,6 +15,7 @@ export async function listCustomerProfilesForAdmin(): Promise<AdminUser[]> {
   const profilesResult = await supabase
     .from("profiles")
     .select("id, email, phone, full_name, first_name, last_name, role, created_at")
+    .eq("role", "customer")
     .order("created_at", { ascending: false, nullsFirst: false });
 
   if (profilesResult.error) {
@@ -32,20 +33,12 @@ export async function listCustomerProfilesForAdmin(): Promise<AdminUser[]> {
     .select("id, user_id, status, submitted_at, reviewed_at, created_at, updated_at");
 
   const orderCountsByCustomer = buildOrderCountMap(ordersResult.data ?? []);
-  const isOnboardingTableMissing =
-    onboardingResult.error?.code === "42P01" ||
-    onboardingResult.error?.code === "PGRST205" ||
-    onboardingResult.error?.message?.includes("Could not find the table");
-
-  const onboardingStatusByUser = buildOnboardingStatusMap(
-    isOnboardingTableMissing ? [] : (onboardingResult.data ?? []),
-  );
-
-  if (onboardingResult.error && !isOnboardingTableMissing) {
+  if (onboardingResult.error) {
     throw new Error(
       `partner_onboarding_requests list failed: ${onboardingResult.error.message}`,
     );
   }
+  const onboardingStatusByUser = buildOnboardingStatusMap(onboardingResult.data ?? []);
 
   return (profilesResult.data ?? []).map((row) =>
     mapProfileRow(row, orderCountsByCustomer, onboardingStatusByUser),

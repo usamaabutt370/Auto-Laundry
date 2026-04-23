@@ -14,17 +14,16 @@ type PartnerKycDetailProps = {
 };
 
 const STATUS_PILL: Record<PartnerOnboardingStatus, { bg: string; fg: string; border: string }> = {
-  draft: { bg: "rgba(255,255,255,0.1)", fg: "#E5E7EB", border: "rgba(255,255,255,0.25)" },
-  submitted: { bg: "rgba(246, 211, 107, 0.2)", fg: "#F6D36B", border: "rgba(246, 211, 107, 0.45)" },
+  pending: { bg: "rgba(246, 211, 107, 0.2)", fg: "#F6D36B", border: "rgba(246, 211, 107, 0.45)" },
   approved: { bg: "rgba(110, 231, 168, 0.2)", fg: "#6EE7A8", border: "rgba(110, 231, 168, 0.45)" },
   rejected: { bg: "rgba(241, 140, 140, 0.22)", fg: "#F18C8C", border: "rgba(241, 140, 140, 0.45)" },
 };
 
 function formatStatus(status: PartnerOnboardingStatus): string {
-  if (status === "submitted") return "Submitted";
+  if (status === "pending") return "Pending";
   if (status === "approved") return "Approved";
   if (status === "rejected") return "Rejected";
-  return "Draft";
+  return "Pending";
 }
 
 function formatDate(value: string | null): string {
@@ -41,7 +40,7 @@ export function PartnerKycDetail({ partner }: PartnerKycDetailProps) {
   const [statusNote, setStatusNote] = useState<string | null>(null);
   const [busy, setBusy] = useState<"approve" | "reject" | null>(null);
   const pill = STATUS_PILL[currentStatus];
-  const canDecide = currentStatus === "submitted";
+  const canDecide = currentStatus === "pending";
   const initials = partner.profile.fullName
     .split(" ")
     .filter(Boolean)
