@@ -62,6 +62,62 @@ export type Database = {
         Update: Partial<Database["public"]["Tables"]["customer_orders"]["Insert"]>;
         Relationships: [];
       };
+      order_payments: {
+        Row: {
+          id: string;
+          order_id?: string | null;
+          payment_intent_id?: string | null;
+          transaction_id?: string | null;
+          method_type?: string | null;
+          method_label?: string | null;
+          currency?: string | null;
+          gross_amount?: number | null;
+          commission_rate?: number | null;
+          commission_amount?: number | null;
+          partner_net_amount?: number | null;
+          payment_timing?: string | null;
+          payment_status?: string | null;
+          escrow_status?: string | null;
+          payout_status?: string | null;
+          charged_at?: string | null;
+          order_completed_at?: string | null;
+          payout_processed_at?: string | null;
+          refunded_at?: string | null;
+          dispute_id?: string | null;
+          notes?: Json | null;
+          created_at?: string | null;
+          updated_at?: string | null;
+          [key: string]: Json | undefined;
+        };
+        Insert: {
+          id?: string;
+          order_id?: string | null;
+          payment_intent_id?: string | null;
+          transaction_id?: string | null;
+          method_type?: string | null;
+          method_label?: string | null;
+          currency?: string | null;
+          gross_amount?: number | null;
+          commission_rate?: number | null;
+          commission_amount?: number | null;
+          partner_net_amount?: number | null;
+          payment_timing?: string | null;
+          payment_status?: string | null;
+          escrow_status?: string | null;
+          payout_status?: string | null;
+          charged_at?: string | null;
+          order_completed_at?: string | null;
+          payout_processed_at?: string | null;
+          refunded_at?: string | null;
+          dispute_id?: string | null;
+          notes?: Json | null;
+          created_at?: string | null;
+          updated_at?: string | null;
+          [key: string]: Json | undefined;
+        };
+        Update: Partial<Database["public"]["Tables"]["order_payments"]["Insert"]>;
+        Relationships: [];
+      };
       order_services: {
         Row: {
           id: string;

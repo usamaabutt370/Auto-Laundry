@@ -9,7 +9,7 @@ import type {
   PaymentStatus,
   PaymentTiming,
   PayoutStatus,
-} from "@/features/admin/data/payments-demo-data";
+} from "@/features/admin/data/admin-payments";
 import { useEffect, useMemo, useState } from "react";
 
 type PaymentsListProps = {

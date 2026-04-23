@@ -110,6 +110,10 @@ export async function getPartnerKycDetailForAdmin(userId: string): Promise<Admin
   const profile = profileResult.data;
   if (!profile) return null;
   const request = requestsResult.data;
+  const effectiveRole =
+    partnerProfileResult.data || request
+      ? "launderer"
+      : asTextOrNull(profile.role);
 
   return {
     userId,
@@ -119,7 +123,7 @@ export async function getPartnerKycDetailForAdmin(userId: string): Promise<Admin
       lastName: asTextOrNull(profile.last_name),
       email: asTextOrNull(profile.email),
       phone: asTextOrNull(profile.phone),
-      role: asTextOrNull(profile.role),
+      role: effectiveRole,
       createdAt: asTextOrNull(profile.created_at),
     },
     business: {

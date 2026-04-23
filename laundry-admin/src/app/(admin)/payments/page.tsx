@@ -1,8 +1,10 @@
 import { PaymentsList } from "@/features/admin/components/payments-list";
-import { fetchPaymentsDemoData } from "@/features/admin/data/payments-demo-data";
+import { getAdminPayments } from "@/features/admin/data/admin-payments";
+
+export const dynamic = "force-dynamic";
 
 export default async function PaymentsPage() {
-  const payments = await fetchPaymentsDemoData();
+  const payments = await getAdminPayments();
 
   return <PaymentsList payments={payments} />;
 }
