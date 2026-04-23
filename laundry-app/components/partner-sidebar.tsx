@@ -18,7 +18,6 @@ import Animated, {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { assets } from "@/assets/assets";
-import { AppButton } from "@/components/ui/button";
 import { strings } from "@/constants/strings";
 import { theme } from "@/constants/theme";
 import { useAuth } from "@/contexts/auth-context";
@@ -140,11 +139,6 @@ export function PartnerSidebar() {
     router.push("/(partner)/settings");
   };
 
-  const handleStartOnboarding = () => {
-    close();
-    router.push("/(partner)/onboarding");
-  };
-
   const displayName =
     profile?.first_name || profile?.last_name
       ? [profile.first_name, profile.last_name].filter(Boolean).join(" ")
@@ -262,15 +256,6 @@ export function PartnerSidebar() {
             </Pressable>
           ))}
 
-          <AppButton
-            label={strings.partner.dashboard.placeholderButton}
-            onPress={handleStartOnboarding}
-            variant="placeholder"
-            rightIcon="arrow-right"
-            fullWidth
-            style={styles.onboardingBtn}
-            accessibilityLabel={strings.partner.dashboard.placeholderButton}
-          />
         </Animated.View>
       </View>
     </Modal>
@@ -357,8 +342,5 @@ const styles = StyleSheet.create({
   menuLabelActive: {
     color: theme.colors.background,
     fontWeight: "600",
-  },
-  onboardingBtn: {
-    marginTop: 14,
   },
 });
