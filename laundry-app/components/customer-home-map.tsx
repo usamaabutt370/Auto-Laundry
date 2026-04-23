@@ -1,6 +1,6 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { WebView } from "react-native-webview";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -38,6 +38,25 @@ type Props = {
   onPartnerPress: (partnerId: string, mode: "dropoff" | "pickupDelivery") => void;
   recenterBottomOffset: number;
 };
+
+function formatPartnerUpdatedAt(updatedAt: string | null): string | null {
+  if (!updatedAt) return null;
+  const parsed = new Date(updatedAt);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return parsed.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+function getPartnerPrimaryImage(partner: PartnerMapMarker | null): string | null {
+  if (!partner) return null;
+  const firstBusinessImage = partner.business_images?.[0]?.trim() ?? "";
+  if (firstBusinessImage.length > 0) return firstBusinessImage;
+  const fallbackImage = partner.image_url?.trim() ?? "";
+  return fallbackImage.length > 0 ? fallbackImage : null;
+}
 
 export function CustomerHomeMap({
   strings,
@@ -150,6 +169,10 @@ export function CustomerHomeMap({
     return map;
   }, [partners]);
   const selectedPartner = selectedPartnerId ? markerById.get(selectedPartnerId) ?? null : null;
+  const selectedPartnerUpdatedLabel = selectedPartner
+    ? formatPartnerUpdatedAt(selectedPartner.updated_at)
+    : null;
+  const selectedPartnerPrimaryImage = getPartnerPrimaryImage(selectedPartner);
 
   const mapMarkers = useMemo<WebMapMarker[]>(
     () =>
@@ -331,6 +354,22 @@ export function CustomerHomeMap({
           >
             <View style={styles.partnerSheet}>
               <View style={styles.partnerSheetTop}>
+                {selectedPartnerPrimaryImage ? (
+                  <Image
+                    source={{ uri: selectedPartnerPrimaryImage }}
+                    style={styles.partnerSheetImage}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <View style={[styles.partnerSheetImage, styles.partnerSheetImagePlaceholder]}>
+                    <MaterialCommunityIcons
+                      name="image-off-outline"
+                      size={22}
+                      color={c.gray50}
+                    />
+                    <Text style={styles.partnerSheetImagePlaceholderText}>No Image</Text>
+                  </View>
+                )}
                 <View style={styles.partnerInfoWrap}>
                   <Text style={styles.partnerSheetTitle}>{selectedPartner.business_name.trim()}</Text>
                   <Text style={styles.partnerSheetSubtitle}>
@@ -338,14 +377,38 @@ export function CustomerHomeMap({
                       ? strings.pickUpDelivery
                       : strings.dropOff}
                   </Text>
-                  {selectedPartner.phone_number?.trim() ? (
-                    <Text style={styles.partnerSheetMeta}>{selectedPartner.phone_number.trim()}</Text>
-                  ) : null}
-                  {selectedPartner.address?.trim() ? (
-                    <Text style={styles.partnerSheetMeta} numberOfLines={2}>
-                      {selectedPartner.address.trim()}
-                    </Text>
-                  ) : null}
+                  <View style={styles.partnerDetailsGrid}>
+                    {selectedPartner.phone_number?.trim() ? (
+                      <View style={styles.partnerMetaRow}>
+                        <MaterialCommunityIcons name="phone-outline" size={14} color={c.gray50} />
+                        <Text style={styles.partnerSheetMeta}>{selectedPartner.phone_number.trim()}</Text>
+                      </View>
+                    ) : null}
+                    {selectedPartner.available_time?.trim() ? (
+                      <View style={styles.partnerMetaRow}>
+                        <MaterialCommunityIcons name="clock-outline" size={14} color={c.gray50} />
+                        <Text style={styles.partnerSheetMeta} numberOfLines={1}>
+                          {selectedPartner.available_time.trim()}
+                        </Text>
+                      </View>
+                    ) : null}
+                    {selectedPartner.address?.trim() ? (
+                      <View style={styles.partnerMetaRow}>
+                        <MaterialCommunityIcons name="map-marker-outline" size={14} color={c.gray50} />
+                        <Text style={styles.partnerSheetMeta} numberOfLines={2}>
+                          {selectedPartner.address.trim()}
+                        </Text>
+                      </View>
+                    ) : null}
+                    {selectedPartnerUpdatedLabel ? (
+                      <View style={styles.partnerMetaRow}>
+                        <MaterialCommunityIcons name="calendar-refresh-outline" size={14} color={c.gray50} />
+                        <Text style={styles.partnerSheetMeta} numberOfLines={1}>
+                          Updated {selectedPartnerUpdatedLabel}
+                        </Text>
+                      </View>
+                    ) : null}
+                  </View>
                 </View>
                 <Pressable
                   onPress={() => setSelectedPartnerId(null)}
@@ -463,6 +526,22 @@ const styles = StyleSheet.create({
   partnerInfoWrap: {
     flex: 1,
   },
+  partnerSheetImage: {
+    width: '35%',
+    height: '100%',
+    borderRadius: 12,
+    backgroundColor: "#E5E7EB",
+  },
+  partnerSheetImagePlaceholder: {
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+  },
+  partnerSheetImagePlaceholderText: {
+    color: c.gray50,
+    fontSize: 11,
+    fontWeight: "600",
+  },
   partnerSheetTitle: {
     color: c.background,
     fontSize: 16,
@@ -475,10 +554,19 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   partnerSheetMeta: {
-    marginTop: 4,
     color: c.gray50,
     fontSize: 13,
     lineHeight: 18,
+    flex: 1,
+  },
+  partnerDetailsGrid: {
+    marginTop: 8,
+    gap: 6,
+  },
+  partnerMetaRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 6,
   },
   partnerSheetClose: {
     width: 28,
