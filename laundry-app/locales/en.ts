@@ -548,20 +548,33 @@ export const en = {
   onboarding: {
     skip: "Skip",
     slide1: {
-      title: "Find top laundry facilities",
-      subtitle:
-        "Browse through our listing and select the Laundromat/ Dry Cleaner of your choice.",
+      title: "Find nearby laundries",
+      subtitle1:
+        "Discover trusted laundry services",
+      subtitle2:
+        "around you and choose what",
+      subtitle3:
+        "fits your needs.",
       next: "Next",
     },
     slide2: {
-      title: "Schedule a pick up",
-      subtitle:
-        "Easily set a pick up time, track your order, and receive notifications along the way",
+      title: "Book & track easily",
+      subtitle1:
+        "Place your order in seconds and",
+      subtitle2:
+        "stay updated throughout",
+      subtitle3:
+        "the process.",
       next: "Next",
     },
     slide3: {
-      title: "Get on-time delivery",
-      subtitle: "Sit back and conveniently receive clean laundry at your door.",
+      title: "Grow with WashUp",
+      subtitle:
+        "Join as a laundry partner and",
+      subtitle2:
+        "start earning from home",
+      subtitle3:
+        "or your shop.",
       next: "Get started",
     },
   },

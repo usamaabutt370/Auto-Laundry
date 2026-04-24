@@ -5,6 +5,11 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
+    "splash": {
+      "image": "./assets/images/splash-screen-enhanced-white-v2.png",
+      "resizeMode": "cover",
+      "backgroundColor": "#36768a"
+    },
     "scheme": "laundryapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -33,12 +38,12 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
-          "resizeMode": "contain",
-          "backgroundColor": "#ffffff",
+          "image": "./assets/images/splash-screen-enhanced-white-v2.png",
+          "imageWidth": 450,
+          "resizeMode": "cover",
+          "backgroundColor": "#36768a",
           "dark": {
-            "backgroundColor": "#000000"
+            "backgroundColor": "#36768a"
           }
         }
       ]
