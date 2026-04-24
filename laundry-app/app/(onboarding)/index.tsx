@@ -14,7 +14,6 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { Spacer, ThemedText, ThemedView } from "@/components";
-import { OnboardingColors } from "@/constants/onboarding-theme";
 import { strings } from "@/constants/strings";
 import { useOnboardingComplete } from "@/hooks/use-onboarding-complete";
 import { theme } from "@/constants/theme";
@@ -29,13 +28,16 @@ function Slide1Intro() {
   const s = strings.onboarding.slide1;
   return (
     <ThemedView style={styles.slide}>
+
+      <ThemedText style={styles.title}>{s.title}</ThemedText>
+      <Spacer.Column numberOfSpaces={5} />
+      <ThemedText style={styles.subtitle}>{s.subtitle1}</ThemedText>
+      <ThemedText style={styles.subtitle}>{s.subtitle2}</ThemedText>
+      <ThemedText style={styles.subtitle}>{s.subtitle3}</ThemedText>
+      <Spacer.Column numberOfSpaces={5} />
       <ThemedView style={styles.imageContainer}>
         <Image source={assets.onboarding.slide1} style={styles.image} />
       </ThemedView>
-      <Spacer.Column numberOfSpaces={30} />
-      <ThemedText style={styles.title}>{s.title}</ThemedText>
-      <Spacer.Column numberOfSpaces={10} />
-      <ThemedText style={styles.subtitle}>{s.subtitle}</ThemedText>
     </ThemedView>
   );
 }
@@ -45,13 +47,15 @@ function Slide2Placeholder() {
   const s = strings.onboarding.slide2;
   return (
     <ThemedView style={styles.slide}>
+      <ThemedText style={styles.title}>{s.title}</ThemedText>
+      <Spacer.Column numberOfSpaces={5} />
+      <ThemedText style={styles.subtitle}>{s.subtitle1}</ThemedText>
+      <ThemedText style={styles.subtitle}>{s.subtitle2}</ThemedText>
+      <ThemedText style={styles.subtitle}>{s.subtitle3}</ThemedText>
+      <Spacer.Column numberOfSpaces={5} />
       <ThemedView style={styles.imageContainer}>
         <Image source={assets.onboarding.slide2} style={styles.image} />
       </ThemedView>
-      <Spacer.Column numberOfSpaces={30} />
-      <ThemedText style={styles.title}>{s.title}</ThemedText>
-      <Spacer.Column numberOfSpaces={10} />
-      <ThemedText style={styles.subtitle}>{s.subtitle}</ThemedText>
     </ThemedView>
   );
 }
@@ -61,13 +65,15 @@ function Slide3GetStarted() {
   const s = strings.onboarding.slide3;
   return (
     <ThemedView style={styles.slide}>
+      <ThemedText style={styles.title}>{s.title}</ThemedText>
+      <Spacer.Column numberOfSpaces={5} />
+      <ThemedText style={styles.subtitle}>{s.subtitle}</ThemedText>
+      <ThemedText style={styles.subtitle}>{s.subtitle2}</ThemedText>
+      <ThemedText style={styles.subtitle}>{s.subtitle3}</ThemedText>
+      <Spacer.Column numberOfSpaces={5} />
       <ThemedView style={styles.imageContainer}>
         <Image source={assets.onboarding.slide3} style={styles.image} />
       </ThemedView>
-      <Spacer.Column numberOfSpaces={30} />
-      <ThemedText style={styles.title}>{s.title}</ThemedText>
-      <Spacer.Column numberOfSpaces={10} />
-      <ThemedText style={styles.subtitle}>{s.subtitle}</ThemedText>
     </ThemedView>
   );
 }
@@ -128,6 +134,18 @@ export default function OnboardingScreen() {
         <Slide3GetStarted />
       </ScrollView>
 
+      <View style={styles.dots}>
+          {Array.from({ length: TOTAL_SLIDES }).map((_, i) => (
+            <View
+              key={i}
+              style={[
+                styles.dot,
+                i === currentIndex ? styles.dotActive : styles.dotInactive,
+              ]}
+            />
+          ))}
+        </View>
+
       <View style={styles.bottomBar}>
         <Pressable
           onPress={handleSkip}
@@ -140,18 +158,6 @@ export default function OnboardingScreen() {
         >
           <Text style={styles.skipText}>{s.skip}</Text>
         </Pressable>
-
-        <View style={styles.dots}>
-          {Array.from({ length: TOTAL_SLIDES }).map((_, i) => (
-            <View
-              key={i}
-              style={[
-                styles.dot,
-                i === currentIndex ? styles.dotActive : styles.dotInactive,
-              ]}
-            />
-          ))}
-        </View>
 
         <Pressable
           onPress={handleNext}
@@ -183,59 +189,49 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.background,
   },
   imageContainer: {
-    height: 300,
-    resizeMode: "contain",
+    height: 400,
+    width: '100%',
     backgroundColor: "transparent",
   },
   image: {
-    width: "100%",
-    height: "100%",
+    width: 320,
+    height: 400,
     resizeMode: "contain",
+    alignSelf: "center",
   },
   scroll: {
-    flex: 1,
+    flexGrow: 1,
   },
   slide: {
     width: SCREEN_WIDTH,
     flex: 1,
     paddingHorizontal: 24,
-    paddingTop: 100,
+    paddingTop: 80,
     justifyContent: "flex-start",
     backgroundColor: theme.colors.background,
   },
   title: {
-    fontSize: 20,
+    fontSize: 30,
     fontWeight: "700",
     color: theme.colors.white,
     textAlign: "center",
     backgroundColor: "transparent",
-    lineHeight: 24,
+    lineHeight: 40,
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: 20,
     color: theme.colors.white,
-    lineHeight: 24,
+    lineHeight: 30,
     textAlign: "center",
     backgroundColor: "transparent",
   },
-  placeholderTitle: {
-    fontSize: 22,
-    fontWeight: "600",
-    color: theme.colors.white,
-  },
-  placeholderSub: {
-    fontSize: 16,
-    color: theme.colors.white,
-    marginTop: 8,
-    marginBottom: 40,
-  },
   bottomBar: {
-    height: 100,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 20,
     backgroundColor: "transparent",
+    marginBottom: 50,
   },
   skipButton: {
     padding: 8,
@@ -253,12 +249,13 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     gap: 10,
+    marginBottom: 50,
   },
   dot: {
     borderRadius: 100,
   },
   dotActive: {
-    width: 10,
+    width: 30,
     height: 10,
     backgroundColor: theme.colors.white,
     borderWidth: 2,
