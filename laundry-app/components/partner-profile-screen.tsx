@@ -183,6 +183,7 @@ export function PartnerProfileScreen() {
       );
       if (updateError) throw updateError;
       await loadData();
+      Alert.alert("Success", "Profile image updated successfully.");
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Could not upload image.";
       Alert.alert("Upload failed", msg);

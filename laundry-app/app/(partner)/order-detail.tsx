@@ -20,6 +20,7 @@ import { useLocale } from "@/contexts/locale-context";
 import { fetchPartnerOrderDetail, type PartnerOrderDetailData } from "@/lib/partner-orders";
 import { partnerUpdateOrderStatus } from "@/lib/partner-order-status";
 import { getStrings } from "@/locales";
+import { parsePriceDisplay, currencyPrefixFromDisplay } from "@/utils/parse-price-display";
 
 const c = theme.colors;
 const fs = theme.fontSize;
@@ -39,9 +40,10 @@ function formatStatusLabel(status: string) {
 }
 
 function formatMoney(value: string) {
-  const amount = Number.parseFloat(value);
-  if (!Number.isFinite(amount)) return value;
-  return `$${amount.toFixed(2)}`;
+  const numeric = parsePriceDisplay(String(value ?? ""));
+  if (numeric == null) return String(value ?? "");
+  const prefix = currencyPrefixFromDisplay(String(value ?? "")) || "Rs ";
+  return `${prefix}${numeric % 1 === 0 ? numeric.toFixed(0) : numeric.toFixed(2)}`;
 }
 
 function mapDemoDetail(detail: DemoOrderDetail): PartnerOrderDetailData {
@@ -219,6 +221,17 @@ export default function PartnerOrderDetailScreen() {
             },
           ],
         );
+      } else if (target === "accepted") {
+        Alert.alert("Order accepted", "The order has been accepted.", [
+          {
+            text: "OK",
+            onPress: () =>
+              router.navigate({
+                pathname: "/(partner)/order",
+                params: { filter: "accepted" },
+              }),
+          },
+        ]);
       } else {
         Alert.alert("Order rejected", "The order has been rejected.");
       }

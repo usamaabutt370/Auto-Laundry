@@ -13,6 +13,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { Swipeable } from "react-native-gesture-handler";
 
 import { OrderCard } from "@/components/order-card";
 import { AppHeader } from "@/components/app-header";
@@ -138,6 +139,11 @@ export default function PartnerOrderScreen() {
               : order,
           ),
         );
+        if (status === "accepted") {
+          Alert.alert("Order accepted", "The order has been accepted.");
+        } else {
+          Alert.alert("Order rejected", "The order has been rejected.");
+        }
       } catch (error) {
         Alert.alert(
           `Unable to ${status === "accepted" ? "accept" : "reject"} order`,
@@ -192,6 +198,14 @@ export default function PartnerOrderScreen() {
             : order,
         ),
       );
+      if (result && typeof result.charged !== "undefined") {
+        Alert.alert(
+          "Order completed",
+          `Charged: ${result.charged} credits\nCurrent balance: ${result.balance} credits`,
+        );
+      } else {
+        Alert.alert("Order completed", "The order has been completed.");
+      }
     } catch (error) {
       Alert.alert(
         "Unable to complete order",
@@ -288,37 +302,78 @@ export default function PartnerOrderScreen() {
               order.rawStatus === "in_progress" ||
               order.rawStatus === "ready";
 
+            const custStrings = getStrings(locale).customer.ordersTab;
+
+            const confirmDelete = (orderId: string) => {
+              Alert.alert(custStrings.deleteTitle, custStrings.deleteMessage, [
+                { text: custStrings.cancel, style: "cancel" },
+                {
+                  text: custStrings.deleteAction,
+                  style: "destructive",
+                  onPress: async () => {
+                    try {
+                      try {
+                        await partnerUpdateOrderStatus(orderId, "cancelled");
+                      } catch (e) {
+                        // ignore backend failure; still remove locally
+                      }
+                      setOrders((prev) => prev.filter((o) => o.id !== orderId));
+                    } catch (e) {
+                      Alert.alert(
+                        custStrings.deleteError,
+                        e instanceof Error ? e.message : String(e),
+                      );
+                    }
+                  },
+                },
+              ]);
+            };
+
             return (
-              <OrderCard
+              <Swipeable
                 key={order.id}
-                customerName={order.customerName}
-                initial={order.initial}
-                subtitle={order.subtitle}
-                rightIcon={order.rightIcon ?? "none"}
-                statusLabel={order.status}
-                detailRows={detailRows}
-                onAccept={
-                  order.status === "pending"
-                    ? () => handleOrderAction(order.id, "accepted")
-                    : undefined
-                }
-                onReject={
-                  order.status === "pending"
-                    ? () => openRejectModal(order.id)
-                    : undefined
-                }
-                onComplete={
-                  canComplete ? () => handleCompleteOrder(order.id) : undefined
-                }
-                completeLabel={s.completeOrder}
-                actionsDisabled={actionOrderId === order.id}
-                onPress={() =>
-                  router.push({
-                    pathname: "/(partner)/order-detail",
-                    params: { orderId: order.id },
-                  })
-                }
-              />
+                renderRightActions={() => (
+                  <View style={styles.swipeActions}>
+                    <Pressable
+                      accessibilityLabel={custStrings.deleteAction}
+                      onPress={() => confirmDelete(order.id)}
+                      style={({ pressed }) => [styles.swipeDeleteBtn, pressed && styles.pressed]}
+                    >
+                      <Text style={styles.swipeDeleteText}>{custStrings.deleteAction}</Text>
+                    </Pressable>
+                  </View>
+                )}
+              >
+                <OrderCard
+                  customerName={order.customerName}
+                  initial={order.initial}
+                  subtitle={order.subtitle}
+                  rightIcon={order.rightIcon ?? "none"}
+                  statusLabel={order.status}
+                  detailRows={detailRows}
+                  onAccept={
+                    order.status === "pending"
+                      ? () => handleOrderAction(order.id, "accepted")
+                      : undefined
+                  }
+                  onReject={
+                    order.status === "pending"
+                      ? () => openRejectModal(order.id)
+                      : undefined
+                  }
+                  onComplete={
+                    canComplete ? () => handleCompleteOrder(order.id) : undefined
+                  }
+                  completeLabel={s.completeOrder}
+                  actionsDisabled={actionOrderId === order.id}
+                  onPress={() =>
+                    router.push({
+                      pathname: "/(partner)/order-detail",
+                      params: { orderId: order.id },
+                    })
+                  }
+                />
+              </Swipeable>
             );
           })
         )}
@@ -542,6 +597,26 @@ const styles = StyleSheet.create({
   },
   modalRejectText: {
     color: "#D9534F",
+    fontSize: fs.descText,
+    fontWeight: "700",
+  },
+  swipeActions: {
+    width: 96,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 8,
+  },
+  swipeDeleteBtn: {
+    flex: 1,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: c.outline,
+    backgroundColor: c.background,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  swipeDeleteText: {
+    color: c.white,
     fontSize: fs.descText,
     fontWeight: "700",
   },

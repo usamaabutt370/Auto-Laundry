@@ -102,6 +102,11 @@ export function MerchantServicesProvider({ children }: { children: React.ReactNo
     if (!supabase || !user?.id) {
       setServices([]);
       setPickupDeliveryPricing({ enabled: false, amount: "" });
+      setWashAndFoldPricing(null);
+      setDryCleaningPricing(null);
+      setTailoringPricing(null);
+      setDryCleaningItemizeState(null);
+      setTailoringItemizeState(null);
       setIsLoadingServices(false);
       return;
     }
@@ -113,8 +118,47 @@ export function MerchantServicesProvider({ children }: { children: React.ReactNo
       .order("created_at", { ascending: true });
     if (error) {
       setServices([]);
+      setWashAndFoldPricing(null);
+      setDryCleaningPricing(null);
+      setTailoringPricing(null);
+      setDryCleaningItemizeState(null);
+      setTailoringItemizeState(null);
     } else {
       setServices((data ?? []).map(mapRowToServiceItem));
+      
+      const wafRows: ServicePricingRow[] = [];
+      const dcRows: ServicePricingRow[] = [];
+      const tailRows: ServicePricingRow[] = [];
+
+      const dcItems: {id: string, label: string}[] = [];
+      const dcPrices: Record<string, string> = {};
+      const tailItems: {id: string, label: string}[] = [];
+      const tailPrices: Record<string, string> = {};
+
+      (data ?? []).forEach(row => {
+        if (row.category === "Wash & Fold") {
+          const label = row.name.replace("Wash & Fold - ", "");
+          wafRows.push({ label, value: row.price_display });
+        } else if (row.category === "Dry Cleaning") {
+          const label = row.name.replace("Dry Cleaning - ", "");
+          const id = `item_${row.id}`;
+          dcRows.push({ label, value: row.price_display });
+          dcItems.push({ id, label });
+          dcPrices[id] = row.price_display;
+        } else if (row.category === "Tailoring") {
+          const label = row.name.replace("Tailoring - ", "");
+          const id = `item_${row.id}`;
+          tailRows.push({ label, value: row.price_display });
+          tailItems.push({ id, label });
+          tailPrices[id] = row.price_display;
+        }
+      });
+
+      setWashAndFoldPricing(wafRows.length > 0 ? { rows: wafRows } : null);
+      setDryCleaningPricing(dcRows.length > 0 ? { rows: dcRows } : null);
+      setDryCleaningItemizeState(dcRows.length > 0 ? { items: dcItems, prices: dcPrices } : null);
+      setTailoringPricing(tailRows.length > 0 ? { rows: tailRows } : null);
+      setTailoringItemizeState(tailRows.length > 0 ? { items: tailItems, prices: tailPrices } : null);
     }
 
     const { data: partnerProfileData } = await supabase

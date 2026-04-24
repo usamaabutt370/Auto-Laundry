@@ -9,7 +9,7 @@ export function parsePriceDisplay(display: string): number | null {
 export function currencyPrefixFromDisplay(display: string): string {
   const t = display.trim();
   if (/^pkr/i.test(t) || /rs\.?/i.test(t)) return "PKR ";
-  if (t.startsWith("$")) return "$";
+  if (t.startsWith("$")) return "Rs ";
   if (t.startsWith("€")) return "€";
   if (t.startsWith("£")) return "£";
   return "";

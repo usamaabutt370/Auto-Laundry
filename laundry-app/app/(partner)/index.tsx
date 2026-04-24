@@ -21,20 +21,21 @@ const H_PAD = 24;
 const CARD_RADIUS = 16;
 
 function formatMoney(value: number): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
+  const rounded = Math.round(value);
+  const formatted = new Intl.NumberFormat("en-US", {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
-  }).format(value);
+  }).format(rounded);
+  return `Rs ${formatted}`;
 }
 
 function formatMoneyCompact(value: number): string {
   if (value >= 1000) {
     const compact = value / 1000;
-    return `$${compact % 1 === 0 ? compact.toFixed(0) : compact.toFixed(1)}k`;
+    const display = compact % 1 === 0 ? compact.toFixed(0) : compact.toFixed(1);
+    return `rs ${display}k`;
   }
-  return `$${Math.round(value)}`;
+  return `Rs ${Math.round(value)}`;
 }
 
 function formatShortDate(valueIso: string): string {
