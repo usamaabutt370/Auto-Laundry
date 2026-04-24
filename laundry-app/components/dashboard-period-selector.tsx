@@ -134,7 +134,7 @@ const styles = StyleSheet.create({
   },
   overlay: {
     flex: 1,
-    backgroundColor: c.modalOverlay,
+    backgroundColor: "transparent",
     justifyContent: "flex-start",
     alignItems: "flex-end",
     paddingTop: 56,

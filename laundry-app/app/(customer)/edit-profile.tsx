@@ -472,7 +472,24 @@ export default function EditProfileScreen() {
       const {
         data: { publicUrl },
       } = supabase.storage.from(AVATAR_BUCKET).getPublicUrl(path);
+
+      const now = new Date().toISOString();
+      const { error: updateError } = await supabase
+        .from("profiles")
+        .update({
+          image_url: publicUrl,
+          updated_at: now,
+        })
+        .eq("id", user.id);
+
+      if (updateError) {
+        Alert.alert("Update failed", updateError.message);
+        return;
+      }
+
       setImageUrl(publicUrl);
+      setProfileUpdatedAt(now);
+      Alert.alert("Success", "Profile image updated successfully.");
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Failed to upload image.";

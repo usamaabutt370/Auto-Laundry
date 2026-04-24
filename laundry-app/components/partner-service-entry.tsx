@@ -81,7 +81,7 @@ export function ServiceWithPricesCard({
       >
         <Text style={styles.serviceCardTitle}>{label}</Text>
         <MaterialCommunityIcons
-          name="chevron-right"
+          name="pencil"
           size={22}
           color={c.white}
         />

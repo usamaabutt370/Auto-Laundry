@@ -122,7 +122,7 @@ export function useLaundererDashboard(
       const { data: orders, error: ordersError } = await supabase
         .from("customer_orders")
         .select(
-          "id,status,estimated_total,estimated_partial_total,pickup_fee,pickup_day_label,pickup_time_slot_label,delivery_day_label,delivery_time_slot_label,submitted_at,created_at,updated_at"
+          "id,customer_id,status,estimated_total,estimated_partial_total,pickup_fee,pickup_day_label,pickup_time_slot_label,delivery_day_label,delivery_time_slot_label,submitted_at,created_at,updated_at"
         )
         .eq("partner_id", user.id);
 
@@ -168,18 +168,21 @@ export function useLaundererDashboard(
       const dropOffIncome = totalFrom(completedDropOffOrders);
       const deliveryIncome = totalFrom(completedDeliveryOrders);
 
-      const partnerIds = Array.from(
-        new Set(rows.map((_row) => user.id))
+      const customerIds = Array.from(
+        new Set(rows.map((r) => r.customer_id).filter(Boolean))
       );
 
-      const { data: profiles, error: profilesError } = await supabase
-        .from("profiles")
-        .select("id")
-        .in("id", partnerIds);
+      let numberOfUsers = 0;
+      if (customerIds.length > 0) {
+        const { data: profiles, error: profilesError } = await supabase
+          .from("profiles")
+          .select("id")
+          .in("id", customerIds);
 
-      if (profilesError) throw new Error(profilesError.message);
+        if (profilesError) throw new Error(profilesError.message);
 
-      const numberOfUsers = profiles?.length ?? 0;
+        numberOfUsers = profiles?.length ?? 0;
+      }
 
       const breakDownServices = async (orderIds: string[]) => {
         if (orderIds.length === 0 || !supabase) {

@@ -118,10 +118,12 @@ type OrderServiceItemDetailRow = {
 };
 
 function formatUsd(amount: number): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
+  // Display amounts with `Rs` prefix instead of dollar sign
+  const formatted = new Intl.NumberFormat("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   }).format(amount);
+  return `Rs ${formatted}`;
 }
 
 function formatSchedule(day: string | null, time: string | null, fallback: string): string {
