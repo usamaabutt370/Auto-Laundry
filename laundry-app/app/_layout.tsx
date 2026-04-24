@@ -1,7 +1,5 @@
 import { Stack } from "expo-router";
-import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
-import { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import "react-native-reanimated";
 
@@ -14,17 +12,8 @@ export const unstable_settings = {
   initialRouteName: "index",
 };
 
-void SplashScreen.preventAutoHideAsync();
-
 export default function RootLayout() {
   const colorScheme = useColorScheme();
-
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      void SplashScreen.hideAsync();
-    }, 1200);
-    return () => clearTimeout(timeout);
-  }, []);
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>

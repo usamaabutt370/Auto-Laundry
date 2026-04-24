@@ -34,7 +34,7 @@ function Slide1Intro() {
       <ThemedText style={styles.subtitle}>{s.subtitle1}</ThemedText>
       <ThemedText style={styles.subtitle}>{s.subtitle2}</ThemedText>
       <ThemedText style={styles.subtitle}>{s.subtitle3}</ThemedText>
-      <Spacer.Column numberOfSpaces={15} />
+      <Spacer.Column numberOfSpaces={5} />
       <ThemedView style={styles.imageContainer}>
         <Image source={assets.onboarding.slide1} style={styles.image} />
       </ThemedView>
@@ -52,7 +52,7 @@ function Slide2Placeholder() {
       <ThemedText style={styles.subtitle}>{s.subtitle1}</ThemedText>
       <ThemedText style={styles.subtitle}>{s.subtitle2}</ThemedText>
       <ThemedText style={styles.subtitle}>{s.subtitle3}</ThemedText>
-      <Spacer.Column numberOfSpaces={15} />
+      <Spacer.Column numberOfSpaces={5} />
       <ThemedView style={styles.imageContainer}>
         <Image source={assets.onboarding.slide2} style={styles.image} />
       </ThemedView>
@@ -70,7 +70,7 @@ function Slide3GetStarted() {
       <ThemedText style={styles.subtitle}>{s.subtitle}</ThemedText>
       <ThemedText style={styles.subtitle}>{s.subtitle2}</ThemedText>
       <ThemedText style={styles.subtitle}>{s.subtitle3}</ThemedText>
-      <Spacer.Column numberOfSpaces={15} />
+      <Spacer.Column numberOfSpaces={5} />
       <ThemedView style={styles.imageContainer}>
         <Image source={assets.onboarding.slide3} style={styles.image} />
       </ThemedView>
@@ -134,6 +134,18 @@ export default function OnboardingScreen() {
         <Slide3GetStarted />
       </ScrollView>
 
+      <View style={styles.dots}>
+          {Array.from({ length: TOTAL_SLIDES }).map((_, i) => (
+            <View
+              key={i}
+              style={[
+                styles.dot,
+                i === currentIndex ? styles.dotActive : styles.dotInactive,
+              ]}
+            />
+          ))}
+        </View>
+
       <View style={styles.bottomBar}>
         <Pressable
           onPress={handleSkip}
@@ -146,18 +158,6 @@ export default function OnboardingScreen() {
         >
           <Text style={styles.skipText}>{s.skip}</Text>
         </Pressable>
-
-        <View style={styles.dots}>
-          {Array.from({ length: TOTAL_SLIDES }).map((_, i) => (
-            <View
-              key={i}
-              style={[
-                styles.dot,
-                i === currentIndex ? styles.dotActive : styles.dotInactive,
-              ]}
-            />
-          ))}
-        </View>
 
         <Pressable
           onPress={handleNext}
@@ -189,28 +189,29 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.background,
   },
   imageContainer: {
-    height: 500,
+    height: 400,
     width: '100%',
     backgroundColor: "transparent",
   },
   image: {
-    width: 390,
-    height: 500,
+    width: 320,
+    height: 400,
     resizeMode: "contain",
+    alignSelf: "center",
   },
   scroll: {
-    flex: 1,
+    flexGrow: 1,
   },
   slide: {
     width: SCREEN_WIDTH,
     flex: 1,
     paddingHorizontal: 24,
-    paddingTop: 35,
+    paddingTop: 80,
     justifyContent: "flex-start",
     backgroundColor: theme.colors.background,
   },
   title: {
-    fontSize: 38,
+    fontSize: 30,
     fontWeight: "700",
     color: theme.colors.white,
     textAlign: "center",
@@ -218,7 +219,7 @@ const styles = StyleSheet.create({
     lineHeight: 40,
   },
   subtitle: {
-    fontSize: 25,
+    fontSize: 20,
     color: theme.colors.white,
     lineHeight: 30,
     textAlign: "center",
@@ -248,12 +249,13 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     gap: 10,
+    marginBottom: 50,
   },
   dot: {
     borderRadius: 100,
   },
   dotActive: {
-    width: 10,
+    width: 30,
     height: 10,
     backgroundColor: theme.colors.white,
     borderWidth: 2,

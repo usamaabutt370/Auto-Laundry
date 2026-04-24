@@ -568,7 +568,7 @@ export const en = {
       next: "Next",
     },
     slide3: {
-      title: "Grow with WashUp",
+      title: "Grow with Laundri",
       subtitle:
         "Join as a laundry partner and",
       subtitle2:

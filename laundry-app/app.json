@@ -6,8 +6,8 @@
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "splash": {
-      "image": "./assets/images/splash-screen-enhanced-white-v2.png",
-      "resizeMode": "cover",
+      "image": "./assets/icons/splash-icon.jpg",
+      "resizeMode": "contain",
       "backgroundColor": "#36768a"
     },
     "scheme": "laundryapp",
@@ -38,9 +38,9 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-screen-enhanced-white-v2.png",
-          "imageWidth": 450,
-          "resizeMode": "cover",
+          "image": "./assets/icons/splash-icon.jpg",
+          "imageWidth": 220,
+          "resizeMode": "contain",
           "backgroundColor": "#36768a",
           "dark": {
             "backgroundColor": "#36768a"
