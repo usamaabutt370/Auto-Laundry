@@ -11,7 +11,7 @@ const fs = theme.fontSize;
 export interface ServicePricingCardProps {
   /** Service or product name */
   title: string;
-  /** Display string for price (e.g. "$28.79" or "$1.49 per lb") */
+  /** Display string for price (e.g. "Rs 28.79" or "Rs 1.49 per lb") */
   price: string;
   /** Called when the edit (pencil) icon is pressed (omit when readOnly) */
   onEdit?: () => void;

@@ -21,7 +21,7 @@ export interface PartnerOrderListItem {
   status: PartnerOrderCardStatus;
   rawStatus: PartnerOrderStatus;
   rightIcon: "scooter" | "bag";
-  /** Formatted estimated total for list cards (e.g. "$12.00"). */
+  /** Formatted estimated total for list cards (e.g. "Rs 12.00"). */
   estimatedTotalLabel: string;
   /** Comma-separated service names from order_services. */
   servicesSummary: string;
@@ -150,10 +150,12 @@ function serviceTypeLabel(serviceType: OrderServiceRow["service_type"]): string 
 }
 
 function formatUsd(amount: number): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
+  // Display amounts with `Rs` prefix instead of dollar sign
+  const formatted = new Intl.NumberFormat("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   }).format(amount);
+  return `Rs ${formatted}`;
 }
 
 function addressPreviewLine(addr: string | null | undefined, maxLen = 56): string {

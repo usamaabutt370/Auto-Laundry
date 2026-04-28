@@ -22,12 +22,11 @@ type EarningItem = {
 };
 
 function formatMoney(value: number): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
+  const formatted = new Intl.NumberFormat("en-US", {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
-  }).format(value);
+  }).format(Math.round(value));
+  return `Rs ${formatted}`;
 }
 
 function formatDateTime(valueIso: string): string {

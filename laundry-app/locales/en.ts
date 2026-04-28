@@ -522,8 +522,8 @@ export const en = {
       serviceNamePlaceholder: "Service name",
       serviceItemName: "Service / Item Name",
       serviceItemPrice: "Service / Item Price",
-      pricePlaceholder: "e.g. $28.79 or $1.49 per lb",
-      pricePlaceholderPerBag: "e.g. $10.00 or $1.49 per bag",
+      pricePlaceholder: "e.g. Rs 28.79 or Rs 1.49 per lb",
+      pricePlaceholderPerBag: "e.g. Rs 10.00 or Rs 1.49 per bag",
 
       cancel: "Cancel",
       loading: "Loading…",

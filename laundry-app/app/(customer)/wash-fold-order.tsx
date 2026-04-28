@@ -360,14 +360,16 @@ export default function WashFoldOrderScreen() {
     </KeyboardAvoidingView>
 
       <SafeAreaView edges={["bottom"]} style={styles.footerSafe}>
-        <CustomerLiveEstimateFooter
-          strings={sLive}
-          partnerName={draft.partnerName}
-          loading={loading}
-          hasPartner={Boolean(draft.partnerId)}
-          estimate={estimate}
-          defaultBreakdownOpen
-        />
+        {washFoldPreviewLines.length > 0 ? (
+          <CustomerLiveEstimateFooter
+            strings={sLive}
+            partnerName={draft.partnerName}
+            loading={loading}
+            hasPartner={Boolean(draft.partnerId)}
+            estimate={estimate}
+            defaultBreakdownOpen
+          />
+        ) : null}
         <Pressable
           onPress={handleContinue}
           style={({ pressed }) => [styles.continueBtn, pressed && styles.pressed]}

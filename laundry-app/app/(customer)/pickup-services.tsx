@@ -10,7 +10,7 @@ import {
   Text,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 
 import { Spacer } from "@/components";
@@ -41,6 +41,7 @@ const SERVICE_KEYS: LaundererServiceType[] = [
 
 export default function PickupServicesScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { draft, setPickupDeliveryRequested, setSelectedServiceIds } =
     useCustomerOrderDraft();
   const s = strings.customer.pickupServices;
@@ -234,7 +235,10 @@ export default function PickupServicesScreen() {
 
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: insets.bottom + 40 },
+        ]}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.spacer} />

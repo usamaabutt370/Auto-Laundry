@@ -117,9 +117,11 @@ export function PartnerSidebar() {
     setPartnerProfile(partnerData ?? null);
   }, [user?.id]);
 
+  // Load profile when the sidebar opens so any recent avatar changes
+  // are fetched and the cache-busted URL is applied immediately.
   useEffect(() => {
-    loadProfile();
-  }, [loadProfile]);
+    if (isOpen) loadProfile();
+  }, [isOpen, loadProfile]);
 
   useEffect(() => {
     translateX.value = withTiming(isOpen ? 0 : -SIDEBAR_WIDTH, {
