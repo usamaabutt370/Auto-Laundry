@@ -91,6 +91,7 @@ export const ur = {
       explore: "دریافت",
     },
     partner: {
+      dashboard: "ڈیش بورڈ",
       orders: "آرڈرز",
       profile: "پروفائل",
     },

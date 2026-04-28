@@ -4,9 +4,9 @@ import { PartnerSidebar } from "@/components/partner-sidebar";
 import { MerchantServicesProvider } from "@/contexts/merchant-services-context";
 import { SidebarProvider } from "@/contexts/sidebar-context";
 
-/** Ensure "/(partner)" opens the Dashboard (index), not Orders or (tabs). */
+/** Ensure "/(partner)" opens the tabs (Dashboard), not bare index. */
 export const unstable_settings = {
-  initialRouteName: "index",
+  initialRouteName: "(tabs)",
 };
 
 /**
@@ -21,7 +21,7 @@ export default function PartnerLayout() {
         <PartnerSidebar />
         <Stack
           screenOptions={{ headerShown: false }}
-          initialRouteName="index"
+          initialRouteName="(tabs)"
         >
           <Stack.Screen name="index" />
           <Stack.Screen name="dashboard-orders" />

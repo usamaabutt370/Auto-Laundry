@@ -92,6 +92,7 @@ export const en = {
       explore: "Explore",
     },
     partner: {
+      dashboard: "Dashboard",
       orders: "Orders",
       profile: "Profile",
     },

@@ -1,4 +1,4 @@
-import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, useRouter, useNavigation } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -39,6 +39,8 @@ type OrderFilter = "pending" | "accepted" | "completed" | "rejected";
 
 export default function PartnerOrderScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
+  const canGoBack = navigation.canGoBack();
   const params = useLocalSearchParams<{ filter?: string }>();
   const { locale } = useLocale();
   const s = getStrings(locale).partner.order;
@@ -221,8 +223,8 @@ export default function PartnerOrderScreen() {
       <SafeAreaView edges={["top"]} style={styles.safeArea}>
         <AppHeader
           title={s.title}
-          leftIcon="arrow-left"
-          onLeftPress={() => router.back()}
+          leftIcon={canGoBack ? "arrow-left" : undefined}
+          onLeftPress={canGoBack ? () => router.back() : undefined}
           leftAccessibilityLabel={s.title}
         />
       </SafeAreaView>
@@ -493,7 +495,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: H_PAD,
-    paddingBottom: 40,
+    paddingBottom: 100,
     gap: 12,
   },
   emptyWrap: {

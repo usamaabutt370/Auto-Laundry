@@ -12,8 +12,10 @@ import {
   Text,
   View,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, useNavigation } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useContext } from "react";
+import { BottomTabBarHeightContext } from "@react-navigation/bottom-tabs";
 
 import { assets } from "@/assets/assets";
 import { AppHeader } from "@/components/app-header";
@@ -55,6 +57,9 @@ type PartnerServiceRow = {
 
 export function PartnerProfileScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
+  const canGoBack = navigation.canGoBack();
+  const tabBarHeight = useContext(BottomTabBarHeightContext) ?? 0;
   const { user, refreshRole } = useAuth();
   const { locale } = useLocale();
   const sDashboard = getStrings(locale).partner.dashboard;
@@ -234,8 +239,8 @@ export function PartnerProfileScreen() {
       <SafeAreaView style={styles.container} edges={["top"]}>
         <AppHeader
           title="Launderer Profile"
-          leftIcon="arrow-left"
-          onLeftPress={handleBack}
+          leftIcon={canGoBack ? "arrow-left" : undefined}
+          onLeftPress={canGoBack ? handleBack : undefined}
           leftAccessibilityLabel="Back"
         />
         <View style={styles.loadingWrap}>
@@ -249,11 +254,11 @@ export function PartnerProfileScreen() {
     <SafeAreaView style={styles.container} edges={["top"]}>
       <AppHeader
         title="Launderer Profile"
-        leftIcon="arrow-left"
-        onLeftPress={handleBack}
+        leftIcon={canGoBack ? "arrow-left" : undefined}
+        onLeftPress={canGoBack ? handleBack : undefined}
         leftAccessibilityLabel="Back"
       />
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+      <ScrollView style={styles.scroll} contentContainerStyle={[styles.content, { paddingBottom: tabBarHeight + 24 }]}>
         <Pressable style={styles.avatarWrap} onPress={pickAndUploadImage} disabled={uploadingImage}>
           {partnerImageUri ? (
             <Image source={{ uri: partnerImageUri }} style={styles.avatar} />
