@@ -124,7 +124,7 @@ export default function PartnerDashboardScreen() {
   const { data, refresh } = useLaundererDashboard(true, period);
   const earningsTotalForPeriod = data.earningsChartValues.reduce((sum, value) => sum + value, 0);
 
-  const subtitle = `${s.numberOfUsers}: ${data.numberOfUsers}`;
+  
 
   useFocusEffect(
     useCallback(() => {
@@ -137,7 +137,7 @@ export default function PartnerDashboardScreen() {
       <SafeAreaView edges={["top"]} style={styles.safeArea}>
         <AppHeader
           title={s.title}
-          subtitle={subtitle}
+          
           leftIcon="menu"
           onLeftPress={openSidebar}
           leftAccessibilityLabel="Menu"

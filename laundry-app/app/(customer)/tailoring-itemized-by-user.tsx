@@ -89,6 +89,10 @@ export default function TailoringItemizedByUserScreen() {
 
   const currencyPrefix = estimate.currencyPrefix;
 
+  const hasSelectedItems = useMemo(() => {
+    return Object.values(quantities).some((q) => q > 0);
+  }, [quantities]);
+
   return (
     <View style={styles.container}>
       <SafeAreaView style={styles.header} edges={["top"]}>
@@ -101,9 +105,9 @@ export default function TailoringItemizedByUserScreen() {
         <Text style={styles.headerTitle} numberOfLines={1}>
           {s.tailoring}
         </Text>
-        <Pressable style={({ pressed }) => [styles.headerRight, pressed && styles.pressed]}>
+        {/* <Pressable style={({ pressed }) => [styles.headerRight, pressed && styles.pressed]}>
           <Image source={assets.icons.menu_icon} style={styles.headerRightIcon} />
-        </Pressable>
+        </Pressable> */}
       </SafeAreaView>
 
       <KeyboardAvoidingView
@@ -184,13 +188,15 @@ export default function TailoringItemizedByUserScreen() {
     </KeyboardAvoidingView>
 
       <SafeAreaView style={styles.footer} edges={["bottom"]}>
-        <CustomerLiveEstimateFooter
-          strings={sLive}
-          partnerName={draft.partnerName}
-          loading={loading}
-          hasPartner={Boolean(draft.partnerId)}
-          estimate={estimate}
-        />
+        {hasSelectedItems ? (
+          <CustomerLiveEstimateFooter
+            strings={sLive}
+            partnerName={draft.partnerName}
+            loading={loading}
+            hasPartner={Boolean(draft.partnerId)}
+            estimate={estimate}
+          />
+        ) : null}
         <Pressable
           onPress={handleSave}
           style={({ pressed }) => [styles.continueBtn, pressed && styles.pressed]}

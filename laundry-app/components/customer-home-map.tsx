@@ -320,16 +320,7 @@ export function CustomerHomeMap({
         </View>
       ) : null}
 
-      <SafeAreaView style={styles.header} edges={["top"]}>
-        <Pressable
-          onPress={onMenuPress}
-          style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
-          accessibilityRole="button"
-          accessibilityLabel="Menu"
-        >
-          <MaterialCommunityIcons name="menu" size={22} color={c.white} />
-        </Pressable>
-      </SafeAreaView>
+     
 
       <Pressable
         onPress={focusMap}
