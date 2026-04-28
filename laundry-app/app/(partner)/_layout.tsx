@@ -28,6 +28,7 @@ export default function PartnerLayout() {
           <Stack.Screen name="earnings-history" />
           <Stack.Screen name="order" />
           <Stack.Screen name="order-detail" />
+          <Stack.Screen name="chat/[orderId]" />
           <Stack.Screen name="settings" />
         <Stack.Screen name="profile" />
         <Stack.Screen name="support" />
