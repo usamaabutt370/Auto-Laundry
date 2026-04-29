@@ -85,7 +85,7 @@ export const ur = {
 
   tabs: {
     customer: {
-      home: "ہوم",
+      home: "ڈیش بورڈ",
       chat: "چیٹ",
       order: "آرڈر",
       profile: "پروفائل",
