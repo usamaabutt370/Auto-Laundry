@@ -86,7 +86,7 @@ export const en = {
 
   tabs: {
     customer: {
-      home: "Home",
+      home: "Dashboard",
       chat: "Chat",
       order: "Order",
       profile: "Profile",

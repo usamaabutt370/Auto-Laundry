@@ -1,9 +1,11 @@
 import { Tabs } from "expo-router";
+import { Image } from "expo-image";
 import { StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { HapticTab } from "@/components/haptic-tab";
 import { IconSymbol } from "@/components/ui/icon-symbol";
+import { assets } from "@/assets/assets";
 import { strings } from "@/constants/strings";
 import { theme } from "@/constants/theme";
 
@@ -50,7 +52,11 @@ export default function PartnerTabsLayout() {
         options={{
           title: strings.tabs.partner.dashboard,
           tabBarIcon: ({ color }) => (
-            <IconSymbol size={26} name="house.fill" color={color} />
+            <Image
+              source={assets.icons.home_icon}
+              style={[styles.tabIcon, { tintColor: color }]}
+              contentFit="contain"
+            />
           ),
         }}
       />
@@ -69,7 +75,11 @@ export default function PartnerTabsLayout() {
         options={{
           title: strings.tabs.partner.chat,
           tabBarIcon: ({ color }) => (
-            <IconSymbol size={26} name="message.fill" color={color} />
+            <Image
+              source={assets.icons.msg_icon}
+              style={[styles.tabIcon, { tintColor: color }]}
+              contentFit="contain"
+            />
           ),
         }}
       />
@@ -78,7 +88,11 @@ export default function PartnerTabsLayout() {
         options={{
           title: strings.tabs.partner.profile,
           tabBarIcon: ({ color }) => (
-            <IconSymbol size={26} name="person.fill" color={color} />
+            <Image
+              source={assets.icons.profile_icon}
+              style={[styles.tabIcon, { tintColor: color }]}
+              contentFit="contain"
+            />
           ),
         }}
       />
@@ -94,5 +108,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 12,
     elevation: 8,
+  },
+  tabIcon: {
+    width: 22,
+    height: 22,
   },
 });
