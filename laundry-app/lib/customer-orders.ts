@@ -18,6 +18,7 @@ export interface CustomerOrderListItem {
   id: string;
   /** Short reference e.g. first 8 chars of UUID */
   orderRef: string;
+  partnerId: string;
   partnerName: string;
   /** @deprecated Prefer scheduleLines — kept for any legacy use */
   subtitle: string;
@@ -58,6 +59,7 @@ export interface CustomerOrderDetailServiceGroup {
 export interface CustomerOrderDetailData {
   id: string;
   orderRef: string;
+  partnerId: string;
   partnerName: string;
   partnerPhone: string;
   partnerAddress: string;
@@ -72,6 +74,17 @@ export interface CustomerOrderDetailData {
   rejectionReasonDetails: string | null;
   serviceGroups: CustomerOrderDetailServiceGroup[];
   placedAtIso: string | null;
+}
+
+export type CustomerOrderFeedbackType = "feedback" | "complaint" | "suggestion";
+
+export interface CustomerOrderFeedbackInput {
+  orderId: string;
+  customerId: string;
+  partnerId: string;
+  rating: number;
+  feedbackType: CustomerOrderFeedbackType;
+  message: string;
 }
 
 type OrderRow = {
@@ -107,6 +120,11 @@ type PartnerRow = {
   business_name: string;
   phone_number?: string | null;
   address?: string | null;
+};
+
+type CustomerOrderFeedbackRow = {
+  id: string;
+  order_id: string;
 };
 
 type OrderServiceItemDetailRow = {
@@ -331,6 +349,7 @@ export async function fetchCustomerOrders(customerId: string): Promise<CustomerO
     return {
       id: order.id,
       orderRef: order.id.replace(/-/g, "").slice(0, 8).toUpperCase(),
+      partnerId: order.partner_id,
       partnerName: partners.get(order.partner_id) ?? "Launderer",
       subtitle,
       scheduleLines,
@@ -346,6 +365,33 @@ export async function fetchCustomerOrders(customerId: string): Promise<CustomerO
       updatedAt: order.updated_at,
     };
   });
+}
+
+export async function findOrdersMissingFeedback(
+  customerId: string,
+  completedOrderIds: string[],
+): Promise<Set<string>> {
+  if (!supabase) {
+    throw new Error("Supabase is not configured.");
+  }
+  if (completedOrderIds.length === 0) {
+    return new Set();
+  }
+
+  const uniqueOrderIds = Array.from(new Set(completedOrderIds));
+  const { data, error } = await supabase
+    .from("customer_order_feedback")
+    .select("order_id")
+    .eq("customer_id", customerId)
+    .in("order_id", uniqueOrderIds);
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  const submitted = new Set(
+    ((data ?? []) as Array<{ order_id: string }>).map((row) => row.order_id),
+  );
+  return new Set(uniqueOrderIds.filter((id) => !submitted.has(id)));
 }
 
 export async function fetchCustomerOrderDetail(
@@ -451,6 +497,7 @@ export async function fetchCustomerOrderDetail(
   return {
     id: order.id,
     orderRef: order.id.replace(/-/g, "").slice(0, 8).toUpperCase(),
+    partnerId: order.partner_id,
     partnerName: partner?.business_name?.trim() || "Launderer",
     partnerPhone: partner?.phone_number?.trim() || "Not provided",
     partnerAddress: partner?.address?.trim() || "Address not available",
@@ -474,4 +521,51 @@ export async function fetchCustomerOrderDetail(
     serviceGroups,
     placedAtIso: order.submitted_at ?? order.created_at,
   };
+}
+
+export async function hasCustomerOrderFeedback(
+  customerId: string,
+  orderId: string,
+): Promise<boolean> {
+  if (!supabase) {
+    throw new Error("Supabase is not configured.");
+  }
+
+  const { data, error } = await supabase
+    .from("customer_order_feedback")
+    .select("id,order_id")
+    .eq("customer_id", customerId)
+    .eq("order_id", orderId)
+    .maybeSingle<CustomerOrderFeedbackRow>();
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return Boolean(data?.id);
+}
+
+export async function submitCustomerOrderFeedback(
+  input: CustomerOrderFeedbackInput,
+): Promise<void> {
+  if (!supabase) {
+    throw new Error("Supabase is not configured.");
+  }
+  if (!input.message.trim()) {
+    throw new Error("Please add your feedback.");
+  }
+  if (input.rating < 1 || input.rating > 5) {
+    throw new Error("Please choose a rating between 1 and 5.");
+  }
+
+  const { error } = await supabase.from("customer_order_feedback").insert({
+    order_id: input.orderId,
+    customer_id: input.customerId,
+    partner_id: input.partnerId,
+    rating: input.rating,
+    feedback_type: input.feedbackType,
+    message: input.message.trim(),
+  });
+  if (error) {
+    throw new Error(error.message);
+  }
 }

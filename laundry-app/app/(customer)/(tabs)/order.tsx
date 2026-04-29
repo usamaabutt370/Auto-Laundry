@@ -1,14 +1,16 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Modal,
   Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import { Swipeable } from "react-native-gesture-handler";
@@ -19,7 +21,12 @@ import { useAuth } from "@/contexts/auth-context";
 import { useLocale } from "@/contexts/locale-context";
 import { useSidebar } from "@/contexts/sidebar-context";
 import { useCustomerOrders } from "@/hooks/use-customer-orders";
-import type { CustomerOrderDisplayStatus } from "@/lib/customer-orders";
+import {
+  findOrdersMissingFeedback,
+  submitCustomerOrderFeedback,
+  type CustomerOrderDisplayStatus,
+  type CustomerOrderFeedbackType,
+} from "@/lib/customer-orders";
 import { getStrings } from "@/locales";
 import { theme } from "@/constants/theme";
 
@@ -50,6 +57,12 @@ export default function CustomerOrderScreen() {
   const s = getStrings(locale).customer.ordersTab;
   const { orders, loading, error, refresh, deleteOrder } = useCustomerOrders(user?.id);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [feedbackVisible, setFeedbackVisible] = useState(false);
+  const [feedbackOrderId, setFeedbackOrderId] = useState<string | null>(null);
+  const [rating, setRating] = useState(0);
+  const [feedbackType, setFeedbackType] = useState<CustomerOrderFeedbackType>("feedback");
+  const [feedbackMessage, setFeedbackMessage] = useState("");
+  const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
 
   const onRefresh = useCallback(() => {
     void (async () => {
@@ -112,6 +125,79 @@ export default function CustomerOrderScreen() {
     }),
     [],
   );
+
+  useEffect(() => {
+    if (!user?.id || orders.length === 0) return;
+    if (feedbackVisible || feedbackOrderId) return;
+
+    const completed = orders.filter((order) => order.displayStatus === "completed");
+    if (completed.length === 0) return;
+
+    let cancelled = false;
+    void (async () => {
+      try {
+        const missing = await findOrdersMissingFeedback(
+          user.id,
+          completed.map((order) => order.id),
+        );
+        if (cancelled || missing.size === 0) return;
+        const target = completed.find((order) => missing.has(order.id));
+        if (!target) return;
+        setFeedbackOrderId(target.id);
+        setFeedbackVisible(true);
+      } catch {
+        // keep orders screen functional if feedback lookup fails
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [orders, user?.id, feedbackVisible, feedbackOrderId]);
+
+  const feedbackOrder =
+    feedbackOrderId != null ? orders.find((order) => order.id === feedbackOrderId) ?? null : null;
+
+  const closeFeedback = useCallback(() => {
+    setFeedbackVisible(false);
+    setFeedbackOrderId(null);
+    setRating(0);
+    setFeedbackType("feedback");
+    setFeedbackMessage("");
+  }, []);
+
+  const submitFeedback = useCallback(async () => {
+    if (!user?.id || !feedbackOrder) return;
+    if (rating < 1) {
+      Alert.alert("Rating required", "Please select a star rating.");
+      return;
+    }
+    if (!feedbackMessage.trim()) {
+      Alert.alert("Feedback required", "Please add your feedback before submitting.");
+      return;
+    }
+
+    try {
+      setIsSubmittingFeedback(true);
+      await submitCustomerOrderFeedback({
+        orderId: feedbackOrder.id,
+        customerId: user.id,
+        partnerId: feedbackOrder.partnerId,
+        rating,
+        feedbackType,
+        message: feedbackMessage.trim(),
+      });
+      closeFeedback();
+      Alert.alert("Thanks!", "Your review has been submitted.");
+    } catch (e) {
+      Alert.alert(
+        "Unable to submit feedback",
+        e instanceof Error ? e.message : "Please try again.",
+      );
+    } finally {
+      setIsSubmittingFeedback(false);
+    }
+  }, [closeFeedback, feedbackMessage, feedbackOrder, feedbackType, rating, user?.id]);
 
   return (
     <View style={styles.container}>
@@ -321,6 +407,93 @@ export default function CustomerOrderScreen() {
           })}
         </ScrollView>
       )}
+      <Modal
+        visible={feedbackVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={closeFeedback}
+      >
+        <View style={styles.modalOverlay}>
+          <Pressable style={styles.modalBackdrop} onPress={closeFeedback} />
+          <View style={styles.feedbackModalCard}>
+            <Text style={styles.feedbackTitle}>Rate your completed order</Text>
+            <Text style={styles.feedbackSubtitle}>
+              {feedbackOrder
+                ? `Order #${feedbackOrder.orderRef} with ${feedbackOrder.partnerName}`
+                : "Share your experience with this service."}
+            </Text>
+            <View style={styles.starRow}>
+              {[1, 2, 3, 4, 5].map((value) => (
+                <Pressable key={value} onPress={() => setRating(value)} style={styles.starBtn}>
+                  <MaterialCommunityIcons
+                    name={value <= rating ? "star" : "star-outline"}
+                    size={30}
+                    color={value <= rating ? "#FBBF24" : "rgba(255,255,255,0.45)"}
+                  />
+                </Pressable>
+              ))}
+            </View>
+            <View style={styles.feedbackTypeRow}>
+              {(
+                [
+                  { id: "feedback", label: "Feedback" },
+                  { id: "complaint", label: "Complaint" },
+                  { id: "suggestion", label: "Suggestion" },
+                ] as const
+              ).map((opt) => {
+                const selected = feedbackType === opt.id;
+                return (
+                  <Pressable
+                    key={opt.id}
+                    onPress={() => setFeedbackType(opt.id)}
+                    style={[
+                      styles.feedbackTypeChip,
+                      selected && styles.feedbackTypeChipSelected,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.feedbackTypeText,
+                        selected && styles.feedbackTypeTextSelected,
+                      ]}
+                    >
+                      {opt.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+            <TextInput
+              value={feedbackMessage}
+              onChangeText={setFeedbackMessage}
+              placeholder="Tell us what went well, or share your complaint..."
+              placeholderTextColor={c.blue500}
+              multiline
+              maxLength={700}
+              style={styles.feedbackInput}
+              textAlignVertical="top"
+            />
+            <View style={styles.feedbackActionsRow}>
+              <Pressable
+                onPress={closeFeedback}
+                style={[styles.feedbackCancelBtn, isSubmittingFeedback && styles.disabled]}
+                disabled={isSubmittingFeedback}
+              >
+                <Text style={styles.feedbackCancelText}>Later</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => void submitFeedback()}
+                style={[styles.feedbackSubmitBtn, isSubmittingFeedback && styles.disabled]}
+                disabled={isSubmittingFeedback}
+              >
+                <Text style={styles.feedbackSubmitText}>
+                  {isSubmittingFeedback ? "Submitting..." : "Submit"}
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -518,6 +691,112 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   reorderButtonText: {
+    color: c.white,
+    fontSize: fs.descText,
+    fontWeight: "700",
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: PAD,
+  },
+  modalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(5, 14, 25, 0.72)",
+  },
+  feedbackModalCard: {
+    width: "100%",
+    backgroundColor: c.blue900,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: c.outline,
+    padding: 16,
+  },
+  feedbackTitle: {
+    color: c.white,
+    fontSize: fs.smallTitle,
+    fontWeight: "700",
+  },
+  feedbackSubtitle: {
+    marginTop: 4,
+    color: c.blue500,
+    fontSize: fs.descText,
+    marginBottom: 12,
+  },
+  starRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+    paddingHorizontal: 6,
+  },
+  starBtn: {
+    padding: 4,
+  },
+  feedbackTypeRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginBottom: 12,
+  },
+  feedbackTypeChip: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: c.outline,
+    borderRadius: 999,
+    paddingVertical: 8,
+    alignItems: "center",
+  },
+  feedbackTypeChipSelected: {
+    borderColor: c.filledButtonBorder,
+    backgroundColor: "rgba(31, 200, 255, 0.12)",
+  },
+  feedbackTypeText: {
+    color: c.blue500,
+    fontSize: fs.xxSmallText,
+    fontWeight: "700",
+  },
+  feedbackTypeTextSelected: {
+    color: c.white,
+  },
+  feedbackInput: {
+    minHeight: 120,
+    borderWidth: 1,
+    borderColor: c.outline,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    color: c.white,
+    fontSize: fs.descText,
+    marginBottom: 12,
+  },
+  feedbackActionsRow: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  feedbackCancelBtn: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: c.outline,
+    borderRadius: 999,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  feedbackCancelText: {
+    color: c.white,
+    fontSize: fs.descText,
+    fontWeight: "700",
+  },
+  feedbackSubmitBtn: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: c.filledButtonBorder,
+    backgroundColor: c.lightBlue,
+    borderRadius: 999,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  feedbackSubmitText: {
     color: c.white,
     fontSize: fs.descText,
     fontWeight: "700",
