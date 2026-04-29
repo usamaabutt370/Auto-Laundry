@@ -375,6 +375,21 @@ export default function PartnerOrderDetailScreen() {
             <MaterialCommunityIcons name="map-marker-outline" size={18} color={c.outline} />
             <Text style={styles.infoValue}>{fullAddress || "Address not available"}</Text>
           </View>
+          <Pressable
+            onPress={() =>
+              router.push({
+                pathname: "/(partner)/chat/[orderId]",
+                params: { orderId: finalDetail.orderId },
+              })
+            }
+            style={({ pressed }) => [
+              styles.chatButton,
+              pressed && styles.pressed,
+            ]}
+          >
+            <MaterialCommunityIcons name="chat-processing-outline" size={16} color={c.white} />
+            <Text style={styles.chatButtonText}>Chat with customer</Text>
+          </Pressable>
         </View>
 
         <View style={styles.sectionCard}>
@@ -731,6 +746,24 @@ const styles = StyleSheet.create({
     color: c.white,
     fontSize: fs.smallText,
     lineHeight: 22,
+  },
+  chatButton: {
+    marginTop: 2,
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    borderWidth: 1,
+    borderColor: c.outline,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: c.background,
+  },
+  chatButtonText: {
+    color: c.white,
+    fontSize: fs.descText,
+    fontWeight: "600",
   },
   serviceCard: {
     paddingTop: 14,
