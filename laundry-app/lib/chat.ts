@@ -173,3 +173,20 @@ export async function markConversationRead(
     .eq("conversation_id", conversationId)
     .eq("user_id", userId);
 }
+
+export async function deleteConversationMessage(
+  messageId: string,
+  userId: string,
+): Promise<void> {
+  if (!supabase) throw new Error("Supabase is not configured.");
+
+  const { error } = await supabase
+    .from("chat_messages")
+    .delete()
+    .eq("id", messageId)
+    .eq("sender_id", userId);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+}

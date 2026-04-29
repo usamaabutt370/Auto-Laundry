@@ -4,6 +4,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   KeyboardAvoidingView,
   Platform,
@@ -13,12 +14,13 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { theme } from "@/constants/theme";
 import { useAuth } from "@/contexts/auth-context";
 import {
   ensureOrderConversation,
+  deleteConversationMessage,
   fetchConversationMessages,
   markConversationRead,
   sendConversationMessage,
@@ -35,8 +37,9 @@ function formatClock(iso: string): string {
   return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
-export function OrderChatScreen(): JSX.Element {
+export function OrderChatScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ orderId?: string }>();
   const { user, role } = useAuth();
   const [conversationId, setConversationId] = useState<string | null>(null);
@@ -89,36 +92,46 @@ export function OrderChatScreen(): JSX.Element {
       .on(
         "postgres_changes",
         {
-          event: "INSERT",
+          event: "*",
           schema: "public",
           table: "chat_messages",
           filter: `conversation_id=eq.${conversationId}`,
         },
         (payload) => {
-          const row = payload.new as {
-            id: string;
-            conversation_id: string;
-            sender_id: string;
-            body: string;
-            created_at: string;
-          };
+          if (payload.eventType === "INSERT") {
+            const row = payload.new as {
+              id: string;
+              conversation_id: string;
+              sender_id: string;
+              body: string;
+              created_at: string;
+            };
 
-          setMessages((prev) => {
-            if (prev.some((m) => m.id === row.id)) return prev;
-            return [
-              ...prev,
-              {
-                id: row.id,
-                conversationId: row.conversation_id,
-                senderId: row.sender_id,
-                body: row.body,
-                createdAt: row.created_at,
-              },
-            ];
-          });
+            setMessages((prev) => {
+              if (prev.some((m) => m.id === row.id)) return prev;
+              return [
+                ...prev,
+                {
+                  id: row.id,
+                  conversationId: row.conversation_id,
+                  senderId: row.sender_id,
+                  body: row.body,
+                  createdAt: row.created_at,
+                },
+              ];
+            });
 
-          if (row.sender_id !== user.id) {
-            void markConversationRead(conversationId, user.id);
+            if (row.sender_id !== user.id) {
+              void markConversationRead(conversationId, user.id);
+            }
+            return;
+          }
+
+          if (payload.eventType === "DELETE") {
+            const oldRow = payload.old as { id?: string } | null;
+            const deletedId = oldRow?.id;
+            if (!deletedId) return;
+            setMessages((prev) => prev.filter((m) => m.id !== deletedId));
           }
         },
       )
@@ -153,11 +166,38 @@ export function OrderChatScreen(): JSX.Element {
     }
   };
 
+  const onDeleteMessage = (messageId: string) => {
+    if (!user?.id) return;
+
+    Alert.alert("Delete message", "Are you sure you want to delete this message?", [
+      {
+        text: "Cancel",
+        style: "cancel",
+      },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: () => {
+          void (async () => {
+            try {
+              await deleteConversationMessage(messageId, user.id);
+              setMessages((prev) => prev.filter((m) => m.id !== messageId));
+            } catch (e) {
+              setError(
+                e instanceof Error ? e.message : "Failed to delete message.",
+              );
+            }
+          })();
+        },
+      },
+    ]);
+  };
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-      keyboardVerticalOffset={Platform.OS === "ios" ? 24 : 0}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 24 : 12}
     >
       <SafeAreaView style={styles.safeTop} edges={["top"]}>
         <View style={styles.headerRow}>
@@ -199,10 +239,19 @@ export function OrderChatScreen(): JSX.Element {
                     mine ? styles.bubbleWrapMine : styles.bubbleWrapOther,
                   ]}
                 >
-                  <View style={[styles.bubble, mine ? styles.bubbleMine : styles.bubbleOther]}>
-                    <Text style={styles.bubbleText}>{item.body}</Text>
-                    <Text style={styles.bubbleTime}>{formatClock(item.createdAt)}</Text>
-                  </View>
+                  <Pressable
+                    onLongPress={() => {
+                      if (mine) onDeleteMessage(item.id);
+                    }}
+                    delayLongPress={280}
+                  >
+                    <View
+                      style={[styles.bubble, mine ? styles.bubbleMine : styles.bubbleOther]}
+                    >
+                      <Text style={styles.bubbleText}>{item.body}</Text>
+                      <Text style={styles.bubbleTime}>{formatClock(item.createdAt)}</Text>
+                    </View>
+                  </Pressable>
                 </View>
               );
             }}
@@ -213,14 +262,19 @@ export function OrderChatScreen(): JSX.Element {
             }
           />
 
-          <View style={styles.composer}>
+          <View style={[styles.composer, { paddingBottom: Math.max(insets.bottom, 10) }]}>
             <TextInput
               value={draft}
               onChangeText={setDraft}
+              onSubmitEditing={() => {
+                void onSend();
+              }}
               placeholder="Type a message..."
               placeholderTextColor={c.blue500}
               style={styles.input}
               multiline
+              returnKeyType="send"
+              submitBehavior="submit"
               maxLength={1000}
             />
             <Pressable
@@ -312,7 +366,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: "rgba(255,255,255,0.12)",
     paddingHorizontal: PAD,
-    paddingVertical: 10,
+    paddingTop: 10,
     flexDirection: "row",
     alignItems: "flex-end",
     gap: 10,
