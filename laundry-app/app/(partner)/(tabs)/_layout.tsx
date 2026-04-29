@@ -54,12 +54,22 @@ export default function PartnerTabsLayout() {
           ),
         }}
       />
+
       <Tabs.Screen
         name="order"
         options={{
           title: strings.tabs.partner.orders,
           tabBarIcon: ({ color }) => (
             <IconSymbol size={26} name="list.bullet" color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="chat"
+        options={{
+          title: strings.tabs.partner.chat,
+          tabBarIcon: ({ color }) => (
+            <IconSymbol size={26} name="message.fill" color={color} />
           ),
         }}
       />

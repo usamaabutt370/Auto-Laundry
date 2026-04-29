@@ -1,3 +1,3 @@
-import { PartnerProfileScreen } from "@/components/partner-profile-screen";
+import LaundrerInfo from "./laundrerinfo";
 
-export default PartnerProfileScreen;
+export default LaundrerInfo;

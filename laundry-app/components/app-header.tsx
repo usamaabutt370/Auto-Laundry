@@ -52,15 +52,17 @@ export function AppHeader({
         </View>
 
         <View style={styles.slot}>
-          <Pressable
-            onPress={onLeftPress}
-            style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
-            hitSlop={HIT_SLOP}
-            accessibilityRole="button"
-            accessibilityLabel={leftAccessibilityLabel}
-          >
-            <MaterialCommunityIcons name={leftIcon} size={ICON_SIZE} color={c.white} />
-          </Pressable>
+          {leftIcon != null && (
+            <Pressable
+              onPress={onLeftPress}
+              style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
+              hitSlop={HIT_SLOP}
+              accessibilityRole="button"
+              accessibilityLabel={leftAccessibilityLabel}
+            >
+              <MaterialCommunityIcons name={leftIcon} size={ICON_SIZE} color={c.white} />
+            </Pressable>
+          )}
         </View>
 
         <View style={styles.spacer} />
@@ -98,8 +100,8 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 20,
-    paddingVertical: 5,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
   titleWrap: {
     ...StyleSheet.absoluteFillObject,
@@ -108,7 +110,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 60,
   },
   title: {
-    fontSize: fs.titleMedium,
+    fontSize: fs.smallTitle,
     fontWeight: "700",
     color: c.white,
     textAlign: "center",

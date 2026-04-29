@@ -135,9 +135,7 @@ export default function PartnerDashboardScreen() {
       <SafeAreaView edges={["top"]} style={styles.safeArea}>
         <AppHeader
           title={s.title}
-          leftIcon="menu"
-          onLeftPress={openSidebar}
-          leftAccessibilityLabel="Menu"
+
           rightElement={
             <DashboardPeriodSelector
               value={period}

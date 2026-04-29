@@ -29,12 +29,13 @@ export default function PartnerLayout() {
           <Stack.Screen name="order" />
           <Stack.Screen name="order-detail" />
           <Stack.Screen name="settings" />
-        <Stack.Screen name="profile" />
-        <Stack.Screen name="support" />
-        <Stack.Screen name="faq" />
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="onboarding" />
-      </Stack>
+          <Stack.Screen name="profile" />
+          <Stack.Screen name="laundrerinfo" />
+          <Stack.Screen name="support" />
+          <Stack.Screen name="faq" />
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="onboarding" />
+        </Stack>
       </MerchantServicesProvider>
     </SidebarProvider>
   );

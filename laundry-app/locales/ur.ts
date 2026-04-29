@@ -86,6 +86,7 @@ export const ur = {
   tabs: {
     customer: {
       home: "ہوم",
+      chat: "چیٹ",
       order: "آرڈر",
       profile: "پروفائل",
       explore: "دریافت",
@@ -93,6 +94,7 @@ export const ur = {
     partner: {
       dashboard: "ڈیش بورڈ",
       orders: "آرڈرز",
+      chat: "چیٹ",
       profile: "پروفائل",
     },
   },

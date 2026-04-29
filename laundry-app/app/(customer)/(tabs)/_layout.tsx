@@ -77,6 +77,7 @@ export default function CustomerTabsLayout() {
           ),
         }}
       />
+
       <Tabs.Screen
         name="order"
         options={{
@@ -84,6 +85,19 @@ export default function CustomerTabsLayout() {
           tabBarIcon: ({ color }) => (
             <Image
               source={assets.icons.order_icon}
+              style={[styles.tabIcon, { tintColor: color }]}
+              contentFit="contain"
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="chat"
+        options={{
+          title: strings.tabs.customer.chat,
+          tabBarIcon: ({ color }) => (
+            <Image
+              source={assets.icons.msg_icon}
               style={[styles.tabIcon, { tintColor: color }]}
               contentFit="contain"
             />

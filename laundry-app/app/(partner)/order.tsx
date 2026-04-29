@@ -1,4 +1,6 @@
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useFocusEffect, useLocalSearchParams, useRouter, useNavigation } from "expo-router";
+
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -334,13 +336,24 @@ export default function PartnerOrderScreen() {
             return (
               <Swipeable
                 key={order.id}
+                friction={2}
+                overshootRight={false}
                 renderRightActions={() => (
                   <View style={styles.swipeActions}>
                     <Pressable
+                      accessibilityRole="button"
                       accessibilityLabel={custStrings.deleteAction}
                       onPress={() => confirmDelete(order.id)}
-                      style={({ pressed }) => [styles.swipeDeleteBtn, pressed && styles.pressed]}
+                      style={({ pressed }) => [
+                        styles.swipeDeleteBtn,
+                        pressed && styles.pressed,
+                      ]}
                     >
+                      <MaterialCommunityIcons
+                        name="trash-can-outline"
+                        size={26}
+                        color={c.white}
+                      />
                       <Text style={styles.swipeDeleteText}>{custStrings.deleteAction}</Text>
                     </Pressable>
                   </View>
@@ -603,23 +616,22 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   swipeActions: {
-    width: 96,
     justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 8,
+    marginVertical: 2,
   },
   swipeDeleteBtn: {
     flex: 1,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: c.outline,
-    backgroundColor: c.background,
-    paddingVertical: 12,
+    backgroundColor: "#b91c1c",
+    borderRadius: 16,
+    justifyContent: "center",
     alignItems: "center",
+    width: 92,
+    paddingVertical: 12,
+    gap: 4,
   },
   swipeDeleteText: {
     color: c.white,
-    fontSize: fs.descText,
+    fontSize: fs.xxSmallText,
     fontWeight: "700",
   },
 });

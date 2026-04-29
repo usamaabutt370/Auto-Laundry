@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View, Switch, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 
 import { theme } from "@/constants/theme";
 import { useAuth } from "@/contexts/auth-context";
@@ -21,36 +21,40 @@ export default function CustomerProfileMenu() {
 
 	const [avatarUri, setAvatarUri] = useState<string | undefined>(undefined);
 
-	useEffect(() => {
-		let mounted = true;
-		(async () => {
-			if (!isSupabaseConfigured()) return;
-			try {
-				const {
-					data: { session },
-				} = await getSession();
-				const currentUser = session?.user ?? user;
-				if (!currentUser?.id) return;
-				const { data, error } = await supabase
-					.from("profiles")
-					.select("image_url,updated_at")
-					.eq("id", currentUser.id)
-					.maybeSingle();
-				if (!mounted) return;
-				if (error || !data) {
-					// fallback to any avatar in user metadata
-					setAvatarUri((currentUser.user_metadata as any)?.avatar_url ?? (currentUser.user_metadata as any)?.picture ?? undefined);
-					return;
-				}
-				setAvatarUri(avatarUrlWithCacheBuster(data.image_url, data.updated_at));
-			} catch {
-				// ignore and leave placeholder
+	const fetchProfile = useCallback(async () => {
+		if (!isSupabaseConfigured()) return;
+		try {
+			const {
+				data: { session },
+			} = await getSession();
+			const currentUser = session?.user ?? user;
+			if (!currentUser?.id) return;
+			const { data, error } = await supabase
+				.from("profiles")
+				.select("image_url,updated_at")
+				.eq("id", currentUser.id)
+				.maybeSingle();
+
+			if (error || !data) {
+				// fallback to any avatar in user metadata
+				setAvatarUri((currentUser.user_metadata as any)?.avatar_url ?? (currentUser.user_metadata as any)?.picture ?? undefined);
+				return;
 			}
-		})();
-		return () => {
-			mounted = false;
-		};
+			setAvatarUri(avatarUrlWithCacheBuster(data.image_url, data.updated_at));
+		} catch {
+			// ignore and leave placeholder
+		}
 	}, [user]);
+
+	useEffect(() => {
+		fetchProfile();
+	}, [fetchProfile]);
+
+	useFocusEffect(
+		useCallback(() => {
+			fetchProfile();
+		}, [fetchProfile])
+	);
 
 	const name =
 		user?.user_metadata?.full_name || user?.user_metadata?.first_name || user?.email || "User";
