@@ -87,12 +87,15 @@ export const en = {
   tabs: {
     customer: {
       home: "Home",
+      chat: "Chat",
       order: "Order",
       profile: "Profile",
       explore: "Explore",
     },
     partner: {
+      dashboard: "Dashboard",
       orders: "Orders",
+      chat: "Chat",
       profile: "Profile",
     },
   },

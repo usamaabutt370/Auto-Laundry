@@ -86,12 +86,15 @@ export const ur = {
   tabs: {
     customer: {
       home: "ہوم",
+      chat: "چیٹ",
       order: "آرڈر",
       profile: "پروفائل",
       explore: "دریافت",
     },
     partner: {
+      dashboard: "ڈیش بورڈ",
       orders: "آرڈرز",
+      chat: "چیٹ",
       profile: "پروفائل",
     },
   },

@@ -6,6 +6,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { strings } from "@/constants/strings";
 import { theme } from "@/constants/theme";
+import { AppHeader } from "@/components/app-header";
 
 const c = theme.colors;
 const FAQ_EXPANDED_BG = c.blue500;
@@ -79,17 +80,13 @@ export default function FAQScreen() {
 
   return (
     <View style={styles.container}>
-      <SafeAreaView style={styles.header} edges={["top"]}>
-        <Pressable
-          onPress={() => router.back()}
-          style={({ pressed }) => [styles.backBtn, pressed && styles.pressed]}
-          accessibilityRole="button"
-          accessibilityLabel="Go back"
-        >
-          <MaterialCommunityIcons name="arrow-left" size={24} color={c.white} />
-        </Pressable>
-        <Text style={styles.headerTitle}>{s.title}</Text>
-        <View style={styles.headerSpacer} />
+      <SafeAreaView edges={["top"]}>
+        <AppHeader
+          title={s.title}
+          leftIcon="arrow-left"
+          onLeftPress={() => router.back()}
+          leftAccessibilityLabel="Go back"
+        />
       </SafeAreaView>
 
       <ScrollView
@@ -116,25 +113,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: c.background,
   },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: c.background,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  backBtn: {
-    padding: 4,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: c.white,
-  },
-  headerSpacer: {
-    width: 32,
-  },
+
   pressed: {
     opacity: 0.8,
   },

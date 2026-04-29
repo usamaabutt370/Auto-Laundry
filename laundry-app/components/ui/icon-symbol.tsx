@@ -21,6 +21,7 @@ const MAPPING = {
   'person.fill': 'person',
   'list.bullet': 'list',
   'scooter': 'two-wheeler',
+  'message.fill': 'chat',
 } as IconMapping;
 
 /**

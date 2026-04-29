@@ -145,7 +145,7 @@ export function PartnerSidebar() {
     if (id === "order") router.push("/(partner)/order");
     else if (id === "settings") router.push("/(partner)/settings");
     else if (id === "profile") router.push("/(partner)/profile");
-    else if (id === "dashboard") router.push("/(partner)");
+    else if (id === "dashboard") router.push("/(partner)/(tabs)");
     else if (id === "support") router.push("/(partner)/support");
     else if (id === "faq") router.push("/(partner)/faq");
   };

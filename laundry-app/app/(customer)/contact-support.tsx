@@ -18,6 +18,7 @@ import { strings } from "@/constants/strings";
 import { theme } from "@/constants/theme";
 import { Spacer } from "@/components/spacer";
 import { ThemedView } from "@/components";
+import { AppHeader } from "@/components/app-header";
 
 const c = theme.colors;
 
@@ -67,17 +68,13 @@ export default function ContactSupportScreen() {
 
   return (
     <View style={styles.container}>
-      <SafeAreaView style={styles.header} edges={["top"]}>
-        <Pressable
-          onPress={() => router.back()}
-          style={({ pressed }) => [styles.backBtn, pressed && styles.pressed]}
-          accessibilityRole="button"
-          accessibilityLabel="Go back"
-        >
-          <MaterialCommunityIcons name="arrow-left" size={24} color={c.white} />
-        </Pressable>
-        <Text style={styles.headerTitle}>{s.title}</Text>
-        <View style={styles.headerSpacer} />
+      <SafeAreaView edges={["top"]}>
+        <AppHeader
+          title={s.title}
+          leftIcon="arrow-left"
+          onLeftPress={() => router.back()}
+          leftAccessibilityLabel="Go back"
+        />
       </SafeAreaView>
 
       <KeyboardAvoidingView
@@ -163,26 +160,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: c.background,
   },
-  header: {
-    gap: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    backgroundColor: c.background,
-  },
-  backBtn: {
-    padding: 4,
-    backgroundColor: "transparent",
-  },
-  headerTitle: {
-    fontSize: 18,
-    color: c.white,
-    fontWeight: "700",
-  },
-  headerSpacer: {
-    width: 32,
-    backgroundColor: "transparent",
-  },
+
   pressed: {
     opacity: 0.8,
   },

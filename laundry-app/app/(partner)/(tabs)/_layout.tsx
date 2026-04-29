@@ -6,10 +6,8 @@ import { HapticTab } from "@/components/haptic-tab";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { strings } from "@/constants/strings";
 import { theme } from "@/constants/theme";
-import { useColorScheme } from "@/hooks/use-color-scheme";
 
 export default function PartnerTabsLayout() {
-  const colorScheme = useColorScheme();
   const insets = useSafeAreaInsets();
   const tabBarBottom = Math.max(insets.bottom, 8);
 
@@ -35,6 +33,14 @@ export default function PartnerTabsLayout() {
         tabBarBackground: () => (
           <View style={[StyleSheet.absoluteFill, styles.tabBarBackground]} />
         ),
+        tabBarLabelStyle: {
+          fontSize: 12,
+          fontWeight: "500",
+        },
+        tabBarItemStyle: {
+          paddingVertical: 5,
+          backgroundColor: "transparent",
+        },
         headerShown: false,
         tabBarButton: HapticTab,
       }}
@@ -42,9 +48,28 @@ export default function PartnerTabsLayout() {
       <Tabs.Screen
         name="index"
         options={{
+          title: strings.tabs.partner.dashboard,
+          tabBarIcon: ({ color }) => (
+            <IconSymbol size={26} name="house.fill" color={color} />
+          ),
+        }}
+      />
+
+      <Tabs.Screen
+        name="order"
+        options={{
           title: strings.tabs.partner.orders,
           tabBarIcon: ({ color }) => (
-            <IconSymbol size={28} name="list.bullet" color={color} />
+            <IconSymbol size={26} name="list.bullet" color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="chat"
+        options={{
+          title: strings.tabs.partner.chat,
+          tabBarIcon: ({ color }) => (
+            <IconSymbol size={26} name="message.fill" color={color} />
           ),
         }}
       />
@@ -53,7 +78,7 @@ export default function PartnerTabsLayout() {
         options={{
           title: strings.tabs.partner.profile,
           tabBarIcon: ({ color }) => (
-            <IconSymbol size={28} name="person.fill" color={color} />
+            <IconSymbol size={26} name="person.fill" color={color} />
           ),
         }}
       />

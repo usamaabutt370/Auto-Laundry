@@ -5,6 +5,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { theme } from "@/constants/theme";
 import { strings } from "@/constants/strings";
+import { AppHeader } from "@/components/app-header";
 
 const c = theme.colors;
 const fs = theme.fontSize;
@@ -13,19 +14,19 @@ export default function PartnerSupportScreen() {
   const router = useRouter();
 
   return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
-      <Pressable
-        onPress={() => router.back()}
-        style={({ pressed }) => [styles.backBtn, pressed && styles.pressed]}
-      >
-        <MaterialCommunityIcons name="arrow-left" size={24} color={c.white} />
-        <Text style={styles.backLabel}>Back</Text>
-      </Pressable>
+    <View style={styles.container}>
+      <SafeAreaView edges={["top"]}>
+        <AppHeader
+          title={strings.partner.sidebar.support}
+          leftIcon="arrow-left"
+          onLeftPress={() => router.back()}
+          leftAccessibilityLabel="Go back"
+        />
+      </SafeAreaView>
       <View style={styles.content}>
-        <Text style={styles.title}>{strings.partner.sidebar.support}</Text>
         <Text style={styles.placeholder}>Support options will appear here.</Text>
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -34,30 +35,14 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: c.background,
   },
-  backBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    gap: 8,
-  },
-  backLabel: {
-    fontSize: fs.smallText,
-    fontWeight: "500",
-    color: c.white,
-  },
+
   pressed: { opacity: 0.8 },
   content: {
     flex: 1,
     paddingHorizontal: 24,
     paddingTop: 24,
   },
-  title: {
-    fontSize: fs.titleMedium,
-    fontWeight: "700",
-    color: c.white,
-    marginBottom: 12,
-  },
+
   placeholder: {
     fontSize: fs.smallText15,
     color: c.blue500,
