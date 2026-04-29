@@ -10,6 +10,17 @@ type OrderOwnerRow = {
   id: string;
   customer_id: string;
   partner_id: string;
+  status?: string;
+};
+
+type ProfileNameRow = {
+  full_name: string | null;
+  first_name: string | null;
+  last_name: string | null;
+};
+
+type PartnerNameRow = {
+  business_name: string | null;
 };
 
 type MessageRow = {
@@ -26,6 +37,30 @@ export interface ChatMessage {
   senderId: string;
   body: string;
   createdAt: string;
+}
+
+export interface OrderChatHeaderData {
+  title: string;
+  subtitle: string;
+}
+
+function formatOrderRef(orderId: string): string {
+  return orderId.replace(/-/g, "").slice(0, 8).toUpperCase();
+}
+
+function humanizeStatus(status: string | null | undefined): string {
+  if (!status?.trim()) return "Pending";
+  return status
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function formatCustomerName(profile: ProfileNameRow | null): string {
+  if (!profile) return "Customer";
+  if (profile.full_name?.trim()) return profile.full_name.trim();
+  const joined = [profile.first_name, profile.last_name].filter(Boolean).join(" ").trim();
+  return joined || "Customer";
 }
 
 function mapRoleToChatRole(role: UserRole | null): "customer" | "launderer" {
@@ -103,6 +138,46 @@ export async function ensureOrderConversation(
   }
 
   return conversationId;
+}
+
+export async function fetchOrderChatHeader(
+  orderId: string,
+  userId: string,
+): Promise<OrderChatHeaderData> {
+  if (!supabase) throw new Error("Supabase is not configured.");
+
+  const { data: order, error: orderError } = await supabase
+    .from("customer_orders")
+    .select("id,customer_id,partner_id,status")
+    .eq("id", orderId)
+    .maybeSingle<OrderOwnerRow>();
+  if (orderError) throw new Error(orderError.message);
+  if (!order) throw new Error("Order not found.");
+  if (order.customer_id !== userId && order.partner_id !== userId) {
+    throw new Error("You are not allowed to view this chat.");
+  }
+
+  let title = "Order chat";
+  if (order.customer_id === userId) {
+    const { data: partnerData } = await supabase
+      .from("partner_profiles")
+      .select("business_name")
+      .eq("id", order.partner_id)
+      .maybeSingle<PartnerNameRow>();
+    title = partnerData?.business_name?.trim() || "Launderer";
+  } else {
+    const { data: customerData } = await supabase
+      .from("profiles")
+      .select("full_name,first_name,last_name")
+      .eq("id", order.customer_id)
+      .maybeSingle<ProfileNameRow>();
+    title = formatCustomerName(customerData ?? null);
+  }
+
+  return {
+    title,
+    subtitle: `Order #${formatOrderRef(order.id)} · ${humanizeStatus(order.status)}`,
+  };
 }
 
 export async function fetchConversationMessages(
@@ -184,6 +259,24 @@ export async function deleteConversationMessage(
     .from("chat_messages")
     .delete()
     .eq("id", messageId)
+    .eq("sender_id", userId);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
+export async function deleteConversationMessages(
+  messageIds: string[],
+  userId: string,
+): Promise<void> {
+  if (!supabase) throw new Error("Supabase is not configured.");
+  if (messageIds.length === 0) return;
+
+  const { error } = await supabase
+    .from("chat_messages")
+    .delete()
+    .in("id", messageIds)
     .eq("sender_id", userId);
 
   if (error) {

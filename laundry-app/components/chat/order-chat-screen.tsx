@@ -20,7 +20,8 @@ import { theme } from "@/constants/theme";
 import { useAuth } from "@/contexts/auth-context";
 import {
   ensureOrderConversation,
-  deleteConversationMessage,
+  fetchOrderChatHeader,
+  deleteConversationMessages,
   fetchConversationMessages,
   markConversationRead,
   sendConversationMessage,
@@ -48,6 +49,9 @@ export function OrderChatScreen() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
+  const [headerTitle, setHeaderTitle] = useState("Order chat");
+  const [headerSubtitle, setHeaderSubtitle] = useState<string | null>(null);
+  const [selectedMessageIds, setSelectedMessageIds] = useState<string[]>([]);
   const listRef = useRef<FlatList<ChatMessage>>(null);
 
   const orderId = typeof params.orderId === "string" ? params.orderId : "";
@@ -57,6 +61,7 @@ export function OrderChatScreen() {
     () => [...messages].sort((a, b) => +new Date(a.createdAt) - +new Date(b.createdAt)),
     [messages],
   );
+  const selectionMode = selectedMessageIds.length > 0;
 
   const refresh = useCallback(async () => {
     if (!canLoad || !user?.id) {
@@ -68,8 +73,12 @@ export function OrderChatScreen() {
       setError(null);
       const convId = await ensureOrderConversation(orderId, user.id, role);
       setConversationId(convId);
+      const header = await fetchOrderChatHeader(orderId, user.id);
+      setHeaderTitle(header.title);
+      setHeaderSubtitle(header.subtitle);
       const rows = await fetchConversationMessages(convId);
       setMessages(rows);
+      setSelectedMessageIds([]);
       await markConversationRead(convId, user.id);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unable to load chat.");
@@ -132,6 +141,7 @@ export function OrderChatScreen() {
             const deletedId = oldRow?.id;
             if (!deletedId) return;
             setMessages((prev) => prev.filter((m) => m.id !== deletedId));
+            setSelectedMessageIds((prev) => prev.filter((id) => id !== deletedId));
           }
         },
       )
@@ -166,32 +176,39 @@ export function OrderChatScreen() {
     }
   };
 
-  const onDeleteMessage = (messageId: string) => {
-    if (!user?.id) return;
+  const toggleMessageSelection = useCallback((messageId: string) => {
+    setSelectedMessageIds((prev) =>
+      prev.includes(messageId) ? prev.filter((id) => id !== messageId) : [...prev, messageId],
+    );
+  }, []);
 
-    Alert.alert("Delete message", "Are you sure you want to delete this message?", [
-      {
-        text: "Cancel",
-        style: "cancel",
-      },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: () => {
-          void (async () => {
-            try {
-              await deleteConversationMessage(messageId, user.id);
-              setMessages((prev) => prev.filter((m) => m.id !== messageId));
-            } catch (e) {
-              setError(
-                e instanceof Error ? e.message : "Failed to delete message.",
-              );
-            }
-          })();
+  const onDeleteSelectedMessages = useCallback(() => {
+    if (!user?.id || selectedMessageIds.length === 0) return;
+
+    Alert.alert(
+      "Delete selected messages",
+      `Delete ${selectedMessageIds.length} selected message${selectedMessageIds.length > 1 ? "s" : ""}?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () => {
+            void (async () => {
+              try {
+                await deleteConversationMessages(selectedMessageIds, user.id);
+                const selectedSet = new Set(selectedMessageIds);
+                setMessages((prev) => prev.filter((m) => !selectedSet.has(m.id)));
+                setSelectedMessageIds([]);
+              } catch (e) {
+                setError(e instanceof Error ? e.message : "Failed to delete messages.");
+              }
+            })();
+          },
         },
-      },
-    ]);
-  };
+      ],
+    );
+  }, [selectedMessageIds, user?.id]);
 
   return (
     <KeyboardAvoidingView
@@ -202,13 +219,39 @@ export function OrderChatScreen() {
       <SafeAreaView style={styles.safeTop} edges={["top"]}>
         <View style={styles.headerRow}>
           <Pressable
-            onPress={() => router.back()}
+            onPress={() => {
+              if (selectionMode) {
+                setSelectedMessageIds([]);
+                return;
+              }
+              router.back();
+            }}
             style={({ pressed }) => [styles.backBtn, pressed && styles.pressed]}
           >
             <MaterialCommunityIcons name="arrow-left" size={24} color={c.white} />
           </Pressable>
-          <Text style={styles.headerTitle}>Order chat</Text>
-          <View style={styles.headerSpacer} />
+          <View style={styles.headerCenter}>
+            <Text style={styles.headerTitle} numberOfLines={1}>
+              {selectionMode
+                ? `${selectedMessageIds.length} selected`
+                : headerTitle}
+            </Text>
+            {!selectionMode && headerSubtitle ? (
+              <Text style={styles.headerSubtitle} numberOfLines={1}>
+                {headerSubtitle}
+              </Text>
+            ) : null}
+          </View>
+          {selectionMode ? (
+            <Pressable
+              onPress={onDeleteSelectedMessages}
+              style={({ pressed }) => [styles.headerActionBtn, pressed && styles.pressed]}
+            >
+              <MaterialCommunityIcons name="delete-outline" size={22} color={c.white} />
+            </Pressable>
+          ) : (
+            <View style={styles.headerSpacer} />
+          )}
         </View>
       </SafeAreaView>
 
@@ -232,21 +275,49 @@ export function OrderChatScreen() {
             contentContainerStyle={styles.listContent}
             renderItem={({ item }) => {
               const mine = item.senderId === user?.id;
+              const isSelected = selectedMessageIds.includes(item.id);
               return (
                 <View
                   style={[
                     styles.bubbleWrap,
                     mine ? styles.bubbleWrapMine : styles.bubbleWrapOther,
+                    selectionMode && mine && styles.bubbleWrapMineSelecting,
                   ]}
                 >
+                  {selectionMode && mine ? (
+                    <View
+                      style={[
+                        styles.selectionCheckboxOutside,
+                        isSelected && styles.selectionCheckboxChecked,
+                      ]}
+                    >
+                      {isSelected ? (
+                        <MaterialCommunityIcons name="check" size={12} color={c.background} />
+                      ) : null}
+                    </View>
+                  ) : null}
                   <Pressable
+                    onPress={() => {
+                      if (selectionMode && mine) {
+                        toggleMessageSelection(item.id);
+                      }
+                    }}
                     onLongPress={() => {
-                      if (mine) onDeleteMessage(item.id);
+                      if (!mine) return;
+                      if (selectionMode) {
+                        toggleMessageSelection(item.id);
+                        return;
+                      }
+                      setSelectedMessageIds([item.id]);
                     }}
                     delayLongPress={280}
                   >
                     <View
-                      style={[styles.bubble, mine ? styles.bubbleMine : styles.bubbleOther]}
+                      style={[
+                        styles.bubble,
+                        mine ? styles.bubbleMine : styles.bubbleOther,
+                        selectionMode && isSelected && styles.bubbleSelected,
+                      ]}
                     >
                       <Text style={styles.bubbleText}>{item.body}</Text>
                       <Text style={styles.bubbleTime}>{formatClock(item.createdAt)}</Text>
@@ -309,13 +380,33 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
   },
+  headerCenter: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 8,
+  },
   backBtn: {
     padding: 6,
+  },
+  headerActionBtn: {
+    width: 32,
+    height: 32,
+    alignItems: "center",
+    justifyContent: "center",
   },
   headerTitle: {
     color: c.white,
     fontSize: fs.titleMedium,
     fontWeight: "700",
+    textAlign: "center",
+  },
+  headerSubtitle: {
+    marginTop: 2,
+    color: c.blue500,
+    fontSize: fs.xxSmallText,
+    fontWeight: "600",
+    textAlign: "center",
   },
   headerSpacer: {
     width: 32,
@@ -330,15 +421,22 @@ const styles = StyleSheet.create({
   },
   bubbleWrap: {
     flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
   },
   bubbleWrapMine: {
     justifyContent: "flex-end",
+  },
+  bubbleWrapMineSelecting: {
+    width: "100%",
+    justifyContent: "space-between",
+    gap: 0,
   },
   bubbleWrapOther: {
     justifyContent: "flex-start",
   },
   bubble: {
-    maxWidth: "80%",
+    maxWidth: "100%",
     borderRadius: 14,
     paddingHorizontal: 12,
     paddingVertical: 10,
@@ -350,6 +448,23 @@ const styles = StyleSheet.create({
     backgroundColor: c.blue900,
     borderWidth: 1,
     borderColor: c.outline,
+  },
+  bubbleSelected: {
+    borderWidth: 2,
+    borderColor: c.white,
+  },
+  selectionCheckboxOutside: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 1.5,
+    borderColor: c.white,
+    backgroundColor: "transparent",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  selectionCheckboxChecked: {
+    backgroundColor: c.white,
   },
   bubbleText: {
     color: c.white,

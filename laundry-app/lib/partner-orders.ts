@@ -111,6 +111,25 @@ type ProfileRow = {
   image_url?: string | null;
 };
 
+async function requireCurrentPartnerId(): Promise<string> {
+  if (!supabase) {
+    throw new Error("Supabase is not configured.");
+  }
+
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
+  if (error) {
+    throw new Error(error.message);
+  }
+  if (!user?.id) {
+    throw new Error("You must be signed in to view partner orders.");
+  }
+
+  return user.id;
+}
+
 function mapToCardStatus(status: PartnerOrderStatus): PartnerOrderCardStatus {
   if (status === "submitted") return "pending";
   if (status === "completed") return "completed";
@@ -197,12 +216,14 @@ export async function fetchPartnerOrders(): Promise<PartnerOrderListItem[]> {
   if (!supabase) {
     throw new Error("Supabase is not configured.");
   }
+  const partnerId = await requireCurrentPartnerId();
 
   const { data, error } = await supabase
     .from("customer_orders")
     .select(
       "id,customer_id,status,estimated_total,estimated_partial_total,pickup_day_label,pickup_time_slot_label,delivery_day_label,delivery_time_slot_label,rejection_reason_option,rejection_reason_details",
     )
+    .eq("partner_id", partnerId)
     .order("created_at", { ascending: false });
   if (error) {
     throw new Error(error.message);
@@ -268,6 +289,7 @@ export async function fetchPartnerOrderDetail(
   if (!supabase) {
     throw new Error("Supabase is not configured.");
   }
+  const partnerId = await requireCurrentPartnerId();
 
   const { data, error } = await supabase
     .from("customer_orders")
@@ -275,6 +297,7 @@ export async function fetchPartnerOrderDetail(
       "id,customer_id,status,estimated_total,estimated_partial_total,pickup_day_label,pickup_time_slot_label,delivery_day_label,delivery_time_slot_label,rejection_reason_option,rejection_reason_details",
     )
     .eq("id", orderId)
+    .eq("partner_id", partnerId)
     .maybeSingle();
   if (error) {
     throw new Error(error.message);
