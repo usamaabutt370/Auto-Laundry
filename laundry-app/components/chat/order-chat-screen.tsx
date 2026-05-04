@@ -16,6 +16,7 @@ import {
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { AppHeader } from "@/components/app-header";
 import { theme } from "@/constants/theme";
 import { useAuth } from "@/contexts/auth-context";
 import {
@@ -36,6 +37,10 @@ const PAD = 20;
 function formatClock(iso: string): string {
   const d = new Date(iso);
   return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+function normalizeDraftMessage(text: string): string {
+  return text.replace(/\s{2,}/g, " ").replace(/^\s+/, "");
 }
 
 export function OrderChatScreen() {
@@ -159,7 +164,7 @@ export function OrderChatScreen() {
 
   const onSend = async () => {
     if (!conversationId || !user?.id || sending) return;
-    const next = draft.trim();
+    const next = normalizeDraftMessage(draft).trim();
     if (!next) return;
 
     setSending(true);
@@ -214,45 +219,33 @@ export function OrderChatScreen() {
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
-      keyboardVerticalOffset={Platform.OS === "ios" ? 24 : 12}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 10}
     >
       <SafeAreaView style={styles.safeTop} edges={["top"]}>
-        <View style={styles.headerRow}>
-          <Pressable
-            onPress={() => {
-              if (selectionMode) {
-                setSelectedMessageIds([]);
-                return;
-              }
-              router.back();
-            }}
-            style={({ pressed }) => [styles.backBtn, pressed && styles.pressed]}
-          >
-            <MaterialCommunityIcons name="arrow-left" size={24} color={c.white} />
-          </Pressable>
-          <View style={styles.headerCenter}>
-            <Text style={styles.headerTitle} numberOfLines={1}>
-              {selectionMode
-                ? `${selectedMessageIds.length} selected`
-                : headerTitle}
-            </Text>
-            {!selectionMode && headerSubtitle ? (
-              <Text style={styles.headerSubtitle} numberOfLines={1}>
-                {headerSubtitle}
-              </Text>
-            ) : null}
-          </View>
-          {selectionMode ? (
-            <Pressable
-              onPress={onDeleteSelectedMessages}
-              style={({ pressed }) => [styles.headerActionBtn, pressed && styles.pressed]}
-            >
-              <MaterialCommunityIcons name="delete-outline" size={22} color={c.white} />
-            </Pressable>
-          ) : (
-            <View style={styles.headerSpacer} />
-          )}
-        </View>
+        <AppHeader
+          title={selectionMode ? `${selectedMessageIds.length} selected` : headerTitle}
+         
+          leftIcon="arrow-left"
+          onLeftPress={() => {
+            if (selectionMode) {
+              setSelectedMessageIds([]);
+              return;
+            }
+            router.back();
+          }}
+          rightElement={
+            selectionMode ? (
+              <Pressable
+                onPress={onDeleteSelectedMessages}
+                style={({ pressed }) => [styles.headerActionBtn, pressed && styles.pressed]}
+                accessibilityRole="button"
+                accessibilityLabel="Delete selected messages"
+              >
+                <MaterialCommunityIcons name="delete-outline" size={22} color={c.white} />
+              </Pressable>
+            ) : null
+          }
+        />
       </SafeAreaView>
 
       {loading ? (
@@ -333,10 +326,17 @@ export function OrderChatScreen() {
             }
           />
 
-          <View style={[styles.composer, { paddingBottom: Math.max(insets.bottom, 10) }]}>
+          <View
+            style={[
+              styles.composer,
+              {
+                paddingBottom: Math.max(insets.bottom, 10),
+              },
+            ]}
+          >
             <TextInput
               value={draft}
-              onChangeText={setDraft}
+              onChangeText={(text) => setDraft(normalizeDraftMessage(text))}
               onSubmitEditing={() => {
                 void onSend();
               }}
@@ -372,44 +372,13 @@ const styles = StyleSheet.create({
     backgroundColor: c.background,
   },
   safeTop: {
-    paddingHorizontal: PAD,
     paddingBottom: 8,
   },
-  headerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  headerCenter: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 8,
-  },
-  backBtn: {
-    padding: 6,
-  },
   headerActionBtn: {
-    width: 32,
-    height: 32,
+    width: 40,
+    height: 40,
     alignItems: "center",
     justifyContent: "center",
-  },
-  headerTitle: {
-    color: c.white,
-    fontSize: fs.titleMedium,
-    fontWeight: "700",
-    textAlign: "center",
-  },
-  headerSubtitle: {
-    marginTop: 2,
-    color: c.blue500,
-    fontSize: fs.xxSmallText,
-    fontWeight: "600",
-    textAlign: "center",
-  },
-  headerSpacer: {
-    width: 32,
   },
   body: {
     flex: 1,
