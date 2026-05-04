@@ -1,5 +1,9 @@
+import * as FileSystem from "expo-file-system";
+
 import { supabase } from "@/lib/supabase";
 import type { UserRole } from "@/types/user";
+
+const CHAT_IMAGES_BUCKET = "chat-images";
 
 type ConversationRow = {
   id: string;
@@ -27,7 +31,8 @@ type MessageRow = {
   id: string;
   conversation_id: string;
   sender_id: string;
-  body: string;
+  body: string | null;
+  image_url: string | null;
   created_at: string;
 };
 
@@ -47,6 +52,7 @@ export interface ChatMessage {
   conversationId: string;
   senderId: string;
   body: string;
+  imageUrl: string | null;
   createdAt: string;
 }
 
@@ -261,7 +267,7 @@ export async function fetchConversationMessages(
 
   const { data, error } = await supabase
     .from("chat_messages")
-    .select("id,conversation_id,sender_id,body,created_at")
+    .select("id,conversation_id,sender_id,body,image_url,created_at")
     .eq("conversation_id", conversationId)
     .order("created_at", { ascending: true })
     .limit(limit);
@@ -271,7 +277,8 @@ export async function fetchConversationMessages(
     id: row.id,
     conversationId: row.conversation_id,
     senderId: row.sender_id,
-    body: row.body,
+    body: row.body ?? "",
+    imageUrl: row.image_url,
     createdAt: row.created_at,
   }));
 }
@@ -366,14 +373,14 @@ export async function fetchMyConversations(
 
   const { data: messageData, error: messageError } = await supabase
     .from("chat_messages")
-    .select("conversation_id,sender_id,body,created_at")
+    .select("conversation_id,sender_id,body,image_url,created_at")
     .in("conversation_id", conversationIds)
     .order("created_at", { ascending: false });
   if (messageError) throw new Error(messageError.message);
 
   const latestByConversation = new Map<
     string,
-    { sender_id: string; body: string; created_at: string }
+    { sender_id: string; body: string | null; image_url: string | null; created_at: string }
   >();
   const unreadByConversation = new Map<string, number>();
   const readMap = new Map(
@@ -382,7 +389,8 @@ export async function fetchMyConversations(
   for (const row of (messageData ?? []) as Array<{
     conversation_id: string;
     sender_id: string;
-    body: string;
+    body: string | null;
+    image_url: string | null;
     created_at: string;
   }>) {
     if (!latestByConversation.has(row.conversation_id)) {
@@ -411,12 +419,17 @@ export async function fetchMyConversations(
       counterpartyName = formatCustomerName(customerProfileMap.get(order.customer_id) ?? null);
     }
 
+    const preview =
+      latest?.body?.trim() ||
+      (latest?.image_url ? "Photo" : "") ||
+      "No messages yet";
+
     return {
       conversationId: conversation.id,
       orderId: conversation.order_id,
       orderRef: formatOrderRef(conversation.order_id),
       counterpartyName,
-      lastMessageBody: latest?.body?.trim() || "No messages yet",
+      lastMessageBody: preview,
       lastMessageAt: latest?.created_at || conversation.updated_at,
       unreadCount: unreadByConversation.get(conversation.id) ?? 0,
       orderStatus: humanizeStatus(order?.status),
@@ -431,15 +444,65 @@ export async function fetchMyConversations(
   });
 }
 
+function extAndContentType(uri: string, mimeType?: string | null): { ext: string; contentType: string } {
+  const m = (mimeType ?? "").toLowerCase();
+  if (m.includes("jpeg") || m.includes("jpg")) return { ext: "jpg", contentType: "image/jpeg" };
+  if (m.includes("png")) return { ext: "png", contentType: "image/png" };
+  if (m.includes("heic")) return { ext: "heic", contentType: "image/heic" };
+  const lower = uri.toLowerCase();
+  if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) return { ext: "jpg", contentType: "image/jpeg" };
+  if (lower.endsWith(".png")) return { ext: "png", contentType: "image/png" };
+  if (lower.endsWith(".heic")) return { ext: "heic", contentType: "image/heic" };
+  return { ext: "jpg", contentType: "image/jpeg" };
+}
+
+export async function uploadChatImage(
+  localUri: string,
+  conversationId: string,
+  userId: string,
+  mimeType?: string | null,
+): Promise<string> {
+  if (!supabase) throw new Error("Supabase is not configured.");
+
+  const { ext, contentType } = extAndContentType(localUri, mimeType);
+
+  const objectId =
+    typeof globalThis.crypto?.randomUUID === "function"
+      ? globalThis.crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  const path = `${userId}/${conversationId}/${objectId}.${ext}`;
+
+  const file = new FileSystem.File(localUri);
+  const arrayBuffer = await file.arrayBuffer();
+
+  const { error: uploadError } = await supabase.storage
+    .from(CHAT_IMAGES_BUCKET)
+    .upload(path, arrayBuffer, {
+      contentType,
+      upsert: false,
+    });
+
+  if (uploadError) {
+    throw new Error(uploadError.message);
+  }
+
+  const {
+    data: { publicUrl },
+  } = supabase.storage.from(CHAT_IMAGES_BUCKET).getPublicUrl(path);
+  return publicUrl;
+}
+
 export async function sendConversationMessage(
   conversationId: string,
   senderId: string,
   body: string,
+  imageUrl?: string | null,
 ): Promise<ChatMessage> {
   if (!supabase) throw new Error("Supabase is not configured.");
 
-  const trimmed = body.trim();
-  if (!trimmed) {
+  const trimmedBody = body.trim();
+  const trimmedImage = (imageUrl ?? "").trim();
+  if (!trimmedBody && !trimmedImage) {
     throw new Error("Cannot send an empty message.");
   }
 
@@ -448,9 +511,10 @@ export async function sendConversationMessage(
     .insert({
       conversation_id: conversationId,
       sender_id: senderId,
-      body: trimmed,
+      body: trimmedBody.length > 0 ? trimmedBody : null,
+      image_url: trimmedImage.length > 0 ? trimmedImage : null,
     })
-    .select("id,conversation_id,sender_id,body,created_at")
+    .select("id,conversation_id,sender_id,body,image_url,created_at")
     .maybeSingle<MessageRow>();
   if (error || !data) {
     throw new Error(error?.message ?? "Unable to send message.");
@@ -460,7 +524,8 @@ export async function sendConversationMessage(
     id: data.id,
     conversationId: data.conversation_id,
     senderId: data.sender_id,
-    body: data.body,
+    body: data.body ?? "",
+    imageUrl: data.image_url,
     createdAt: data.created_at,
   };
 }

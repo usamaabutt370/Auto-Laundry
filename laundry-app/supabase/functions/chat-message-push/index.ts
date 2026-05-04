@@ -20,6 +20,7 @@ interface WebhookPayload {
     conversation_id?: string;
     sender_id?: string;
     body?: string | null;
+    image_url?: string | null;
   };
 }
 
@@ -203,7 +204,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { id: messageId, conversation_id, sender_id, body } = payload.record;
+    const { id: messageId, conversation_id, sender_id, body, image_url } = payload.record;
     if (!conversation_id || !sender_id) {
       return new Response(JSON.stringify({ error: "bad record" }), {
         status: 400,
@@ -276,7 +277,9 @@ Deno.serve(async (req) => {
     const sa = parseServiceAccount();
     const accessToken = await mintAccessToken(sa);
 
-    const snippet = (body ?? "").trim().replace(/\s+/g, " ").slice(0, 120);
+    const textSnippet = (body ?? "").trim().replace(/\s+/g, " ").slice(0, 120);
+    const snippet =
+      textSnippet.length > 0 ? textSnippet : image_url ? "Photo" : "";
     const title = "New message";
 
     const data: Record<string, string> = {

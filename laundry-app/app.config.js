@@ -4,7 +4,7 @@ const appJson = require("./app.json");
 
 require("dotenv").config();
 
-const root = __dirname;
+const root = path.dirname(require.resolve("./app.json"));
 const androidGs = path.join(root, "google-services.json");
 const iosGs = path.join(root, "GoogleService-Info.plist");
 
@@ -13,6 +13,13 @@ const firebasePlugins = [
   "@react-native-firebase/messaging",
   ["expo-build-properties", { ios: { useFrameworks: "static" } }],
   "expo-notifications",
+  [
+    "expo-image-picker",
+    {
+      photosPermission: "Allow access to your photos to share images in chat.",
+      cameraPermission: "Allow the app to use the camera to share photos in chat.",
+    },
+  ],
 ];
 
 module.exports = {

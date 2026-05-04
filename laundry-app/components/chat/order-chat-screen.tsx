@@ -1,5 +1,7 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
+import { Image } from "expo-image";
+import * as ImagePicker from "expo-image-picker";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -7,11 +9,13 @@ import {
   Alert,
   FlatList,
   KeyboardAvoidingView,
+  Linking,
   Platform,
   Pressable,
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
@@ -25,6 +29,7 @@ import {
   fetchConversationMessages,
   markConversationRead,
   sendConversationMessage,
+  uploadChatImage,
   type ChatMessage,
 } from "@/lib/chat";
 import { supabase } from "@/lib/supabase";
@@ -36,6 +41,101 @@ const PAD = 20;
 function formatClock(iso: string): string {
   const d = new Date(iso);
   return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+const CHAT_IMAGE_MAX_W = 200;
+const CHAT_IMAGE_MAX_H = 220;
+
+function layoutChatImageSize(
+  maxW: number,
+  maxH: number,
+  aspect: number | null,
+): { width: number; height: number } {
+  if (!aspect || aspect <= 0 || !Number.isFinite(aspect)) {
+    return { width: maxW, height: maxW };
+  }
+  if (aspect >= 1) {
+    const w = maxW;
+    const h = Math.min(maxH, Math.max(56, w / aspect));
+    return { width: w, height: h };
+  }
+  // Portrait: prefer full width when possible, with a slightly taller slot than `maxH`
+  // so height-limited shots (e.g. phone 9:16) render a bit wider than a strict maxH cap.
+  const portraitSlotH = maxH + Math.max(20, Math.round(maxH * 0.1));
+  let h = maxW / aspect;
+  let w = maxW;
+  if (h > portraitSlotH) {
+    h = portraitSlotH;
+    w = h * aspect;
+  }
+  return { width: Math.max(56, Math.min(maxW, w)), height: Math.max(56, h) };
+}
+
+function ChatMessageImage({
+  uri,
+  selectionMode,
+  alignEnd,
+  onOpen,
+}: {
+  uri: string;
+  selectionMode: boolean;
+  alignEnd: boolean;
+  onOpen: () => void;
+}) {
+  const { width: screenW } = useWindowDimensions();
+  const maxW = Math.min(CHAT_IMAGE_MAX_W, Math.max(112, screenW - PAD * 2 - 48));
+  const [aspect, setAspect] = useState<number | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
+
+  useEffect(() => {
+    setAspect(null);
+    setLoadFailed(false);
+  }, [uri]);
+
+  const { width: imgW, height: imgH } = layoutChatImageSize(maxW, CHAT_IMAGE_MAX_H, aspect);
+
+  if (loadFailed) {
+    return (
+      <Pressable
+        onPress={onOpen}
+        disabled={selectionMode}
+        style={[
+          styles.imageFrame,
+          styles.imageFrameFailed,
+          { width: maxW, minHeight: 72, alignSelf: alignEnd ? "flex-end" : "flex-start" },
+        ]}
+      >
+        <MaterialCommunityIcons name="image-broken-variant" size={28} color={c.blue500} />
+        <Text style={styles.imageFailedText}>Tap to open in browser</Text>
+      </Pressable>
+    );
+  }
+
+  return (
+    <Pressable
+      onPress={onOpen}
+      disabled={selectionMode}
+      style={({ pressed }) => [
+        styles.imageFrame,
+        { width: imgW, height: imgH, alignSelf: alignEnd ? "flex-end" : "flex-start" },
+        pressed && !selectionMode && styles.pressed,
+      ]}
+    >
+      <Image
+        source={{ uri }}
+        style={{ width: imgW, height: imgH }}
+        contentFit="contain"
+        cachePolicy="memory-disk"
+        accessibilityLabel="Chat image"
+        onLoad={(e) => {
+          const w = e.source.width;
+          const h = e.source.height;
+          if (w > 0 && h > 0) setAspect(w / h);
+        }}
+        onError={() => setLoadFailed(true)}
+      />
+    </Pressable>
+  );
 }
 
 export function OrderChatScreen() {
@@ -112,7 +212,8 @@ export function OrderChatScreen() {
               id: string;
               conversation_id: string;
               sender_id: string;
-              body: string;
+              body: string | null;
+              image_url: string | null;
               created_at: string;
             };
 
@@ -124,7 +225,8 @@ export function OrderChatScreen() {
                   id: row.id,
                   conversationId: row.conversation_id,
                   senderId: row.sender_id,
-                  body: row.body,
+                  body: row.body ?? "",
+                  imageUrl: row.image_url,
                   createdAt: row.created_at,
                 },
               ];
@@ -181,6 +283,61 @@ export function OrderChatScreen() {
       prev.includes(messageId) ? prev.filter((id) => id !== messageId) : [...prev, messageId],
     );
   }, []);
+
+  const onPickAndSendImage = useCallback(
+    async (source: "camera" | "library") => {
+      if (!conversationId || !user?.id || sending) return;
+
+      const perm =
+        source === "camera"
+          ? await ImagePicker.requestCameraPermissionsAsync()
+          : await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        Alert.alert(
+          "Permission needed",
+          source === "camera"
+            ? "Camera access is required to take a photo."
+            : "Photo library access is required to attach an image.",
+        );
+        return;
+      }
+
+      const launch =
+        source === "camera" ? ImagePicker.launchCameraAsync : ImagePicker.launchImageLibraryAsync;
+      const result = await launch({
+        mediaTypes: ["images"],
+        quality: 0.72,
+      });
+
+      if (result.canceled || !result.assets?.[0]?.uri) return;
+
+      setSending(true);
+      setError(null);
+      const caption = draft.trim();
+      const asset = result.assets[0];
+      const uri = asset.uri;
+      try {
+        const publicUrl = await uploadChatImage(uri, conversationId, user.id, asset.mimeType);
+        const sent = await sendConversationMessage(conversationId, user.id, caption, publicUrl);
+        setMessages((prev) => [...prev, sent]);
+        setDraft("");
+        await markConversationRead(conversationId, user.id);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Failed to send image.");
+      } finally {
+        setSending(false);
+      }
+    },
+    [conversationId, draft, sending, user?.id],
+  );
+
+  const onAttachImage = useCallback(() => {
+    Alert.alert("Share image", "Choose a source", [
+      { text: "Take photo", onPress: () => void onPickAndSendImage("camera") },
+      { text: "Photo library", onPress: () => void onPickAndSendImage("library") },
+      { text: "Cancel", style: "cancel" },
+    ]);
+  }, [onPickAndSendImage]);
 
   const onDeleteSelectedMessages = useCallback(() => {
     if (!user?.id || selectedMessageIds.length === 0) return;
@@ -319,7 +476,24 @@ export function OrderChatScreen() {
                         selectionMode && isSelected && styles.bubbleSelected,
                       ]}
                     >
-                      <Text style={styles.bubbleText}>{item.body}</Text>
+                      {item.imageUrl ? (
+                        <ChatMessageImage
+                          uri={item.imageUrl}
+                          selectionMode={selectionMode}
+                          alignEnd={mine}
+                          onOpen={() => {
+                            if (selectionMode) return;
+                            void Linking.openURL(item.imageUrl!);
+                          }}
+                        />
+                      ) : null}
+                      {item.body.trim() ? (
+                        <Text
+                          style={item.imageUrl ? [styles.bubbleText, styles.bubbleCaption] : styles.bubbleText}
+                        >
+                          {item.body}
+                        </Text>
+                      ) : null}
                       <Text style={styles.bubbleTime}>{formatClock(item.createdAt)}</Text>
                     </View>
                   </Pressable>
@@ -334,6 +508,20 @@ export function OrderChatScreen() {
           />
 
           <View style={[styles.composer, { paddingBottom: Math.max(insets.bottom, 10) }]}>
+            {Platform.OS !== "web" ? (
+              <Pressable
+                onPress={onAttachImage}
+                disabled={sending}
+                style={({ pressed }) => [
+                  styles.attachBtn,
+                  sending && styles.attachBtnDisabled,
+                  pressed && styles.pressed,
+                ]}
+                accessibilityLabel="Attach image"
+              >
+                <MaterialCommunityIcons name="camera-plus-outline" size={24} color={c.white} />
+              </Pressable>
+            ) : null}
             <TextInput
               value={draft}
               onChangeText={setDraft}
@@ -466,6 +654,28 @@ const styles = StyleSheet.create({
   selectionCheckboxChecked: {
     backgroundColor: c.white,
   },
+  imageFrame: {
+    borderRadius: 10,
+    overflow: "hidden",
+    backgroundColor: "rgba(0,0,0,0.18)",
+    alignSelf: "flex-start",
+    flexShrink: 0,
+  },
+  imageFrameFailed: {
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+  },
+  imageFailedText: {
+    color: c.blue500,
+    fontSize: fs.xxSmallText,
+    textAlign: "center",
+  },
+  bubbleCaption: {
+    marginTop: 8,
+  },
   bubbleText: {
     color: c.white,
     fontSize: fs.smallText,
@@ -476,6 +686,19 @@ const styles = StyleSheet.create({
     fontSize: fs.xxSmallText,
     marginTop: 6,
     alignSelf: "flex-end",
+  },
+  attachBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: c.blue900,
+    borderWidth: 1,
+    borderColor: c.outline,
+  },
+  attachBtnDisabled: {
+    opacity: 0.45,
   },
   composer: {
     borderTopWidth: 1,
