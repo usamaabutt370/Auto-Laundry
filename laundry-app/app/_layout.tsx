@@ -1,8 +1,11 @@
+import "@/lib/chat-push-background";
+
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import "react-native-reanimated";
 
+import { FcmNotificationRouter } from "@/components/chat/fcm-notification-router";
 import { strings } from "@/constants/strings";
 import { AuthProvider } from "@/contexts/auth-context";
 import { LocaleProvider } from "@/contexts/locale-context";
@@ -19,6 +22,7 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <AuthProvider>
         <LocaleProvider>
+          <FcmNotificationRouter />
           <Stack screenOptions={{ headerShown: false }}>
             <Stack.Screen name="index" />
             <Stack.Screen name="(onboarding)" />
