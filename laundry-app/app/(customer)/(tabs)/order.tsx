@@ -59,6 +59,7 @@ export default function CustomerOrderScreen() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [feedbackVisible, setFeedbackVisible] = useState(false);
   const [feedbackOrderId, setFeedbackOrderId] = useState<string | null>(null);
+  const [dismissedFeedbackOrderIds, setDismissedFeedbackOrderIds] = useState<string[]>([]);
   const [rating, setRating] = useState(0);
   const [feedbackType, setFeedbackType] = useState<CustomerOrderFeedbackType>("feedback");
   const [feedbackMessage, setFeedbackMessage] = useState("");
@@ -130,7 +131,10 @@ export default function CustomerOrderScreen() {
     if (!user?.id || orders.length === 0) return;
     if (feedbackVisible || feedbackOrderId) return;
 
-    const completed = orders.filter((order) => order.displayStatus === "completed");
+    const completed = orders.filter(
+      (order) =>
+        order.displayStatus === "completed" && !dismissedFeedbackOrderIds.includes(order.id),
+    );
     if (completed.length === 0) return;
 
     let cancelled = false;
@@ -153,18 +157,23 @@ export default function CustomerOrderScreen() {
     return () => {
       cancelled = true;
     };
-  }, [orders, user?.id, feedbackVisible, feedbackOrderId]);
+  }, [orders, user?.id, feedbackVisible, feedbackOrderId, dismissedFeedbackOrderIds]);
 
   const feedbackOrder =
     feedbackOrderId != null ? orders.find((order) => order.id === feedbackOrderId) ?? null : null;
 
   const closeFeedback = useCallback(() => {
+    if (feedbackOrderId) {
+      setDismissedFeedbackOrderIds((prev) =>
+        prev.includes(feedbackOrderId) ? prev : [...prev, feedbackOrderId],
+      );
+    }
     setFeedbackVisible(false);
     setFeedbackOrderId(null);
     setRating(0);
     setFeedbackType("feedback");
     setFeedbackMessage("");
-  }, []);
+  }, [feedbackOrderId]);
 
   const submitFeedback = useCallback(async () => {
     if (!user?.id || !feedbackOrder) return;
@@ -800,5 +809,8 @@ const styles = StyleSheet.create({
     color: c.white,
     fontSize: fs.descText,
     fontWeight: "700",
+  },
+  disabled: {
+    opacity: 0.55,
   },
 });

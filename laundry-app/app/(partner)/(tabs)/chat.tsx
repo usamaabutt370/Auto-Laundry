@@ -129,7 +129,7 @@ export default function PartnerChatScreen() {
               onPress={() =>
                 router.push({
                   pathname: "/(partner)/chat/[orderId]",
-                  params: { orderId: item.orderId },
+                  params: { orderId: item.orderId, memberName: item.counterpartyName },
                 })
               }
               style={({ pressed }) => [styles.row, pressed && styles.pressed]}

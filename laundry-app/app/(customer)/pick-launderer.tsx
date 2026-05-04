@@ -76,8 +76,8 @@ function LaundererCard({
 }) {
   const businessImageUri = Array.isArray(partner.business_images)
     ? partner.business_images.find(
-        (item): item is string => typeof item === "string" && item.trim().length > 0
-      )
+      (item): item is string => typeof item === "string" && item.trim().length > 0
+    )
     : null;
   const imageUri =
     businessImageUri ?? avatarUrlWithCacheBuster(partner.image_url, partner.updated_at);
@@ -329,9 +329,9 @@ export default function PickLaundererScreen() {
           onPress={() => router.back()}
           style={({ pressed }) => [styles.backBtn, pressed && styles.pressed]}
           accessibilityRole="button"
-          accessibilityLabel="Go back"
+          accessibilityLabel="Close"
         >
-          <MaterialCommunityIcons name="arrow-left" size={24} color={c.white} />
+
         </Pressable>
         <View style={styles.addressWrap}>
           <Image source={assets.icons.location_icon} style={styles.addressIcon} />
@@ -346,7 +346,7 @@ export default function PickLaundererScreen() {
           />
         </View>
       </SafeAreaView>
-      <Text style={styles.screenTitle}>{isReassignMode ? s.reassignTitle : defaultTitle}</Text>
+
 
       {loading ? (
         <View style={styles.centerBlock}>

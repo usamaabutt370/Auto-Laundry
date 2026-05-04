@@ -127,7 +127,7 @@ export default function CustomerChatScreen() {
               onPress={() =>
                 router.push({
                   pathname: "/(customer)/chat/[orderId]",
-                  params: { orderId: item.orderId },
+                  params: { orderId: item.orderId, memberName: item.counterpartyName },
                 })
               }
               style={({ pressed }) => [styles.row, pressed && styles.pressed]}

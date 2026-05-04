@@ -155,7 +155,7 @@ export default function LoginScreen() {
             <ThemedText style={styles.headingTitle}>{s.heading}</ThemedText>
           </ThemedView>
           <Spacer.Column numberOfSpaces={5} />
-          <ThemedText style={styles.subtitle}>{s.subtitle}</ThemedText>
+          
           <Spacer.Column numberOfSpaces={5} />
 
           <Input

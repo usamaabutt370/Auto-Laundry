@@ -96,7 +96,7 @@ export default function CustomerProfileMenu() {
 	return (
 		<SafeAreaView style={styles.container} edges={["top"]}>
 			<ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-				<Pressable style={styles.topRow} onPress={() => router.push("/(customer)/edit-profile") }>
+				<Pressable style={styles.topRow} onPress={() => router.push("/(customer)/edit-profile")}>
 					<View style={styles.avatarWrap}>
 						<Image
 							source={avatarUri ? { uri: avatarUri } : assets.images.profile_placeholder}
@@ -109,15 +109,15 @@ export default function CustomerProfileMenu() {
 					</View>
 				</Pressable>
 
-				
-			
-				
-<View style={styles.divider} />
+
+
+
+				<View style={styles.divider} />
 				<View style={styles.menuGroup}>
-					
-					<MenuItem icon="help-circle-outline" label="FAQ" onPress={()=> router.push("/(customer)/faq")} />
+
+					<MenuItem icon="help-circle-outline" label="FAQ" onPress={() => router.push("/(customer)/faq")} />
 					<MenuItem icon="headphones" label="Contact support" onPress={() => router.push("/(customer)/contact-support")} />
-					<MenuItem icon="cog-outline" label="Settings" onPress={() => router.push("/(customer)/settings")} />
+
 					<MenuItem
 						icon="logout"
 						label="Sign out"
@@ -138,11 +138,11 @@ export default function CustomerProfileMenu() {
 							]);
 						}}
 					/>
-					
-					
-					
+
+
+
 				</View>
-					<View style={styles.roleCard}>
+				<View style={styles.roleCard}>
 					<View style={styles.roleRow}>
 						<Text style={styles.roleLabel}>Become a launderer</Text>
 						<View style={styles.switchWrap}>

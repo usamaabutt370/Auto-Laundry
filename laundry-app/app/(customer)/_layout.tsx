@@ -32,7 +32,10 @@ export default function CustomerLayout() {
           <Stack.Screen name="order-summary" />
           <Stack.Screen name="order-detail" />
           <Stack.Screen name="chat/[orderId]" />
-          <Stack.Screen name="pick-launderer" />
+          <Stack.Screen
+            name="pick-launderer"
+            options={{ presentation: "modal" }}
+          />
           <Stack.Screen name="launderer-detail" />
         </Stack>
       </CustomerOrderDraftProvider>

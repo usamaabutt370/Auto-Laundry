@@ -130,7 +130,7 @@ function ChatMessageImage({
 export function OrderChatScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const params = useLocalSearchParams<{ orderId?: string }>();
+  const params = useLocalSearchParams<{ orderId?: string; memberName?: string }>();
   const { user, role } = useAuth();
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -138,7 +138,8 @@ export function OrderChatScreen() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
-  const [headerTitle, setHeaderTitle] = useState("Order chat");
+  const initialMemberName = typeof params.memberName === "string" ? params.memberName.trim() : "";
+  const [headerTitle, setHeaderTitle] = useState(initialMemberName);
   const [headerSubtitle, setHeaderSubtitle] = useState<string | null>(null);
   const [selectedMessageIds, setSelectedMessageIds] = useState<string[]>([]);
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
