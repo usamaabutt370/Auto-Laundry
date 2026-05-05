@@ -21,6 +21,7 @@ import {
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { AppHeader } from "@/components/app-header";
 import { theme } from "@/constants/theme";
 import { useAuth } from "@/contexts/auth-context";
 import {
@@ -470,7 +471,7 @@ export function OrderChatScreen() {
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
-      keyboardVerticalOffset={Platform.OS === "ios" ? 24 : 12}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 10}
     >
       <SafeAreaView style={styles.safeTop} edges={["top"]}>
         <View style={styles.headerRow}>
@@ -789,22 +790,7 @@ const styles = StyleSheet.create({
     backgroundColor: c.background,
   },
   safeTop: {
-    paddingHorizontal: PAD,
     paddingBottom: 8,
-  },
-  headerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  headerCenter: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 8,
-  },
-  backBtn: {
-    padding: 6,
   },
   headerActionBtn: {
     // width: 32,
