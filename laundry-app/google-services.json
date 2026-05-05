@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "711908137539",
+    "project_id": "auto-laundry",
+    "storage_bucket": "auto-laundry.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:711908137539:android:1856df9ad1be3c56b3d2f6",
+        "android_client_info": {
+          "package_name": "com.autolaundry.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDJTLF0xIzwzx0Asjbbg0d4eQV8opWOmpc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

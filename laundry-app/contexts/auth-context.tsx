@@ -8,6 +8,7 @@ import React, {
 } from "react";
 import type { Session } from "@supabase/supabase-js";
 
+import { registerForChatPush, unregisterChatPush } from "@/lib/push-notifications";
 import { getSession, onAuthStateChange, supabase } from "@/lib/supabase";
 import type { UserRole } from "@/types/user";
 
@@ -92,6 +93,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, [loadRole]);
 
+  useEffect(() => {
+    const uid = session?.user?.id;
+    if (!uid) return;
+    void registerForChatPush(uid);
+  }, [session?.user?.id]);
+
   const refreshRole = useCallback(async () => {
     if (session?.user?.id) {
       await loadRole(session.user.id);
@@ -99,13 +106,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [session?.user?.id, loadRole]);
 
   const signOut = useCallback(async () => {
+    const uid = session?.user?.id;
+    if (uid) {
+      await unregisterChatPush(uid);
+    }
     if (supabase) {
       await supabase.auth.signOut();
       // Manually clear state to ensure real-time UI updates
       setSession(null);
       setRole(null);
     }
-  }, []);
+  }, [session?.user?.id]);
 
   const value = useMemo<AuthState>(
     () => ({

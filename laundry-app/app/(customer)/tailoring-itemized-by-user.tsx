@@ -12,9 +12,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Image } from "expo-image";
 
-import { assets } from "@/assets/assets";
 import { CustomerLiveEstimateFooter } from "@/components/customer-live-estimate-footer";
 import { strings } from "@/constants/strings";
 import { TAILORING_ITEM_DEFS, initialTailoringQuantities } from "@/constants/tailoring-items";
@@ -88,6 +86,10 @@ export default function TailoringItemizedByUserScreen() {
   };
 
   const currencyPrefix = estimate.currencyPrefix;
+  const availableItems = useMemo(
+    () => TAILORING_ITEM_DEFS.filter((item) => tailoringUnitForItem(services, item.name).amount != null),
+    [services],
+  );
 
   const hasSelectedItems = useMemo(() => {
     return Object.values(quantities).some((q) => q > 0);
@@ -125,7 +127,7 @@ export default function TailoringItemizedByUserScreen() {
           when available.
         </Text>
 
-        {TAILORING_ITEM_DEFS.map((item) => {
+        {availableItems.map((item) => {
           const qty = quantities[item.id] ?? 0;
           const { amount: unit, priceLabel } = tailoringUnitForItem(
             services,
@@ -172,6 +174,9 @@ export default function TailoringItemizedByUserScreen() {
             </View>
           );
         })}
+        {availableItems.length === 0 ? (
+          <Text style={styles.emptyText}>No tailoring item prices have been configured by this launderer.</Text>
+        ) : null}
 
         <Text style={styles.sectionLabel}>{sDet.instructions}</Text>
         <TextInput
@@ -284,6 +289,11 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: c.lightBlue,
     marginTop: 6,
+  },
+  emptyText: {
+    color: "rgba(255,255,255,0.75)",
+    fontSize: 14,
+    marginBottom: 12,
   },
   stepper: { flexDirection: "row", alignItems: "center", gap: 10 },
   stepperBtn: {

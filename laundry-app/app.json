@@ -1,10 +1,10 @@
 {
   "expo": {
-    "name": "laundry-app",
+    "name": "Laundri",
     "slug": "laundry-app",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/icons/appstore.png",
     "splash": {
       "image": "./assets/icons/splash-icon.jpg",
       "resizeMode": "contain",
@@ -15,15 +15,18 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.autolaundry.app"
+      "bundleIdentifier": "com.autolaundry.app",
+      "icon": "./assets/icons/appstore.png",
+      "entitlements": {
+        "aps-environment": "development"
+      }
     },
     "android": {
+      "icon": "./assets/icons/playstore.png",
       "package": "com.autolaundry.app",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+        "backgroundColor": "#0E1C2E",
+        "foregroundImage": "./assets/icons/playstore.png"
       },
       "edgeToEdgeEnabled": true,
       "softwareKeyboardLayoutMode": "resize",

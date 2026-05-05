@@ -28,6 +28,7 @@ import {
   washFoldUnitForMode,
 } from "@/lib/customer-order-estimate";
 import { formatMoney } from "@/utils/format-money";
+import { parsePriceDisplay } from "@/utils/parse-price-display";
 
 const c = theme.colors;
 
@@ -64,7 +65,11 @@ export default function PickupServicesScreen() {
       const { profile, services } = await fetchPartnerDetail(draft.partnerId);
       if (cancelled) return;
       setPartnerServiceRows(services);
-      const available = serviceCategoriesToTypes(services.map((row) => row.category))
+      const pricedRows = services.filter((row) => parsePriceDisplay(row.price_display) != null);
+      const available = serviceCategoriesToTypes(
+        pricedRows.map((row) => row.category),
+        pricedRows.map((row) => row.price_display),
+      )
         .filter((id): id is ServiceId => SERVICE_KEYS.includes(id))
         .filter((id, idx, arr) => arr.indexOf(id) === idx);
       setPartnerServiceTypes(available);
@@ -246,8 +251,8 @@ export default function PickupServicesScreen() {
           <Text style={styles.chooseHeading}>{s.chooseServices}</Text>
           <Spacer.Column numberOfSpaces={10} />
           {servicesToShow.map((id) => {
-            const isSelected = selectedIds.includes(id);
             const selectedItems = selectedItemsByService[id];
+            const isSelected = selectedItems.length > 0;
             return (
               <View key={id} style={styles.serviceBlock}>
                 <Pressable
@@ -285,21 +290,17 @@ export default function PickupServicesScreen() {
                     {s[id]}
                   </Text>
                 </Pressable>
-                {isSelected ? (
+                {isSelected && selectedItems.length > 0 ? (
                   <View style={styles.selectedItemsCard}>
-                    {selectedItems.length > 0 ? (
-                      selectedItems.map((item, idx) => (
-                        <View key={`${id}-${item.name}-${idx}`} style={styles.selectedItemRow}>
-                          <Text style={styles.selectedItemName}>{item.name}</Text>
-                          <View style={styles.selectedItemRight}>
-                            <Text style={styles.selectedItemQty}>{item.qtyLabel}</Text>
-                            <Text style={styles.selectedItemPrice}>{item.priceLabel}</Text>
-                          </View>
+                    {selectedItems.map((item, idx) => (
+                      <View key={`${id}-${item.name}-${idx}`} style={styles.selectedItemRow}>
+                        <Text style={styles.selectedItemName}>{item.name}</Text>
+                        <View style={styles.selectedItemRight}>
+                          <Text style={styles.selectedItemQty}>{item.qtyLabel}</Text>
+                          <Text style={styles.selectedItemPrice}>{item.priceLabel}</Text>
                         </View>
-                      ))
-                    ) : (
-                      <Text style={styles.selectedItemsEmpty}>No items selected yet</Text>
-                    )}
+                      </View>
+                    ))}
                   </View>
                 ) : null}
               </View>

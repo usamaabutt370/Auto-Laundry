@@ -90,6 +90,10 @@ export default function DryCleanItemizedByUserScreen() {
   };
 
   const currencyPrefix = estimate.currencyPrefix;
+  const availableItems = useMemo(
+    () => DRY_CLEAN_ITEM_DEFS.filter((item) => dryCleanUnitForItem(services, item.name).amount != null),
+    [services],
+  );
 
   const hasSelectedItems = useMemo(() => {
     return Object.values(quantities).some((q) => q > 0);
@@ -127,7 +131,7 @@ export default function DryCleanItemizedByUserScreen() {
           when available.
         </Text>
 
-        {DRY_CLEAN_ITEM_DEFS.map((item) => {
+        {availableItems.map((item) => {
           const qty = quantities[item.id] ?? 0;
           const { amount: unit, priceLabel } = dryCleanUnitForItem(
             services,
@@ -174,6 +178,9 @@ export default function DryCleanItemizedByUserScreen() {
             </View>
           );
         })}
+        {availableItems.length === 0 ? (
+          <Text style={styles.emptyText}>No dry-cleaning item prices have been configured by this launderer.</Text>
+        ) : null}
 
         <Text style={styles.sectionLabel}>{sDet.instructions}</Text>
         <TextInput
@@ -286,6 +293,11 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: c.lightBlue,
     marginTop: 6,
+  },
+  emptyText: {
+    color: "rgba(255,255,255,0.75)",
+    fontSize: 14,
+    marginBottom: 12,
   },
   stepper: { flexDirection: "row", alignItems: "center", gap: 10 },
   stepperBtn: {

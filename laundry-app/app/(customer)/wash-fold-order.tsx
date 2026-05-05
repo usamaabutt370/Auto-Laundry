@@ -120,6 +120,8 @@ export default function WashFoldOrderScreen() {
   );
   const perBagUnit = washFoldUnitForMode(services, "per_bag");
   const perItemUnit = washFoldUnitForMode(services, "per_item");
+  const perBagAvailable = perBagUnit.amount != null;
+  const perItemAvailable = perItemUnit.amount != null;
   const perBagLabel =
     perBagUnit.amount != null
       ? formatMoney(estimate.currencyPrefix || "RS : ", perBagUnit.amount)
@@ -162,6 +164,17 @@ export default function WashFoldOrderScreen() {
     });
   }, [washFoldPreviewLines, estimate.currencyPrefix, sOrder]);
 
+  useEffect(() => {
+    if (perBagAvailable && perItemAvailable) return;
+    if (perBagAvailable && pricingMode !== "per_bag") {
+      setWashFoldPricingMode("per_bag");
+      return;
+    }
+    if (perItemAvailable && pricingMode !== "per_item") {
+      setWashFoldPricingMode("per_item");
+    }
+  }, [perBagAvailable, perItemAvailable, pricingMode, setWashFoldPricingMode]);
+
   const handleContinue = () => {
     router.back();
   };
@@ -199,9 +212,11 @@ export default function WashFoldOrderScreen() {
         <View style={styles.toggleRow}>
           <Pressable
             onPress={() => setWashFoldPricingMode("per_bag")}
+            disabled={!perBagAvailable}
             style={({ pressed }) => [
               styles.toggleBtn,
               pricingMode === "per_bag" ? styles.toggleBtnActive : styles.toggleBtnIdle,
+              !perBagAvailable && styles.toggleBtnDisabled,
               pressed && styles.pressed,
             ]}
             accessibilityRole="button"
@@ -236,9 +251,11 @@ export default function WashFoldOrderScreen() {
           </Pressable>
           <Pressable
             onPress={() => setWashFoldPricingMode("per_item")}
+            disabled={!perItemAvailable}
             style={({ pressed }) => [
               styles.toggleBtn,
               pricingMode === "per_item" ? styles.toggleBtnActive : styles.toggleBtnIdle,
+              !perItemAvailable && styles.toggleBtnDisabled,
               pressed && styles.pressed,
             ]}
             accessibilityRole="button"
@@ -272,6 +289,9 @@ export default function WashFoldOrderScreen() {
             </View>
           </Pressable>
         </View>
+        {!perBagAvailable && !perItemAvailable ? (
+          <Text style={styles.emptyText}>No wash & fold prices have been configured by this launderer.</Text>
+        ) : null}
 
         <Text style={styles.chargedTitle}>{sOrder.chargedTitle}</Text>
 
@@ -467,6 +487,9 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.12)",
     borderColor: "rgba(255,255,255,0.35)",
   },
+  toggleBtnDisabled: {
+    opacity: 0.45,
+  },
   toggleIcon: { marginRight: 0 },
   toggleLabel: {
     fontSize: 15,
@@ -537,6 +560,11 @@ const styles = StyleSheet.create({
     color: "rgba(255,255,255,0.65)",
     lineHeight: 19,
     marginTop: 8,
+  },
+  emptyText: {
+    color: "rgba(255,255,255,0.75)",
+    fontSize: 14,
+    marginBottom: 10,
   },
   footerSafe: {
     backgroundColor: c.background,
