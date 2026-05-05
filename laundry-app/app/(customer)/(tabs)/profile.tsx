@@ -62,6 +62,33 @@ export default function CustomerProfileMenu() {
 
 	const handleRoleToggle = async (value: boolean) => {
 		if (!user?.id || !isSupabaseConfigured() || isUpdatingRole) return;
+
+		if (value) {
+			setRoleSwitchValue(true);
+			Alert.alert(
+				"Become a Launderer",
+				"Are you sure you want to become a launderer? You will be asked to provide your business details.",
+				[
+					{
+						text: "Cancel",
+						style: "cancel",
+						onPress: () => {
+							setRoleSwitchValue(false);
+						},
+					},
+					{
+						text: "Confirm",
+						onPress: () => performRoleUpdate(true),
+					},
+				]
+			);
+		} else {
+			performRoleUpdate(false);
+		}
+	};
+
+	const performRoleUpdate = async (value: boolean) => {
+		if (!user?.id || !isSupabaseConfigured() || isUpdatingRole) return;
 		setRoleSwitchValue(value);
 		setIsUpdatingRole(true);
 		try {
@@ -74,7 +101,7 @@ export default function CustomerProfileMenu() {
 			await refreshRole();
 			const delayMs = 320;
 			await new Promise((r) => setTimeout(r, delayMs));
-			router.replace(value ? "/(partner)/dashboard" : "/(customer)");
+			router.replace(value ? "/(partner)/onboarding?from=role_switch" : "/(customer)");
 		} catch (err) {
 			setRoleSwitchValue(!value);
 			const message = err instanceof Error ? err.message : "Could not update role.";
@@ -83,6 +110,7 @@ export default function CustomerProfileMenu() {
 			setIsUpdatingRole(false);
 		}
 	};
+
 
 	const isPartnerSwitchOn = roleSwitchValue !== null ? roleSwitchValue : (user?.user_metadata?.role ?? "customer") === "launderer";
 

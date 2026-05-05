@@ -131,6 +131,17 @@ export default function WashFoldOrderScreen() {
       ? formatMoney(estimate.currencyPrefix || "RS : ", perItemUnit.amount)
       : perItemUnit.priceLabel;
 
+  const hasPerBag = perBagUnit.amount !== null;
+  const hasPerItem = perItemUnit.amount !== null;
+
+  useEffect(() => {
+    if (hasPerBag && !hasPerItem && pricingMode !== "per_bag") {
+      setWashFoldPricingMode("per_bag");
+    } else if (!hasPerBag && hasPerItem && pricingMode !== "per_item") {
+      setWashFoldPricingMode("per_item");
+    }
+  }, [hasPerBag, hasPerItem, pricingMode, setWashFoldPricingMode]);
+
   /** Under the stepper: only the line for the active toggle (footer still shows full combined breakdown). */
   const washFoldPreviewLines = useMemo(() => {
     if (!draft.partnerId || loading) return [];
@@ -208,90 +219,107 @@ export default function WashFoldOrderScreen() {
         >
         <Text style={styles.lead}>{sOrder.lead}</Text>
 
-        <Text style={styles.sectionLabel}>{sOrder.howPriced}</Text>
-        <View style={styles.toggleRow}>
-          <Pressable
-            onPress={() => setWashFoldPricingMode("per_bag")}
-            disabled={!perBagAvailable}
-            style={({ pressed }) => [
-              styles.toggleBtn,
-              pricingMode === "per_bag" ? styles.toggleBtnActive : styles.toggleBtnIdle,
-              !perBagAvailable && styles.toggleBtnDisabled,
-              pressed && styles.pressed,
-            ]}
-            accessibilityRole="button"
-            accessibilityState={{ selected: pricingMode === "per_bag" }}
-          >
-            <MaterialCommunityIcons
-              name="package-variant"
-              size={30}
-              color={pricingMode === "per_bag" ? c.themeBlack : "rgba(255,255,255,0.85)"}
-              style={styles.toggleIcon}
-            />
-            <View >
-              <Text
-                style={[
-                  styles.toggleLabel,
-                  pricingMode === "per_bag" ? styles.toggleLabelOnLight : styles.toggleLabelIdle,
-                ]}
-              >
-                {sOrder.perBag}
-              </Text>
-              <Text
-                style={[
-                  styles.toggleRate,
-                  pricingMode === "per_bag"
-                    ? styles.toggleRateOnLight
-                    : styles.toggleRateIdle,
-                ]}
-              >
-                {perBagLabel}
-              </Text>
-            </View>
-          </Pressable>
-          <Pressable
-            onPress={() => setWashFoldPricingMode("per_item")}
-            disabled={!perItemAvailable}
-            style={({ pressed }) => [
-              styles.toggleBtn,
-              pricingMode === "per_item" ? styles.toggleBtnActive : styles.toggleBtnIdle,
-              !perItemAvailable && styles.toggleBtnDisabled,
-              pressed && styles.pressed,
-            ]}
-            accessibilityRole="button"
-            accessibilityState={{ selected: pricingMode === "per_item" }}
-          >
-            <MaterialCommunityIcons
-              name="tshirt-crew-outline"
-              size={30}
-              color={pricingMode === "per_item" ? c.themeBlack : "rgba(255,255,255,0.85)"}
-              style={styles.toggleIcon}
-            />
-            <View>
-              <Text
-                style={[
-                  styles.toggleLabel,
-                  pricingMode === "per_item" ? styles.toggleLabelOnLight : styles.toggleLabelIdle,
-                ]}
-              >
-                {sOrder.perItem}
-              </Text>
-              <Text
-                style={[
-                  styles.toggleRate,
-                  pricingMode === "per_item"
-                    ? styles.toggleRateOnLight
-                    : styles.toggleRateIdle,
-                ]}
-              >
-                {perItemLabel}
-              </Text>
-            </View>
-          </Pressable>
-        </View>
-        {!perBagAvailable && !perItemAvailable ? (
-          <Text style={styles.emptyText}>No wash & fold prices have been configured by this launderer.</Text>
-        ) : null}
+        {hasPerBag && hasPerItem && (
+          <View style={styles.toggleRow}>
+            <Pressable
+              onPress={() => setWashFoldPricingMode("per_bag")}
+              style={({ pressed }) => [
+                styles.toggleBtn,
+                pricingMode === "per_bag" ? styles.toggleBtnActive : styles.toggleBtnIdle,
+                pressed && styles.pressed,
+              ]}
+              accessibilityRole="button"
+              accessibilityState={{ selected: pricingMode === "per_bag" }}
+            >
+              <MaterialCommunityIcons
+                name="package-variant"
+                size={30}
+                color={pricingMode === "per_bag" ? c.themeBlack : "rgba(255,255,255,0.85)"}
+                style={styles.toggleIcon}
+              />
+              <View >
+                <Text
+                  style={[
+                    styles.toggleLabel,
+                    pricingMode === "per_bag" ? styles.toggleLabelOnLight : styles.toggleLabelIdle,
+                  ]}
+                >
+                  {sOrder.perBag}
+                </Text>
+                <Text
+                  style={[
+                    styles.toggleRate,
+                    pricingMode === "per_bag"
+                      ? styles.toggleRateOnLight
+                      : styles.toggleRateIdle,
+                  ]}
+                >
+                  {perBagLabel}
+                </Text>
+              </View>
+            </Pressable>
+            <Pressable
+              onPress={() => setWashFoldPricingMode("per_item")}
+              style={({ pressed }) => [
+                styles.toggleBtn,
+                pricingMode === "per_item" ? styles.toggleBtnActive : styles.toggleBtnIdle,
+                pressed && styles.pressed,
+              ]}
+              accessibilityRole="button"
+              accessibilityState={{ selected: pricingMode === "per_item" }}
+            >
+              <MaterialCommunityIcons
+                name="tshirt-crew-outline"
+                size={30}
+                color={pricingMode === "per_item" ? c.themeBlack : "rgba(255,255,255,0.85)"}
+                style={styles.toggleIcon}
+              />
+              <View>
+                <Text
+                  style={[
+                    styles.toggleLabel,
+                    pricingMode === "per_item" ? styles.toggleLabelOnLight : styles.toggleLabelIdle,
+                  ]}
+                >
+                  {sOrder.perItem}
+                </Text>
+                <Text
+                  style={[
+                    styles.toggleRate,
+                    pricingMode === "per_item"
+                      ? styles.toggleRateOnLight
+                      : styles.toggleRateIdle,
+                  ]}
+                >
+                  {perItemLabel}
+                </Text>
+              </View>
+            </Pressable>
+          </View>
+        )}
+
+        {!hasPerBag && !hasPerItem && !loading && (
+          <Text style={styles.emptyText}>This launderer has not set prices for Wash & Fold yet.</Text>
+        )}
+
+        {(!hasPerBag || !hasPerItem) && (hasPerBag || hasPerItem) && (
+          <View style={[styles.toggleBtn, styles.toggleBtnActive, { marginBottom: 10 }]}>
+             <MaterialCommunityIcons
+                name={hasPerBag ? "package-variant" : "tshirt-crew-outline"}
+                size={30}
+                color={c.themeBlack}
+                style={styles.toggleIcon}
+              />
+              <View>
+                <Text style={[styles.toggleLabel, styles.toggleLabelOnLight]}>
+                  {hasPerBag ? sOrder.perBag : sOrder.perItem}
+                </Text>
+                <Text style={[styles.toggleRate, styles.toggleRateOnLight]}>
+                  {hasPerBag ? perBagLabel : perItemLabel}
+                </Text>
+              </View>
+          </View>
+        )}
 
         <Text style={styles.chargedTitle}>{sOrder.chargedTitle}</Text>
 
@@ -581,4 +609,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   continueLabel: { fontSize: 17, fontWeight: "700", color: c.white },
+  emptyText: {
+    fontSize: 14,
+    color: "rgba(255,255,255,0.75)",
+    marginTop: 4,
+    marginBottom: 16,
+  },
 });

@@ -1,10 +1,13 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useIsFocused } from "@react-navigation/native";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -49,7 +52,14 @@ function statusLabelKey(
   }
 }
 
+/**
+ * Persist dismissed order IDs across screen transitions for the current session.
+ * This prevents the rating modal from reappearing if the screen unmounts/remounts.
+ */
+let sessionDismissedOrderIds: string[] = [];
+
 export default function CustomerOrderScreen() {
+  const isFocused = useIsFocused();
   const router = useRouter();
   const { user } = useAuth();
   const { locale } = useLocale();
@@ -59,7 +69,7 @@ export default function CustomerOrderScreen() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [feedbackVisible, setFeedbackVisible] = useState(false);
   const [feedbackOrderId, setFeedbackOrderId] = useState<string | null>(null);
-  const [dismissedFeedbackOrderIds, setDismissedFeedbackOrderIds] = useState<string[]>([]);
+  const [, setTriggerUpdate] = useState(0); // For forcing re-render when module var changes
   const [rating, setRating] = useState(0);
   const [feedbackType, setFeedbackType] = useState<CustomerOrderFeedbackType>("feedback");
   const [feedbackMessage, setFeedbackMessage] = useState("");
@@ -128,12 +138,12 @@ export default function CustomerOrderScreen() {
   );
 
   useEffect(() => {
-    if (!user?.id || orders.length === 0) return;
+    if (!isFocused || !user?.id || orders.length === 0) return;
     if (feedbackVisible || feedbackOrderId) return;
 
     const completed = orders.filter(
       (order) =>
-        order.displayStatus === "completed" && !dismissedFeedbackOrderIds.includes(order.id),
+        order.displayStatus === "completed" && !sessionDismissedOrderIds.includes(order.id),
     );
     if (completed.length === 0) return;
 
@@ -157,23 +167,31 @@ export default function CustomerOrderScreen() {
     return () => {
       cancelled = true;
     };
-  }, [orders, user?.id, feedbackVisible, feedbackOrderId, dismissedFeedbackOrderIds]);
+  }, [orders, user?.id, feedbackVisible, feedbackOrderId, isFocused]);
 
   const feedbackOrder =
     feedbackOrderId != null ? orders.find((order) => order.id === feedbackOrderId) ?? null : null;
 
   const closeFeedback = useCallback(() => {
-    if (feedbackOrderId) {
-      setDismissedFeedbackOrderIds((prev) =>
-        prev.includes(feedbackOrderId) ? prev : [...prev, feedbackOrderId],
-      );
-    }
     setFeedbackVisible(false);
     setFeedbackOrderId(null);
     setRating(0);
     setFeedbackType("feedback");
     setFeedbackMessage("");
-  }, [feedbackOrderId]);
+  }, []);
+
+  const dismissAllFeedback = useCallback(() => {
+    const completedIds = orders
+      .filter((o) => o.displayStatus === "completed")
+      .map((o) => o.id);
+    completedIds.forEach((id) => {
+      if (!sessionDismissedOrderIds.includes(id)) {
+        sessionDismissedOrderIds.push(id);
+      }
+    });
+    setTriggerUpdate((n) => n + 1);
+    closeFeedback();
+  }, [orders, closeFeedback]);
 
   const submitFeedback = useCallback(async () => {
     if (!user?.id || !feedbackOrder) return;
@@ -196,6 +214,11 @@ export default function CustomerOrderScreen() {
         feedbackType,
         message: feedbackMessage.trim(),
       });
+      // After success, dismiss just this one (it's already in DB now anyway)
+      if (!sessionDismissedOrderIds.includes(feedbackOrder.id)) {
+        sessionDismissedOrderIds.push(feedbackOrder.id);
+      }
+      setTriggerUpdate((n) => n + 1);
       closeFeedback();
       Alert.alert("Thanks!", "Your review has been submitted.");
     } catch (e) {
@@ -269,12 +292,12 @@ export default function CustomerOrderScreen() {
               fullWidth?: boolean;
               valueLines?: number;
             }[] = [
-              {
-                label: s.services,
-                value: order.servicesSummary || s.servicesNone,
-                valueLines: 2,
-              },
-            ];
+                {
+                  label: s.services,
+                  value: order.servicesSummary || s.servicesNone,
+                  valueLines: 2,
+                },
+              ];
             if (order.placedAtIso) {
               metaItems.push({
                 label: s.placed,
@@ -420,10 +443,13 @@ export default function CustomerOrderScreen() {
         visible={feedbackVisible}
         transparent
         animationType="fade"
-        onRequestClose={closeFeedback}
+        onRequestClose={dismissAllFeedback}
       >
-        <View style={styles.modalOverlay}>
-          <Pressable style={styles.modalBackdrop} onPress={closeFeedback} />
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={styles.modalOverlay}
+        >
+          <Pressable style={styles.modalBackdrop} onPress={dismissAllFeedback} />
           <View style={styles.feedbackModalCard}>
             <Text style={styles.feedbackTitle}>Rate your completed order</Text>
             <Text style={styles.feedbackSubtitle}>
@@ -484,7 +510,7 @@ export default function CustomerOrderScreen() {
             />
             <View style={styles.feedbackActionsRow}>
               <Pressable
-                onPress={closeFeedback}
+                onPress={dismissAllFeedback}
                 style={[styles.feedbackCancelBtn, isSubmittingFeedback && styles.disabled]}
                 disabled={isSubmittingFeedback}
               >
@@ -501,7 +527,7 @@ export default function CustomerOrderScreen() {
               </Pressable>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
@@ -523,7 +549,7 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     opacity: 0.9,
     marginBottom: 15,
-  },  scroll: {
+  }, scroll: {
     flex: 1,
   },
   scrollContent: {

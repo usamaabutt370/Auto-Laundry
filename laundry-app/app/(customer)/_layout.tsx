@@ -34,7 +34,7 @@ export default function CustomerLayout() {
           <Stack.Screen name="chat/[orderId]" />
           <Stack.Screen
             name="pick-launderer"
-            options={{ presentation: "modal" }}
+            options={{ presentation: "modal", animation: "slide_from_bottom" }}
           />
           <Stack.Screen name="launderer-detail" />
         </Stack>

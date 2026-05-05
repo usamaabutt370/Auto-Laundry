@@ -40,7 +40,7 @@ const SERVICE_KEYS: LaundererServiceType[] = [
 export default function LaundererDetailScreen() {
   const router = useRouter();
   const { setPartner } = useCustomerOrderDraft();
-  const params = useLocalSearchParams<{ id: string | string[] }>();
+  const params = useLocalSearchParams<{ id: string | string[]; name?: string }>();
   const partnerId = Array.isArray(params.id) ? params.id[0] : params.id;
   const s = strings.customer.laundererDetail;
   const sServices = strings.customer.pickupServices;
@@ -91,8 +91,8 @@ export default function LaundererDetailScreen() {
     () =>
       Array.isArray(profile?.business_images)
         ? profile.business_images.filter(
-            (item): item is string => typeof item === "string" && item.trim().length > 0
-          )
+          (item): item is string => typeof item === "string" && item.trim().length > 0
+        )
         : [],
     [profile?.business_images]
   );
@@ -122,7 +122,7 @@ export default function LaundererDetailScreen() {
           <Pressable onPress={() => router.back()} style={styles.backBtn}>
             <MaterialCommunityIcons name="arrow-left" size={24} color={c.white} />
           </Pressable>
-          <Text style={styles.headerTitle}>{s.title}</Text>
+          <Text style={styles.headerTitle}>{params.name || s.title}</Text>
         </SafeAreaView>
         <View style={styles.centered}>
           <Text style={styles.notFoundText}>Launderer not found</Text>
@@ -138,7 +138,7 @@ export default function LaundererDetailScreen() {
           <Pressable onPress={() => router.back()} style={styles.backBtn}>
             <MaterialCommunityIcons name="arrow-left" size={24} color={c.white} />
           </Pressable>
-          <Text style={styles.headerTitle}>{s.title}</Text>
+          <Text style={styles.headerTitle}>{params.name || s.title}</Text>
           <View style={styles.headerRight} />
         </SafeAreaView>
         <View style={styles.centered}>
@@ -155,7 +155,7 @@ export default function LaundererDetailScreen() {
           <Pressable onPress={() => router.back()} style={styles.backBtn}>
             <MaterialCommunityIcons name="arrow-left" size={24} color={c.white} />
           </Pressable>
-          <Text style={styles.headerTitle}>{s.title}</Text>
+          <Text style={styles.headerTitle}>{params.name || s.title}</Text>
           <View style={styles.headerRight} />
         </SafeAreaView>
         <View style={styles.centered}>
@@ -200,7 +200,9 @@ export default function LaundererDetailScreen() {
         >
           <MaterialCommunityIcons name="arrow-left" size={24} color={c.white} />
         </Pressable>
-        <Text style={styles.headerTitle}>{s.title}</Text>
+        <Text style={styles.headerTitle}>
+          {profile?.business_name?.trim() || params.name || s.title}
+        </Text>
       </SafeAreaView>
 
       <ScrollView
@@ -325,7 +327,7 @@ export default function LaundererDetailScreen() {
             </Text>
           </View>
           {profile.pickup_delivery_enabled &&
-          profile.pickup_delivery_amount?.trim() ? (
+            profile.pickup_delivery_amount?.trim() ? (
             <View style={styles.detailRow}>
               <MaterialCommunityIcons
                 name="truck-delivery-outline"

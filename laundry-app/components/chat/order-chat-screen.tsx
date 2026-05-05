@@ -474,7 +474,7 @@ export function OrderChatScreen() {
 
       {loading ? (
         <View style={styles.center}>
-          <ActivityIndicator color={c.white} />
+
         </View>
       ) : error ? (
         <View style={styles.center}>

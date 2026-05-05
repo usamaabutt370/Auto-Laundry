@@ -328,15 +328,15 @@ export async function fetchCustomerOrders(customerId: string): Promise<CustomerO
     const hasPickup = Boolean(order.pickup_day_label || order.pickup_time_slot_label);
     const subtitle = hasPickup
       ? `Pickup ${formatSchedule(
-          order.pickup_day_label,
-          order.pickup_time_slot_label,
-          "schedule TBD",
-        )}`
+        order.pickup_day_label,
+        order.pickup_time_slot_label,
+        "schedule TBD",
+      )}`
       : `Delivery ${formatSchedule(
-          order.delivery_day_label,
-          order.delivery_time_slot_label,
-          "schedule TBD",
-        )}`;
+        order.delivery_day_label,
+        order.delivery_time_slot_label,
+        "schedule TBD",
+      )}`;
 
     const svcTypes = servicesByOrderId.get(order.id) ?? [];
     const servicesSummary = summarizeServiceTypes(svcTypes);
@@ -433,7 +433,7 @@ export async function fetchCustomerOrderDetail(
   }
   const serviceRows = (serviceData ?? []) as Array<
     Required<Pick<OrderServiceRow, "id" | "order_id" | "service_type">> &
-      Pick<OrderServiceRow, "instructions" | "estimated_amount">
+    Pick<OrderServiceRow, "instructions" | "estimated_amount">
   >;
 
   const serviceIds = serviceRows.map((row) => row.id);
@@ -459,21 +459,21 @@ export async function fetchCustomerOrderDetail(
     const items: CustomerOrderDetailLineItem[] =
       serviceItems.length > 0
         ? serviceItems.map((item) => ({
-            id: item.id,
-            name: item.item_name,
-            quantity: item.quantity,
-            estimatedPriceLabel: formatUsd(item.line_total_amount ?? 0),
-            preferences: service.instructions?.trim() || "None",
-          }))
+          id: item.id,
+          name: item.item_name,
+          quantity: item.quantity,
+          estimatedPriceLabel: formatUsd(item.line_total_amount ?? 0),
+          preferences: service.instructions?.trim() || "None",
+        }))
         : [
-            {
-              id: service.id,
-              name: serviceTypeLabel(service.service_type),
-              quantity: 0,
-              estimatedPriceLabel: formatUsd(fallbackAmount),
-              preferences: service.instructions?.trim() || "None",
-            },
-          ];
+          {
+            id: service.id,
+            name: serviceTypeLabel(service.service_type),
+            quantity: 0,
+            estimatedPriceLabel: formatUsd(fallbackAmount),
+            preferences: service.instructions?.trim() || "None",
+          },
+        ];
 
     return {
       id: service.id,
