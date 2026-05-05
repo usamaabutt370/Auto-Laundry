@@ -1,5 +1,6 @@
 import type { LaundererServiceType } from "@/constants/launderers";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
+import { parsePriceDisplay } from "@/utils/parse-price-display";
 
 export type PartnerPublicRow = {
   id: string;
@@ -132,10 +133,13 @@ export async function fetchPartnerDetail(partnerId: string): Promise<{
 }
 
 export function serviceCategoriesToTypes(
-  categories: (string | null | undefined)[]
+  categories: (string | null | undefined)[],
+  priceDisplays?: (string | null | undefined)[]
 ): LaundererServiceType[] {
   const out = new Set<LaundererServiceType>();
-  for (const raw of categories) {
+  for (const [idx, raw] of categories.entries()) {
+    const priceRaw = priceDisplays?.[idx] ?? "";
+    if (priceDisplays && parsePriceDisplay(priceRaw ?? "") == null) continue;
     const c = (raw ?? "").trim();
     if (c === "Wash & Fold") out.add("washAndFold");
     if (c === "Dry Cleaning") out.add("dryCleaning");
