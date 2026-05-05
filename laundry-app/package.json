@@ -11,6 +11,8 @@
     "lint": "expo lint",
     "build:clean": "expo prebuild --clean",
     "apk:release": "cd android && ./gradlew assembleRelease",
+    "prebuild:android": "npx expo prebuild --platform android",
+    "prebuild:ios": "npx expo prebuild --platform ios",
     "supabase:deploy:chat-push": "npx supabase functions deploy chat-message-push --no-verify-jwt",
     "supabase:deploy:functions": "npx supabase functions deploy chat-message-push --no-verify-jwt",
     "supabase:secret:firebase": "node scripts/set-firebase-service-account-secret.cjs"

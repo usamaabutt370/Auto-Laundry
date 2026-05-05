@@ -41,7 +41,21 @@ export async function registerForChatPush(_userId: string): Promise<void> {
   }
 
   if (Platform.OS === "ios") {
-    await messaging().registerDeviceForRemoteMessages();
+    try {
+      await messaging().registerDeviceForRemoteMessages();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (
+        message.includes("aps-environment") ||
+        message.includes("[messaging/unknown]")
+      ) {
+        console.warn(
+          "[fcm] iOS push entitlement missing. Enable Push Notifications capability and rebuild.",
+        );
+        return;
+      }
+      throw error;
+    }
   }
 
   const token = await messaging().getToken();
