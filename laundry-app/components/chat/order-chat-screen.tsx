@@ -52,15 +52,14 @@ type PendingUploadMessage = {
   tempId: string;
   localUri: string;
   createdAt: string;
-  order: number;
   body: string;
   progress: number;
   statusText: string;
 };
 
 type DisplayChatItem =
-  | { kind: "sent"; item: ChatMessage; order: number }
-  | { kind: "uploading"; item: PendingUploadMessage; order: number };
+  | { kind: "sent"; item: ChatMessage }
+  | { kind: "uploading"; item: PendingUploadMessage };
 
 function layoutChatImageSize(
   maxW: number,
@@ -177,9 +176,7 @@ export function OrderChatScreen() {
     [],
   );
   const [uploadingMessages, setUploadingMessages] = useState<PendingUploadMessage[]>([]);
-  const [messageOrderById, setMessageOrderById] = useState<Record<string, number>>({});
   const listRef = useRef<FlatList<DisplayChatItem>>(null);
-  const nextUploadOrderRef = useRef(1);
 
   const orderId = typeof params.orderId === "string" ? params.orderId : "";
   const canLoad = Boolean(orderId && user?.id);
@@ -189,24 +186,12 @@ export function OrderChatScreen() {
     [messages],
   );
   const displayMessages = useMemo<DisplayChatItem[]>(() => {
-    const sentItems = orderedMessages.map(
-      (item) =>
-        ({
-          kind: "sent",
-          item,
-          order: messageOrderById[item.id] ?? Number.MAX_SAFE_INTEGER,
-        }) as const,
-    );
-    const uploadingItems = uploadingMessages.map(
-      (item) => ({ kind: "uploading", item, order: item.order }) as const,
-    );
+    const sentItems = orderedMessages.map((item) => ({ kind: "sent", item }) as const);
+    const uploadingItems = uploadingMessages.map((item) => ({ kind: "uploading", item }) as const);
     return [...sentItems, ...uploadingItems].sort(
-      (a, b) =>
-        a.order === b.order
-          ? +new Date(a.item.createdAt) - +new Date(b.item.createdAt)
-          : a.order - b.order,
+      (a, b) => +new Date(a.item.createdAt) - +new Date(b.item.createdAt),
     );
-  }, [messageOrderById, orderedMessages, uploadingMessages]);
+  }, [orderedMessages, uploadingMessages]);
   const selectionMode = selectedMessageIds.length > 0;
   const selectableMessageIds = useMemo(
     () => orderedMessages.filter((m) => m.senderId === user?.id).map((m) => m.id),
@@ -217,7 +202,10 @@ export function OrderChatScreen() {
     setMessages((prev) => {
       if (rows.length === 0) return prev;
       const byId = new Map(prev.map((m) => [m.id, m]));
-      for (const row of rows) byId.set(row.id, row);
+      for (const row of rows) {
+        // Keep first-seen row to preserve local timeline position for freshly uploaded images.
+        if (!byId.has(row.id)) byId.set(row.id, row);
+      }
       return Array.from(byId.values());
     });
   }, []);
@@ -338,7 +326,6 @@ export function OrderChatScreen() {
           tempId: `upload-${startedAt}-${idx}`,
           localUri: item.uri,
           createdAt: new Date(startedAt + idx).toISOString(),
-          order: nextUploadOrderRef.current++,
           body: idx === 0 ? next : "",
           progress: 0.05,
           statusText: "Waiting...",
@@ -365,8 +352,7 @@ export function OrderChatScreen() {
           );
           const body = i === 0 ? next : "";
           const sent = await sendConversationMessage(conversationId, user.id, body, publicUrl);
-          setMessageOrderById((prev) => ({ ...prev, [sent.id]: row.order }));
-          appendUniqueMessages([sent]);
+          appendUniqueMessages([{ ...sent, createdAt: row.createdAt }]);
           setUploadingMessages((prev) => prev.filter((upload) => upload.tempId !== row.tempId));
         }
       }
@@ -474,55 +460,42 @@ export function OrderChatScreen() {
       keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 10}
     >
       <SafeAreaView style={styles.safeTop} edges={["top"]}>
-        <View style={styles.headerRow}>
-          <Pressable
-            onPress={() => {
-              if (selectionMode) {
-                setSelectedMessageIds([]);
-                return;
-              }
-              router.back();
-            }}
-            style={({ pressed }) => [styles.backBtn, pressed && styles.pressed]}
-          >
-            <MaterialCommunityIcons name="arrow-left" size={24} color={c.white} />
-          </Pressable>
-          <View style={styles.headerCenter}>
-            <Text style={styles.headerTitle} numberOfLines={1}>
-              {selectionMode
-                ? `${selectedMessageIds.length} selected`
-                : headerTitle}
-            </Text>
-            {!selectionMode && headerSubtitle ? (
-              <Text style={styles.headerSubtitle} numberOfLines={1}>
-                {headerSubtitle}
-              </Text>
-            ) : null}
-          </View>
-          {selectionMode ? (
-            <View style={styles.headerActions}>
-              <Pressable
-                onPress={onSelectAllMessages}
-                style={({ pressed }) => [styles.headerActionBtn, pressed && styles.pressed]}
-              >
-                <Text style={styles.headerActionText}>
-                  {selectedMessageIds.length > 0 &&
-                  selectedMessageIds.length === selectableMessageIds.length
-                    ? "Clear"
-                    : "Select all"}
-                </Text>
-              </Pressable>
-              <Pressable
-                onPress={onDeleteSelectedMessages}
-                style={({ pressed }) => [styles.headerActionBtn, pressed && styles.pressed]}
-              >
-                <MaterialCommunityIcons name="delete-outline" size={22} color={c.white} />
-              </Pressable>
-            </View>
-          ) : (
-            <View style={styles.headerSpacer} />
-          )}
-        </View>
+        <AppHeader
+          title={selectionMode ? `${selectedMessageIds.length} selected` : headerTitle}
+          subtitle={selectionMode ? null : headerSubtitle}
+          leftIcon="arrow-left"
+          onLeftPress={() => {
+            if (selectionMode) {
+              setSelectedMessageIds([]);
+              return;
+            }
+            router.back();
+          }}
+          rightElement={
+            selectionMode ? (
+              <View style={styles.headerActions}>
+                <Pressable
+                  onPress={onSelectAllMessages}
+                  style={({ pressed }) => [styles.headerActionBtn, pressed && styles.pressed]}
+                >
+                  <Text style={styles.headerActionText}>
+                    {selectedMessageIds.length > 0 &&
+                    selectedMessageIds.length === selectableMessageIds.length
+                      ? "Clear"
+                      : "Select all"}
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={onDeleteSelectedMessages}
+                  style={({ pressed }) => [styles.headerActionBtn, pressed && styles.pressed]}
+                >
+                  <MaterialCommunityIcons name="delete-outline" size={22} color={c.white} />
+                </Pressable>
+              </View>
+            ) : null
+          }
+          leftAccessibilityLabel="Go back"
+        />
       </SafeAreaView>
 
       {loading ? (
