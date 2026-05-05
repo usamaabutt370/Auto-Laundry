@@ -7,7 +7,7 @@ import { useRouter, useFocusEffect } from "expo-router";
 import { theme } from "@/constants/theme";
 import { useAuth } from "@/contexts/auth-context";
 import { avatarUrlWithCacheBuster } from "@/lib/avatar";
-import { getSession, isSupabaseConfigured, supabase } from "@/lib/supabase";
+import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { assets } from "@/assets/assets";
 import { AppButton } from "@/components/ui/button";
 import { strings } from "@/constants/strings";
@@ -121,6 +121,26 @@ export default function PartnerProfileMenu() {
 					<MenuItem icon="cog-outline" label="Settings" onPress={() => router.push("/(partner)/settings")} />
 					<MenuItem icon="help-circle-outline" label="FAQ" onPress={() => router.push("/(customer)/faq")} />
 					<MenuItem icon="headphones" label="Contact support" onPress={() => router.push("/(customer)/contact-support")} />
+					<MenuItem
+						icon="logout"
+						label="Sign out"
+						onPress={() => {
+							Alert.alert("Sign out", "Are you sure you want to sign out?", [
+								{ text: "Cancel", style: "cancel" },
+								{
+									text: "Sign out",
+									style: "destructive",
+									onPress: async () => {
+										await signOut();
+										if (router.canDismiss && router.canDismiss()) {
+											router.dismissAll && router.dismissAll();
+										}
+										router.replace("/(auth)/login");
+									},
+								},
+							]);
+						}}
+					/>
 				</View>
 
 				<AppButton
