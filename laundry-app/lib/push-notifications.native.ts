@@ -7,6 +7,19 @@ import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
 let tokenRefreshUnsub: undefined | (() => void);
 
+async function ensureLocalNotificationPermission(): Promise<boolean> {
+  const existing = await Notifications.getPermissionsAsync();
+  if (existing.granted || existing.ios?.status === Notifications.IosAuthorizationStatus.PROVISIONAL) {
+    return true;
+  }
+
+  const requested = await Notifications.requestPermissionsAsync();
+  return (
+    requested.granted ||
+    requested.ios?.status === Notifications.IosAuthorizationStatus.PROVISIONAL
+  );
+}
+
 async function persistToken(token: string): Promise<void> {
   if (!isSupabaseConfigured() || !supabase) return;
   const platform = Platform.OS === "ios" ? "ios" : "android";
@@ -22,6 +35,12 @@ async function persistToken(token: string): Promise<void> {
 export async function registerForChatPush(_userId: string): Promise<void> {
   void _userId;
   if (!isSupabaseConfigured() || !supabase) return;
+
+  const localPermitted = await ensureLocalNotificationPermission();
+  if (!localPermitted) {
+    console.warn("[fcm] notification permission not granted");
+    return;
+  }
 
   const status = await messaging().requestPermission();
   const ok =

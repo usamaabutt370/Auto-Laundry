@@ -8,8 +8,9 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  ScrollView,
   KeyboardAvoidingView,
-  Linking,
+  Modal,
   Platform,
   Pressable,
   StyleSheet,
@@ -46,6 +47,20 @@ function formatClock(iso: string): string {
 const CHAT_IMAGE_MAX_W = 200;
 const CHAT_IMAGE_MAX_H = 220;
 
+type PendingUploadMessage = {
+  tempId: string;
+  localUri: string;
+  createdAt: string;
+  order: number;
+  body: string;
+  progress: number;
+  statusText: string;
+};
+
+type DisplayChatItem =
+  | { kind: "sent"; item: ChatMessage; order: number }
+  | { kind: "uploading"; item: PendingUploadMessage; order: number };
+
 function layoutChatImageSize(
   maxW: number,
   maxH: number,
@@ -76,11 +91,13 @@ function ChatMessageImage({
   selectionMode,
   alignEnd,
   onOpen,
+  onLongPress,
 }: {
   uri: string;
   selectionMode: boolean;
   alignEnd: boolean;
   onOpen: () => void;
+  onLongPress?: () => void;
 }) {
   const { width: screenW } = useWindowDimensions();
   const maxW = Math.min(CHAT_IMAGE_MAX_W, Math.max(112, screenW - PAD * 2 - 48));
@@ -114,6 +131,8 @@ function ChatMessageImage({
   return (
     <Pressable
       onPress={onOpen}
+      onLongPress={onLongPress}
+      delayLongPress={280}
       disabled={selectionMode}
       style={({ pressed }) => [
         styles.imageFrame,
@@ -152,7 +171,14 @@ export function OrderChatScreen() {
   const [headerTitle, setHeaderTitle] = useState("Order chat");
   const [headerSubtitle, setHeaderSubtitle] = useState<string | null>(null);
   const [selectedMessageIds, setSelectedMessageIds] = useState<string[]>([]);
-  const listRef = useRef<FlatList<ChatMessage>>(null);
+  const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
+  const [pendingImages, setPendingImages] = useState<{ uri: string; mimeType?: string | null }[]>(
+    [],
+  );
+  const [uploadingMessages, setUploadingMessages] = useState<PendingUploadMessage[]>([]);
+  const [messageOrderById, setMessageOrderById] = useState<Record<string, number>>({});
+  const listRef = useRef<FlatList<DisplayChatItem>>(null);
+  const nextUploadOrderRef = useRef(1);
 
   const orderId = typeof params.orderId === "string" ? params.orderId : "";
   const canLoad = Boolean(orderId && user?.id);
@@ -161,7 +187,39 @@ export function OrderChatScreen() {
     () => [...messages].sort((a, b) => +new Date(a.createdAt) - +new Date(b.createdAt)),
     [messages],
   );
+  const displayMessages = useMemo<DisplayChatItem[]>(() => {
+    const sentItems = orderedMessages.map(
+      (item) =>
+        ({
+          kind: "sent",
+          item,
+          order: messageOrderById[item.id] ?? Number.MAX_SAFE_INTEGER,
+        }) as const,
+    );
+    const uploadingItems = uploadingMessages.map(
+      (item) => ({ kind: "uploading", item, order: item.order }) as const,
+    );
+    return [...sentItems, ...uploadingItems].sort(
+      (a, b) =>
+        a.order === b.order
+          ? +new Date(a.item.createdAt) - +new Date(b.item.createdAt)
+          : a.order - b.order,
+    );
+  }, [messageOrderById, orderedMessages, uploadingMessages]);
   const selectionMode = selectedMessageIds.length > 0;
+  const selectableMessageIds = useMemo(
+    () => orderedMessages.filter((m) => m.senderId === user?.id).map((m) => m.id),
+    [orderedMessages, user?.id],
+  );
+
+  const appendUniqueMessages = useCallback((rows: ChatMessage[]) => {
+    setMessages((prev) => {
+      if (rows.length === 0) return prev;
+      const byId = new Map(prev.map((m) => [m.id, m]));
+      for (const row of rows) byId.set(row.id, row);
+      return Array.from(byId.values());
+    });
+  }, []);
 
   const refresh = useCallback(async () => {
     if (!canLoad || !user?.id) {
@@ -255,23 +313,67 @@ export function OrderChatScreen() {
   }, [conversationId, user?.id]);
 
   useEffect(() => {
-    if (orderedMessages.length === 0) return;
+    if (displayMessages.length === 0) return;
     listRef.current?.scrollToEnd({ animated: true });
-  }, [orderedMessages.length]);
+  }, [displayMessages.length]);
 
   const onSend = async () => {
     if (!conversationId || !user?.id || sending) return;
     const next = draft.trim();
-    if (!next) return;
+    if (!next && pendingImages.length === 0) return;
+    const pending = pendingImages;
 
     setSending(true);
     try {
       setDraft("");
-      const sent = await sendConversationMessage(conversationId, user.id, next);
-      setMessages((prev) => [...prev, sent]);
+      setPendingImages([]);
+
+      if (pending.length === 0) {
+        const sent = await sendConversationMessage(conversationId, user.id, next);
+        appendUniqueMessages([sent]);
+      } else {
+        const startedAt = Date.now();
+        const pendingUploadRows: PendingUploadMessage[] = pending.map((item, idx) => ({
+          tempId: `upload-${startedAt}-${idx}`,
+          localUri: item.uri,
+          createdAt: new Date(startedAt + idx).toISOString(),
+          order: nextUploadOrderRef.current++,
+          body: idx === 0 ? next : "",
+          progress: 0.05,
+          statusText: "Waiting...",
+        }));
+        setUploadingMessages((prev) => [...prev, ...pendingUploadRows]);
+
+        for (let i = 0; i < pending.length; i++) {
+          const item = pending[i]!;
+          const row = pendingUploadRows[i]!;
+          setUploadingMessages((prev) =>
+            prev.map((upload) =>
+              upload.tempId === row.tempId
+                ? { ...upload, progress: 0.15, statusText: "Uploading image..." }
+                : upload,
+            ),
+          );
+          const publicUrl = await uploadChatImage(item.uri, conversationId, user.id, item.mimeType);
+          setUploadingMessages((prev) =>
+            prev.map((upload) =>
+              upload.tempId === row.tempId
+                ? { ...upload, progress: 0.8, statusText: "Sending message..." }
+                : upload,
+            ),
+          );
+          const body = i === 0 ? next : "";
+          const sent = await sendConversationMessage(conversationId, user.id, body, publicUrl);
+          setMessageOrderById((prev) => ({ ...prev, [sent.id]: row.order }));
+          appendUniqueMessages([sent]);
+          setUploadingMessages((prev) => prev.filter((upload) => upload.tempId !== row.tempId));
+        }
+      }
       await markConversationRead(conversationId, user.id);
     } catch (e) {
       setDraft(next);
+      if (pending.length > 0) setPendingImages(pending);
+      setUploadingMessages([]);
       setError(e instanceof Error ? e.message : "Failed to send message.");
     } finally {
       setSending(false);
@@ -284,7 +386,7 @@ export function OrderChatScreen() {
     );
   }, []);
 
-  const onPickAndSendImage = useCallback(
+  const onPickImage = useCallback(
     async (source: "camera" | "library") => {
       if (!conversationId || !user?.id || sending) return;
 
@@ -307,37 +409,27 @@ export function OrderChatScreen() {
       const result = await launch({
         mediaTypes: ["images"],
         quality: 0.72,
+        ...(source === "library" ? { allowsMultipleSelection: true, selectionLimit: 10 } : {}),
       });
 
       if (result.canceled || !result.assets?.[0]?.uri) return;
-
-      setSending(true);
       setError(null);
-      const caption = draft.trim();
-      const asset = result.assets[0];
-      const uri = asset.uri;
-      try {
-        const publicUrl = await uploadChatImage(uri, conversationId, user.id, asset.mimeType);
-        const sent = await sendConversationMessage(conversationId, user.id, caption, publicUrl);
-        setMessages((prev) => [...prev, sent]);
-        setDraft("");
-        await markConversationRead(conversationId, user.id);
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Failed to send image.");
-      } finally {
-        setSending(false);
-      }
+      const nextImages = result.assets
+        .filter((asset) => Boolean(asset.uri))
+        .map((asset) => ({ uri: asset.uri, mimeType: asset.mimeType }));
+      if (nextImages.length === 0) return;
+      setPendingImages((prev) => [...prev, ...nextImages]);
     },
-    [conversationId, draft, sending, user?.id],
+    [conversationId, sending, user?.id],
   );
 
-  const onAttachImage = useCallback(() => {
-    Alert.alert("Share image", "Choose a source", [
-      { text: "Take photo", onPress: () => void onPickAndSendImage("camera") },
-      { text: "Photo library", onPress: () => void onPickAndSendImage("library") },
-      { text: "Cancel", style: "cancel" },
-    ]);
-  }, [onPickAndSendImage]);
+  const onOpenCamera = useCallback(() => {
+    void onPickImage("camera");
+  }, [onPickImage]);
+
+  const onOpenGallery = useCallback(() => {
+    void onPickImage("library");
+  }, [onPickImage]);
 
   const onDeleteSelectedMessages = useCallback(() => {
     if (!user?.id || selectedMessageIds.length === 0) return;
@@ -366,6 +458,13 @@ export function OrderChatScreen() {
       ],
     );
   }, [selectedMessageIds, user?.id]);
+
+  const onSelectAllMessages = useCallback(() => {
+    if (selectableMessageIds.length === 0) return;
+    setSelectedMessageIds((prev) =>
+      prev.length === selectableMessageIds.length ? [] : selectableMessageIds,
+    );
+  }, [selectableMessageIds]);
 
   return (
     <KeyboardAvoidingView
@@ -400,12 +499,25 @@ export function OrderChatScreen() {
             ) : null}
           </View>
           {selectionMode ? (
-            <Pressable
-              onPress={onDeleteSelectedMessages}
-              style={({ pressed }) => [styles.headerActionBtn, pressed && styles.pressed]}
-            >
-              <MaterialCommunityIcons name="delete-outline" size={22} color={c.white} />
-            </Pressable>
+            <View style={styles.headerActions}>
+              <Pressable
+                onPress={onSelectAllMessages}
+                style={({ pressed }) => [styles.headerActionBtn, pressed && styles.pressed]}
+              >
+                <Text style={styles.headerActionText}>
+                  {selectedMessageIds.length > 0 &&
+                  selectedMessageIds.length === selectableMessageIds.length
+                    ? "Clear"
+                    : "Select all"}
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={onDeleteSelectedMessages}
+                style={({ pressed }) => [styles.headerActionBtn, pressed && styles.pressed]}
+              >
+                <MaterialCommunityIcons name="delete-outline" size={22} color={c.white} />
+              </Pressable>
+            </View>
           ) : (
             <View style={styles.headerSpacer} />
           )}
@@ -427,12 +539,15 @@ export function OrderChatScreen() {
         <View style={styles.body}>
           <FlatList
             ref={listRef}
-            data={orderedMessages}
-            keyExtractor={(item) => item.id}
+            data={displayMessages}
+            keyExtractor={(row) => (row.kind === "sent" ? row.item.id : `uploading-${row.item.tempId}`)}
             contentContainerStyle={styles.listContent}
-            renderItem={({ item }) => {
-              const mine = item.senderId === user?.id;
-              const isSelected = selectedMessageIds.includes(item.id);
+            renderItem={({ item: row }) => {
+              const isUploading = row.kind === "uploading";
+              const sentItem = row.kind === "sent" ? row.item : null;
+              const uploadItem = row.kind === "uploading" ? row.item : null;
+              const mine = isUploading ? true : sentItem?.senderId === user?.id;
+              const isSelected = sentItem ? selectedMessageIds.includes(sentItem.id) : false;
               return (
                 <View
                   style={[
@@ -455,17 +570,20 @@ export function OrderChatScreen() {
                   ) : null}
                   <Pressable
                     onPress={() => {
-                      if (selectionMode && mine) {
-                        toggleMessageSelection(item.id);
+                      if (isUploading) return;
+                      if (selectionMode && mine && sentItem) {
+                        toggleMessageSelection(sentItem.id);
                       }
                     }}
                     onLongPress={() => {
+                      if (isUploading) return;
+                      if (!sentItem) return;
                       if (!mine) return;
                       if (selectionMode) {
-                        toggleMessageSelection(item.id);
+                        toggleMessageSelection(sentItem.id);
                         return;
                       }
-                      setSelectedMessageIds([item.id]);
+                      setSelectedMessageIds([sentItem.id]);
                     }}
                     delayLongPress={280}
                   >
@@ -476,25 +594,63 @@ export function OrderChatScreen() {
                         selectionMode && isSelected && styles.bubbleSelected,
                       ]}
                     >
-                      {item.imageUrl ? (
+                      {!isUploading && sentItem?.imageUrl ? (
                         <ChatMessageImage
-                          uri={item.imageUrl}
+                          uri={sentItem.imageUrl}
                           selectionMode={selectionMode}
                           alignEnd={mine}
                           onOpen={() => {
                             if (selectionMode) return;
-                            void Linking.openURL(item.imageUrl!);
+                            setPreviewImageUrl(sentItem.imageUrl!);
+                          }}
+                          onLongPress={() => {
+                            if (!sentItem) return;
+                            if (!mine) return;
+                            if (selectionMode) {
+                              toggleMessageSelection(sentItem.id);
+                              return;
+                            }
+                            setSelectedMessageIds([sentItem.id]);
                           }}
                         />
+                      ) : isUploading ? (
+                        <View style={styles.uploadingImageWrap}>
+                          <Image
+                            source={{ uri: uploadItem?.localUri }}
+                            style={styles.uploadingImage}
+                            contentFit="cover"
+                            accessibilityLabel="Uploading image"
+                          />
+                          <View style={styles.uploadingOverlay}>
+                            <ActivityIndicator size="small" color={c.white} />
+                            <Text style={styles.uploadingText}>{uploadItem?.statusText}</Text>
+                            <View style={styles.progressTrack}>
+                              <View
+                                style={[
+                                  styles.progressFill,
+                                  { width: `${Math.max(4, Math.round((uploadItem?.progress ?? 0) * 100))}%` },
+                                ]}
+                              />
+                            </View>
+                          </View>
+                        </View>
                       ) : null}
-                      {item.body.trim() ? (
+                      {(uploadItem?.body ?? sentItem?.body ?? "").trim() ? (
                         <Text
-                          style={item.imageUrl ? [styles.bubbleText, styles.bubbleCaption] : styles.bubbleText}
+                          style={
+                            !isUploading && sentItem?.imageUrl
+                              ? [styles.bubbleText, styles.bubbleCaption]
+                              : styles.bubbleText
+                          }
                         >
-                          {item.body}
+                          {uploadItem?.body ?? sentItem?.body}
                         </Text>
                       ) : null}
-                      <Text style={styles.bubbleTime}>{formatClock(item.createdAt)}</Text>
+                      <Text style={styles.bubbleTime}>
+                        {isUploading
+                          ? `${Math.max(1, Math.round((uploadItem?.progress ?? 0) * 100))}%`
+                          : formatClock(sentItem?.createdAt ?? new Date().toISOString())}
+                      </Text>
                     </View>
                   </Pressable>
                 </View>
@@ -508,48 +664,121 @@ export function OrderChatScreen() {
           />
 
           <View style={[styles.composer, { paddingBottom: Math.max(insets.bottom, 10) }]}>
-            {Platform.OS !== "web" ? (
+            {pendingImages.length > 0 ? (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.pendingImagesRow}
+                style={styles.pendingImagesTray}
+              >
+                {pendingImages.map((img, idx) => (
+                  <View key={`${img.uri}-${idx}`} style={styles.pendingImageWrap}>
+                    <Image
+                      source={{ uri: img.uri }}
+                      style={styles.pendingImageThumb}
+                      contentFit="cover"
+                      accessibilityLabel="Pending image attachment"
+                    />
+                    <Pressable
+                      style={styles.pendingImageRemoveBtn}
+                      onPress={() =>
+                        setPendingImages((prev) => prev.filter((_, removeIdx) => removeIdx !== idx))
+                      }
+                      disabled={sending}
+                      accessibilityLabel="Remove image attachment"
+                    >
+                      <MaterialCommunityIcons name="close" size={12} color={c.white} />
+                    </Pressable>
+                  </View>
+                ))}
+              </ScrollView>
+            ) : null}
+            <View style={styles.composerRow}>
+              <View style={styles.inputShell}>
+                <TextInput
+                  value={draft}
+                  onChangeText={setDraft}
+                  onSubmitEditing={() => {
+                    void onSend();
+                  }}
+                  placeholder="Type a message..."
+                  placeholderTextColor={c.blue500}
+                  style={styles.input}
+                  multiline
+                  returnKeyType="send"
+                  submitBehavior="submit"
+                  maxLength={1000}
+                />
+                {Platform.OS !== "web" ? (
+                  <>
+                    <Pressable
+                      onPress={onOpenGallery}
+                      disabled={sending}
+                      style={({ pressed }) => [
+                        styles.cameraInInputBtn,
+                        sending && styles.attachBtnDisabled,
+                        pressed && styles.pressed,
+                      ]}
+                      accessibilityLabel="Open gallery"
+                    >
+                      <MaterialCommunityIcons name="paperclip" size={20} color={c.white} />
+                    </Pressable>
+                    <Pressable
+                      onPress={onOpenCamera}
+                      disabled={sending}
+                      style={({ pressed }) => [
+                        styles.cameraInInputBtn,
+                        sending && styles.attachBtnDisabled,
+                        pressed && styles.pressed,
+                      ]}
+                      accessibilityLabel="Open camera"
+                    >
+                      <MaterialCommunityIcons name="camera-outline" size={22} color={c.white} />
+                    </Pressable>
+                  </>
+                ) : null}
+              </View>
               <Pressable
-                onPress={onAttachImage}
-                disabled={sending}
+                onPress={onSend}
+                disabled={sending || (!draft.trim() && pendingImages.length === 0)}
                 style={({ pressed }) => [
-                  styles.attachBtn,
-                  sending && styles.attachBtnDisabled,
+                  styles.sendBtn,
+                  (sending || (!draft.trim() && pendingImages.length === 0)) && styles.sendBtnDisabled,
                   pressed && styles.pressed,
                 ]}
-                accessibilityLabel="Attach image"
               >
-                <MaterialCommunityIcons name="camera-plus-outline" size={24} color={c.white} />
+                <MaterialCommunityIcons name="send" size={20} color={c.white} />
               </Pressable>
-            ) : null}
-            <TextInput
-              value={draft}
-              onChangeText={setDraft}
-              onSubmitEditing={() => {
-                void onSend();
-              }}
-              placeholder="Type a message..."
-              placeholderTextColor={c.blue500}
-              style={styles.input}
-              multiline
-              returnKeyType="send"
-              submitBehavior="submit"
-              maxLength={1000}
-            />
-            <Pressable
-              onPress={onSend}
-              disabled={sending || !draft.trim()}
-              style={({ pressed }) => [
-                styles.sendBtn,
-                (sending || !draft.trim()) && styles.sendBtnDisabled,
-                pressed && styles.pressed,
-              ]}
-            >
-              <MaterialCommunityIcons name="send" size={20} color={c.white} />
-            </Pressable>
+            </View>
           </View>
         </View>
       )}
+      <Modal
+        visible={Boolean(previewImageUrl)}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPreviewImageUrl(null)}
+      >
+        <View style={styles.previewOverlay}>
+          <Pressable
+            style={styles.previewCloseBtn}
+            onPress={() => setPreviewImageUrl(null)}
+            accessibilityLabel="Close image preview"
+          >
+            <MaterialCommunityIcons name="close" size={26} color={c.white} />
+          </Pressable>
+          <Pressable style={styles.previewBackdrop} onPress={() => setPreviewImageUrl(null)}>
+            {previewImageUrl ? (
+              <Image
+                source={{ uri: previewImageUrl }}
+                style={styles.previewImage}
+                contentFit="contain"
+                accessibilityLabel="Full size chat image"
+              />
+            ) : null}
+          </Pressable>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -578,10 +807,20 @@ const styles = StyleSheet.create({
     padding: 6,
   },
   headerActionBtn: {
-    width: 32,
+    // width: 32,
     height: 32,
     alignItems: "center",
     justifyContent: "center",
+  },
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  headerActionText: {
+    color: c.white,
+    fontSize: fs.xxSmallText,
+    fontWeight: "700",
   },
   headerTitle: {
     color: c.white,
@@ -673,6 +912,42 @@ const styles = StyleSheet.create({
     fontSize: fs.xxSmallText,
     textAlign: "center",
   },
+  uploadingImageWrap: {
+    width: CHAT_IMAGE_MAX_W,
+    height: CHAT_IMAGE_MAX_H,
+    borderRadius: 10,
+    overflow: "hidden",
+    backgroundColor: "rgba(0,0,0,0.18)",
+    alignSelf: "flex-end",
+  },
+  uploadingImage: {
+    width: "100%",
+    height: "100%",
+  },
+  uploadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 10,
+    gap: 8,
+  },
+  uploadingText: {
+    color: c.white,
+    fontSize: fs.xxSmallText,
+    fontWeight: "700",
+  },
+  progressTrack: {
+    width: "88%",
+    height: 5,
+    borderRadius: 999,
+    backgroundColor: "rgba(255,255,255,0.28)",
+    overflow: "hidden",
+  },
+  progressFill: {
+    height: "100%",
+    backgroundColor: c.white,
+  },
   bubbleCaption: {
     marginTop: 8,
   },
@@ -688,41 +963,87 @@ const styles = StyleSheet.create({
     alignSelf: "flex-end",
   },
   attachBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    // kept for backward compatibility in case reused later
+    width: 0,
+    height: 0,
+  },
+  pendingImageThumb: {
+    width: "100%",
+    height: "100%",
+  },
+  pendingImageRemoveBtn: {
+    position: "absolute",
+    top: 2,
+    right: 2,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: c.blue900,
-    borderWidth: 1,
-    borderColor: c.outline,
-  },
-  attachBtnDisabled: {
-    opacity: 0.45,
+    backgroundColor: "rgba(0,0,0,0.6)",
   },
   composer: {
     borderTopWidth: 1,
     borderTopColor: "rgba(255,255,255,0.12)",
     paddingHorizontal: PAD,
     paddingTop: 10,
-    flexDirection: "row",
-    alignItems: "flex-end",
-    gap: 10,
+    gap: 8,
     backgroundColor: c.background,
   },
-  input: {
+  pendingImagesTray: {
+    maxHeight: 40,
+  },
+  composerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  inputShell: {
     flex: 1,
     minHeight: 42,
-    maxHeight: 120,
     borderRadius: 14,
     borderWidth: 1,
     borderColor: c.outline,
     backgroundColor: c.blue900,
+    paddingLeft: 8,
+    paddingRight: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  pendingImageWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    overflow: "hidden",
+    backgroundColor: c.blue900,
+    borderWidth: 1,
+    borderColor: c.outline,
+    marginRight: 6,
+  },
+  pendingImagesRow: {
+    paddingRight: 2,
+  },
+  input: {
+    flex: 1,
+    minHeight: 40,
+    maxHeight: 120,
     color: c.white,
-    paddingHorizontal: 12,
+    paddingHorizontal: 4,
     paddingTop: 10,
     paddingBottom: 10,
     fontSize: fs.smallText,
+  },
+  cameraInInputBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 6,
+  },
+  attachBtnDisabled: {
+    opacity: 0.45,
   },
   sendBtn: {
     width: 42,
@@ -772,5 +1093,32 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.85,
+  },
+  previewOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.92)",
+  },
+  previewCloseBtn: {
+    position: "absolute",
+    top: 52,
+    right: 16,
+    zIndex: 2,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(0,0,0,0.35)",
+  },
+  previewBackdrop: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 24,
+  },
+  previewImage: {
+    width: "100%",
+    height: "100%",
   },
 });
