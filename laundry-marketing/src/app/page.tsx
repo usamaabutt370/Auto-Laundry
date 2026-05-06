@@ -3,6 +3,8 @@ import { Hero } from "@/components/sections/Hero";
 import { HowItWorks } from "@/components/sections/HowItWorks";
 import { Testimonials } from "@/components/sections/Testimonials";
 import { ForCustomers } from "@/components/sections/ForCustomers";
+import { FAQ } from "@/components/sections/FAQ";
+import { FinalCta } from "@/components/sections/FinalCta";
 
 export default function Home() {
   return (
@@ -12,6 +14,8 @@ export default function Home() {
         <HowItWorks />
         <Testimonials />
         <ForCustomers />
+        <FAQ />
+        <FinalCta />
       </main>
       <SiteFooter />
     </>

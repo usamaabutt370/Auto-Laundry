@@ -143,16 +143,9 @@ export function ForCustomers() {
             })}
           </div>
 
-          <div className="relative flex flex-col items-center overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-navy via-[#283593] to-navy px-7 pb-10 pt-10 shadow-[0_22px_60px_-18px_rgba(26,35,126,0.5)] ring-1 ring-black/5 sm:px-9 sm:pb-10 sm:pt-10">
-            <div
-              className="pointer-events-none absolute -right-10 -top-10 h-44 w-44 rounded-full bg-primary/22 blur-2xl"
-              aria-hidden
-            />
-            <div
-              className="pointer-events-none absolute -bottom-10 -left-12 h-40 w-40 rounded-full bg-accent/18 blur-2xl"
-              aria-hidden
-            />
-
+          <div
+            className="relative flex flex-col items-center overflow-hidden rounded-3xl border border-white/10 bg-[linear-gradient(145deg,#3f4fa8_0%,#283593_18%,#1a237e_45%,#0f1754_72%,#050816_100%)] px-7 pb-10 pt-10 shadow-[0_28px_64px_-18px_rgba(0,0,0,0.58)] sm:px-9 sm:pb-10 sm:pt-10"
+          >
             <div className="relative z-10 w-full max-w-[15rem] sm:max-w-[16.25rem]">
               <div
                 className="absolute -left-1 top-10 h-2.5 w-2.5 rounded-full bg-accent/80 blur-[0.5px]"
