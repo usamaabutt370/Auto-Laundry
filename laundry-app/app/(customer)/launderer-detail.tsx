@@ -25,6 +25,7 @@ import {
   fetchPartnerDetail,
   serviceCategoriesToTypes,
 } from "@/lib/partner-discovery";
+import { AppHeader } from "@/components/app-header";
 
 const c = theme.colors;
 
@@ -118,11 +119,13 @@ export default function LaundererDetailScreen() {
   if (!partnerId) {
     return (
       <View style={styles.container}>
-        <SafeAreaView style={styles.header} edges={["top"]}>
-          <Pressable onPress={() => router.back()} style={styles.backBtn}>
-            <MaterialCommunityIcons name="arrow-left" size={24} color={c.white} />
-          </Pressable>
-          <Text style={styles.headerTitle}>{params.name || s.title}</Text>
+        <SafeAreaView edges={["top"]}>
+          <AppHeader
+            title={params.name || s.title}
+            leftIcon="arrow-left"
+            onLeftPress={() => router.back()}
+            leftAccessibilityLabel="Go back"
+          />
         </SafeAreaView>
         <View style={styles.centered}>
           <Text style={styles.notFoundText}>Launderer not found</Text>
@@ -134,12 +137,13 @@ export default function LaundererDetailScreen() {
   if (loading) {
     return (
       <View style={styles.container}>
-        <SafeAreaView style={styles.header} edges={["top"]}>
-          <Pressable onPress={() => router.back()} style={styles.backBtn}>
-            <MaterialCommunityIcons name="arrow-left" size={24} color={c.white} />
-          </Pressable>
-          <Text style={styles.headerTitle}>{params.name || s.title}</Text>
-          <View style={styles.headerRight} />
+        <SafeAreaView edges={["top"]}>
+          <AppHeader
+            title={params.name || s.title}
+            leftIcon="arrow-left"
+            onLeftPress={() => router.back()}
+            leftAccessibilityLabel="Go back"
+          />
         </SafeAreaView>
         <View style={styles.centered}>
           <ActivityIndicator color={c.white} size="small" />
@@ -151,12 +155,13 @@ export default function LaundererDetailScreen() {
   if (error || !profile) {
     return (
       <View style={styles.container}>
-        <SafeAreaView style={styles.header} edges={["top"]}>
-          <Pressable onPress={() => router.back()} style={styles.backBtn}>
-            <MaterialCommunityIcons name="arrow-left" size={24} color={c.white} />
-          </Pressable>
-          <Text style={styles.headerTitle}>{params.name || s.title}</Text>
-          <View style={styles.headerRight} />
+        <SafeAreaView edges={["top"]}>
+          <AppHeader
+            title={params.name || s.title}
+            leftIcon="arrow-left"
+            onLeftPress={() => router.back()}
+            leftAccessibilityLabel="Go back"
+          />
         </SafeAreaView>
         <View style={styles.centered}>
           <Text style={styles.notFoundText}>
@@ -191,18 +196,13 @@ export default function LaundererDetailScreen() {
 
   return (
     <View style={styles.container}>
-      <SafeAreaView style={styles.header} edges={["top"]}>
-        <Pressable
-          onPress={() => router.back()}
-          style={({ pressed }) => [styles.backBtn, pressed && styles.pressed]}
-          accessibilityRole="button"
-          accessibilityLabel="Go back"
-        >
-          <MaterialCommunityIcons name="arrow-left" size={24} color={c.white} />
-        </Pressable>
-        <Text style={styles.headerTitle}>
-          {profile?.business_name?.trim() || params.name || s.title}
-        </Text>
+      <SafeAreaView edges={["top"]}>
+        <AppHeader
+          title={profile?.business_name?.trim() || params.name || s.title}
+          leftIcon="arrow-left"
+          onLeftPress={() => router.back()}
+          leftAccessibilityLabel="Go back"
+        />
       </SafeAreaView>
 
       <ScrollView
@@ -367,27 +367,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: c.background,
-  },
-  header: {
-    paddingVertical: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    justifyContent: "space-between",
-  },
-  backBtn: { padding: 8 },
-  headerTitle: {
-    fontSize: 18,
-    color: c.white,
-    fontWeight: "700",
-    flex: 1,
-    textAlign: "center",
-  },
-  headerRight: { padding: 8, width: 40 },
-  headerRightIcon: {
-    width: 20,
-    height: 20,
-    tintColor: c.white,
   },
   pressed: { opacity: 0.8 },
   scroll: { flex: 1 },

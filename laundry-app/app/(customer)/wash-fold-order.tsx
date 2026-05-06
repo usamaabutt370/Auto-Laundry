@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Image } from "expo-image";
+import { AppHeader } from "@/components/app-header";
 
 import { assets } from "@/assets/assets";
 import { CustomerLiveEstimateFooter } from "@/components/customer-live-estimate-footer";
@@ -192,19 +193,14 @@ export default function WashFoldOrderScreen() {
 
   return (
     <View style={styles.container}>
-      <SafeAreaView style={styles.header} edges={["top"]}>
-        <Pressable
-          onPress={() => router.back()}
-          style={({ pressed }) => [styles.backBtn, pressed && styles.pressed]}
-          accessibilityRole="button"
-          accessibilityLabel="Go back"
-        >
-          <MaterialCommunityIcons name="arrow-left" size={24} color={c.white} />
-        </Pressable>
-        <Text style={styles.headerTitle}>{sOrder.title}</Text>
-        <Pressable style={({ pressed }) => [styles.headerRight, pressed && styles.pressed]}>
-          <Image source={assets.icons.menu_icon} style={styles.headerRightIcon} />
-        </Pressable>
+      <SafeAreaView edges={["top"]}>
+        <AppHeader
+          title={sOrder.title}
+          leftIcon="arrow-left"
+          onLeftPress={() => router.back()}
+          leftAccessibilityLabel="Go back"
+
+        />
       </SafeAreaView>
 
       <KeyboardAvoidingView
@@ -217,94 +213,94 @@ export default function WashFoldOrderScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-        <Text style={styles.lead}>{sOrder.lead}</Text>
+          <Text style={styles.lead}>{sOrder.lead}</Text>
 
-        {hasPerBag && hasPerItem && (
-          <View style={styles.toggleRow}>
-            <Pressable
-              onPress={() => setWashFoldPricingMode("per_bag")}
-              style={({ pressed }) => [
-                styles.toggleBtn,
-                pricingMode === "per_bag" ? styles.toggleBtnActive : styles.toggleBtnIdle,
-                pressed && styles.pressed,
-              ]}
-              accessibilityRole="button"
-              accessibilityState={{ selected: pricingMode === "per_bag" }}
-            >
+          {hasPerBag && hasPerItem && (
+            <View style={styles.toggleRow}>
+              <Pressable
+                onPress={() => setWashFoldPricingMode("per_bag")}
+                style={({ pressed }) => [
+                  styles.toggleBtn,
+                  pricingMode === "per_bag" ? styles.toggleBtnActive : styles.toggleBtnIdle,
+                  pressed && styles.pressed,
+                ]}
+                accessibilityRole="button"
+                accessibilityState={{ selected: pricingMode === "per_bag" }}
+              >
+                <MaterialCommunityIcons
+                  name="package-variant"
+                  size={30}
+                  color={pricingMode === "per_bag" ? c.themeBlack : "rgba(255,255,255,0.85)"}
+                  style={styles.toggleIcon}
+                />
+                <View >
+                  <Text
+                    style={[
+                      styles.toggleLabel,
+                      pricingMode === "per_bag" ? styles.toggleLabelOnLight : styles.toggleLabelIdle,
+                    ]}
+                  >
+                    {sOrder.perBag}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.toggleRate,
+                      pricingMode === "per_bag"
+                        ? styles.toggleRateOnLight
+                        : styles.toggleRateIdle,
+                    ]}
+                  >
+                    {perBagLabel}
+                  </Text>
+                </View>
+              </Pressable>
+              <Pressable
+                onPress={() => setWashFoldPricingMode("per_item")}
+                style={({ pressed }) => [
+                  styles.toggleBtn,
+                  pricingMode === "per_item" ? styles.toggleBtnActive : styles.toggleBtnIdle,
+                  pressed && styles.pressed,
+                ]}
+                accessibilityRole="button"
+                accessibilityState={{ selected: pricingMode === "per_item" }}
+              >
+                <MaterialCommunityIcons
+                  name="tshirt-crew-outline"
+                  size={30}
+                  color={pricingMode === "per_item" ? c.themeBlack : "rgba(255,255,255,0.85)"}
+                  style={styles.toggleIcon}
+                />
+                <View>
+                  <Text
+                    style={[
+                      styles.toggleLabel,
+                      pricingMode === "per_item" ? styles.toggleLabelOnLight : styles.toggleLabelIdle,
+                    ]}
+                  >
+                    {sOrder.perItem}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.toggleRate,
+                      pricingMode === "per_item"
+                        ? styles.toggleRateOnLight
+                        : styles.toggleRateIdle,
+                    ]}
+                  >
+                    {perItemLabel}
+                  </Text>
+                </View>
+              </Pressable>
+            </View>
+          )}
+
+          {!hasPerBag && !hasPerItem && !loading && (
+            <Text style={styles.emptyText}>This launderer has not set prices for Wash & Fold yet.</Text>
+          )}
+
+          {(!hasPerBag || !hasPerItem) && (hasPerBag || hasPerItem) && (
+            <View style={[styles.toggleBtn, styles.toggleBtnActive, { marginBottom: 10 }]}>
               <MaterialCommunityIcons
-                name="package-variant"
-                size={30}
-                color={pricingMode === "per_bag" ? c.themeBlack : "rgba(255,255,255,0.85)"}
-                style={styles.toggleIcon}
-              />
-              <View >
-                <Text
-                  style={[
-                    styles.toggleLabel,
-                    pricingMode === "per_bag" ? styles.toggleLabelOnLight : styles.toggleLabelIdle,
-                  ]}
-                >
-                  {sOrder.perBag}
-                </Text>
-                <Text
-                  style={[
-                    styles.toggleRate,
-                    pricingMode === "per_bag"
-                      ? styles.toggleRateOnLight
-                      : styles.toggleRateIdle,
-                  ]}
-                >
-                  {perBagLabel}
-                </Text>
-              </View>
-            </Pressable>
-            <Pressable
-              onPress={() => setWashFoldPricingMode("per_item")}
-              style={({ pressed }) => [
-                styles.toggleBtn,
-                pricingMode === "per_item" ? styles.toggleBtnActive : styles.toggleBtnIdle,
-                pressed && styles.pressed,
-              ]}
-              accessibilityRole="button"
-              accessibilityState={{ selected: pricingMode === "per_item" }}
-            >
-              <MaterialCommunityIcons
-                name="tshirt-crew-outline"
-                size={30}
-                color={pricingMode === "per_item" ? c.themeBlack : "rgba(255,255,255,0.85)"}
-                style={styles.toggleIcon}
-              />
-              <View>
-                <Text
-                  style={[
-                    styles.toggleLabel,
-                    pricingMode === "per_item" ? styles.toggleLabelOnLight : styles.toggleLabelIdle,
-                  ]}
-                >
-                  {sOrder.perItem}
-                </Text>
-                <Text
-                  style={[
-                    styles.toggleRate,
-                    pricingMode === "per_item"
-                      ? styles.toggleRateOnLight
-                      : styles.toggleRateIdle,
-                  ]}
-                >
-                  {perItemLabel}
-                </Text>
-              </View>
-            </Pressable>
-          </View>
-        )}
-
-        {!hasPerBag && !hasPerItem && !loading && (
-          <Text style={styles.emptyText}>This launderer has not set prices for Wash & Fold yet.</Text>
-        )}
-
-        {(!hasPerBag || !hasPerItem) && (hasPerBag || hasPerItem) && (
-          <View style={[styles.toggleBtn, styles.toggleBtnActive, { marginBottom: 10 }]}>
-             <MaterialCommunityIcons
                 name={hasPerBag ? "package-variant" : "tshirt-crew-outline"}
                 size={30}
                 color={c.themeBlack}
@@ -318,70 +314,70 @@ export default function WashFoldOrderScreen() {
                   {hasPerBag ? perBagLabel : perItemLabel}
                 </Text>
               </View>
-          </View>
-        )}
-
-        <Text style={styles.chargedTitle}>{sOrder.chargedTitle}</Text>
-
-        {pricingMode === "per_bag" ? (
-          <View style={[styles.inputRow, styles.inputRowDriver]}>
-            <MaterialCommunityIcons
-              name="package-variant"
-              size={22}
-              color={c.white}
-              style={styles.inputIcon}
-            />
-            <Text style={styles.inputLabel}>{sBags.heading}</Text>
-            <View style={styles.stepperRow}>
-              <Pressable
-                onPress={() =>
-                  setBagCount((n) => Math.max(n - 1, MIN_BAGS_PRIMARY))
-                }
-                disabled={bagCount <= MIN_BAGS_PRIMARY}
-                style={styles.roundStep}
-              >
-                <MaterialCommunityIcons name="minus" size={22} color={c.white} />
-              </Pressable>
-              <Text style={styles.stepperValueWide}>{bagCount}</Text>
-              <Pressable
-                onPress={() => setBagCount((n) => Math.min(n + 1, MAX_BAGS))}
-                disabled={bagCount >= MAX_BAGS}
-                style={styles.roundStep}
-              >
-                <MaterialCommunityIcons name="plus" size={22} color={c.white} />
-              </Pressable>
             </View>
-          </View>
-        ) : (
-          <View style={[styles.inputRow, styles.inputRowDriver]}>
-            <MaterialCommunityIcons
-              name="tshirt-crew-outline"
-              size={22}
-              color={c.white}
-              style={styles.inputIcon}
-            />
-            <Text style={styles.inputLabel}>{sDet.numberOfItems}</Text>
-            <View style={styles.stepperRow}>
-              <Pressable
-                onPress={() => setItemCount((n) => Math.max(n - 1, MIN_ITEMS))}
-                disabled={itemCount <= MIN_ITEMS}
-                style={styles.roundStep}
-              >
-                <MaterialCommunityIcons name="minus" size={22} color={c.white} />
-              </Pressable>
-              <Text style={styles.stepperValueWide}>{itemCount}</Text>
-              <Pressable
-                onPress={() => setItemCount((n) => Math.min(n + 1, MAX_ITEMS))}
-                disabled={itemCount >= MAX_ITEMS}
-                style={styles.roundStep}
-              >
-                <MaterialCommunityIcons name="plus" size={22} color={c.white} />
-              </Pressable>
-            </View>
-          </View>
-        )}
+          )}
 
-        {/* {washFoldPreviewLines.length > 0 ? (
+          <Text style={styles.chargedTitle}>{sOrder.chargedTitle}</Text>
+
+          {pricingMode === "per_bag" ? (
+            <View style={[styles.inputRow, styles.inputRowDriver]}>
+              <MaterialCommunityIcons
+                name="package-variant"
+                size={22}
+                color={c.white}
+                style={styles.inputIcon}
+              />
+              <Text style={styles.inputLabel}>{sBags.heading}</Text>
+              <View style={styles.stepperRow}>
+                <Pressable
+                  onPress={() =>
+                    setBagCount((n) => Math.max(n - 1, MIN_BAGS_PRIMARY))
+                  }
+                  disabled={bagCount <= MIN_BAGS_PRIMARY}
+                  style={styles.roundStep}
+                >
+                  <MaterialCommunityIcons name="minus" size={22} color={c.white} />
+                </Pressable>
+                <Text style={styles.stepperValueWide}>{bagCount}</Text>
+                <Pressable
+                  onPress={() => setBagCount((n) => Math.min(n + 1, MAX_BAGS))}
+                  disabled={bagCount >= MAX_BAGS}
+                  style={styles.roundStep}
+                >
+                  <MaterialCommunityIcons name="plus" size={22} color={c.white} />
+                </Pressable>
+              </View>
+            </View>
+          ) : (
+            <View style={[styles.inputRow, styles.inputRowDriver]}>
+              <MaterialCommunityIcons
+                name="tshirt-crew-outline"
+                size={22}
+                color={c.white}
+                style={styles.inputIcon}
+              />
+              <Text style={styles.inputLabel}>{sDet.numberOfItems}</Text>
+              <View style={styles.stepperRow}>
+                <Pressable
+                  onPress={() => setItemCount((n) => Math.max(n - 1, MIN_ITEMS))}
+                  disabled={itemCount <= MIN_ITEMS}
+                  style={styles.roundStep}
+                >
+                  <MaterialCommunityIcons name="minus" size={22} color={c.white} />
+                </Pressable>
+                <Text style={styles.stepperValueWide}>{itemCount}</Text>
+                <Pressable
+                  onPress={() => setItemCount((n) => Math.min(n + 1, MAX_ITEMS))}
+                  disabled={itemCount >= MAX_ITEMS}
+                  style={styles.roundStep}
+                >
+                  <MaterialCommunityIcons name="plus" size={22} color={c.white} />
+                </Pressable>
+              </View>
+            </View>
+          )}
+
+          {/* {washFoldPreviewLines.length > 0 ? (
           <View style={styles.calcPreviewBlock}>
             {washFoldPreviewLines.map((line, i) => (
               <Text key={`${line.key}-${i}`} style={styles.calcPreview}>
@@ -391,21 +387,21 @@ export default function WashFoldOrderScreen() {
           </View>
         ) : null} */}
 
-        <Text style={styles.sectionLabel}>{sDet.instructions}</Text>
-        <TextInput
-          style={styles.instructions}
-          value={instructions}
-          onChangeText={setInstructions}
-          placeholder={sDet.instructionsPlaceholder}
-          placeholderTextColor="rgba(0,0,0,0.4)"
-          multiline
-          numberOfLines={3}
-          textAlignVertical="top"
-        />
+          <Text style={styles.sectionLabel}>{sDet.instructions}</Text>
+          <TextInput
+            style={styles.instructions}
+            value={instructions}
+            onChangeText={setInstructions}
+            placeholder={sDet.instructionsPlaceholder}
+            placeholderTextColor="rgba(0,0,0,0.4)"
+            multiline
+            numberOfLines={3}
+            textAlignVertical="top"
+          />
 
-        <Text style={styles.hint}>{sBags.hint}</Text>
-      </ScrollView>
-    </KeyboardAvoidingView>
+          <Text style={styles.hint}>{sBags.hint}</Text>
+        </ScrollView>
+      </KeyboardAvoidingView>
 
       <SafeAreaView edges={["bottom"]} style={styles.footerSafe}>
         {washFoldPreviewLines.length > 0 ? (
@@ -432,21 +428,6 @@ export default function WashFoldOrderScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: c.background },
   keyboardView: { flex: 1 },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  backBtn: { padding: 8 },
-  headerTitle: {
-    flex: 1,
-    fontSize: 18,
-    fontWeight: "700",
-    color: c.white,
-    textAlign: "center",
-  },
   headerRight: { padding: 8 },
   headerRightIcon: { width: 20, height: 20, tintColor: c.white },
   pressed: { opacity: 0.85 },
@@ -484,7 +465,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
     marginBottom: 18,
     gap: 6,
-    backgroundColor:'transparent'
+    backgroundColor: 'transparent'
   },
   calcPreview: {
     fontSize: 14,

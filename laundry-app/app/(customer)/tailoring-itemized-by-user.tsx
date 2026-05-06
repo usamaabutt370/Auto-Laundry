@@ -12,6 +12,8 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { Image } from "expo-image";
+import { AppHeader } from "@/components/app-header";
 
 import { CustomerLiveEstimateFooter } from "@/components/customer-live-estimate-footer";
 import { strings } from "@/constants/strings";
@@ -97,19 +99,13 @@ export default function TailoringItemizedByUserScreen() {
 
   return (
     <View style={styles.container}>
-      <SafeAreaView style={styles.header} edges={["top"]}>
-        <Pressable
-          onPress={() => router.back()}
-          style={({ pressed }) => [styles.backBtn, pressed && styles.pressed]}
-        >
-          <MaterialCommunityIcons name="arrow-left" size={24} color={c.white} />
-        </Pressable>
-        <Text style={styles.headerTitle} numberOfLines={1}>
-          {s.tailoring}
-        </Text>
-        {/* <Pressable style={({ pressed }) => [styles.headerRight, pressed && styles.pressed]}>
-          <Image source={assets.icons.menu_icon} style={styles.headerRightIcon} />
-        </Pressable> */}
+      <SafeAreaView edges={["top"]}>
+        <AppHeader
+          title={s.tailoring}
+          leftIcon="arrow-left"
+          onLeftPress={() => router.back()}
+          leftAccessibilityLabel="Go back"
+        />
       </SafeAreaView>
 
       <KeyboardAvoidingView
@@ -216,23 +212,6 @@ export default function TailoringItemizedByUserScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: c.background },
   keyboardView: { flex: 1 },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  backBtn: { padding: 8 },
-  headerTitle: {
-    flex: 1,
-    fontSize: 18,
-    fontWeight: "700",
-    color: c.white,
-    textAlign: "center",
-  },
-  headerRight: { padding: 8 },
-  headerRightIcon: { width: 20, height: 20, tintColor: c.white },
   pressed: { opacity: 0.8 },
   lead: {
     fontSize: 15,

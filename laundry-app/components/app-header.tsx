@@ -72,7 +72,7 @@ export function AppHeader({
             rightElement
           ) : showRightIcon ? (
             <Pressable
-              onPress={onRightPress ?? (() => {})}
+              onPress={onRightPress ?? (() => { })}
               style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
               hitSlop={HIT_SLOP}
               accessibilityRole="button"
@@ -101,7 +101,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    // paddingVertical: 12,
   },
   titleWrap: {
     ...StyleSheet.absoluteFillObject,
