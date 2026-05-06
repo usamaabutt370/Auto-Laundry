@@ -232,6 +232,82 @@ export type Database = {
         Update: Partial<Database["public"]["Tables"]["partner_onboarding_requests"]["Insert"]>;
         Relationships: [];
       };
+      partner_credit_accounts: {
+        Row: {
+          id: string;
+          partner_id?: string | null;
+          balance?: number | null;
+          total_earned?: number | null;
+          total_spent?: number | null;
+          created_at?: string | null;
+          updated_at?: string | null;
+          [key: string]: Json | undefined;
+        };
+        Insert: {
+          id?: string;
+          partner_id?: string | null;
+          balance?: number | null;
+          total_earned?: number | null;
+          total_spent?: number | null;
+          created_at?: string | null;
+          updated_at?: string | null;
+          [key: string]: Json | undefined;
+        };
+        Update: Partial<Database["public"]["Tables"]["partner_credit_accounts"]["Insert"]>;
+        Relationships: [];
+      };
+      partner_credit_ledger: {
+        Row: {
+          id: string;
+          partner_id?: string | null;
+          event_type?: string | null;
+          delta?: number | null;
+          balance_after?: number | null;
+          note?: string | null;
+          metadata?: Json | null;
+          created_at?: string | null;
+          [key: string]: Json | undefined;
+        };
+        Insert: {
+          id?: string;
+          partner_id?: string | null;
+          event_type?: string | null;
+          delta?: number | null;
+          balance_after?: number | null;
+          note?: string | null;
+          metadata?: Json | null;
+          created_at?: string | null;
+          [key: string]: Json | undefined;
+        };
+        Update: Partial<Database["public"]["Tables"]["partner_credit_ledger"]["Insert"]>;
+        Relationships: [];
+      };
+      partner_credit_requests: {
+        Row: {
+          id: string;
+          partner_id?: string | null;
+          amount_requested?: number | null;
+          status?: string | null;
+          requested_at?: string | null;
+          whatsapp_note?: string | null;
+          created_at?: string | null;
+          updated_at?: string | null;
+          [key: string]: Json | undefined;
+        };
+        Insert: {
+          id?: string;
+          partner_id?: string | null;
+          amount_requested?: number | null;
+          status?: string | null;
+          requested_at?: string | null;
+          whatsapp_note?: string | null;
+          created_at?: string | null;
+          updated_at?: string | null;
+          [key: string]: Json | undefined;
+        };
+        Update: Partial<Database["public"]["Tables"]["partner_credit_requests"]["Insert"]>;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;

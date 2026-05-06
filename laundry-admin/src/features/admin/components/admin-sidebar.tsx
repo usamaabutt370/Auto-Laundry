@@ -14,6 +14,7 @@ const menuItems = [
   { href: "/users", label: "Users", iconSrc: "/icons/file-checked.svg", iconSize: 16 },
   { href: "/partner-kyc", label: "Partner KYC", iconSrc: "/icons/file-checked.svg", iconSize: 16 },
   { href: "/payments", label: "Payments", iconSrc: "/icons/file-checked.svg", iconSize: 16 },
+  { href: "/credits", label: "Credits", iconSrc: "/icons/file-checked.svg", iconSize: 16 },
   { href: "/subscriptions", label: "Subscriptions", iconSrc: "/icons/file-checked.svg", iconSize: 16 },
   { href: "/disputes", label: "Disputes", iconSrc: "/icons/file-checked.svg", iconSize: 16 },
   { href: "/profile", label: "Profile", iconSrc: "/icons/file-checked.svg", iconSize: 16 },
