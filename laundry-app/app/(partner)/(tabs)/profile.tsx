@@ -118,7 +118,8 @@ export default function PartnerProfileMenu() {
 
 				<View style={styles.divider} />
 				<View style={styles.menuGroup}>
-					<MenuItem icon="cog-outline" label="Settings" onPress={() => router.push("/(partner)/settings")} />
+					<MenuItem icon="storefront-outline" label="Business detail" onPress={() => router.push("/(partner)/business-detail")} />
+					<MenuItem icon="cog-outline" label="Services prices" onPress={() => router.push("/(partner)/settings")} />
 					<MenuItem icon="help-circle-outline" label="FAQ" onPress={() => router.push("/(customer)/faq")} />
 					<MenuItem icon="headphones" label="Contact support" onPress={() => router.push("/(customer)/contact-support")} />
 					<MenuItem
@@ -153,7 +154,7 @@ export default function PartnerProfileMenu() {
 
 				<View style={styles.roleCard}>
 					<View style={styles.roleRow}>
-						<Text style={styles.roleLabel}>Use app as launderer</Text>
+						<Text style={styles.roleLabel}>Use app as user</Text>
 						<View style={styles.switchWrap}>
 							{isUpdatingRole ? (
 								<ActivityIndicator color={c.white} size="small" />

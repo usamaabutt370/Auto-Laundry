@@ -1,6 +1,6 @@
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AppHeader } from "@/components/app-header";
 import { theme } from "@/constants/theme";
@@ -29,6 +29,8 @@ export default function CustomerChatScreen() {
   const s = strings.tabs.customer;
   const [items, setItems] = useState<ChatConversationListItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hasLoaded, setHasLoaded] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -48,6 +50,7 @@ export default function CustomerChatScreen() {
       setError(e instanceof Error ? e.message : "Unable to load chats.");
     } finally {
       setLoading(false);
+      setHasLoaded(true);
     }
   }, [user?.id]);
 
@@ -84,6 +87,14 @@ export default function CustomerChatScreen() {
     };
   }, [user?.id]);
 
+  const onRefresh = useCallback(() => {
+    void (async () => {
+      setRefreshing(true);
+      await load();
+      setRefreshing(false);
+    })();
+  }, [load]);
+
   return (
     <View style={styles.container}>
       <SafeAreaView edges={["top"]} style={styles.safeArea}>
@@ -93,12 +104,21 @@ export default function CustomerChatScreen() {
         style={styles.scroll}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#FFFFFF"
+            colors={["#FFFFFF"]}
+            progressBackgroundColor={c.background}
+            title=""
+            titleColor="#FFFFFF"
+          />
+        }
       >
-        {loading ? (
-          <Text style={styles.placeholderText}>Loading chats...</Text>
-        ) : error ? (
+        {error ? (
           <Text style={styles.placeholderText}>{error}</Text>
-        ) : items.length === 0 ? (
+        ) : !loading && hasLoaded && items.length === 0 ? (
           <Text style={styles.placeholderText}>No chats yet.</Text>
         ) : (
           items.map((item) => (

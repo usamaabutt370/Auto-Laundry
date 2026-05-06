@@ -14,7 +14,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter, useLocalSearchParams } from "expo-router";
+import { useRouter, useLocalSearchParams, useSegments } from "expo-router";
 import * as FileSystem from "expo-file-system";
 import * as ImagePicker from "expo-image-picker";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -48,8 +48,13 @@ type ProfileRow = {
 
 export default function EditProfileScreen() {
   const router = useRouter();
+  const segments = useSegments();
   const { mode } = useLocalSearchParams<{ mode?: string }>();
   const isPaymentMode = mode === "payment";
+  const profileRoute =
+    segments[0] === "(partner)"
+      ? "/(partner)/(tabs)/profile"
+      : "/(customer)/(tabs)/profile";
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -358,7 +363,7 @@ export default function EditProfileScreen() {
         setProfileUpdatedAt(now);
         setLocalImageUri(null);
         // Navigate to profile tab so it refetches and shows updated image
-        router.replace("/(customer)/(tabs)/profile");
+        router.replace(profileRoute);
       }
     } catch (err) {
       console.warn("[EditProfile] Save exception:", err);
@@ -379,6 +384,7 @@ export default function EditProfileScreen() {
     phone,
     imageUrl,
     router,
+    profileRoute,
   ]);
 
   const savePayment = useCallback(async () => {
@@ -396,7 +402,7 @@ export default function EditProfileScreen() {
         state: state.trim(),
         country: country.trim(),
       });
-      router.replace("/(customer)/(tabs)/profile");
+      router.replace(profileRoute);
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Could not save payment method.";
@@ -413,6 +419,7 @@ export default function EditProfileScreen() {
     state,
     country,
     router,
+    profileRoute,
   ]);
 
   const pickAndUploadImage = useCallback(async () => {
