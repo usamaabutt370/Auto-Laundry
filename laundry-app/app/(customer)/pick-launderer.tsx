@@ -16,9 +16,11 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 
+import { LaundererDetailView } from "@/components/launderer-detail-view";
 import { assets } from "@/assets/assets";
 import { strings } from "@/constants/strings";
 import { theme } from "@/constants/theme";
+import { useCustomerOrderDraft } from "@/contexts/customer-order-draft-context";
 import { avatarUrlWithCacheBuster } from "@/lib/avatar";
 import {
   fetchPartnersByFulfillmentMode,
@@ -150,6 +152,7 @@ function LaundererCard({
 
 export default function PickLaundererScreen() {
   const router = useRouter();
+  const { setPartner } = useCustomerOrderDraft();
   const params = useLocalSearchParams<{ reorderOrderId?: string; mode?: string }>();
   const s = strings.customer.pickLaunderer;
   const sHome = strings.customer.home;
@@ -166,6 +169,8 @@ export default function PickLaundererScreen() {
   const [partnerCoordinates, setPartnerCoordinates] = useState<Record<string, Coordinates | null>>(
     {}
   );
+  const [selectedPartnerId, setSelectedPartnerId] = useState<string | null>(null);
+  const [selectedPartnerName, setSelectedPartnerName] = useState<string | null>(null);
   const geocodeCacheRef = useRef<Map<string, Coordinates | null>>(new Map());
 
   const load = useCallback(async () => {
@@ -293,15 +298,17 @@ export default function PickLaundererScreen() {
 
   const handlePartnerPress = useCallback(
     async (partner: PartnerPublicRow) => {
-      const partnerId = partner.id;
+      setSelectedPartnerId(partner.id);
+      setSelectedPartnerName(partner.business_name);
+    },
+    [],
+  );
+
+  const handleSelect = useCallback(
+    async (partnerId: string, partnerName: string | null) => {
       if (!isReassignMode) {
-        router.back();
-        setTimeout(() => {
-          router.push({
-            pathname: "/(customer)/launderer-detail",
-            params: { id: partnerId, mode: fulfillmentMode, name: partner.business_name },
-          });
-        }, 100);
+        setPartner(partnerId, partnerName);
+        router.push("/(customer)/pickup-services");
         return;
       }
 
@@ -322,6 +329,18 @@ export default function PickLaundererScreen() {
     },
     [fulfillmentMode, isReassignMode, reorderOrderId, router, s],
   );
+
+  if (selectedPartnerId) {
+    return (
+      <LaundererDetailView
+        partnerId={selectedPartnerId}
+        initialName={selectedPartnerName ?? undefined}
+        onBack={() => setSelectedPartnerId(null)}
+        onSelect={handleSelect}
+        isModal
+      />
+    );
+  }
 
   return (
     <KeyboardAvoidingView

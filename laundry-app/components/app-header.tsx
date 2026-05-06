@@ -101,7 +101,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 16,
-    // paddingVertical: 12,
+    paddingVertical: 12,
   },
   titleWrap: {
     ...StyleSheet.absoluteFillObject,
