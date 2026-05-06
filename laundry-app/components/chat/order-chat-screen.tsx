@@ -16,7 +16,6 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  useWindowDimensions,
   View,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
@@ -45,8 +44,7 @@ function formatClock(iso: string): string {
   return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
-const CHAT_IMAGE_MAX_W = 200;
-const CHAT_IMAGE_MAX_H = 220;
+const CHAT_IMAGE_BOX_SIZE = 200;
 
 type PendingUploadMessage = {
   tempId: string;
@@ -61,31 +59,6 @@ type DisplayChatItem =
   | { kind: "sent"; item: ChatMessage }
   | { kind: "uploading"; item: PendingUploadMessage };
 
-function layoutChatImageSize(
-  maxW: number,
-  maxH: number,
-  aspect: number | null,
-): { width: number; height: number } {
-  if (!aspect || aspect <= 0 || !Number.isFinite(aspect)) {
-    return { width: maxW, height: maxW };
-  }
-  if (aspect >= 1) {
-    const w = maxW;
-    const h = Math.min(maxH, Math.max(56, w / aspect));
-    return { width: w, height: h };
-  }
-  // Portrait: prefer full width when possible, with a slightly taller slot than `maxH`
-  // so height-limited shots (e.g. phone 9:16) render a bit wider than a strict maxH cap.
-  const portraitSlotH = maxH + Math.max(20, Math.round(maxH * 0.1));
-  let h = maxW / aspect;
-  let w = maxW;
-  if (h > portraitSlotH) {
-    h = portraitSlotH;
-    w = h * aspect;
-  }
-  return { width: Math.max(56, Math.min(maxW, w)), height: Math.max(56, h) };
-}
-
 function ChatMessageImage({
   uri,
   selectionMode,
@@ -99,17 +72,11 @@ function ChatMessageImage({
   onOpen: () => void;
   onLongPress?: () => void;
 }) {
-  const { width: screenW } = useWindowDimensions();
-  const maxW = Math.min(CHAT_IMAGE_MAX_W, Math.max(112, screenW - PAD * 2 - 48));
-  const [aspect, setAspect] = useState<number | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
 
   useEffect(() => {
-    setAspect(null);
     setLoadFailed(false);
   }, [uri]);
-
-  const { width: imgW, height: imgH } = layoutChatImageSize(maxW, CHAT_IMAGE_MAX_H, aspect);
 
   if (loadFailed) {
     return (
@@ -119,7 +86,11 @@ function ChatMessageImage({
         style={[
           styles.imageFrame,
           styles.imageFrameFailed,
-          { width: maxW, minHeight: 72, alignSelf: alignEnd ? "flex-end" : "flex-start" },
+          {
+            width: CHAT_IMAGE_BOX_SIZE,
+            height: CHAT_IMAGE_BOX_SIZE,
+            alignSelf: alignEnd ? "flex-end" : "flex-start",
+          },
         ]}
       >
         <MaterialCommunityIcons name="image-broken-variant" size={28} color={c.blue500} />
@@ -136,21 +107,20 @@ function ChatMessageImage({
       disabled={selectionMode}
       style={({ pressed }) => [
         styles.imageFrame,
-        { width: imgW, height: imgH, alignSelf: alignEnd ? "flex-end" : "flex-start" },
+        {
+          width: CHAT_IMAGE_BOX_SIZE,
+          height: CHAT_IMAGE_BOX_SIZE,
+          alignSelf: alignEnd ? "flex-end" : "flex-start",
+        },
         pressed && !selectionMode && styles.pressed,
       ]}
     >
       <Image
         source={{ uri }}
-        style={{ width: imgW, height: imgH }}
+        style={{ width: CHAT_IMAGE_BOX_SIZE, height: CHAT_IMAGE_BOX_SIZE }}
         contentFit="contain"
         cachePolicy="memory-disk"
         accessibilityLabel="Chat image"
-        onLoad={(e) => {
-          const w = e.source.width;
-          const h = e.source.height;
-          if (w > 0 && h > 0) setAspect(w / h);
-        }}
         onError={() => setLoadFailed(true)}
       />
     </Pressable>
@@ -177,6 +147,7 @@ export function OrderChatScreen() {
   );
   const [uploadingMessages, setUploadingMessages] = useState<PendingUploadMessage[]>([]);
   const listRef = useRef<FlatList<DisplayChatItem>>(null);
+  const shouldSnapToLatestRef = useRef(true);
 
   const orderId = typeof params.orderId === "string" ? params.orderId : "";
   const canLoad = Boolean(orderId && user?.id);
@@ -224,6 +195,8 @@ export function OrderChatScreen() {
       setHeaderTitle(header.title);
       setHeaderSubtitle(header.subtitle);
       const rows = await fetchConversationMessages(convId);
+      // Ensure opening the chat lands on the latest message.
+      shouldSnapToLatestRef.current = true;
       setMessages(rows);
       setSelectedMessageIds([]);
       await markConversationRead(convId, user.id);
@@ -516,6 +489,13 @@ export function OrderChatScreen() {
             data={displayMessages}
             keyExtractor={(row) => (row.kind === "sent" ? row.item.id : `uploading-${row.item.tempId}`)}
             contentContainerStyle={styles.listContent}
+            onContentSizeChange={() => {
+              if (!shouldSnapToLatestRef.current) return;
+              requestAnimationFrame(() => {
+                listRef.current?.scrollToEnd({ animated: false });
+                shouldSnapToLatestRef.current = false;
+              });
+            }}
             renderItem={({ item: row }) => {
               const isUploading = row.kind === "uploading";
               const sentItem = row.kind === "sent" ? row.item : null;
@@ -872,8 +852,8 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   uploadingImageWrap: {
-    width: CHAT_IMAGE_MAX_W,
-    height: CHAT_IMAGE_MAX_H,
+    width: CHAT_IMAGE_BOX_SIZE,
+    height: CHAT_IMAGE_BOX_SIZE,
     borderRadius: 10,
     overflow: "hidden",
     backgroundColor: "rgba(0,0,0,0.18)",
