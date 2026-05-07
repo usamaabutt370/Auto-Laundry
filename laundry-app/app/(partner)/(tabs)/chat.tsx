@@ -129,36 +129,40 @@ export default function PartnerChatScreen() {
               onPress={() =>
                 router.push({
                   pathname: "/(partner)/chat/[orderId]",
-                  params: { orderId: item.orderId },
+                  params: { orderId: item.orderId, memberName: item.counterpartyName },
                 })
               }
               style={({ pressed }) => [styles.row, pressed && styles.pressed]}
             >
-              <View style={styles.rowTop}>
-                <Text style={styles.nameText} numberOfLines={1}>
-                  {item.counterpartyName}
+              <View style={styles.mainContent}>
+                <View style={styles.rowTop}>
+                  <Text style={styles.nameText} numberOfLines={1}>
+                    {item.counterpartyName}
+                  </Text>
+                  <Text style={styles.timeText}>{formatShortDate(item.lastMessageAt)}</Text>
+                </View>
+
+                <Text style={styles.metaText} numberOfLines={1}>
+                  Order #{item.orderRef} · {item.orderStatus}
                 </Text>
-                <Text style={styles.timeText}>{formatShortDate(item.lastMessageAt)}</Text>
-              </View>
-              <Text style={styles.metaText} numberOfLines={1}>
-                Order #{item.orderRef} · {item.orderStatus}
-              </Text>
-              <View style={styles.orderMetaRow}>
-                <Text style={styles.orderMetaText} numberOfLines={1}>
-                  {item.servicesSummary}
-                </Text>
-                <Text style={styles.orderMetaText}>Placed {item.placedAtLabel}</Text>
-                <Text style={styles.orderMetaValue}>{item.estimatedTotalLabel}</Text>
-              </View>
-              <View style={styles.rowBottom}>
-                <Text style={styles.previewText} numberOfLines={1}>
-                  {item.lastMessageBody}
-                </Text>
-                {item.unreadCount > 0 ? (
-                  <View style={styles.unreadBadge}>
-                    <Text style={styles.unreadBadgeText}>{item.unreadCount}</Text>
-                  </View>
-                ) : null}
+
+                <View style={styles.orderMetaRow}>
+                  <Text style={styles.orderMetaText} numberOfLines={1}>
+                    {item.servicesSummary}
+                  </Text>
+                  <Text style={styles.orderMetaValue}>{item.estimatedTotalLabel}</Text>
+                </View>
+
+                <View style={styles.rowBottom}>
+                  <Text style={styles.previewText} numberOfLines={1}>
+                    {item.lastMessageBody}
+                  </Text>
+                  {item.unreadCount > 0 ? (
+                    <View style={styles.unreadBadge}>
+                      <Text style={styles.unreadBadgeText}>{item.unreadCount}</Text>
+                    </View>
+                  ) : null}
+                </View>
               </View>
             </Pressable>
           ))
@@ -195,13 +199,19 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: c.outline,
     padding: 12,
-    gap: 6,
+    flexDirection: "row",
+    gap: 12,
+    alignItems: "center",
   },
   rowTop: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     gap: 8,
+  },
+  mainContent: {
+    flex: 1,
+    gap: 2,
   },
   nameText: {
     flex: 1,
@@ -221,9 +231,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    borderTopWidth: 1,
-    borderTopColor: "rgba(255,255,255,0.14)",
-    paddingTop: 8,
+    marginTop: 4,
   },
   orderMetaRow: {
     flexDirection: "row",

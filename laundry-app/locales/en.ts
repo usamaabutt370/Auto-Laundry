@@ -49,7 +49,7 @@ export const en = {
       password: "Password",
       continue: "Continue",
       orSignUpWithSocial: "Or, Sign up with social",
-      haveAccount: "Have an account?",
+      haveAccount: "Already have an account ?",
       signIn: "SIGN IN",
     },
     phoneTitle: "Phone",

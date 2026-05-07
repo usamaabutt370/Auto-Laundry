@@ -239,9 +239,34 @@ export function PartnerServicesScreen({ mode }: PartnerServicesScreenProps) {
         notes: notesSerialized,
       };
 
-      const { error } = await supabase
+      // RLS can block updates on existing rows (e.g. already submitted/approved requests).
+      // For this screen, only create a request when it doesn't exist yet.
+      const { data: existingRequest, error: existingRequestError } = await supabase
         .from("partner_onboarding_requests")
-        .upsert(kycPayload, { onConflict: "user_id" });
+        .select("user_id")
+        .eq("user_id", resolvedUserId)
+        .maybeSingle<{ user_id: string }>();
+
+      if (existingRequestError) {
+        setIsSubmittingRequest(false);
+        if (isMissingPartnerOnboardingRequestsTableError(existingRequestError)) {
+          Alert.alert(
+            "Database update required",
+            "The partner KYC table has not been created in Supabase yet. Run `npx supabase db push` from `laundry-app`, then try again.",
+          );
+          return;
+        }
+        Alert.alert("Error", existingRequestError.message);
+        return;
+      }
+
+      let error: { message: string } | null = null;
+      if (!existingRequest) {
+        const insertResult = await supabase
+          .from("partner_onboarding_requests")
+          .insert(kycPayload);
+        error = insertResult.error;
+      }
 
       if (error) {
         setIsSubmittingRequest(false);

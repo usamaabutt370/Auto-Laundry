@@ -1,4 +1,3 @@
-import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useMemo, useState } from "react";
 import {
@@ -11,9 +10,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Image } from "expo-image";
-
-import { assets } from "@/assets/assets";
+import { AppHeader } from "@/components/app-header";
 import { strings } from "@/constants/strings";
 import { theme } from "@/constants/theme";
 import { useAuth } from "@/contexts/auth-context";
@@ -75,17 +72,13 @@ export default function OrderSummaryScreen() {
 
   return (
     <View style={styles.container}>
-      <SafeAreaView style={styles.header} edges={["top"]}>
-        <Pressable
-          onPress={() => router.back()}
-          style={({ pressed }) => [styles.backBtn, pressed && styles.pressed]}
-        >
-          <MaterialCommunityIcons name="arrow-left" size={24} color={c.white} />
-        </Pressable>
-        <Text style={styles.headerTitle}>{s.title}</Text>
-        <Pressable style={({ pressed }) => [styles.headerRight, pressed && styles.pressed]}>
-          <Image source={assets.icons.menu_icon} style={styles.headerRightIcon} />
-        </Pressable>
+      <SafeAreaView edges={["top"]}>
+        <AppHeader
+          title={s.title}
+          leftIcon="arrow-left"
+          onLeftPress={() => router.back()}
+          leftAccessibilityLabel="Go back"
+        />
       </SafeAreaView>
 
       <ScrollView
@@ -183,17 +176,6 @@ export default function OrderSummaryScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: c.background },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  backBtn: { padding: 8 },
-  headerTitle: { fontSize: 18, fontWeight: "700", color: c.white },
-  headerRight: { padding: 8 },
-  headerRightIcon: { width: 20, height: 20, tintColor: c.white },
   pressed: { opacity: 0.8 },
   scroll: { flex: 1 },
   scrollContent: { paddingHorizontal: 24, paddingTop: 24, paddingBottom: 24 },
