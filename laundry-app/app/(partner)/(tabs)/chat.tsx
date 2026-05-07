@@ -2,10 +2,8 @@ import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Image } from "expo-image";
 import { AppHeader } from "@/components/app-header";
 import { theme } from "@/constants/theme";
-import { assets } from "@/assets/assets";
 import { useLocale } from "@/contexts/locale-context";
 import { useAuth } from "@/contexts/auth-context";
 import { fetchMyConversations, type ChatConversationListItem } from "@/lib/chat";
@@ -136,20 +134,6 @@ export default function PartnerChatScreen() {
               }
               style={({ pressed }) => [styles.row, pressed && styles.pressed]}
             >
-              <View style={styles.avatarWrap}>
-                {item.counterpartyAvatarUrl ? (
-                  <Image
-                    source={{ uri: item.counterpartyAvatarUrl }}
-                    style={styles.avatar}
-                    contentFit="cover"
-                  />
-                ) : (
-                  <View style={styles.avatarPlaceholder}>
-                    <Image source={assets.onboarding.slide1} style={styles.avatar} />
-                  </View>
-                )}
-              </View>
-
               <View style={styles.mainContent}>
                 <View style={styles.rowTop}>
                   <Text style={styles.nameText} numberOfLines={1}>
@@ -217,30 +201,13 @@ const styles = StyleSheet.create({
     padding: 12,
     flexDirection: "row",
     gap: 12,
-    alignItems: "flex-start",
+    alignItems: "center",
   },
   rowTop: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     gap: 8,
-  },
-  avatarWrap: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    overflow: "hidden",
-    backgroundColor: c.blue500,
-  },
-  avatar: {
-    width: "100%",
-    height: "100%",
-  },
-  avatarPlaceholder: {
-    width: "100%",
-    height: "100%",
-    alignItems: "center",
-    justifyContent: "center",
   },
   mainContent: {
     flex: 1,

@@ -21,7 +21,7 @@ type ProfileNameRow = {
   full_name: string | null;
   first_name: string | null;
   last_name: string | null;
-  avatar_url?: string | null;
+  image_url?: string | null;
 };
 
 type PartnerNameRow = {
@@ -354,11 +354,12 @@ export async function fetchMyConversations(
 
   const customerProfileMap = new Map<string, ProfileNameRow>();
   const partnerNameMap = new Map<string, PartnerNameRow>();
+  const partnerProfileMap = new Map<string, ProfileNameRow>();
 
   if (counterpartCustomerIds.size > 0) {
     const { data } = await supabase
       .from("profiles")
-      .select("id,full_name,first_name,last_name,avatar_url")
+      .select("id,full_name,first_name,last_name,image_url")
       .in("id", Array.from(counterpartCustomerIds));
     for (const row of (data ?? []) as Array<ProfileNameRow & { id: string }>) {
       customerProfileMap.set(row.id, row);
@@ -371,6 +372,14 @@ export async function fetchMyConversations(
       .in("id", Array.from(counterpartPartnerIds));
     for (const row of (data ?? []) as Array<PartnerNameRow & { id: string }>) {
       partnerNameMap.set(row.id, row);
+    }
+
+    const { data: partnerProfileData } = await supabase
+      .from("profiles")
+      .select("id,full_name,first_name,last_name,image_url")
+      .in("id", Array.from(counterpartPartnerIds));
+    for (const row of (partnerProfileData ?? []) as Array<ProfileNameRow & { id: string }>) {
+      partnerProfileMap.set(row.id, row);
     }
   }
 
@@ -419,12 +428,13 @@ export async function fetchMyConversations(
     let counterpartyAvatarUrl: string | null = null;
     if (order?.customer_id === userId) {
       const p = partnerNameMap.get(order.partner_id);
+      const pProfile = partnerProfileMap.get(order.partner_id);
       counterpartyName = p?.business_name?.trim() || "Launderer";
-      counterpartyAvatarUrl = p?.image_url ?? null;
+      counterpartyAvatarUrl = p?.image_url ?? pProfile?.image_url ?? null;
     } else if (order?.partner_id === userId) {
       const c = customerProfileMap.get(order.customer_id);
       counterpartyName = formatCustomerName(c ?? null);
-      counterpartyAvatarUrl = c?.avatar_url ?? null;
+      counterpartyAvatarUrl = c?.image_url ?? null;
     }
 
     const preview =
@@ -438,7 +448,7 @@ export async function fetchMyConversations(
       orderRef: formatOrderRef(conversation.order_id),
       counterpartyName,
       counterpartyAvatarUrl,
-      lastMessageBody: latest?.body?.trim() || "No messages yet",
+      lastMessageBody: preview,
       lastMessageAt: latest?.created_at || conversation.updated_at,
       unreadCount: unreadByConversation.get(conversation.id) ?? 0,
       orderStatus: humanizeStatus(order?.status),

@@ -7,6 +7,7 @@ import { useRouter, useFocusEffect } from "expo-router";
 import { theme } from "@/constants/theme";
 import { useAuth } from "@/contexts/auth-context";
 import { avatarUrlWithCacheBuster } from "@/lib/avatar";
+import { fetchPartnerOnboardingRequest } from "@/lib/partner-onboarding-request";
 import { getSession, isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { assets } from "@/assets/assets";
 
@@ -64,24 +65,46 @@ export default function CustomerProfileMenu() {
 		if (!user?.id || !isSupabaseConfigured() || isUpdatingRole) return;
 
 		if (value) {
-			setRoleSwitchValue(true);
-			Alert.alert(
-				"Become a Launderer",
-				"Are you sure you want to become a launderer? You will be asked to provide your business details.",
-				[
-					{
-						text: "Cancel",
-						style: "cancel",
-						onPress: () => {
-							setRoleSwitchValue(false);
+			const { data: onboardingRequest, error: onboardingError } =
+				await fetchPartnerOnboardingRequest(user.id);
+			if (onboardingError) {
+				Alert.alert("Error", onboardingError.message);
+				return;
+			}
+			const { data: partnerProfile, error: partnerProfileError } = await supabase
+				.from("partner_profiles")
+				.select("id")
+				.eq("id", user.id)
+				.maybeSingle();
+			if (partnerProfileError) {
+				Alert.alert("Error", partnerProfileError.message);
+				return;
+			}
+			const isFirstTimeBecomingLaunderer = !onboardingRequest && !partnerProfile;
+
+			if (isFirstTimeBecomingLaunderer) {
+				setRoleSwitchValue(true);
+				Alert.alert(
+					"Become a Launderer",
+					"Are you sure you want to become a launderer? You will be asked to provide your business details.",
+					[
+						{
+							text: "Cancel",
+							style: "cancel",
+							onPress: () => {
+								setRoleSwitchValue(false);
+							},
 						},
-					},
-					{
-						text: "Confirm",
-						onPress: () => performRoleUpdate(true),
-					},
-				]
-			);
+						{
+							text: "Confirm",
+							onPress: () => performRoleUpdate(true),
+						},
+					]
+				);
+				return;
+			}
+
+			performRoleUpdate(true);
 		} else {
 			performRoleUpdate(false);
 		}
@@ -99,9 +122,28 @@ export default function CustomerProfileMenu() {
 				.eq("id", user.id);
 			if (error) throw error;
 			await refreshRole();
+			let destination: "/(partner)" | "/(partner)/onboarding?from=role_switch" | "/(customer)" = value
+				? "/(partner)"
+				: "/(customer)";
+			if (value) {
+				const { data: onboardingRequest, error: onboardingError } =
+					await fetchPartnerOnboardingRequest(user.id);
+				if (onboardingError) throw onboardingError;
+				if (!onboardingRequest) {
+					const { data: partnerProfile, error: partnerProfileError } = await supabase
+						.from("partner_profiles")
+						.select("id")
+						.eq("id", user.id)
+						.maybeSingle();
+					if (partnerProfileError) throw partnerProfileError;
+					if (!partnerProfile) {
+						destination = "/(partner)/onboarding?from=role_switch";
+					}
+				}
+			}
 			const delayMs = 320;
 			await new Promise((r) => setTimeout(r, delayMs));
-			router.replace(value ? "/(partner)/onboarding?from=role_switch" : "/(customer)");
+			router.replace(destination);
 		} catch (err) {
 			setRoleSwitchValue(!value);
 			const message = err instanceof Error ? err.message : "Could not update role.";
