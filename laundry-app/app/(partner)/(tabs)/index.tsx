@@ -10,7 +10,9 @@ import {
 } from "@/components/dashboard-period-selector";
 import { useFocusEffect, useRouter } from "expo-router";
 import { AppHeader } from "@/components/app-header";
+import { AppButton } from "@/components/ui/button";
 import { theme } from "@/constants/theme";
+import { useAuth } from "@/contexts/auth-context";
 import { useLocale } from "@/contexts/locale-context";
 import { useSidebar } from "@/contexts/sidebar-context";
 import { useLaundererDashboard } from "@/hooks/use-launderer-dashboard";
@@ -115,20 +117,44 @@ function SummaryCard({
  */
 export default function PartnerDashboardScreen() {
   const router = useRouter();
+  const { partnerApprovalStatus, partnerRejectionReason, refreshPartnerApproval } = useAuth();
   const { open: openSidebar } = useSidebar();
   const { locale } = useLocale();
   const s = getStrings(locale).partner.dashboard;
   const [period, setPeriod] = useState<DashboardPeriod>("week");
   const tabBarHeight = useBottomTabBarHeight();
 
-  const { data, refresh } = useLaundererDashboard(true, period);
+  const isApproved = partnerApprovalStatus === "approved";
+  const { data, refresh } = useLaundererDashboard(isApproved, period);
   const earningsTotalForPeriod = data.earningsChartValues.reduce((sum, value) => sum + value, 0);
 
   useFocusEffect(
     useCallback(() => {
-      void refresh();
-    }, [refresh]),
+      void refreshPartnerApproval();
+      if (isApproved) void refresh();
+    }, [isApproved, refresh, refreshPartnerApproval]),
   );
+
+  const showOnboardingPlaceholder = !isApproved;
+  const isPendingApproval = partnerApprovalStatus === "submitted";
+  const isRejected = partnerApprovalStatus === "rejected";
+  const placeholderTitle = isPendingApproval
+    ? s.pendingTitle
+    : isRejected
+      ? s.rejectedTitle
+      : s.placeholderTitle;
+  const placeholderMessage = isPendingApproval
+    ? s.pendingMessage
+    : isRejected
+      ? (partnerRejectionReason?.trim()
+          ? s.rejectedMessage.replace("{{reason}}", partnerRejectionReason.trim())
+          : s.rejectedMessageFallback)
+      : s.placeholderMessage;
+  const placeholderButtonLabel = isPendingApproval
+    ? s.pendingButton
+    : isRejected
+      ? s.rejectedButton
+      : s.placeholderButton;
 
   return (
     <View style={styles.container}>
@@ -150,6 +176,21 @@ export default function PartnerDashboardScreen() {
         contentContainerStyle={[styles.content, { paddingBottom: tabBarHeight + 16 }]}
         showsVerticalScrollIndicator={false}
       >
+        {showOnboardingPlaceholder ? (
+          <View style={styles.placeholderCard}>
+            <Text style={styles.placeholderTitle}>{placeholderTitle}</Text>
+            <Text style={styles.placeholderMessage}>{placeholderMessage}</Text>
+            <AppButton
+              label={placeholderButtonLabel}
+              onPress={() => router.push("/(partner)/onboarding")}
+              variant="filled"
+              fullWidth
+              accessibilityLabel={placeholderButtonLabel}
+            />
+          </View>
+        ) : null}
+        {!showOnboardingPlaceholder ? (
+          <>
         <View style={styles.serviceCards}>
           <ServiceBreakdownCard
             title={s.dropOff}
@@ -241,7 +282,8 @@ export default function PartnerDashboardScreen() {
             </Pressable>
           </View>
         </View>
-
+          </>
+        ) : null}
       </ScrollView>
     </View>
   );
@@ -261,6 +303,25 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: H_PAD,
     paddingBottom: 40,
+  },
+  placeholderCard: {
+    backgroundColor: c.blue900,
+    borderRadius: CARD_RADIUS,
+    borderWidth: 1,
+    borderColor: c.outline,
+    padding: 20,
+    marginBottom: 12,
+    gap: 12,
+  },
+  placeholderTitle: {
+    fontSize: fs.smallTitle,
+    fontWeight: "700",
+    color: c.white,
+  },
+  placeholderMessage: {
+    fontSize: fs.smallText,
+    color: c.blue500,
+    lineHeight: 20,
   },
   serviceCards: {
     gap: 12,
