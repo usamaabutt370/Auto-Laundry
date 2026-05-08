@@ -49,7 +49,7 @@ export const en = {
       password: "Password",
       continue: "Continue",
       orSignUpWithSocial: "Or, Sign up with social",
-      haveAccount: "Have an account?",
+      haveAccount: "Already have an account ?",
       signIn: "SIGN IN",
     },
     phoneTitle: "Phone",
@@ -426,6 +426,17 @@ export const en = {
         "Complete your launderer or partner onboarding to see your dashboard and stats.",
       placeholderButton: "Start onboarding",
       placeholderButtonWithArrow: "Start onboarding →",
+      pendingTitle: "KYC review in progress",
+      pendingMessage:
+        "Your onboarding details have been submitted to the Super Admin. You will see your live dashboard once your KYC request is approved.",
+      pendingButton: "Review onboarding",
+      pendingContinueButton: "Go to dashboard",
+      rejectedTitle: "KYC needs updates",
+      rejectedMessage:
+        "Your KYC request was not approved yet. Reason: {{reason}}. Please update your onboarding details and resubmit.",
+      rejectedMessageFallback:
+        "Your KYC request was not approved yet. Please update your onboarding details and resubmit.",
+      rejectedButton: "Update and resubmit",
     },
     onboarding: {
       step1Title: "Business details",

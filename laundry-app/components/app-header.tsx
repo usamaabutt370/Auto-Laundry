@@ -72,7 +72,7 @@ export function AppHeader({
             rightElement
           ) : showRightIcon ? (
             <Pressable
-              onPress={onRightPress ?? (() => {})}
+              onPress={onRightPress ?? (() => { })}
               style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
               hitSlop={HIT_SLOP}
               accessibilityRole="button"

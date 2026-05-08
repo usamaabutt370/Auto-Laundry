@@ -1,19 +1,22 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View, Switch, ActivityIndicator } from "react-native";
+import { Linking } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter, useFocusEffect } from "expo-router";
 
 import { theme } from "@/constants/theme";
+import { strings } from "@/constants/strings";
 import { useAuth } from "@/contexts/auth-context";
 import { avatarUrlWithCacheBuster } from "@/lib/avatar";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { assets } from "@/assets/assets";
 import { AppButton } from "@/components/ui/button";
-import { strings } from "@/constants/strings";
 import { AppHeader } from "@/components/app-header";
 
 const c = theme.colors;
+const WHATSAPP_URL =
+	"https://wa.me/923004639943?text=Hello%21%20I%20would%20like%20to%20buy%20credits.";
 
 export default function PartnerProfileMenu() {
 	const router = useRouter();
@@ -22,6 +25,8 @@ export default function PartnerProfileMenu() {
 	const [isUpdatingRole, setIsUpdatingRole] = useState(false);
 	const [roleSwitchValue, setRoleSwitchValue] = useState<boolean | null>(null);
 	const [avatarUri, setAvatarUri] = useState<string | undefined>(undefined);
+	const [displayName, setDisplayName] = useState<string>("Launderer");
+	const [displayEmail, setDisplayEmail] = useState<string>("");
 
 	const fetchProfile = useCallback(async () => {
 		if (!isSupabaseConfigured() || !user?.id) return;
@@ -31,16 +36,33 @@ export default function PartnerProfileMenu() {
 				.select("image_url,updated_at")
 				.eq("id", user.id)
 				.maybeSingle();
+			const { data: profileData } = await supabase
+				.from("profiles")
+				.select("full_name,first_name,last_name,email,image_url,updated_at")
+				.eq("id", user.id)
+				.maybeSingle<{
+					full_name: string | null;
+					first_name: string | null;
+					last_name: string | null;
+					email: string | null;
+					image_url: string | null;
+					updated_at: string | null;
+				}>();
+
+			const resolvedName =
+				(profileData?.full_name ?? "").trim() ||
+				[profileData?.first_name ?? "", profileData?.last_name ?? ""].join(" ").trim() ||
+				user?.user_metadata?.full_name ||
+				user?.user_metadata?.first_name ||
+				user?.email ||
+				"Launderer";
+			setDisplayName(resolvedName);
+			setDisplayEmail(profileData?.email ?? user?.email ?? "");
 
 			if (error || !data) {
 				// Fallback to customer profile image if partner image is missing
-				const { data: userData } = await supabase
-					.from("profiles")
-					.select("image_url,updated_at")
-					.eq("id", user.id)
-					.maybeSingle();
-				if (userData) {
-					setAvatarUri(avatarUrlWithCacheBuster(userData.image_url, userData.updated_at));
+				if (profileData) {
+					setAvatarUri(avatarUrlWithCacheBuster(profileData.image_url, profileData.updated_at));
 				}
 				return;
 			}
@@ -59,10 +81,6 @@ export default function PartnerProfileMenu() {
 			fetchProfile();
 		}, [fetchProfile])
 	);
-
-	const name =
-		user?.user_metadata?.full_name || user?.user_metadata?.first_name || user?.email || "Launderer";
-	const email = user?.email ?? "";
 
 	const handleRoleToggle = async (value: boolean) => {
 		if (!user?.id || !isSupabaseConfigured() || isUpdatingRole) return;
@@ -111,14 +129,15 @@ export default function PartnerProfileMenu() {
 						/>
 					</View>
 					<View style={styles.userInfo}>
-						<Text style={styles.name}>{name}</Text>
-						<Text style={styles.email}>{email}</Text>
+						<Text style={styles.name}>{displayName}</Text>
+						<Text style={styles.email}>{displayEmail}</Text>
 					</View>
 				</Pressable>
 
 				<View style={styles.divider} />
 				<View style={styles.menuGroup}>
-					<MenuItem icon="cog-outline" label="Settings" onPress={() => router.push("/(partner)/settings")} />
+					<MenuItem icon="storefront-outline" label="Business detail" onPress={() => router.push("/(partner)/business-detail")} />
+					<MenuItem icon="cog-outline" label="Services prices" onPress={() => router.push("/(partner)/settings")} />
 					<MenuItem icon="help-circle-outline" label="FAQ" onPress={() => router.push("/(customer)/faq")} />
 					<MenuItem icon="headphones" label="Contact support" onPress={() => router.push("/(customer)/contact-support")} />
 					<MenuItem
@@ -144,16 +163,20 @@ export default function PartnerProfileMenu() {
 				</View>
 
 				<AppButton
-					label={strings.partner.dashboard.placeholderButton}
-					onPress={() => router.push("/(partner)/onboarding")}
-					variant="outline"
-					style={styles.onboardingBtn}
-					accessibilityLabel={strings.partner.dashboard.placeholderButton}
+					label="Buy Credits"
+					onPress={() => {
+						Linking.openURL(WHATSAPP_URL).catch(() => {
+							Alert.alert("Error", "Could not open WhatsApp.");
+						});
+					}}
+					variant="filled"
+					style={styles.buyCreditsBtn}
+					accessibilityLabel="Buy Credits"
 				/>
 
 				<View style={styles.roleCard}>
 					<View style={styles.roleRow}>
-						<Text style={styles.roleLabel}>Use app as launderer</Text>
+						<Text style={styles.roleLabel}>Use app as user</Text>
 						<View style={styles.switchWrap}>
 							{isUpdatingRole ? (
 								<ActivityIndicator color={c.white} size="small" />
@@ -198,7 +221,7 @@ const styles = StyleSheet.create({
 	roleLabel: { fontSize: 17, color: c.white, fontWeight: "700", flex: 1 },
 	switchWrap: { transform: [{ scale: 1.02 }] },
 	roleHint: { fontSize: 13, color: c.blue500, lineHeight: 18, marginTop: 8 },
-	onboardingBtn: {
+	buyCreditsBtn: {
 		marginTop: 20,
 		marginBottom: 8,
 		alignSelf: "stretch",

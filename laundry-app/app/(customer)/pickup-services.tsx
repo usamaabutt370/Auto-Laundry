@@ -2,6 +2,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   Pressable,
   ScrollView,
@@ -14,6 +15,7 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import { Image } from "expo-image";
 
 import { Spacer } from "@/components";
+import { AppHeader } from "@/components/app-header";
 import { assets } from "@/assets/assets";
 import { DRY_CLEAN_ITEM_DEFS } from "@/constants/dry-clean-items";
 import { strings } from "@/constants/strings";
@@ -47,6 +49,7 @@ export default function PickupServicesScreen() {
     useCustomerOrderDraft();
   const s = strings.customer.pickupServices;
   const selectedIds = draft.selectedServiceIds;
+  const [loading, setLoading] = useState(true);
   const [partnerServiceTypes, setPartnerServiceTypes] = useState<ServiceId[]>([]);
   const [partnerServiceRows, setPartnerServiceRows] = useState<
     Awaited<ReturnType<typeof fetchPartnerDetail>>["services"]
@@ -60,8 +63,10 @@ export default function PickupServicesScreen() {
       if (!draft.partnerId) {
         setPartnerServiceTypes([]);
         setPartnerServiceRows([]);
+        setLoading(false);
         return;
       }
+      setLoading(true);
       const { profile, services } = await fetchPartnerDetail(draft.partnerId);
       if (cancelled) return;
       setPartnerServiceRows(services);
@@ -79,6 +84,7 @@ export default function PickupServicesScreen() {
       if (!pickupEnabled) {
         setPickupDeliveryRequested(false);
       }
+      setLoading(false);
     };
     loadPartnerServices();
     return () => {
@@ -223,19 +229,13 @@ export default function PickupServicesScreen() {
 
   return (
     <View style={styles.container}>
-      <SafeAreaView style={styles.header} edges={["top"]}>
-        <Pressable
-          onPress={() => router.back()}
-          style={({ pressed }) => [styles.backBtn, pressed && styles.pressed]}
-          accessibilityRole="button"
-          accessibilityLabel="Go back"
-        >
-          <MaterialCommunityIcons name="arrow-left" size={24} color={c.white} />
-        </Pressable>
-        <Text style={styles.headerTitle}>{s.title}</Text>
-        <View style={styles.headerRight}>
-          <Image source={assets.icons.menu_icon} style={styles.headerRightIcon} />
-        </View>
+      <SafeAreaView edges={["top"]}>
+        <AppHeader
+          title={s.title}
+          leftIcon="arrow-left"
+          onLeftPress={() => router.back()}
+          leftAccessibilityLabel="Go back"
+        />
       </SafeAreaView>
 
       <ScrollView
@@ -349,24 +349,8 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: c.background,
   },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 0,
-    backgroundColor: "transparent",
-  },
-  backBtn: {
-    padding: 8,
-    backgroundColor: "transparent",
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: c.white,
-    backgroundColor: "transparent",
+  pressed: {
+    opacity: 0.8,
   },
   headerRight: {
     width: 40,
@@ -375,9 +359,6 @@ const styles = StyleSheet.create({
   headerRightIcon: {
     width: 20,
     height: 20,
-  },
-  pressed: {
-    opacity: 0.8,
   },
   scroll: {
     flex: 1,
@@ -535,5 +516,10 @@ const styles = StyleSheet.create({
   pickupSub: {
     fontSize: 13,
     color: "rgba(255,255,255,0.75)",
+  },
+  loadingContainer: {
+    paddingVertical: 40,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

@@ -225,8 +225,7 @@ export default function PartnerOrderScreen() {
       <SafeAreaView edges={["top"]} style={styles.safeArea}>
         <AppHeader
           title={s.title}
-          leftIcon={canGoBack ? "arrow-left" : undefined}
-          onLeftPress={canGoBack ? () => router.back() : undefined}
+         
           leftAccessibilityLabel={s.title}
         />
       </SafeAreaView>

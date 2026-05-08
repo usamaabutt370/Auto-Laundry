@@ -20,6 +20,7 @@ import { useCustomerOrderDraft } from "@/contexts/customer-order-draft-context";
 import { Spacer } from "@/components";
 import { assets } from "@/assets/assets";
 import { Image } from "expo-image";
+import { AppHeader } from "@/components/app-header";
 
 const c = theme.colors;
 
@@ -213,17 +214,13 @@ export default function ScheduleDeliveryScreen() {
 
   return (
     <View style={styles.container}>
-      <SafeAreaView style={styles.header} edges={["top"]}>
-        <Pressable
-          onPress={() => router.back()}
-          style={({ pressed }) => [styles.backBtn, pressed && styles.pressed]}
-          accessibilityRole="button"
-          accessibilityLabel="Go back"
-        >
-          <MaterialCommunityIcons name="arrow-left" size={24} color={c.white} />
-        </Pressable>
-        <Text style={styles.headerTitle}>{s.title}</Text>
-        <View style={styles.headerRight} />
+      <SafeAreaView edges={["top"]}>
+        <AppHeader
+          title={s.title}
+          leftIcon="arrow-left"
+          onLeftPress={() => router.back()}
+          leftAccessibilityLabel="Go back"
+        />
       </SafeAreaView>
 
       <KeyboardAvoidingView
@@ -554,24 +551,6 @@ const styles = StyleSheet.create({
   },
   keyboardView: {
     flex: 1,
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  backBtn: {
-    padding: 8,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: c.white,
-  },
-  headerRight: {
-    width: 40,
   },
   pressed: {
     opacity: 0.8,

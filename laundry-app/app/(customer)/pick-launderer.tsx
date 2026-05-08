@@ -16,9 +16,11 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 
+import { LaundererDetailView } from "@/components/launderer-detail-view";
 import { assets } from "@/assets/assets";
 import { strings } from "@/constants/strings";
 import { theme } from "@/constants/theme";
+import { useCustomerOrderDraft } from "@/contexts/customer-order-draft-context";
 import { avatarUrlWithCacheBuster } from "@/lib/avatar";
 import {
   fetchPartnersByFulfillmentMode,
@@ -76,8 +78,8 @@ function LaundererCard({
 }) {
   const businessImageUri = Array.isArray(partner.business_images)
     ? partner.business_images.find(
-        (item): item is string => typeof item === "string" && item.trim().length > 0
-      )
+      (item): item is string => typeof item === "string" && item.trim().length > 0
+    )
     : null;
   const imageUri =
     businessImageUri ?? avatarUrlWithCacheBuster(partner.image_url, partner.updated_at);
@@ -150,6 +152,7 @@ function LaundererCard({
 
 export default function PickLaundererScreen() {
   const router = useRouter();
+  const { setPartner } = useCustomerOrderDraft();
   const params = useLocalSearchParams<{ reorderOrderId?: string; mode?: string }>();
   const s = strings.customer.pickLaunderer;
   const sHome = strings.customer.home;
@@ -166,6 +169,8 @@ export default function PickLaundererScreen() {
   const [partnerCoordinates, setPartnerCoordinates] = useState<Record<string, Coordinates | null>>(
     {}
   );
+  const [selectedPartnerId, setSelectedPartnerId] = useState<string | null>(null);
+  const [selectedPartnerName, setSelectedPartnerName] = useState<string | null>(null);
   const geocodeCacheRef = useRef<Map<string, Coordinates | null>>(new Map());
 
   const load = useCallback(async () => {
@@ -292,12 +297,18 @@ export default function PickLaundererScreen() {
   }, [partners, searchQuery]);
 
   const handlePartnerPress = useCallback(
-    async (partnerId: string) => {
+    async (partner: PartnerPublicRow) => {
+      setSelectedPartnerId(partner.id);
+      setSelectedPartnerName(partner.business_name);
+    },
+    [],
+  );
+
+  const handleSelect = useCallback(
+    async (partnerId: string, partnerName: string | null) => {
       if (!isReassignMode) {
-        router.push({
-          pathname: "/(customer)/launderer-detail",
-          params: { id: partnerId, mode: fulfillmentMode },
-        });
+        setPartner(partnerId, partnerName);
+        router.push("/(customer)/pickup-services");
         return;
       }
 
@@ -319,20 +330,32 @@ export default function PickLaundererScreen() {
     [fulfillmentMode, isReassignMode, reorderOrderId, router, s],
   );
 
+  if (selectedPartnerId) {
+    return (
+      <LaundererDetailView
+        partnerId={selectedPartnerId}
+        initialName={selectedPartnerName ?? undefined}
+        onBack={() => setSelectedPartnerId(null)}
+        onSelect={handleSelect}
+        isModal
+      />
+    );
+  }
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
       <SafeAreaView style={styles.header} edges={["top"]}>
-        <Pressable
-          onPress={() => router.back()}
-          style={({ pressed }) => [styles.backBtn, pressed && styles.pressed]}
-          accessibilityRole="button"
-          accessibilityLabel="Go back"
-        >
-          <MaterialCommunityIcons name="arrow-left" size={24} color={c.white} />
-        </Pressable>
+        <View style={styles.topRow}>
+          <View style={styles.headerLeft} />
+          <Text style={styles.headerTitle}>{defaultTitle}</Text>
+          <Pressable onPress={() => router.back()} style={styles.closeBtn}>
+            <MaterialCommunityIcons name="close-circle" size={28} color={c.white} />
+          </Pressable>
+        </View>
+
         <View style={styles.addressWrap}>
           <Image source={assets.icons.location_icon} style={styles.addressIcon} />
           <TextInput
@@ -346,7 +369,7 @@ export default function PickLaundererScreen() {
           />
         </View>
       </SafeAreaView>
-      <Text style={styles.screenTitle}>{isReassignMode ? s.reassignTitle : defaultTitle}</Text>
+
 
       {loading ? (
         <View style={styles.centerBlock}>
@@ -374,7 +397,7 @@ export default function PickLaundererScreen() {
               key={partner.id}
               partner={partner}
               distanceLabel={partnerDistanceLabels[partner.id] ?? PARTNER_DISTANCE_PLACEHOLDER}
-              onPress={() => void handlePartnerPress(partner.id)}
+              onPress={() => void handlePartnerPress(partner)}
             />
           ))}
         </ScrollView>
@@ -389,15 +412,30 @@ const styles = StyleSheet.create({
     backgroundColor: c.background,
   },
   header: {
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 15,
+  },
+  topRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    gap: 10,
+    justifyContent: "space-between",
+    marginBottom: 12,
   },
-  backBtn: { padding: 6 },
-  addressWrap: {
+  headerTitle: {
+    fontSize: 18,
+    color: c.white,
+    fontWeight: "700",
+    textAlign: "center",
     flex: 1,
+  },
+  headerLeft: {
+    width: 40,
+  },
+  closeBtn: {
+    padding: 2,
+  },
+  addressWrap: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: c.white,

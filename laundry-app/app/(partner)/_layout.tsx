@@ -32,6 +32,7 @@ export default function PartnerLayout() {
           <Stack.Screen name="settings" />
           <Stack.Screen name="profile" />
           <Stack.Screen name="laundrerinfo" />
+          <Stack.Screen name="business-detail" />
           <Stack.Screen name="support" />
           <Stack.Screen name="faq" />
           <Stack.Screen name="(tabs)" />

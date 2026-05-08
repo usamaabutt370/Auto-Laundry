@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 
-import type { LaundererDashboardData } from "@/types/dashboard";
-import { ZERO_DASHBOARD_DATA } from "@/types/dashboard";
 import type { DashboardPeriod } from "@/components/dashboard-period-selector";
 import { useAuth } from "@/contexts/auth-context";
-import { supabase } from "@/lib/supabase";
+import { isSupabaseConfigured, supabase } from "@/lib/supabase";
+import type { LaundererDashboardData } from "@/types/dashboard";
+import { ZERO_DASHBOARD_DATA } from "@/types/dashboard";
 
 export interface UseLaundererDashboardResult {
   data: LaundererDashboardData;
@@ -110,8 +110,10 @@ export function useLaundererDashboard(
   const [error, setError] = useState<Error | null>(null);
 
   const refresh = useCallback(async () => {
-    if (!enabled || !user?.id || !supabase) {
+    if (!enabled || !isSupabaseConfigured() || !supabase || !user?.id) {
       setData(ZERO_DASHBOARD_DATA);
+      setError(null);
+      setIsLoading(false);
       return;
     }
 

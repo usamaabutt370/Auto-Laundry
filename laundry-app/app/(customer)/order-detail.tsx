@@ -4,7 +4,9 @@ import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -305,7 +307,10 @@ export default function CustomerOrderDetailScreen() {
           animationType="fade"
           onRequestClose={() => setFeedbackVisible(false)}
         >
-          <View style={styles.modalOverlay}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            style={styles.modalOverlay}
+          >
             <Pressable style={styles.modalBackdrop} onPress={() => setFeedbackVisible(false)} />
             <View style={styles.feedbackModalCard}>
               <Text style={styles.feedbackTitle}>How was your laundry service?</Text>
@@ -386,7 +391,7 @@ export default function CustomerOrderDetailScreen() {
                 </Pressable>
               </View>
             </View>
-          </View>
+          </KeyboardAvoidingView>
         </Modal>
       ) : null}
     </View>
@@ -711,5 +716,8 @@ const styles = StyleSheet.create({
     color: c.white,
     fontSize: fs.descText,
     fontWeight: "700",
+  },
+  disabled: {
+    opacity: 0.55,
   },
 });

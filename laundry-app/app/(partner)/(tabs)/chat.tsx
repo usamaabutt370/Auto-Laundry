@@ -1,6 +1,6 @@
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AppHeader } from "@/components/app-header";
 import { theme } from "@/constants/theme";
@@ -31,6 +31,8 @@ export default function PartnerChatScreen() {
   const s = getStrings(locale).tabs.partner;
   const [items, setItems] = useState<ChatConversationListItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hasLoaded, setHasLoaded] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -50,6 +52,7 @@ export default function PartnerChatScreen() {
       setError(e instanceof Error ? e.message : "Unable to load chats.");
     } finally {
       setLoading(false);
+      setHasLoaded(true);
     }
   }, [user?.id]);
 
@@ -86,6 +89,14 @@ export default function PartnerChatScreen() {
     };
   }, [user?.id]);
 
+  const onRefresh = useCallback(() => {
+    void (async () => {
+      setRefreshing(true);
+      await load();
+      setRefreshing(false);
+    })();
+  }, [load]);
+
   return (
     <View style={styles.container}>
       <SafeAreaView edges={["top"]} style={styles.safeArea}>
@@ -95,12 +106,21 @@ export default function PartnerChatScreen() {
         style={styles.scroll}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#FFFFFF"
+            colors={["#FFFFFF"]}
+            progressBackgroundColor={c.background}
+            title=""
+            titleColor="#FFFFFF"
+          />
+        }
       >
-        {loading ? (
-          <Text style={styles.placeholderText}>Loading chats...</Text>
-        ) : error ? (
+        {error ? (
           <Text style={styles.placeholderText}>{error}</Text>
-        ) : items.length === 0 ? (
+        ) : !loading && hasLoaded && items.length === 0 ? (
           <Text style={styles.placeholderText}>No chats yet.</Text>
         ) : (
           items.map((item) => (
@@ -109,36 +129,40 @@ export default function PartnerChatScreen() {
               onPress={() =>
                 router.push({
                   pathname: "/(partner)/chat/[orderId]",
-                  params: { orderId: item.orderId },
+                  params: { orderId: item.orderId, memberName: item.counterpartyName },
                 })
               }
               style={({ pressed }) => [styles.row, pressed && styles.pressed]}
             >
-              <View style={styles.rowTop}>
-                <Text style={styles.nameText} numberOfLines={1}>
-                  {item.counterpartyName}
+              <View style={styles.mainContent}>
+                <View style={styles.rowTop}>
+                  <Text style={styles.nameText} numberOfLines={1}>
+                    {item.counterpartyName}
+                  </Text>
+                  <Text style={styles.timeText}>{formatShortDate(item.lastMessageAt)}</Text>
+                </View>
+
+                <Text style={styles.metaText} numberOfLines={1}>
+                  Order #{item.orderRef} · {item.orderStatus}
                 </Text>
-                <Text style={styles.timeText}>{formatShortDate(item.lastMessageAt)}</Text>
-              </View>
-              <Text style={styles.metaText} numberOfLines={1}>
-                Order #{item.orderRef} · {item.orderStatus}
-              </Text>
-              <View style={styles.orderMetaRow}>
-                <Text style={styles.orderMetaText} numberOfLines={1}>
-                  {item.servicesSummary}
-                </Text>
-                <Text style={styles.orderMetaText}>Placed {item.placedAtLabel}</Text>
-                <Text style={styles.orderMetaValue}>{item.estimatedTotalLabel}</Text>
-              </View>
-              <View style={styles.rowBottom}>
-                <Text style={styles.previewText} numberOfLines={1}>
-                  {item.lastMessageBody}
-                </Text>
-                {item.unreadCount > 0 ? (
-                  <View style={styles.unreadBadge}>
-                    <Text style={styles.unreadBadgeText}>{item.unreadCount}</Text>
-                  </View>
-                ) : null}
+
+                <View style={styles.orderMetaRow}>
+                  <Text style={styles.orderMetaText} numberOfLines={1}>
+                    {item.servicesSummary}
+                  </Text>
+                  <Text style={styles.orderMetaValue}>{item.estimatedTotalLabel}</Text>
+                </View>
+
+                <View style={styles.rowBottom}>
+                  <Text style={styles.previewText} numberOfLines={1}>
+                    {item.lastMessageBody}
+                  </Text>
+                  {item.unreadCount > 0 ? (
+                    <View style={styles.unreadBadge}>
+                      <Text style={styles.unreadBadgeText}>{item.unreadCount}</Text>
+                    </View>
+                  ) : null}
+                </View>
               </View>
             </Pressable>
           ))
@@ -175,13 +199,19 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: c.outline,
     padding: 12,
-    gap: 6,
+    flexDirection: "row",
+    gap: 12,
+    alignItems: "center",
   },
   rowTop: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     gap: 8,
+  },
+  mainContent: {
+    flex: 1,
+    gap: 2,
   },
   nameText: {
     flex: 1,
@@ -201,9 +231,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    borderTopWidth: 1,
-    borderTopColor: "rgba(255,255,255,0.14)",
-    paddingTop: 8,
+    marginTop: 4,
   },
   orderMetaRow: {
     flexDirection: "row",
