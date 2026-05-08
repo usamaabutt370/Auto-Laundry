@@ -108,45 +108,49 @@ export async function getPartnerKycDetailForAdmin(userId: string): Promise<Admin
   }
 
   const profile = profileResult.data;
-  if (!profile) return null;
   const request = requestsResult.data;
+  const partnerProfile = partnerProfileResult.data;
+  if (!profile && !partnerProfile && !request) return null;
   const effectiveRole =
-    partnerProfileResult.data || request
+    partnerProfile || request
       ? "launderer"
-      : asTextOrNull(profile.role);
+      : asTextOrNull(profile?.role);
 
   return {
     userId,
     profile: {
-      fullName: buildFullName(profile) || "N/A",
-      firstName: asTextOrNull(profile.first_name),
-      lastName: asTextOrNull(profile.last_name),
-      email: asTextOrNull(profile.email),
-      phone: asTextOrNull(profile.phone),
+      fullName:
+        (profile ? buildFullName(profile) : "") ||
+        readSnapshotText(request?.notes, "businessProfile", "contactName") ||
+        "N/A",
+      firstName: asTextOrNull(profile?.first_name),
+      lastName: asTextOrNull(profile?.last_name),
+      email: asTextOrNull(profile?.email),
+      phone: asTextOrNull(profile?.phone),
       role: effectiveRole,
-      createdAt: asTextOrNull(profile.created_at),
+      createdAt: asTextOrNull(profile?.created_at),
     },
     business: {
       businessName:
-        asTextOrNull(partnerProfileResult.data?.business_name) ??
+        asTextOrNull(partnerProfile?.business_name) ??
         readSnapshotText(request?.notes, "businessProfile", "businessName"),
       businessDescription:
-        asTextOrNull(partnerProfileResult.data?.business_description) ??
+        asTextOrNull(partnerProfile?.business_description) ??
         readSnapshotText(request?.notes, "businessProfile", "businessDescription"),
       pickupDeliveryEnabled:
-        typeof partnerProfileResult.data?.pickup_delivery_enabled === "boolean"
-          ? partnerProfileResult.data.pickup_delivery_enabled
+        typeof partnerProfile?.pickup_delivery_enabled === "boolean"
+          ? partnerProfile.pickup_delivery_enabled
           : typeof readSnapshotValue(request?.notes, "servicePricing", "pickupDeliveryEnabled") === "boolean"
             ? (readSnapshotValue(request?.notes, "servicePricing", "pickupDeliveryEnabled") as boolean)
             : null,
       pickupDeliveryAmount:
-        asTextOrNull(partnerProfileResult.data?.pickup_delivery_amount) ??
+        asTextOrNull(partnerProfile?.pickup_delivery_amount) ??
         readSnapshotText(request?.notes, "servicePricing", "pickupDeliveryAmount"),
     },
     services: buildServiceRows(servicesResult.data ?? [], request?.notes),
     request: {
       id: asTextOrNull(request?.id),
-      status: resolvePartnerStatus(partnerProfileResult.data?.status, request?.status),
+      status: resolvePartnerStatus(partnerProfile?.status, request?.status),
       submittedAt: asTextOrNull(request?.submitted_at),
       reviewedAt: asTextOrNull(request?.reviewed_at),
       reviewedBy: asTextOrNull(request?.reviewed_by),
