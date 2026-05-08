@@ -1,4 +1,3 @@
-import Link from "next/link";
 import {
   IllustrationDirectPay,
   IllustrationFastDelivery,
@@ -6,6 +5,7 @@ import {
   IllustrationWashAtHome,
 } from "@/components/sections/ForCustomersCardIllustrations";
 import { IllustrationPhoneDiscovery } from "@/components/sections/ForCustomersIllustrations";
+import { GradientLinkButton } from "@/components/ui/GradientButton";
 
 const bullets = [
   {
@@ -182,12 +182,11 @@ export function ForCustomers() {
               aria-hidden
             />
 
-            <Link
-              href="#"
-              className="relative z-10 mt-7 inline-flex h-14 w-full max-w-sm items-center justify-center rounded-2xl bg-primary px-8 text-base font-semibold text-white shadow-[0_16px_40px_-12px_rgba(0,188,212,0.5)] transition hover:bg-primary-hover hover:shadow-[0_20px_44px_-12px_rgba(0,188,212,0.55)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
-            >
-              Download App to Find Launderer
-            </Link>
+            <div className="relative z-10 mt-7 w-full max-w-sm">
+              <GradientLinkButton href="#">
+                Download App to Find Launderer
+              </GradientLinkButton>
+            </div>
 
             <p className="relative z-10 mt-4 text-xs font-medium uppercase tracking-[0.14em] text-primary/90">
               Google Play · Android · Free

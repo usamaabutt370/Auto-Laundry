@@ -4,6 +4,7 @@ import { HowItWorks } from "@/components/sections/HowItWorks";
 import { Testimonials } from "@/components/sections/Testimonials";
 import { ForCustomers } from "@/components/sections/ForCustomers";
 import { FAQ } from "@/components/sections/FAQ";
+import { WaitingList } from "@/components/sections/WaitingList";
 import { FinalCta } from "@/components/sections/FinalCta";
 
 export default function Home() {
@@ -15,6 +16,7 @@ export default function Home() {
         <Testimonials />
         <ForCustomers />
         <FAQ />
+        <WaitingList />
         <FinalCta />
       </main>
       <SiteFooter />

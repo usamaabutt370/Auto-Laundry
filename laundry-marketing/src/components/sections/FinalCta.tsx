@@ -120,7 +120,7 @@ export function FinalCta() {
                 <IconAppStore className="h-11 w-11 shrink-0 text-white transition group-hover:scale-105" />
                 <span className="min-w-0 text-left">
                   <span className="block text-[0.68rem] font-semibold uppercase leading-tight tracking-[0.14em] text-white/60">
-                    Download on the
+                    Download on
                   </span>
                   <span className="font-heading text-lg font-semibold leading-tight tracking-tight text-white">
                     App Store

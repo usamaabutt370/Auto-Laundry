@@ -1,5 +1,5 @@
 import Image from "next/image";
-import Link from "next/link";
+import { GradientLinkButton } from "@/components/ui/GradientButton";
 
 /** Woman folding / handling laundry at home — Unsplash (free to use). */
 const HERO_IMAGE =
@@ -34,12 +34,9 @@ export function Hero() {
           </p>
 
           <div className="mt-10 flex flex-col items-start gap-3">
-            <Link
-              href="#"
-              className="inline-flex h-14 min-w-[240px] items-center justify-center rounded-2xl bg-primary px-8 text-base font-semibold text-white shadow-lg transition hover:bg-primary-hover hover:shadow-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
-            >
+            <GradientLinkButton href="#" className="min-w-[240px]">
               Download on Google Play
-            </Link>
+            </GradientLinkButton>
             <p className="text-sm text-white/80">Free app. No hidden charges.</p>
           </div>
         </div>
