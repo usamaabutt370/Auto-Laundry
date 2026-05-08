@@ -54,7 +54,10 @@ function Slide2Placeholder() {
       <ThemedText style={styles.subtitle}>{s.subtitle3}</ThemedText>
       <Spacer.Column numberOfSpaces={5} />
       <ThemedView style={styles.imageContainer}>
-        <Image source={assets.onboarding.slide2} style={styles.image} />
+        <Image
+          source={require("@/assets/icons/second-splash-image.png")}
+          style={styles.image}
+        />
       </ThemedView>
     </ThemedView>
   );

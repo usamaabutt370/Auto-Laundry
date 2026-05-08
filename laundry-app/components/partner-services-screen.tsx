@@ -71,7 +71,6 @@ export function PartnerServicesScreen({ mode }: PartnerServicesScreenProps) {
   const { locale } = useLocale();
   const { user, refreshPartnerApproval } = useAuth();
   const {
-    services,
     washAndFoldPricing,
     dryCleaningPricing,
     tailoringPricing,
@@ -220,13 +219,23 @@ export function PartnerServicesScreen({ mode }: PartnerServicesScreenProps) {
         }))
         .filter((item) => item.name.length > 0 && item.priceDisplay.length > 0);
 
-      const memoryServiceLines = services
-        .map((item) => ({
-          name: (item.name ?? "").trim(),
-          category: (item.category ?? "").trim(),
-          priceDisplay: (item.priceDisplay ?? "").trim(),
-        }))
-        .filter((item) => item.name.length > 0 && item.priceDisplay.length > 0);
+      const memoryServiceLines = [
+        ...(washAndFoldPricing?.rows ?? []).map((row) => ({
+          name: (row.label ?? "").trim(),
+          category: "Wash & Fold",
+          priceDisplay: (row.value ?? "").trim(),
+        })),
+        ...(dryCleaningPricing?.rows ?? []).map((row) => ({
+          name: (row.label ?? "").trim(),
+          category: "Dry Cleaning",
+          priceDisplay: (row.value ?? "").trim(),
+        })),
+        ...(tailoringPricing?.rows ?? []).map((row) => ({
+          name: (row.label ?? "").trim(),
+          category: "Tailoring",
+          priceDisplay: (row.value ?? "").trim(),
+        })),
+      ].filter((item) => item.name.length > 0 && item.priceDisplay.length > 0);
 
       const serviceLines = dbServiceLines.length > 0 ? dbServiceLines : memoryServiceLines;
       if (serviceLines.length === 0) {
