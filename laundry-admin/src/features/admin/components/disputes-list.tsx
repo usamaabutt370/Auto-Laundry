@@ -3,6 +3,7 @@
 import { PRODUCT_NAME } from "@/lib/branding";
 import { theme } from "@/lib/theme/theme";
 import type { AdminDispute, DisputeCategory, DisputeStatus } from "@/features/admin/data/disputes-demo-data";
+import { AdminDesktopTable, AdminListPagination } from "@/features/admin/components/admin-list-ui";
 import { useEffect, useMemo, useState } from "react";
 
 type DisputesListProps = {
@@ -35,7 +36,7 @@ const STATUS_PILL: Record<DisputeStatus, { bg: string; fg: string; border: strin
 const statusPillClass = "admin-status-pill border text-[11px] font-semibold sm:text-xs";
 
 const tableGridClass =
-  "grid grid-cols-[minmax(88px,0.75fr)_minmax(88px,0.75fr)_minmax(120px,1.05fr)_minmax(120px,1.05fr)_minmax(112px,0.95fr)_minmax(160px,1.35fr)_minmax(100px,0.9fr)_minmax(88px,0.75fr)_minmax(88px,0.75fr)] items-center gap-x-2 gap-y-1 sm:gap-x-3";
+  "grid grid-cols-[minmax(88px,0.75fr)_minmax(88px,0.75fr)_minmax(120px,1.05fr)_minmax(120px,1.05fr)_minmax(112px,0.95fr)_minmax(160px,1.35fr)_minmax(100px,0.9fr)_minmax(88px,0.75fr)_minmax(88px,0.75fr)] items-center gap-x-4 gap-y-1";
 
 function matchesQuery(dispute: AdminDispute, q: string): boolean {
   const s = q.trim().toLowerCase();
@@ -188,13 +189,9 @@ export function DisputesList({ disputes }: DisputesListProps) {
         </select>
       </div>
 
-      <div
-        className="scrollbar-hidden hidden min-w-0 overflow-x-auto rounded-xl border md:block [-webkit-overflow-scrolling:touch]"
-        style={{ borderColor: theme.colors.outline, backgroundColor: theme.colors.sidebarBackground }}
-      >
-        <div className="min-w-[1180px]">
+      <AdminDesktopTable minWidthClassName="w-full min-w-[1220px]">
           <div
-            className={`sticky top-0 z-[1] ${tableGridClass} border-b px-3 py-3 text-[11px] font-bold uppercase tracking-wide text-white/70 sm:px-4 sm:text-xs`}
+            className={`sticky top-0 z-[1] ${tableGridClass} border-b px-4 py-3 text-[11px] font-bold uppercase tracking-wide text-white/70 sm:text-xs`}
             style={{
               borderColor: "rgba(255,255,255,0.12)",
               backgroundColor: theme.colors.sidebarBackground,
@@ -220,7 +217,7 @@ export function DisputesList({ disputes }: DisputesListProps) {
                 type="button"
                 key={dispute.id}
                 onClick={() => setSelectedDispute(dispute)}
-                className={`${tableGridClass} w-full border-b px-3 py-2.5 text-left text-xs text-white/85 transition hover:bg-white/[0.04] last:border-b-0 sm:px-4 sm:py-3 sm:text-sm`}
+                className={`${tableGridClass} w-full border-b px-4 py-2.5 text-left text-[13px] text-white/85 transition hover:bg-white/[0.04] last:border-b-0 sm:py-3`}
                 style={{ borderColor: "rgba(255,255,255,0.12)" }}
               >
                 <span className="font-semibold leading-snug tabular-nums">{dispute.id}</span>
@@ -254,8 +251,7 @@ export function DisputesList({ disputes }: DisputesListProps) {
               </button>
             );
           })}
-        </div>
-      </div>
+      </AdminDesktopTable>
 
       <div className="grid gap-3 md:hidden">
         {pagedDisputes.length === 0 ? (
@@ -319,62 +315,15 @@ export function DisputesList({ disputes }: DisputesListProps) {
         })}
       </div>
 
-      <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-[12px] text-white/65 sm:text-sm">
-          Showing{" "}
-          <span className="font-semibold text-white/85">
-            {rangeStart} to {rangeEnd}
-          </span>{" "}
-          of <span className="font-semibold text-white/85">{total}</span> results
-        </p>
-        {total > 0 ? (
-          <div className="flex flex-wrap items-center justify-end gap-1.5">
-            <button
-              type="button"
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page <= 1}
-              className="min-h-[36px] min-w-[36px] rounded-lg border text-[13px] font-semibold text-white/85 transition enabled:hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-35"
-              style={{ borderColor: theme.colors.outline }}
-              aria-label="Previous page"
-            >
-              ‹
-            </button>
-            {pageNumbers.map((n, i) =>
-              n === -1 ? (
-                <span key={`e-${i}`} className="px-1 text-white/45">
-                  …
-                </span>
-              ) : (
-                <button
-                  key={n}
-                  type="button"
-                  onClick={() => setPage(n)}
-                  className="min-h-[36px] min-w-[36px] rounded-lg border text-[13px] font-semibold transition"
-                  style={{
-                    borderColor: page === n ? "#ABE9FE" : theme.colors.outline,
-                    backgroundColor: page === n ? "rgba(171, 233, 254, 0.12)" : "transparent",
-                    color: theme.colors.themeWhite,
-                  }}
-                  aria-label={`Page ${n}`}
-                  aria-current={page === n ? "page" : undefined}
-                >
-                  {n}
-                </button>
-              ),
-            )}
-            <button
-              type="button"
-              onClick={() => setPage((p) => Math.min(pageCount, p + 1))}
-              disabled={page >= pageCount}
-              className="min-h-[36px] min-w-[36px] rounded-lg border text-[13px] font-semibold text-white/85 transition enabled:hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-35"
-              style={{ borderColor: theme.colors.outline }}
-              aria-label="Next page"
-            >
-              ›
-            </button>
-          </div>
-        ) : null}
-      </div>
+      <AdminListPagination
+        page={page}
+        pageCount={pageCount}
+        total={total}
+        rangeStart={rangeStart}
+        rangeEnd={rangeEnd}
+        onPageChange={setPage}
+        pageNumbers={pageNumbers}
+      />
 
       {selectedDispute ? (
         <div className="fixed inset-0 z-[220] flex items-end justify-center p-3 sm:items-center sm:p-4" role="presentation">

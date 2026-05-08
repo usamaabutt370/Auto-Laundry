@@ -3,13 +3,12 @@
 import { PRODUCT_NAME } from "@/lib/branding";
 import { theme } from "@/lib/theme/theme";
 import type { AdminUser } from "@/features/admin/types/admin-user";
+import { AdminDesktopTable, AdminListPagination } from "@/features/admin/components/admin-list-ui";
 import { useEffect, useMemo, useState } from "react";
 
 type UsersListProps = {
   users: AdminUser[];
 };
-
-type StatusFilter = "all" | AdminUser["status"];
 
 const statusPillMap: Record<AdminUser["status"], { bg: string; fg: string; border: string }> = {
   Active: { bg: "rgba(110, 231, 168, 0.2)", fg: "#6EE7A8", border: "rgba(110, 231, 168, 0.45)" },
@@ -18,33 +17,31 @@ const statusPillMap: Record<AdminUser["status"], { bg: string; fg: string; borde
   "N/A": { bg: "rgba(160, 174, 192, 0.22)", fg: "#C6D0DF", border: "rgba(160, 174, 192, 0.45)" },
 };
 
-const FILTERS: { key: StatusFilter; label: string }[] = [
-  { key: "all", label: "All" },
-  { key: "Active", label: "Active" },
-  { key: "Pending", label: "Pending" },
-  { key: "Blocked", label: "Blocked" },
-  { key: "N/A", label: "N/A" },
-];
 
 const statusPillClass = "admin-status-pill border text-[11px] font-semibold sm:text-xs";
 
 const tableGridClass =
-  "grid grid-cols-[minmax(128px,1.1fr)_minmax(200px,1.55fr)_minmax(136px,1fr)_minmax(132px,1fr)_80px_minmax(96px,0.9fr)] items-center gap-x-3 gap-y-1 sm:gap-x-4";
+  "grid grid-cols-[minmax(128px,1.1fr)_minmax(200px,1.55fr)_minmax(136px,1fr)_minmax(132px,1fr)_80px_minmax(96px,0.9fr)] items-center gap-x-4 gap-y-1";
 
 const PAGE_SIZE = 10;
 
 export function UsersList({ users }: UsersListProps) {
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
+  const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
 
   const filteredUsers = useMemo(() => {
-    if (statusFilter === "all") return users;
-    return users.filter((user) => user.status === statusFilter);
-  }, [users, statusFilter]);
+    const q = query.trim().toLowerCase();
+    return q
+      ? users.filter((user) =>
+          [user.id, user.name, user.email, user.phone].some((value) => value.toLowerCase().includes(q)),
+        )
+      : users;
+  }, [users, query]);
 
   useEffect(() => {
     setPage(1);
-  }, [statusFilter]);
+  }, [query]);
 
   const pageCount = Math.max(1, Math.ceil(filteredUsers.length / PAGE_SIZE));
 
@@ -87,38 +84,31 @@ export function UsersList({ users }: UsersListProps) {
         </p>
       </div>
 
-      <div className="flex flex-wrap items-center justify-start gap-2 sm:gap-2.5">
-        {FILTERS.map(({ key, label }) => {
-          const isSelected = statusFilter === key;
-          return (
-            <button
-              key={key}
-              type="button"
-              onClick={() => setStatusFilter(key)}
-              className="inline-flex min-h-[40px] min-w-[72px] flex-1 items-center justify-center rounded-full border px-3 py-2 text-center text-[12px] font-semibold transition active:opacity-90 sm:min-h-[40px] sm:min-w-0 sm:flex-none sm:px-4 sm:py-2.5 sm:text-[13px]"
-              style={{
-                borderColor: theme.colors.filledButtonBorder,
-                backgroundColor: isSelected ? theme.colors.secondary : "transparent",
-                color: theme.colors.themeWhite,
-                ...(isSelected
-                  ? {}
-                  : { boxShadow: "inset 0 0 0 1px rgba(160, 208, 233, 0.25)" }),
-              }}
-            >
-              {label}
-            </button>
-          );
-        })}
+      <div className="relative min-w-0 flex-1">
+        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-white/45">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+            <path
+              d="M10.5 18a7.5 7.5 0 100-15 7.5 7.5 0 000 15zM21 21l-4.35-4.35"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+            />
+          </svg>
+        </span>
+        <input
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search by user ID, name, email, phone..."
+          className="w-full rounded-xl border py-2.5 pl-9 pr-3 text-[13px] text-white outline-none placeholder:text-white/40 focus-visible:ring-2 focus-visible:ring-[#ABE9FE] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent"
+          style={{ borderColor: theme.colors.outline, backgroundColor: theme.colors.sidebarBackground }}
+        />
       </div>
 
       {/* Tablet/desktop: horizontal scroll so columns never crush */}
-      <div
-        className="scrollbar-hidden hidden min-w-0 overflow-x-auto rounded-xl border md:block [-webkit-overflow-scrolling:touch]"
-        style={{ borderColor: theme.colors.outline, backgroundColor: theme.colors.sidebarBackground }}
-      >
-        <div className="min-w-[920px]">
+      <AdminDesktopTable minWidthClassName="w-full min-w-[1080px]">
           <div
-            className={`sticky top-0 z-[1] ${tableGridClass} border-b px-3 py-3 text-xs font-bold text-white/90 sm:px-4 sm:text-sm`}
+            className={`sticky top-0 z-[1] ${tableGridClass} border-b px-4 py-3 text-[11px] font-bold uppercase tracking-wide text-white/70 sm:text-xs`}
             style={{
               borderColor: "rgba(255,255,255,0.12)",
               backgroundColor: theme.colors.sidebarBackground,
@@ -137,9 +127,11 @@ export function UsersList({ users }: UsersListProps) {
             </div>
           ) : null}
           {pagedUsers.map((user) => (
-            <div
+            <button
               key={user.id}
-              className={`${tableGridClass} border-b px-3 py-2.5 text-xs text-white/85 last:border-b-0 sm:px-4 sm:py-3 sm:text-sm`}
+              type="button"
+              onClick={() => setSelectedUser(user)}
+              className={`${tableGridClass} w-full border-b px-4 py-2.5 text-left text-[13px] text-white/85 transition hover:bg-white/[0.04] last:border-b-0 sm:py-3`}
               style={{ borderColor: "rgba(255,255,255,0.12)" }}
             >
               <span className="font-semibold leading-snug">{user.name}</span>
@@ -163,10 +155,9 @@ export function UsersList({ users }: UsersListProps) {
               <span className="whitespace-nowrap text-right tabular-nums leading-none">
                 {user.joinedAt}
               </span>
-            </div>
+            </button>
           ))}
-        </div>
-      </div>
+      </AdminDesktopTable>
 
       {/* Mobile: stacked cards */}
       <div className="grid gap-3 md:hidden">
@@ -176,9 +167,11 @@ export function UsersList({ users }: UsersListProps) {
           </p>
         ) : null}
         {pagedUsers.map((user) => (
-          <article
+          <button
             key={user.id}
-            className="rounded-xl border p-3.5 sm:p-4"
+            type="button"
+            onClick={() => setSelectedUser(user)}
+            className="rounded-xl border p-3.5 text-left transition hover:bg-white/[0.04] sm:p-4"
             style={{
               borderColor: theme.colors.outline,
               backgroundColor: theme.colors.sidebarBackground,
@@ -221,72 +214,82 @@ export function UsersList({ users }: UsersListProps) {
                 <dd className="tabular-nums leading-none sm:text-right">{user.joinedAt}</dd>
               </div>
             </dl>
-          </article>
+          </button>
         ))}
       </div>
 
-      <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-[12px] text-white/65 sm:text-sm">
-          Showing{" "}
-          <span className="font-semibold text-white/85">
-            {rangeStart} to {rangeEnd}
-          </span>{" "}
-          of <span className="font-semibold text-white/85">{total}</span> users
-          {statusFilter !== "all" ? (
-            <span className="text-white/50">
-              {" "}
-              (filtered from {users.length} total)
-            </span>
-          ) : null}
-        </p>
-        {total > 0 ? (
-          <div className="flex flex-wrap items-center justify-end gap-1.5">
+      <AdminListPagination
+        page={page}
+        pageCount={pageCount}
+        total={total}
+        rangeStart={rangeStart}
+        rangeEnd={rangeEnd}
+        onPageChange={setPage}
+        pageNumbers={pageNumbers}
+        noun="users"
+      />
+
+      {selectedUser ? (
+        <div className="fixed inset-0 z-[220] flex items-end justify-center p-3 sm:items-center sm:p-4" role="presentation">
+          <button
+            type="button"
+            aria-label="Close user details"
+            className="absolute inset-0 bg-black/55 backdrop-blur-[2px]"
+            onClick={() => setSelectedUser(null)}
+          />
+          <section
+            role="dialog"
+            aria-modal="true"
+            className="relative z-[221] w-full max-w-[640px] rounded-2xl border px-4 py-5 shadow-xl sm:px-6 sm:py-6"
+            style={{ borderColor: theme.colors.filledButtonBorder, backgroundColor: theme.colors.sidebarBackground }}
+          >
             <button
               type="button"
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page <= 1}
-              className="min-h-[36px] min-w-[36px] rounded-lg border text-[13px] font-semibold text-white/85 transition enabled:hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-35"
-              style={{ borderColor: theme.colors.outline }}
-              aria-label="Previous page"
+              onClick={() => setSelectedUser(null)}
+              className="absolute right-4 top-4 inline-flex h-9 w-9 items-center justify-center rounded-full border text-[20px] font-semibold leading-none text-white transition hover:brightness-110"
+              style={{ borderColor: theme.colors.filledButtonBorder, backgroundColor: theme.colors.secondary }}
+              aria-label="Close modal"
             >
-              ‹
+              ×
             </button>
-            {pageNumbers.map((n, i) =>
-              n === -1 ? (
-                <span key={`e-${i}`} className="px-1 text-white/45">
-                  …
-                </span>
-              ) : (
-                <button
-                  key={n}
-                  type="button"
-                  onClick={() => setPage(n)}
-                  className="min-h-[36px] min-w-[36px] rounded-lg border text-[13px] font-semibold transition"
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-white/55">User detail</p>
+            <h2 className="mt-1 pr-10 text-[18px] font-bold text-white sm:text-[22px]">{selectedUser.name}</h2>
+            <p className="mt-1 font-mono text-[12px] text-white/60">{selectedUser.id}</p>
+
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <article className="rounded-xl border px-3.5 py-3" style={{ borderColor: "rgba(255,255,255,0.15)" }}>
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-white/55">Email</p>
+                <p className="mt-1 break-all text-[14px] text-white">{selectedUser.email}</p>
+              </article>
+              <article className="rounded-xl border px-3.5 py-3" style={{ borderColor: "rgba(255,255,255,0.15)" }}>
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-white/55">Phone</p>
+                <p className="mt-1 text-[14px] text-white">{selectedUser.phone}</p>
+              </article>
+              <article className="rounded-xl border px-3.5 py-3" style={{ borderColor: "rgba(255,255,255,0.15)" }}>
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-white/55">Status</p>
+                <span
+                  className={`${statusPillClass} mt-2 inline-flex rounded-full py-1 pl-2.5 pr-3`}
                   style={{
-                    borderColor: page === n ? "#ABE9FE" : theme.colors.outline,
-                    backgroundColor: page === n ? "rgba(171, 233, 254, 0.12)" : "transparent",
-                    color: theme.colors.themeWhite,
+                    backgroundColor: statusPillMap[selectedUser.status].bg,
+                    color: statusPillMap[selectedUser.status].fg,
+                    borderColor: statusPillMap[selectedUser.status].border,
                   }}
-                  aria-label={`Page ${n}`}
-                  aria-current={page === n ? "page" : undefined}
                 >
-                  {n}
-                </button>
-              ),
-            )}
-            <button
-              type="button"
-              onClick={() => setPage((p) => Math.min(pageCount, p + 1))}
-              disabled={page >= pageCount}
-              className="min-h-[36px] min-w-[36px] rounded-lg border text-[13px] font-semibold text-white/85 transition enabled:hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-35"
-              style={{ borderColor: theme.colors.outline }}
-              aria-label="Next page"
-            >
-              ›
-            </button>
-          </div>
-        ) : null}
-      </div>
+                  {selectedUser.status}
+                </span>
+              </article>
+              <article className="rounded-xl border px-3.5 py-3" style={{ borderColor: "rgba(255,255,255,0.15)" }}>
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-white/55">Orders</p>
+                <p className="mt-1 text-[14px] text-white">{selectedUser.orders}</p>
+              </article>
+              <article className="rounded-xl border px-3.5 py-3 sm:col-span-2" style={{ borderColor: "rgba(255,255,255,0.15)" }}>
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-white/55">Joined</p>
+                <p className="mt-1 text-[14px] text-white">{selectedUser.joinedAt}</p>
+              </article>
+            </div>
+          </section>
+        </div>
+      ) : null}
     </section>
   );
 }

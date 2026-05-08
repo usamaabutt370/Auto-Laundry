@@ -252,7 +252,7 @@ export function PartnerCreditsList({
       >
         <div className="min-w-[860px]">
           <div
-            className="grid grid-cols-[minmax(90px,0.8fr)_minmax(160px,1.3fr)_minmax(120px,1fr)_minmax(120px,0.9fr)_minmax(120px,0.9fr)_minmax(110px,0.8fr)] items-center gap-x-3 border-b px-4 py-3 text-[11px] font-bold uppercase tracking-wide text-white/70"
+            className="grid grid-cols-[minmax(90px,0.8fr)_minmax(160px,1.3fr)_minmax(120px,1fr)_minmax(120px,0.9fr)_minmax(120px,0.9fr)_minmax(110px,0.8fr)] items-center gap-x-4 border-b px-4 py-3.5 text-xs font-bold uppercase tracking-wide text-white/70"
             style={{ borderColor: "rgba(255,255,255,0.12)" }}
           >
             <span>Partner ID</span>
@@ -289,10 +289,10 @@ export function PartnerCreditsList({
                   setIsEditingBalanceByPartner((prev) => ({ ...prev, [partner.userId]: false }));
                   setSelectedPartner(partner);
                 }}
-                className="grid w-full grid-cols-[minmax(90px,0.8fr)_minmax(160px,1.3fr)_minmax(120px,1fr)_minmax(120px,0.9fr)_minmax(120px,0.9fr)_minmax(110px,0.8fr)] items-center gap-x-3 border-b px-4 py-3 text-left text-sm text-white/85 transition hover:bg-white/[0.04] last:border-b-0"
+                className="grid w-full grid-cols-[minmax(90px,0.8fr)_minmax(160px,1.3fr)_minmax(120px,1fr)_minmax(120px,0.9fr)_minmax(120px,0.9fr)_minmax(110px,0.8fr)] items-center gap-x-4 border-b px-4 py-3.5 text-left text-[15px] text-white/85 transition hover:bg-white/[0.04] last:border-b-0"
                 style={{ borderColor: "rgba(255,255,255,0.12)" }}
               >
-                <span className="font-mono text-[12px] text-white/70">{partner.userId}</span>
+                <span className="font-mono text-[13px] text-white/70">{partner.userId}</span>
                 <span className="font-semibold">{partner.userName}</span>
                 <span className="text-white/70">{partner.userPhone}</span>
                 <span className="justify-self-end text-right font-bold tabular-nums text-[#6EE7A8]">{partner.balance.toLocaleString()} cr</span>
@@ -378,7 +378,16 @@ export function PartnerCreditsList({
             className="relative z-[221] w-full max-w-[720px] rounded-2xl border px-4 py-5 shadow-xl sm:px-6 sm:py-6"
             style={{ borderColor: theme.colors.filledButtonBorder, backgroundColor: theme.colors.sidebarBackground }}
           >
-            <div className="flex items-start justify-between gap-3">
+            <button
+              type="button"
+              onClick={closePartnerDetailModal}
+              className="absolute right-4 top-4 inline-flex h-9 w-9 items-center justify-center rounded-full border text-[20px] font-semibold leading-none text-white transition hover:brightness-110"
+              style={{ borderColor: theme.colors.filledButtonBorder, backgroundColor: theme.colors.secondary }}
+              aria-label="Close modal"
+            >
+              ×
+            </button>
+            <div className="flex items-start justify-between gap-3 pr-12 sm:pr-14">
               <div>
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-white/55">Partner detail</p>
                 <h2 className="mt-1 text-[18px] font-bold text-white sm:text-[22px]">{selectedPartner.userName}</h2>
@@ -570,16 +579,6 @@ export function PartnerCreditsList({
               </div>
             </div>
 
-            <div className="mt-5">
-              <button
-                type="button"
-                onClick={closePartnerDetailModal}
-                className="min-h-[42px] w-full rounded-xl border px-4 text-[14px] font-semibold text-white sm:w-auto sm:min-w-[120px]"
-                style={{ borderColor: theme.colors.filledButtonBorder, backgroundColor: theme.colors.secondary }}
-              >
-                Close
-              </button>
-            </div>
           </section>
         </div>
       ) : null}

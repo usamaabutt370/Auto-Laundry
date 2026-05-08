@@ -162,6 +162,21 @@ export async function getPartnerKycDetailForAdmin(userId: string): Promise<Admin
   };
 }
 
+export async function getPartnerUserIdByRequestId(requestId: string): Promise<string | null> {
+  const supabase = createSupabaseAdminClient();
+  const requestResult = await supabase
+    .from("partner_onboarding_requests")
+    .select("user_id")
+    .eq("id", requestId)
+    .maybeSingle();
+
+  if (requestResult.error) {
+    throw new Error(`partner_onboarding_requests request-id lookup failed: ${requestResult.error.message}`);
+  }
+
+  return asTextOrNull(requestResult.data?.user_id);
+}
+
 export async function approvePartnerKycRequest(input: {
   userId: string;
   reviewedBy?: string | null;

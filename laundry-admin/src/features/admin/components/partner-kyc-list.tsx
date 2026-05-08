@@ -3,10 +3,11 @@
 import { PRODUCT_NAME } from "@/lib/branding";
 import { theme } from "@/lib/theme/theme";
 import type {
+  AdminPartnerKycDetail,
   AdminPartnerKycListItem,
   PartnerOnboardingStatus,
 } from "@/features/admin/types/admin-partner-kyc";
-import Link from "next/link";
+import { AdminDesktopTable, AdminListPagination } from "@/features/admin/components/admin-list-ui";
 import { useMemo, useState } from "react";
 
 type PartnerKycListProps = {
@@ -32,7 +33,7 @@ const statusPillClass = "admin-status-pill border text-[11px] font-semibold sm:t
  * Gives Email and Submitted clearer breathing room while keeping Status/Actions tighter.
  */
 const tableGridClass =
-  "grid grid-cols-[minmax(96px,1fr)_minmax(124px,1.15fr)_minmax(116px,1fr)_minmax(150px,1.2fr)_minmax(112px,0.95fr)_minmax(176px,1.3fr)_minmax(98px,0.82fr)_minmax(88px,0.78fr)] items-center gap-x-4 gap-y-1";
+  "grid grid-cols-[minmax(96px,1fr)_minmax(124px,1.15fr)_minmax(116px,1fr)_minmax(150px,1.2fr)_minmax(112px,0.95fr)_minmax(176px,1.3fr)_minmax(98px,0.82fr)] items-center gap-x-4 gap-y-1";
 
 function matchesQuery(row: AdminPartnerKycListItem, q: string): boolean {
   const s = q.trim().toLowerCase();
@@ -64,6 +65,14 @@ export function PartnerKycList({ partners }: PartnerKycListProps) {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [page, setPage] = useState(1);
+  const [selectedPartnerId, setSelectedPartnerId] = useState<string | null>(null);
+  const [selectedPartnerDetail, setSelectedPartnerDetail] = useState<AdminPartnerKycDetail | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
+  const [currentStatus, setCurrentStatus] = useState<PartnerOnboardingStatus>("pending");
+  const [rejectionReason, setRejectionReason] = useState("");
+  const [statusNote, setStatusNote] = useState<string | null>(null);
+  const [busy, setBusy] = useState<"approve" | "reject" | null>(null);
 
   const filtered = useMemo(() => {
     const searched = partners.filter((p) => matchesQuery(p, query));
@@ -97,6 +106,79 @@ export function PartnerKycList({ partners }: PartnerKycListProps) {
     nums.push(pageCount);
     return nums;
   }, [safePage, pageCount]);
+
+  async function openDetailModal(partnerId: string) {
+    setSelectedPartnerId(partnerId);
+    setSelectedPartnerDetail(null);
+    setDetailLoading(true);
+    setDetailError(null);
+    setStatusNote(null);
+    try {
+      const response = await fetch(`/api/admin/partner-kyc/${encodeURIComponent(partnerId)}`);
+      const payload = (await response.json().catch(() => null)) as
+        | { ok: true; partner: AdminPartnerKycDetail }
+        | { error?: string }
+        | null;
+      if (!response.ok || !payload || !("ok" in payload && payload.ok)) {
+        throw new Error(payload && "error" in payload && payload.error ? payload.error : "Failed to load detail.");
+      }
+      setSelectedPartnerDetail(payload.partner);
+      setCurrentStatus(payload.partner.request.status);
+      setRejectionReason(payload.partner.request.rejectionReason ?? "");
+    } catch (error) {
+      setDetailError(error instanceof Error ? error.message : "Failed to load detail.");
+    } finally {
+      setDetailLoading(false);
+    }
+  }
+
+  async function submitDecision(action: "approve" | "reject") {
+    if (!selectedPartnerDetail) return;
+    const reason = rejectionReason.trim();
+    if (action === "reject" && !reason) {
+      setStatusNote("Rejection reason is required.");
+      return;
+    }
+    setBusy(action);
+    setStatusNote(null);
+    try {
+      const response = await fetch(`/api/admin/partner-kyc/${encodeURIComponent(selectedPartnerDetail.userId)}/review`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, rejectionReason: reason }),
+      });
+      const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+      if (!response.ok) throw new Error(payload?.error || `Request failed with status ${response.status}`);
+
+      const nextStatus = action === "approve" ? "approved" : "rejected";
+      setCurrentStatus(nextStatus);
+      setSelectedPartnerDetail((prev) =>
+        prev
+          ? {
+              ...prev,
+              request: {
+                ...prev.request,
+                status: nextStatus,
+                rejectionReason: nextStatus === "rejected" ? reason : null,
+              },
+            }
+          : prev,
+      );
+      setStatusNote(`KYC request ${nextStatus}.`);
+    } catch (error) {
+      setStatusNote(error instanceof Error ? error.message : "Failed to update KYC status.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  function closeModal() {
+    setSelectedPartnerId(null);
+    setSelectedPartnerDetail(null);
+    setDetailError(null);
+    setStatusNote(null);
+    setBusy(null);
+  }
 
   return (
     <section className="w-full min-w-0 space-y-3 sm:space-y-4">
@@ -160,11 +242,7 @@ export function PartnerKycList({ partners }: PartnerKycListProps) {
         </select>
       </div>
 
-      <div
-        className="scrollbar-hidden hidden min-w-0 overflow-x-auto rounded-xl border md:block [-webkit-overflow-scrolling:touch]"
-        style={{ borderColor: theme.colors.outline, backgroundColor: theme.colors.sidebarBackground }}
-      >
-        <div className="w-full min-w-[1180px]">
+      <AdminDesktopTable minWidthClassName="w-full min-w-[1180px]">
           <div
             className={`sticky top-0 z-[1] ${tableGridClass} border-b px-4 py-3 text-[11px] font-bold uppercase tracking-wide text-white/70 sm:text-xs`}
             style={{
@@ -179,7 +257,6 @@ export function PartnerKycList({ partners }: PartnerKycListProps) {
             <span className="text-left">Submitted</span>
             <span className="text-left">Reviewed</span>
             <span className="text-left">Status</span>
-            <span className="text-right">Actions</span>
           </div>
           {paged.length === 0 ? (
             <div className="px-4 py-10 text-center text-sm text-white/60">
@@ -189,9 +266,11 @@ export function PartnerKycList({ partners }: PartnerKycListProps) {
           {paged.map((row) => {
             const pill = STATUS_PILL[row.status];
             return (
-              <div
+              <button
                 key={row.userId}
-                className={`${tableGridClass} border-b px-4 py-2.5 text-xs text-white/85 last:border-b-0 sm:py-3 sm:text-sm`}
+                type="button"
+                onClick={() => openDetailModal(row.userId)}
+                className={`${tableGridClass} w-full border-b px-4 py-2.5 text-[13px] text-white/85 transition hover:bg-white/[0.04] last:border-b-0 sm:py-3`}
                 style={{ borderColor: "rgba(255,255,255,0.12)" }}
               >
                 <span className="text-left font-semibold tabular-nums leading-snug">{row.userId}</span>
@@ -225,20 +304,10 @@ export function PartnerKycList({ partners }: PartnerKycListProps) {
                     {formatStatus(row.status)}
                   </span>
                 </div>
-                <div className="flex flex-wrap items-center justify-end gap-1.5">
-                  <Link
-                    href={`/partner-kyc/${encodeURIComponent(row.userId)}`}
-                    className="rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold transition hover:bg-white/5 sm:text-xs"
-                    style={{ borderColor: theme.colors.filledButtonBorder, color: theme.colors.themeWhite }}
-                  >
-                    View
-                  </Link>
-                </div>
-              </div>
+              </button>
             );
           })}
-        </div>
-      </div>
+      </AdminDesktopTable>
 
       <div className="grid gap-3 md:hidden">
         {paged.length === 0 ? (
@@ -249,9 +318,11 @@ export function PartnerKycList({ partners }: PartnerKycListProps) {
         {paged.map((row) => {
           const pill = STATUS_PILL[row.status];
           return (
-            <article
+            <button
               key={row.userId}
-              className="rounded-xl border p-3.5 sm:p-4"
+              type="button"
+              onClick={() => openDetailModal(row.userId)}
+              className="rounded-xl border p-3.5 text-left transition hover:bg-white/[0.04] sm:p-4"
               style={{
                 borderColor: theme.colors.outline,
                 backgroundColor: theme.colors.sidebarBackground,
@@ -298,74 +369,178 @@ export function PartnerKycList({ partners }: PartnerKycListProps) {
                   </dd>
                 </div>
               </dl>
-              <Link
-                href={`/partner-kyc/${encodeURIComponent(row.userId)}`}
-                className="mt-4 w-full min-h-[44px] rounded-xl border px-3 py-2.5 text-[13px] font-semibold"
-                style={{ borderColor: theme.colors.filledButtonBorder, color: theme.colors.themeWhite }}
-              >
-                View partner
-              </Link>
-            </article>
+            </button>
           );
         })}
       </div>
 
-      <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-[12px] text-white/65 sm:text-sm">
-          Showing{" "}
-          <span className="font-semibold text-white/85">
-            {rangeStart} to {rangeEnd}
-          </span>{" "}
-          of <span className="font-semibold text-white/85">{total}</span> results
-        </p>
-        {total > 0 ? (
-          <div className="flex flex-wrap items-center justify-end gap-1.5">
+      <AdminListPagination
+        page={safePage}
+        pageCount={pageCount}
+        total={total}
+        rangeStart={rangeStart}
+        rangeEnd={rangeEnd}
+        onPageChange={setPage}
+        pageNumbers={pageNumbers}
+      />
+
+      {selectedPartnerId ? (
+        <div className="fixed inset-0 z-[220] flex items-end justify-center p-3 sm:items-center sm:p-4" role="presentation">
+          <button
+            type="button"
+            aria-label="Close partner KYC details"
+            className="absolute inset-0 bg-black/55 backdrop-blur-[2px]"
+            onClick={closeModal}
+          />
+          <section
+            role="dialog"
+            aria-modal="true"
+            className="relative z-[221] flex max-h-[92dvh] w-full max-w-[760px] flex-col overflow-hidden rounded-2xl border px-4 py-5 shadow-xl sm:px-6 sm:py-6"
+            style={{ borderColor: theme.colors.filledButtonBorder, backgroundColor: theme.colors.sidebarBackground }}
+          >
             <button
               type="button"
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={safePage <= 1}
-              className="min-h-[36px] min-w-[36px] rounded-lg border text-[13px] font-semibold text-white/85 transition enabled:hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-35"
-              style={{ borderColor: theme.colors.outline }}
-              aria-label="Previous page"
+              onClick={closeModal}
+              className="absolute right-4 top-4 inline-flex h-9 w-9 items-center justify-center rounded-full border text-[20px] font-semibold leading-none text-white transition hover:brightness-110"
+              style={{ borderColor: theme.colors.filledButtonBorder, backgroundColor: theme.colors.secondary }}
+              aria-label="Close modal"
             >
-              ‹
+              ×
             </button>
-            {pageNumbers.map((n, i) =>
-              n === -1 ? (
-                <span key={`e-${i}`} className="px-1 text-white/45">
-                  …
-                </span>
-              ) : (
-                <button
-                  key={n}
-                  type="button"
-                  onClick={() => setPage(n)}
-                  className="min-h-[36px] min-w-[36px] rounded-lg border text-[13px] font-semibold transition"
-                  style={{
-                    borderColor: safePage === n ? "#ABE9FE" : theme.colors.outline,
-                    backgroundColor: safePage === n ? "rgba(171, 233, 254, 0.12)" : "transparent",
-                    color: theme.colors.themeWhite,
-                  }}
-                  aria-label={`Page ${n}`}
-                  aria-current={safePage === n ? "page" : undefined}
-                >
-                  {n}
-                </button>
-              ),
-            )}
-            <button
-              type="button"
-              onClick={() => setPage((p) => Math.min(pageCount, p + 1))}
-              disabled={safePage >= pageCount}
-              className="min-h-[36px] min-w-[36px] rounded-lg border text-[13px] font-semibold text-white/85 transition enabled:hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-35"
-              style={{ borderColor: theme.colors.outline }}
-              aria-label="Next page"
-            >
-              ›
-            </button>
-          </div>
-        ) : null}
-      </div>
+            {detailLoading ? <p className="text-sm text-white/70">Loading partner detail...</p> : null}
+            {detailError ? <p className="text-sm text-[#F18C8C]">{detailError}</p> : null}
+            {selectedPartnerDetail ? (
+              <div className="scrollbar-hidden min-h-0 overflow-y-auto pr-1">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-white/55">Partner KYC detail</p>
+                <h2 className="mt-1 pr-10 text-[18px] font-bold text-white sm:text-[22px]">{selectedPartnerDetail.profile.fullName}</h2>
+                <p className="mt-1 font-mono text-[12px] text-white/60">{selectedPartnerDetail.userId}</p>
+                <div className="mt-3">
+                  <span
+                    className={`${statusPillClass} inline-flex rounded-full py-1 pl-2.5 pr-3`}
+                    style={{
+                      backgroundColor: STATUS_PILL[currentStatus].bg,
+                      color: STATUS_PILL[currentStatus].fg,
+                      borderColor: STATUS_PILL[currentStatus].border,
+                    }}
+                  >
+                    {formatStatus(currentStatus)}
+                  </span>
+                </div>
+
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <article className="rounded-xl border px-3.5 py-3" style={{ borderColor: "rgba(255,255,255,0.15)" }}>
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-white/55">Email</p>
+                    <p className="mt-1 break-all text-[14px] text-white">{selectedPartnerDetail.profile.email || "N/A"}</p>
+                  </article>
+                  <article className="rounded-xl border px-3.5 py-3" style={{ borderColor: "rgba(255,255,255,0.15)" }}>
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-white/55">Phone</p>
+                    <p className="mt-1 text-[14px] text-white">{selectedPartnerDetail.profile.phone || "N/A"}</p>
+                  </article>
+                  <article className="rounded-xl border px-3.5 py-3" style={{ borderColor: "rgba(255,255,255,0.15)" }}>
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-white/55">Business</p>
+                    <p className="mt-1 text-[14px] text-white">{selectedPartnerDetail.business.businessName || "N/A"}</p>
+                  </article>
+                  <article className="rounded-xl border px-3.5 py-3" style={{ borderColor: "rgba(255,255,255,0.15)" }}>
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-white/55">Submitted</p>
+                    <p className="mt-1 text-[14px] text-white">{formatDate(selectedPartnerDetail.request.submittedAt)}</p>
+                  </article>
+                  <article className="rounded-xl border px-3.5 py-3" style={{ borderColor: "rgba(255,255,255,0.15)" }}>
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-white/55">Role</p>
+                    <p className="mt-1 text-[14px] text-white">{selectedPartnerDetail.profile.role || "N/A"}</p>
+                  </article>
+                  <article className="rounded-xl border px-3.5 py-3" style={{ borderColor: "rgba(255,255,255,0.15)" }}>
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-white/55">Profile Created</p>
+                    <p className="mt-1 text-[14px] text-white">{formatDate(selectedPartnerDetail.profile.createdAt)}</p>
+                  </article>
+                  <article className="rounded-xl border px-3.5 py-3" style={{ borderColor: "rgba(255,255,255,0.15)" }}>
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-white/55">Reviewed</p>
+                    <p className="mt-1 text-[14px] text-white">{formatDate(selectedPartnerDetail.request.reviewedAt)}</p>
+                  </article>
+                  <article className="rounded-xl border px-3.5 py-3" style={{ borderColor: "rgba(255,255,255,0.15)" }}>
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-white/55">Reviewed By</p>
+                    <p className="mt-1 text-[14px] text-white">{selectedPartnerDetail.request.reviewedBy || "N/A"}</p>
+                  </article>
+                </div>
+
+                <div className="mt-4 rounded-xl border p-3.5 sm:p-4" style={{ borderColor: "rgba(255,255,255,0.15)" }}>
+                  <h3 className="text-[14px] font-bold text-white">Business details</h3>
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                    <article className="rounded-lg border px-3 py-2.5 sm:col-span-2" style={{ borderColor: "rgba(255,255,255,0.12)" }}>
+                      <p className="text-[11px] uppercase tracking-wide text-white/55">Business Description</p>
+                      <p className="mt-1 text-[13px] text-white">{selectedPartnerDetail.business.businessDescription || "N/A"}</p>
+                    </article>
+                    <article className="rounded-lg border px-3 py-2.5" style={{ borderColor: "rgba(255,255,255,0.12)" }}>
+                      <p className="text-[11px] uppercase tracking-wide text-white/55">Pickup & Delivery</p>
+                      <p className="mt-1 text-[13px] text-white">
+                        {selectedPartnerDetail.business.pickupDeliveryEnabled === null
+                          ? "N/A"
+                          : selectedPartnerDetail.business.pickupDeliveryEnabled
+                            ? "Yes"
+                            : "No"}
+                      </p>
+                    </article>
+                    <article className="rounded-lg border px-3 py-2.5" style={{ borderColor: "rgba(255,255,255,0.12)" }}>
+                      <p className="text-[11px] uppercase tracking-wide text-white/55">Pickup & Delivery Amount</p>
+                      <p className="mt-1 text-[13px] text-white">{selectedPartnerDetail.business.pickupDeliveryAmount || "N/A"}</p>
+                    </article>
+                    <article className="rounded-lg border px-3 py-2.5 sm:col-span-2" style={{ borderColor: "rgba(255,255,255,0.12)" }}>
+                      <p className="text-[11px] uppercase tracking-wide text-white/55">Request ID</p>
+                      <p className="mt-1 break-all font-mono text-[12px] text-white">{selectedPartnerDetail.request.id || "N/A"}</p>
+                    </article>
+                  </div>
+                </div>
+
+                <div className="mt-4 rounded-xl border p-3.5 sm:p-4" style={{ borderColor: "rgba(255,255,255,0.15)" }}>
+                  <h3 className="text-[14px] font-bold text-white">KYC actions</h3>
+                  <textarea
+                    value={rejectionReason}
+                    onChange={(e) => setRejectionReason(e.target.value)}
+                    rows={3}
+                    placeholder="Add reason shown to partner if rejected."
+                    className="mt-3 w-full rounded-xl border bg-transparent px-3 py-2 text-[13px] text-white outline-none placeholder:text-white/40"
+                    style={{ borderColor: theme.colors.outline }}
+                  />
+                  <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                    <button
+                      type="button"
+                      disabled={busy !== null || currentStatus !== "pending"}
+                      onClick={() => submitDecision("reject")}
+                      className="min-h-[42px] rounded-xl border px-4 text-[13px] font-semibold text-[#F18C8C] disabled:opacity-50"
+                      style={{ borderColor: "rgba(241, 140, 140, 0.45)" }}
+                    >
+                      {busy === "reject" ? "Rejecting..." : "Reject"}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busy !== null || currentStatus !== "pending"}
+                      onClick={() => submitDecision("approve")}
+                      className="min-h-[42px] rounded-xl border px-4 text-[13px] font-semibold text-white disabled:opacity-50"
+                      style={{ borderColor: theme.colors.filledButtonBorder, backgroundColor: theme.colors.secondary }}
+                    >
+                      {busy === "approve" ? "Approving..." : "Approve"}
+                    </button>
+                  </div>
+                  {statusNote ? <p className="mt-2 text-[12px] text-[#ABE9FE]">{statusNote}</p> : null}
+                </div>
+
+                <div className="mt-4 rounded-xl border p-3.5 sm:p-4" style={{ borderColor: "rgba(255,255,255,0.15)" }}>
+                  <h3 className="text-[14px] font-bold text-white">Services offered</h3>
+                  <ul className="mt-2 grid gap-2 sm:grid-cols-2">
+                    {selectedPartnerDetail.services.map((service) => (
+                      <li key={service.id} className="rounded-lg border px-3 py-2 text-[13px] text-white/90" style={{ borderColor: "rgba(255,255,255,0.12)" }}>
+                        {service.name} <span className="text-white/65">({service.priceDisplay || "N/A"})</span>
+                      </li>
+                    ))}
+                    {selectedPartnerDetail.services.length === 0 ? (
+                      <li className="text-[12px] text-white/60">No services listed.</li>
+                    ) : null}
+                  </ul>
+                </div>
+              </div>
+            ) : null}
+          </section>
+        </div>
+      ) : null}
     </section>
   );
 }

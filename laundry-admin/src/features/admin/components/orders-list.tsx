@@ -3,6 +3,7 @@
 import { PRODUCT_NAME } from "@/lib/branding";
 import { theme } from "@/lib/theme/theme";
 import type { AdminOrder, OrderStatus, ShippingService } from "@/features/admin/data/admin-orders";
+import { AdminDesktopTable, AdminListPagination } from "@/features/admin/components/admin-list-ui";
 import { useEffect, useMemo, useState } from "react";
 
 type OrdersListProps = {
@@ -42,7 +43,7 @@ const SERVICE_DOT: Record<ShippingService, string> = {
 const statusPillClass = "admin-status-pill border text-[11px] font-semibold sm:text-xs";
 
 const tableGridClass =
-  "grid grid-cols-[minmax(84px,0.8fr)_minmax(120px,1fr)_minmax(120px,1fr)_minmax(140px,1.2fr)_minmax(92px,0.8fr)_minmax(80px,0.7fr)_minmax(140px,1.2fr)_minmax(100px,0.85fr)] items-center gap-x-3 gap-y-1 sm:gap-x-4";
+  "grid grid-cols-[minmax(84px,0.8fr)_minmax(120px,1fr)_minmax(120px,1fr)_minmax(140px,1.2fr)_minmax(92px,0.8fr)_minmax(80px,0.7fr)_minmax(140px,1.2fr)_minmax(100px,0.85fr)] items-center gap-x-4 gap-y-1";
 
 function matchesQuery(order: AdminOrder, q: string): boolean {
   const s = q.trim().toLowerCase();
@@ -61,6 +62,7 @@ export function OrdersList({ orders }: OrdersListProps) {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [page, setPage] = useState(1);
+  const [selectedOrder, setSelectedOrder] = useState<AdminOrder | null>(null);
 
   useEffect(() => {
     setPage(1);
@@ -157,13 +159,9 @@ export function OrdersList({ orders }: OrdersListProps) {
         </select>
       </div>
 
-      <div
-        className="scrollbar-hidden hidden min-w-0 overflow-x-auto rounded-xl border md:block [-webkit-overflow-scrolling:touch]"
-        style={{ borderColor: theme.colors.outline, backgroundColor: theme.colors.sidebarBackground }}
-      >
-        <div className="min-w-[1120px]">
+      <AdminDesktopTable minWidthClassName="w-full min-w-[1160px]">
           <div
-            className={`sticky top-0 z-[1] ${tableGridClass} border-b px-3 py-3 text-[11px] font-bold uppercase tracking-wide text-white/70 sm:px-4 sm:text-xs`}
+            className={`sticky top-0 z-[1] ${tableGridClass} border-b px-4 py-3 text-[11px] font-bold uppercase tracking-wide text-white/70 sm:text-xs`}
             style={{
               borderColor: "rgba(255,255,255,0.12)",
               backgroundColor: theme.colors.sidebarBackground,
@@ -184,9 +182,11 @@ export function OrdersList({ orders }: OrdersListProps) {
           {pagedOrders.map((order) => {
             const pill = STATUS_PILL[order.status];
             return (
-              <div
+              <button
                 key={order.id}
-                className={`${tableGridClass} border-b px-3 py-2.5 text-xs text-white/85 last:border-b-0 sm:px-4 sm:py-3 sm:text-sm`}
+                type="button"
+                onClick={() => setSelectedOrder(order)}
+                className={`${tableGridClass} w-full border-b px-4 py-2.5 text-[13px] text-white/85 transition hover:bg-white/[0.04] last:border-b-0 sm:py-3`}
                 style={{ borderColor: "rgba(255,255,255,0.12)" }}
               >
                 <span className="font-semibold leading-snug tabular-nums">{order.id}</span>
@@ -222,11 +222,10 @@ export function OrdersList({ orders }: OrdersListProps) {
                     {order.status}
                   </span>
                 </div>
-              </div>
+              </button>
             );
           })}
-        </div>
-      </div>
+      </AdminDesktopTable>
 
       <div className="grid gap-3 md:hidden">
         {pagedOrders.length === 0 ? (
@@ -237,9 +236,11 @@ export function OrdersList({ orders }: OrdersListProps) {
         {pagedOrders.map((order) => {
           const pill = STATUS_PILL[order.status];
           return (
-            <article
+            <button
               key={order.id}
-              className="rounded-xl border p-3.5 sm:p-4"
+              type="button"
+              onClick={() => setSelectedOrder(order)}
+              className="rounded-xl border p-3.5 text-left transition hover:bg-white/[0.04] sm:p-4"
               style={{
                 borderColor: theme.colors.outline,
                 backgroundColor: theme.colors.sidebarBackground,
@@ -291,67 +292,92 @@ export function OrdersList({ orders }: OrdersListProps) {
                   <span className="text-white/55">Tracking</span> {order.trackingCode}
                 </p>
               </div>
-            </article>
+            </button>
           );
         })}
       </div>
 
-      <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-[12px] text-white/65 sm:text-sm">
-          Showing{" "}
-          <span className="font-semibold text-white/85">
-            {rangeStart} to {rangeEnd}
-          </span>{" "}
-          of <span className="font-semibold text-white/85">{total}</span> results
-        </p>
-        {total > 0 ? (
-          <div className="flex flex-wrap items-center justify-end gap-1.5">
+      <AdminListPagination
+        page={page}
+        pageCount={pageCount}
+        total={total}
+        rangeStart={rangeStart}
+        rangeEnd={rangeEnd}
+        onPageChange={setPage}
+        pageNumbers={pageNumbers}
+      />
+
+      {selectedOrder ? (
+        <div className="fixed inset-0 z-[220] flex items-end justify-center p-3 sm:items-center sm:p-4" role="presentation">
+          <button
+            type="button"
+            aria-label="Close order details"
+            className="absolute inset-0 bg-black/55 backdrop-blur-[2px]"
+            onClick={() => setSelectedOrder(null)}
+          />
+          <section
+            role="dialog"
+            aria-modal="true"
+            className="relative z-[221] w-full max-w-[760px] rounded-2xl border px-4 py-5 shadow-xl sm:px-6 sm:py-6"
+            style={{ borderColor: theme.colors.filledButtonBorder, backgroundColor: theme.colors.sidebarBackground }}
+          >
             <button
               type="button"
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page <= 1}
-              className="min-h-[36px] min-w-[36px] rounded-lg border text-[13px] font-semibold text-white/85 transition enabled:hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-35"
-              style={{ borderColor: theme.colors.outline }}
-              aria-label="Previous page"
+              onClick={() => setSelectedOrder(null)}
+              className="absolute right-4 top-4 inline-flex h-9 w-9 items-center justify-center rounded-full border text-[20px] font-semibold leading-none text-white transition hover:brightness-110"
+              style={{ borderColor: theme.colors.filledButtonBorder, backgroundColor: theme.colors.secondary }}
+              aria-label="Close modal"
             >
-              ‹
+              ×
             </button>
-            {pageNumbers.map((n, i) =>
-              n === -1 ? (
-                <span key={`e-${i}`} className="px-1 text-white/45">
-                  …
-                </span>
-              ) : (
-                <button
-                  key={n}
-                  type="button"
-                  onClick={() => setPage(n)}
-                  className="min-h-[36px] min-w-[36px] rounded-lg border text-[13px] font-semibold transition"
-                  style={{
-                    borderColor: page === n ? "#ABE9FE" : theme.colors.outline,
-                    backgroundColor: page === n ? "rgba(171, 233, 254, 0.12)" : "transparent",
-                    color: theme.colors.themeWhite,
-                  }}
-                  aria-label={`Page ${n}`}
-                  aria-current={page === n ? "page" : undefined}
-                >
-                  {n}
-                </button>
-              ),
-            )}
-            <button
-              type="button"
-              onClick={() => setPage((p) => Math.min(pageCount, p + 1))}
-              disabled={page >= pageCount}
-              className="min-h-[36px] min-w-[36px] rounded-lg border text-[13px] font-semibold text-white/85 transition enabled:hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-35"
-              style={{ borderColor: theme.colors.outline }}
-              aria-label="Next page"
-            >
-              ›
-            </button>
-          </div>
-        ) : null}
-      </div>
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-white/55">Order detail</p>
+            <h2 className="mt-1 pr-10 text-[18px] font-bold text-white sm:text-[22px]">{selectedOrder.id}</h2>
+            <p className="mt-1 text-[12px] text-white/65">Order no: #{selectedOrder.orderNumber}</p>
+
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <article className="rounded-xl border px-3.5 py-3" style={{ borderColor: "rgba(255,255,255,0.15)" }}>
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-white/55">Customer</p>
+                <p className="mt-1 text-[14px] text-white">{selectedOrder.customer}</p>
+              </article>
+              <article className="rounded-xl border px-3.5 py-3" style={{ borderColor: "rgba(255,255,255,0.15)" }}>
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-white/55">Partner</p>
+                <p className="mt-1 text-[14px] text-white">{selectedOrder.partner}</p>
+              </article>
+              <article className="rounded-xl border px-3.5 py-3" style={{ borderColor: "rgba(255,255,255,0.15)" }}>
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-white/55">Items</p>
+                <p className="mt-1 text-[14px] text-white">{selectedOrder.itemCount} · {selectedOrder.items}</p>
+              </article>
+              <article className="rounded-xl border px-3.5 py-3" style={{ borderColor: "rgba(255,255,255,0.15)" }}>
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-white/55">Delivery Type</p>
+                <p className="mt-1 flex items-center gap-1.5 text-[14px] text-white">
+                  <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: SERVICE_DOT[selectedOrder.shippingService] }} />
+                  {selectedOrder.shippingService}
+                </p>
+              </article>
+              <article className="rounded-xl border px-3.5 py-3" style={{ borderColor: "rgba(255,255,255,0.15)" }}>
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-white/55">Tracking</p>
+                <p className="mt-1 break-all font-mono text-[13px] text-white">{selectedOrder.trackingCode}</p>
+              </article>
+              <article className="rounded-xl border px-3.5 py-3" style={{ borderColor: "rgba(255,255,255,0.15)" }}>
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-white/55">Total</p>
+                <p className="mt-1 text-[14px] font-semibold text-white">{selectedOrder.total}</p>
+              </article>
+            </div>
+            <div className="mt-4">
+              <span
+                className={`${statusPillClass} inline-flex rounded-full py-1 pl-2.5 pr-3`}
+                style={{
+                  backgroundColor: STATUS_PILL[selectedOrder.status].bg,
+                  color: STATUS_PILL[selectedOrder.status].fg,
+                  borderColor: STATUS_PILL[selectedOrder.status].border,
+                }}
+              >
+                {selectedOrder.status}
+              </span>
+            </div>
+          </section>
+        </div>
+      ) : null}
     </section>
   );
 }

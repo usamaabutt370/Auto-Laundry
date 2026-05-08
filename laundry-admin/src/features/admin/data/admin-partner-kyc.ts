@@ -1,5 +1,6 @@
 import {
   getPartnerKycDetailForAdmin,
+  getPartnerUserIdByRequestId,
   listPartnerKycRequestsForAdmin,
 } from "@/features/admin/server/kyc/partner-kyc.repository";
 import type {
@@ -15,4 +16,8 @@ export async function getAdminPartnerKycList(): Promise<AdminPartnerKycListItem[
 
 export async function getAdminPartnerKycDetail(userId: string): Promise<AdminPartnerKycDetail | null> {
   return getPartnerKycDetailForAdmin(userId);
+}
+
+export async function getAdminPartnerUserIdByRequestId(requestId: string): Promise<string | null> {
+  return getPartnerUserIdByRequestId(requestId);
 }
