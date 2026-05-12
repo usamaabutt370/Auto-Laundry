@@ -16,12 +16,15 @@ interface CountryCodePickerProps {
   selectedCca2: CountryCode;
   selectedCallingCode: string;
   onSelect: (country: SelectedCountry) => void;
+  /** When true, country cannot be changed (e.g. read-only phone). */
+  disabled?: boolean;
 }
 
 export function CountryCodePicker({
   selectedCca2,
   selectedCallingCode,
   onSelect,
+  disabled = false,
 }: CountryCodePickerProps) {
   const [isVisible, setIsVisible] = useState(false);
 
@@ -35,8 +38,13 @@ export function CountryCodePicker({
 
   return (
     <Pressable
+      disabled={disabled}
       onPress={() => setIsVisible(true)}
-      style={({ pressed }) => [styles.container, pressed && styles.pressed]}
+      style={({ pressed }) => [
+        styles.container,
+        pressed && !disabled && styles.pressed,
+        disabled && styles.disabled,
+      ]}
     >
       <CountryPicker
         countryCode={selectedCca2}
@@ -75,5 +83,8 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.7,
+  },
+  disabled: {
+    opacity: 0.65,
   },
 });

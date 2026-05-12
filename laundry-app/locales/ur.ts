@@ -515,6 +515,12 @@ export const ur = {
       creditsRuleTopup:
         "جب کریڈٹس کم ہوں تو نئے آرڈرز جاری رکھنے کے لیے والٹ ٹاپ اپ کریں۔",
       creditsContinueToDashboard: "ڈیش بورڈ پر جائیں",
+      creditsGrantedAlertTitle: "کریڈٹس مل گئے",
+      creditsGrantedAlertMessageNew:
+        "آن بورڈنگ مکمل ہو گئی۔ آپ کو {{awarded}} ویلکم {{tokensUnit}} ملے ہیں۔ موجودہ بیلنس: {{balance}} {{tokensUnit}}۔",
+      creditsGrantedAlertMessageAlready:
+        "ویلکم {{tokensUnit}} پہلے آپ کے اکاؤنٹ پر موجود تھے۔ موجودہ بیلنس: {{balance}} {{tokensUnit}}۔",
+      creditsGrantedAlertOk: "ٹھیک",
     },
     settings: {
       merchantServices: "مرچنٹ سروسز",

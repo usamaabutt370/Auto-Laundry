@@ -51,10 +51,10 @@ export default function EditProfileScreen() {
   const segments = useSegments();
   const { mode } = useLocalSearchParams<{ mode?: string }>();
   const isPaymentMode = mode === "payment";
-  const profileRoute =
-    segments[0] === "(partner)"
-      ? "/(partner)/(tabs)/profile"
-      : "/(customer)/(tabs)/profile";
+  const isPartnerProfile = segments[0] === "(partner)";
+  const profileRoute = isPartnerProfile
+    ? "/(partner)/(tabs)/profile"
+    : "/(customer)/(tabs)/profile";
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -360,6 +360,23 @@ export default function EditProfileScreen() {
           error.message || "Could not save profile. Please try again.",
         );
       } else {
+        if (isPartnerProfile) {
+          const { error: ppErr } = await supabase
+            .from("partner_profiles")
+            .update({
+              image_url: upsertPayload.image_url ?? null,
+              updated_at: now,
+            })
+            .eq("id", user.id);
+          if (ppErr) {
+            Alert.alert(
+              "Error",
+              ppErr.message || "Could not sync partner profile photo.",
+            );
+            setSaving(false);
+            return;
+          }
+        }
         setProfileUpdatedAt(now);
         setLocalImageUri(null);
         // Navigate to profile tab so it refetches and shows updated image
@@ -385,6 +402,7 @@ export default function EditProfileScreen() {
     imageUrl,
     router,
     profileRoute,
+    isPartnerProfile,
   ]);
 
   const savePayment = useCallback(async () => {
@@ -494,6 +512,20 @@ export default function EditProfileScreen() {
         return;
       }
 
+      if (isPartnerProfile) {
+        const { error: ppErr } = await supabase
+          .from("partner_profiles")
+          .update({
+            image_url: publicUrl,
+            updated_at: now,
+          })
+          .eq("id", user.id);
+        if (ppErr) {
+          Alert.alert("Update failed", ppErr.message);
+          return;
+        }
+      }
+
       setImageUrl(publicUrl);
       setProfileUpdatedAt(now);
       Alert.alert("Success", "Profile image updated successfully.");
@@ -504,7 +536,7 @@ export default function EditProfileScreen() {
     } finally {
       setUploadingImage(false);
     }
-  }, []);
+  }, [isPartnerProfile]);
 
   if (loading) {
     return (
@@ -830,6 +862,7 @@ export default function EditProfileScreen() {
                 onChangeText={(t) => setPhone(t.replace(/\D/g, ""))}
                 placeholder="306 1234567"
                 placeholderTextColor={c.blue500}
+                editable={!isPartnerProfile}
                 selectedCca2={countryCode}
                 selectedCallingCode={callingCode}
                 onCountrySelect={(c) => {
