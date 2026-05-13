@@ -5,6 +5,7 @@ import type {
   AdminPartnerKycDetail,
   PartnerOnboardingStatus,
 } from "@/features/admin/types/admin-partner-kyc";
+import { ConfirmModal } from "@/components/ui/confirm-modal";
 import { theme } from "@/lib/theme/theme";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -39,6 +40,7 @@ export function PartnerKycDetail({ partner }: PartnerKycDetailProps) {
   const [rejectionReason, setRejectionReason] = useState(partner.request.rejectionReason ?? "");
   const [statusNote, setStatusNote] = useState<string | null>(null);
   const [busy, setBusy] = useState<"approve" | "reject" | null>(null);
+  const [approveSuccessOpen, setApproveSuccessOpen] = useState(false);
   const pill = STATUS_PILL[currentStatus];
   const canDecide = currentStatus === "pending";
   const initials = partner.profile.fullName
@@ -68,7 +70,11 @@ export function PartnerKycDetail({ partner }: PartnerKycDetailProps) {
       const nextStatus = action === "approve" ? "approved" : "rejected";
       setCurrentStatus(nextStatus);
       if (nextStatus === "approved") setRejectionReason("");
-      setStatusNote(`KYC request ${nextStatus}.`);
+      if (action === "approve") {
+        setApproveSuccessOpen(true);
+      } else {
+        setStatusNote(`KYC request ${nextStatus}.`);
+      }
       router.refresh();
     } catch (error) {
       setStatusNote(error instanceof Error ? error.message : "Failed to update KYC status.");
@@ -79,6 +85,15 @@ export function PartnerKycDetail({ partner }: PartnerKycDetailProps) {
 
   return (
     <section className="w-full min-w-0 space-y-4 sm:space-y-5">
+      <ConfirmModal
+        open={approveSuccessOpen}
+        title="KYC approved"
+        description={`${partner.profile.fullName}'s KYC has been approved successfully.`}
+        confirmLabel="OK"
+        hideCancel
+        onConfirm={() => setApproveSuccessOpen(false)}
+        onCancel={() => setApproveSuccessOpen(false)}
+      />
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <h1 className="text-[clamp(1.125rem,4vw,1.5rem)] font-bold text-white">Partner Detail</h1>

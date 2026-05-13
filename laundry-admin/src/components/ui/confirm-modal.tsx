@@ -10,6 +10,8 @@ type ConfirmModalProps = {
   description?: string;
   confirmLabel?: string;
   cancelLabel?: string;
+  /** When true, only the primary button is shown (e.g. success / acknowledgement dialogs). */
+  hideCancel?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 };
@@ -20,6 +22,7 @@ export function ConfirmModal({
   description,
   confirmLabel = "Confirm",
   cancelLabel = "Cancel",
+  hideCancel = false,
   onConfirm,
   onCancel,
 }: ConfirmModalProps) {
@@ -47,7 +50,7 @@ export function ConfirmModal({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[200] flex items-end justify-center p-3 sm:items-center sm:p-4"
+      className="fixed inset-0 z-[500] flex items-end justify-center p-3 sm:items-center sm:p-4"
       role="presentation"
     >
       <button
@@ -60,7 +63,7 @@ export function ConfirmModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="relative z-[201] w-full max-w-[420px] rounded-2xl border px-4 py-5 shadow-xl sm:px-6 sm:py-6"
+        className="relative z-[501] w-full max-w-[420px] rounded-2xl border px-4 py-5 shadow-xl sm:px-6 sm:py-6"
         style={{
           borderColor: theme.colors.filledButtonBorder,
           backgroundColor: theme.colors.sidebarBackground,
@@ -75,10 +78,17 @@ export function ConfirmModal({
           </p>
         ) : null}
 
-        <div className="mt-5 grid grid-cols-1 gap-2.5 sm:mt-6 sm:grid-cols-2">
+        <div
+          className={
+            hideCancel
+              ? "mt-5 sm:mt-6"
+              : "mt-5 grid grid-cols-1 gap-2.5 sm:mt-6 sm:grid-cols-2"
+          }
+        >
           <button
             type="button"
             onClick={onConfirm}
+            autoFocus={hideCancel}
             className="h-10 w-full whitespace-nowrap rounded-full border px-5 text-center text-[15px] font-semibold leading-none text-white sm:h-11 sm:text-base"
             style={{
               borderColor: theme.colors.filledButtonBorder,
@@ -87,18 +97,20 @@ export function ConfirmModal({
           >
             {confirmLabel}
           </button>
-          <button
-            type="button"
-            onClick={onCancel}
-            autoFocus
-            className="h-10 w-full whitespace-nowrap rounded-full border px-5 text-center text-[15px] font-semibold leading-none text-white sm:h-11 sm:text-base"
-            style={{
-              borderColor: "rgba(255,255,255,0.35)",
-              backgroundColor: "transparent",
-            }}
-          >
-            {cancelLabel}
-          </button>
+          {hideCancel ? null : (
+            <button
+              type="button"
+              onClick={onCancel}
+              autoFocus
+              className="h-10 w-full whitespace-nowrap rounded-full border px-5 text-center text-[15px] font-semibold leading-none text-white sm:h-11 sm:text-base"
+              style={{
+                borderColor: "rgba(255,255,255,0.35)",
+                backgroundColor: "transparent",
+              }}
+            >
+              {cancelLabel}
+            </button>
+          )}
         </div>
       </div>
     </div>,

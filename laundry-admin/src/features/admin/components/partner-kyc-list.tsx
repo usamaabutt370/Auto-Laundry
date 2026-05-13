@@ -8,7 +8,12 @@ import type {
   PartnerOnboardingStatus,
 } from "@/features/admin/types/admin-partner-kyc";
 import { AdminDesktopTable, AdminListPagination } from "@/features/admin/components/admin-list-ui";
+import { ConfirmModal } from "@/components/ui/confirm-modal";
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
+
+/** Lets the partner detail drawer finish closing before the success dialog opens (no stacked modals). */
+const APPROVE_SUCCESS_POPUP_DELAY_MS = 220;
 
 type PartnerKycListProps = {
   partners: AdminPartnerKycListItem[];
@@ -61,7 +66,49 @@ function formatDate(iso: string | null): string {
   return d.toISOString().slice(0, 10);
 }
 
+/** Full-screen dimmed overlay + centered spinner while partner detail API runs. */
+function PartnerKycFullscreenLoader() {
+  return (
+    <div
+      className="pointer-events-none absolute inset-0 z-[1] flex items-center justify-center p-6"
+      role="status"
+      aria-live="polite"
+      aria-busy="true"
+    >
+      <span className="sr-only">Loading partner details</span>
+      <div
+        className="flex max-w-[min(100%,380px)] flex-col items-center gap-5 rounded-2xl border px-10 py-12 text-center shadow-2xl sm:px-14 sm:py-14"
+        style={{
+          borderColor: theme.colors.filledButtonBorder,
+          backgroundColor: theme.colors.sidebarBackground,
+          boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)",
+        }}
+      >
+        <svg
+          className="h-14 w-14 animate-spin text-white"
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+          aria-hidden
+        >
+          <circle className="opacity-20" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2.5" />
+          <path
+            className="opacity-90"
+            fill="currentColor"
+            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+          />
+        </svg>
+        <div>
+          <p className="text-[16px] font-semibold text-white">Loading partner details</p>
+          <p className="mt-2 text-[13px] leading-relaxed text-white/45">Fetching profile, services, and KYC data…</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function PartnerKycList({ partners }: PartnerKycListProps) {
+  const router = useRouter();
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [page, setPage] = useState(1);
@@ -73,6 +120,8 @@ export function PartnerKycList({ partners }: PartnerKycListProps) {
   const [rejectionReason, setRejectionReason] = useState("");
   const [statusNote, setStatusNote] = useState<string | null>(null);
   const [busy, setBusy] = useState<"approve" | "reject" | null>(null);
+  const [approveSuccessOpen, setApproveSuccessOpen] = useState(false);
+  const [approveSuccessPartnerName, setApproveSuccessPartnerName] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
     const searched = partners.filter((p) => matchesQuery(p, query));
@@ -151,20 +200,33 @@ export function PartnerKycList({ partners }: PartnerKycListProps) {
       if (!response.ok) throw new Error(payload?.error || `Request failed with status ${response.status}`);
 
       const nextStatus = action === "approve" ? "approved" : "rejected";
-      setCurrentStatus(nextStatus);
-      setSelectedPartnerDetail((prev) =>
-        prev
-          ? {
-              ...prev,
-              request: {
-                ...prev.request,
-                status: nextStatus,
-                rejectionReason: nextStatus === "rejected" ? reason : null,
-              },
-            }
-          : prev,
-      );
-      setStatusNote(`KYC request ${nextStatus}.`);
+      if (action === "approve") {
+        const partnerName = selectedPartnerDetail.profile.fullName;
+        setSelectedPartnerId(null);
+        setSelectedPartnerDetail(null);
+        setDetailError(null);
+        setStatusNote(null);
+        router.refresh();
+        window.setTimeout(() => {
+          setApproveSuccessPartnerName(partnerName);
+          setApproveSuccessOpen(true);
+        }, APPROVE_SUCCESS_POPUP_DELAY_MS);
+      } else {
+        setCurrentStatus(nextStatus);
+        setSelectedPartnerDetail((prev) =>
+          prev
+            ? {
+                ...prev,
+                request: {
+                  ...prev.request,
+                  status: nextStatus,
+                  rejectionReason: nextStatus === "rejected" ? reason : null,
+                },
+              }
+            : prev,
+        );
+        setStatusNote(`KYC request ${nextStatus}.`);
+      }
     } catch (error) {
       setStatusNote(error instanceof Error ? error.message : "Failed to update KYC status.");
     } finally {
@@ -177,11 +239,31 @@ export function PartnerKycList({ partners }: PartnerKycListProps) {
     setSelectedPartnerDetail(null);
     setDetailError(null);
     setStatusNote(null);
+    setApproveSuccessOpen(false);
+    setApproveSuccessPartnerName(null);
     setBusy(null);
+  }
+
+  function dismissApproveSuccess() {
+    setApproveSuccessOpen(false);
+    setApproveSuccessPartnerName(null);
   }
 
   return (
     <section className="w-full min-w-0 space-y-3 sm:space-y-4">
+      <ConfirmModal
+        open={approveSuccessOpen}
+        title="KYC approved"
+        description={
+          approveSuccessPartnerName
+            ? `${approveSuccessPartnerName}'s KYC has been approved successfully.`
+            : "This partner's KYC has been approved successfully."
+        }
+        confirmLabel="OK"
+        hideCancel
+        onConfirm={dismissApproveSuccess}
+        onCancel={dismissApproveSuccess}
+      />
       <div>
         <h1 className="text-[clamp(1.125rem,4vw,1.5rem)] font-bold text-white">Partner KYC</h1>
         <p className="mt-1 max-w-2xl text-[13px] leading-relaxed text-white/75 sm:text-[15px]">
@@ -385,31 +467,39 @@ export function PartnerKycList({ partners }: PartnerKycListProps) {
       />
 
       {selectedPartnerId ? (
-        <div className="fixed inset-0 z-[220] flex items-end justify-center p-3 sm:items-center sm:p-4" role="presentation">
+        <div className="fixed inset-0 z-[220]" role="presentation">
           <button
             type="button"
-            aria-label="Close partner KYC details"
-            className="absolute inset-0 bg-black/55 backdrop-blur-[2px]"
+            aria-label={detailLoading ? "Close loading" : "Close partner KYC details"}
+            className={
+              detailLoading
+                ? "absolute inset-0 bg-black/65 backdrop-blur-[3px]"
+                : "absolute inset-0 bg-black/55 backdrop-blur-[2px]"
+            }
             onClick={closeModal}
           />
+          {detailLoading ? (
+            <PartnerKycFullscreenLoader />
+          ) : (
+          <div className="absolute inset-0 flex items-end justify-center overflow-y-auto p-3 sm:items-center sm:p-4">
           <section
             role="dialog"
             aria-modal="true"
-            className="relative z-[221] flex max-h-[92dvh] w-full max-w-[760px] flex-col overflow-hidden rounded-2xl border px-4 py-5 shadow-xl sm:px-6 sm:py-6"
+            className="relative z-[1] flex max-h-[92dvh] w-full max-w-[760px] flex-col overflow-hidden rounded-2xl border px-4 py-5 shadow-xl sm:px-6 sm:py-6"
             style={{ borderColor: theme.colors.filledButtonBorder, backgroundColor: theme.colors.sidebarBackground }}
           >
             <button
               type="button"
               onClick={closeModal}
-              className="absolute right-4 top-4 inline-flex h-9 w-9 items-center justify-center rounded-full border text-[20px] font-semibold leading-none text-white transition hover:brightness-110"
+              className="absolute right-4 top-4 z-[2] inline-flex h-9 w-9 items-center justify-center rounded-full border text-[20px] font-semibold leading-none text-white transition hover:brightness-110"
               style={{ borderColor: theme.colors.filledButtonBorder, backgroundColor: theme.colors.secondary }}
               aria-label="Close modal"
             >
               ×
             </button>
-            {detailLoading ? <p className="text-sm text-white/70">Loading partner detail...</p> : null}
-            {detailError ? <p className="text-sm text-[#F18C8C]">{detailError}</p> : null}
-            {selectedPartnerDetail ? (
+            {detailError ? (
+              <p className="min-h-[100px] text-sm leading-relaxed text-[#F18C8C]">{detailError}</p>
+            ) : selectedPartnerDetail ? (
               <div className="scrollbar-hidden min-h-0 overflow-y-auto pr-1">
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-white/55">Partner KYC detail</p>
                 <h2 className="mt-1 pr-10 text-[18px] font-bold text-white sm:text-[22px]">{selectedPartnerDetail.profile.fullName}</h2>
@@ -539,6 +629,8 @@ export function PartnerKycList({ partners }: PartnerKycListProps) {
               </div>
             ) : null}
           </section>
+          </div>
+          )}
         </div>
       ) : null}
     </section>
