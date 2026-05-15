@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="index,follow" />
+    <title>Laundri — Legal</title>
+    <meta
+      name="description"
+      content="Privacy Policy and Terms of Service for the Laundri mobile app (com.autolaundry.app)."
+    />
+    <style>
+      :root {
+        --bg: #f6f8fa;
+        --surface: #ffffff;
+        --text: #1f2328;
+        --muted: #59636e;
+        --accent: #36768a;
+        --border: #d1d9e0;
+        --link: #0969da;
+      }
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+      html {
+        scroll-behavior: smooth;
+      }
+      body {
+        margin: 0;
+        font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+          "Helvetica Neue", Arial, sans-serif;
+        font-size: 1rem;
+        line-height: 1.65;
+        color: var(--text);
+        background: var(--bg);
+      }
+      .skip-link {
+        position: absolute;
+        left: -9999px;
+        z-index: 999;
+        padding: 0.5rem 1rem;
+        background: var(--accent);
+        color: #fff;
+        text-decoration: none;
+      }
+      .skip-link:focus {
+        left: 1rem;
+        top: 1rem;
+      }
+      header.site {
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
+        padding: 1rem 1.25rem;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+      }
+      header.site .inner {
+        max-width: 48rem;
+        margin: 0 auto;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+      }
+      .brand {
+        font-weight: 700;
+        font-size: 1.125rem;
+        color: var(--text);
+        text-decoration: none;
+      }
+      .brand span {
+        color: var(--accent);
+      }
+      nav.site-nav {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem 1rem;
+      }
+      nav.site-nav a {
+        color: var(--link);
+        text-decoration: none;
+        font-size: 0.9375rem;
+      }
+      nav.site-nav a:hover {
+        text-decoration: underline;
+      }
+      main {
+        max-width: 48rem;
+        margin: 0 auto;
+        padding: 1.5rem 1.25rem 3rem;
+      }
+      .landing-lead {
+        font-size: 1.05rem;
+        color: var(--muted);
+        margin-bottom: 1.5rem;
+      }
+      .cards {
+        display: grid;
+        gap: 1rem;
+      }
+      @media (min-width: 560px) {
+        .cards {
+          grid-template-columns: 1fr 1fr;
+        }
+      }
+      .card {
+        display: block;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 1.25rem 1.35rem;
+        text-decoration: none;
+        color: inherit;
+        box-shadow: 0 1px 2px rgba(31, 35, 40, 0.04);
+        transition: border-color 0.15s, box-shadow 0.15s;
+      }
+      .card:hover {
+        border-color: var(--accent);
+        box-shadow: 0 4px 12px rgba(54, 118, 138, 0.12);
+      }
+      .card h2 {
+        border: none;
+        margin: 0 0 0.5rem;
+        font-size: 1.15rem;
+        color: var(--accent);
+      }
+      .card p {
+        margin: 0;
+        font-size: 0.9375rem;
+        color: var(--muted);
+      }
+      footer.site {
+        max-width: 48rem;
+        margin: 0 auto;
+        padding: 0 1.25rem 2rem;
+        font-size: 0.8125rem;
+        color: var(--muted);
+        text-align: center;
+      }
+      footer.site a {
+        color: var(--muted);
+      }
+    </style>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="site">
+      <div class="inner">
+        <a class="brand" href="index.html">Laundri <span>Legal</span></a>
+        <nav class="site-nav" aria-label="Legal documents">
+          <a href="privacy.html">Privacy Policy</a>
+          <a href="terms.html">Terms of Service</a>
+        </nav>
+      </div>
+    </header>
+    <main id="main">
+      <p class="landing-lead">
+        Official legal documents for the <strong>Laundri</strong> mobile application
+        (<code>com.autolaundry.app</code>). Use the Privacy Policy URL in Google Play
+        Console and other store listings.
+      </p>
+      <div class="cards">
+        <a class="card" href="privacy.html">
+          <h2>Privacy Policy</h2>
+          <p>How we collect, use, and share information when you use the app.</p>
+        </a>
+        <a class="card" href="terms.html">
+          <h2>Terms of Service</h2>
+          <p>Rules for using the app as a customer or laundry partner.</p>
+        </a>
+      </div>
+    </main>
+    <footer class="site">
+      <p>
+        Replace bracketed placeholders in each document before publishing. Have counsel
+        review for your jurisdiction.
+      </p>
+    </footer>
+  </body>
+</html>
