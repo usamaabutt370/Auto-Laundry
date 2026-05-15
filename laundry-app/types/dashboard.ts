@@ -1,7 +1,6 @@
 /**
- * Launderer dashboard data shape.
- * When you have DB data: map your rows to this type (e.g. one object with these fields)
- * and return it from useLaundererDashboard() – the UI will use it directly. No extra wiring.
+ * Launderer dashboard data shape. Totals and chart are scoped to the selected calendar
+ * period (current week Mon–Sun, current month, or current year) from useLaundererDashboard.
  */
 export interface PartnerEarningItem {
   orderId: string;
@@ -10,35 +9,38 @@ export interface PartnerEarningItem {
 }
 
 export interface LaundererDashboardData {
+  /** Distinct customers (profiles) among completed orders in the selected period. */
   numberOfUsers: number;
   dropOff: {
+    /** Active drop-off orders (not completed / rejected / cancelled). */
     total: number;
-    washAndFold: number;
-    dryCleaning: number;
-    tailoring: number;
   };
   delivery: {
+    /** Active delivery / pickup-scheduled orders. */
     total: number;
-    washAndFold: number;
-    dryCleaning: number;
-    tailoring: number;
   };
+  /** Count of completed orders whose earnings fall in the selected period. */
+  completedOrdersInPeriod: number;
+  /** Completed-order revenue in the selected period (all channels). */
   totalIncome: number;
+  /** Completed drop-off revenue in the selected period. */
   dropOffIncome: number;
+  /** Completed delivery revenue in the selected period. */
   deliveryIncome: number;
-  /** 7 values for selected period buckets (earnings). */
+  /** Seven buckets within the selected calendar period (earnings). */
   earningsChartValues: [number, number, number, number, number, number, number];
-  /** 7 labels matching selected period buckets. */
+  /** Labels for each chart bucket (days of week, or dates). */
   chartLabels: [string, string, string, string, string, string, string];
-  /** Recent completed-order earnings (latest first). */
+  /** Recent completed-order earnings in the selected period (latest first). */
   recentCompletedEarnings: PartnerEarningItem[];
 }
 
 /** Zero state when there is no activity. */
 export const ZERO_DASHBOARD_DATA: LaundererDashboardData = {
   numberOfUsers: 0,
-  dropOff: { total: 0, washAndFold: 0, dryCleaning: 0, tailoring: 0 },
-  delivery: { total: 0, washAndFold: 0, dryCleaning: 0, tailoring: 0 },
+  completedOrdersInPeriod: 0,
+  dropOff: { total: 0 },
+  delivery: { total: 0 },
   totalIncome: 0,
   dropOffIncome: 0,
   deliveryIncome: 0,
@@ -50,8 +52,9 @@ export const ZERO_DASHBOARD_DATA: LaundererDashboardData = {
 /** Demo data for dashboard UI/chart preview until backend is wired. */
 export const DEMO_DASHBOARD_DATA: LaundererDashboardData = {
   numberOfUsers: 504,
-  dropOff: { total: 32, washAndFold: 25, dryCleaning: 5, tailoring: 2 },
-  delivery: { total: 85, washAndFold: 50, dryCleaning: 20, tailoring: 15 },
+  completedOrdersInPeriod: 42,
+  dropOff: { total: 32 },
+  delivery: { total: 85 },
   totalIncome: 7240,
   dropOffIncome: 2890,
   deliveryIncome: 3359,
