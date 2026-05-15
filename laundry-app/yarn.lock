@@ -5866,6 +5866,26 @@ __metadata:
   languageName: node
   linkType: hard
 
+"expo-local-authentication@npm:~17.0.8":
+  version: 17.0.8
+  resolution: "expo-local-authentication@npm:17.0.8"
+  dependencies:
+    invariant: "npm:^2.2.4"
+  peerDependencies:
+    expo: "*"
+  checksum: 10c0/e12bb0b98633cbf7f5203439281d5fbd2f70df71c9ad7a92d2fdadb4fc26378ebfe0a5c7ef6eba6f1674268fc863b18a051d4187f6f785c075c08c1b3133f8cb
+  languageName: node
+  linkType: hard
+
+"expo-location@npm:~19.0.8":
+  version: 19.0.8
+  resolution: "expo-location@npm:19.0.8"
+  peerDependencies:
+    expo: "*"
+  checksum: 10c0/9549ed00d75a7d7780e16a70a9b6703a8aae8f6f2ffbe9f6ab41ef155444f4157cd26b32b1eb051e3a8a6b5b2071b555398e5d672435f240d2c2891fab041da5
+  languageName: node
+  linkType: hard
+
 "expo-modules-autolinking@npm:3.0.24":
   version: 3.0.24
   resolution: "expo-modules-autolinking@npm:3.0.24"
@@ -7464,6 +7484,8 @@ __metadata:
     expo-image-picker: "npm:~17.0.10"
     expo-linear-gradient: "npm:^55.0.8"
     expo-linking: "npm:~8.0.11"
+    expo-local-authentication: "npm:~17.0.8"
+    expo-location: "npm:~19.0.8"
     expo-notifications: "npm:~0.32.17"
     expo-router: "npm:~6.0.23"
     expo-splash-screen: "npm:~31.0.13"

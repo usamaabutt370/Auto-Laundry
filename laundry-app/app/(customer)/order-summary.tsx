@@ -16,6 +16,7 @@ import { theme } from "@/constants/theme";
 import { useAuth } from "@/contexts/auth-context";
 import { useCustomerOrderDraft } from "@/contexts/customer-order-draft-context";
 import { submitCustomerOrder } from "@/lib/customer-order-submit";
+import type { OrderEstimateLine } from "@/lib/customer-order-estimate";
 import { usePartnerOrderEstimate } from "@/hooks/use-partner-order-estimate";
 import { formatMoney } from "@/utils/format-money";
 
@@ -70,6 +71,29 @@ export default function OrderSummaryScreen() {
     return `AL-${t.slice(-8)}`;
   }, []);
 
+  const estimateGrouped = useMemo(() => {
+    const washAndFold: OrderEstimateLine[] = [];
+    const dryCleaning: OrderEstimateLine[] = [];
+    const tailoring: OrderEstimateLine[] = [];
+    const fees: OrderEstimateLine[] = [];
+    const other: OrderEstimateLine[] = [];
+    for (const line of estimate.lines) {
+      const k = line.key;
+      if (k.startsWith("wash_fold")) washAndFold.push(line);
+      else if (k.startsWith("dry_")) dryCleaning.push(line);
+      else if (k.startsWith("tailoring_")) tailoring.push(line);
+      else if (k === "pickup_delivery") fees.push(line);
+      else other.push(line);
+    }
+    return {
+      washAndFold,
+      dryCleaning,
+      tailoring,
+      fees,
+      other,
+    };
+  }, [estimate.lines]);
+
   return (
     <View style={styles.container}>
       <SafeAreaView edges={["top"]}>
@@ -117,26 +141,73 @@ export default function OrderSummaryScreen() {
               <Text style={styles.ref}>
                 {s.orderNumber}: {orderRef}
               </Text>
-              <Text style={styles.subheading}>Services</Text>
-              {draft.selectedServiceIds.map((id) => (
-                <Text key={id} style={styles.bullet}>
-                  • {sServices[id]}
-                </Text>
-              ))}
-              <Text style={[styles.subheading, styles.mt]}>Estimate</Text>
-              {estimate.lines.map((line) => (
-                <View key={line.key} style={styles.row}>
-                  <Text style={styles.rowName} numberOfLines={2}>
-                    {line.title}
-                  </Text>
-                  <Text style={styles.rowQty}>{line.qtyLabel}</Text>
-                  <Text style={styles.rowPrice}>
-                    {line.amount != null
-                      ? formatMoney(estimate.currencyPrefix, line.amount)
-                      : "—"}
-                  </Text>
-                </View>
-              ))}
+              <Text style={styles.subheading}>{s.lineItems}</Text>
+              {draft.selectedServiceIds.map((id) => {
+                const lines =
+                  id === "washAndFold"
+                    ? estimateGrouped.washAndFold
+                    : id === "dryCleaning"
+                      ? estimateGrouped.dryCleaning
+                      : estimateGrouped.tailoring;
+                return (
+                  <View key={id} style={styles.serviceGroup}>
+                    <Text style={styles.serviceGroupTitle}>{sServices[id]}</Text>
+                    {lines.length > 0 ? (
+                      lines.map((line) => (
+                        <View key={line.key} style={styles.row}>
+                          <Text style={styles.rowName} numberOfLines={2}>
+                            {line.title}
+                          </Text>
+                          <Text style={styles.rowQty}>{line.qtyLabel}</Text>
+                          <Text style={styles.rowPrice}>
+                            {line.amount != null
+                              ? formatMoney(estimate.currencyPrefix, line.amount)
+                              : "—"}
+                          </Text>
+                        </View>
+                      ))
+                    ) : (
+                      <Text style={styles.noItems}>{s.noItemsYet}</Text>
+                    )}
+                  </View>
+                );
+              })}
+              {estimateGrouped.fees.length > 0 ? (
+                <>
+                  <Text style={[styles.subheading, styles.mt]}>{s.pickupFees}</Text>
+                  {estimateGrouped.fees.map((line) => (
+                    <View key={line.key} style={styles.row}>
+                      <Text style={styles.rowName} numberOfLines={2}>
+                        {line.title}
+                      </Text>
+                      <Text style={styles.rowQty}>{line.qtyLabel}</Text>
+                      <Text style={styles.rowPrice}>
+                        {line.amount != null
+                          ? formatMoney(estimate.currencyPrefix, line.amount)
+                          : "—"}
+                      </Text>
+                    </View>
+                  ))}
+                </>
+              ) : null}
+              {estimateGrouped.other.length > 0 ? (
+                <>
+                  <Text style={[styles.subheading, styles.mt]}>{s.otherCharges}</Text>
+                  {estimateGrouped.other.map((line) => (
+                    <View key={line.key} style={styles.row}>
+                      <Text style={styles.rowName} numberOfLines={2}>
+                        {line.title}
+                      </Text>
+                      <Text style={styles.rowQty}>{line.qtyLabel}</Text>
+                      <Text style={styles.rowPrice}>
+                        {line.amount != null
+                          ? formatMoney(estimate.currencyPrefix, line.amount)
+                          : "—"}
+                      </Text>
+                    </View>
+                  ))}
+                </>
+              ) : null}
               <View style={styles.totalRow}>
                 <Text style={styles.totalLabel}>{s.estimatedTotal}</Text>
                 <Text style={styles.totalValue}>
@@ -203,7 +274,23 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   mt: { marginTop: 14 },
-  bullet: { fontSize: 15, color: c.white, marginBottom: 4 },
+  serviceGroup: {
+    marginBottom: 14,
+    paddingBottom: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255,255,255,0.08)",
+  },
+  serviceGroupTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: c.white,
+    marginBottom: 8,
+  },
+  noItems: {
+    fontSize: 14,
+    color: "rgba(255,255,255,0.65)",
+    marginBottom: 4,
+  },
   row: {
     flexDirection: "row",
     alignItems: "center",

@@ -336,8 +336,7 @@ export default function EditProfileScreen() {
       const phoneVal = phoneNumberObj.number;
 
       const now = new Date().toISOString();
-      const upsertPayload = {
-        id: user.id,
+      const profilePayload = {
         first_name: firstName.trim() || null,
         last_name: lastName.trim() || null,
         full_name:
@@ -350,21 +349,43 @@ export default function EditProfileScreen() {
         updated_at: now,
       };
 
-      const { error } = await supabase
+      const profileSaveErrorMessage = (message: string) => {
+        if (message.includes("profiles_phone_key")) {
+          return "This phone number is already linked to another account.";
+        }
+        if (message.includes("profiles_email_key")) {
+          return "This email is already linked to another account.";
+        }
+        return message || "Could not save profile. Please try again.";
+      };
+
+      // Update existing row first (signup creates profiles.id = auth user id).
+      // Upsert can attempt INSERT when the row already exists with this phone,
+      // which triggers profiles_phone_key if another row holds the same phone.
+      const { data: updatedRows, error: updateError } = await supabase
         .from("profiles")
-        .upsert(upsertPayload, { onConflict: "id" });
+        .update(profilePayload)
+        .eq("id", user.id)
+        .select("id");
+
+      let error = updateError;
+      if (!error && !updatedRows?.length) {
+        const { error: insertError } = await supabase.from("profiles").insert({
+          id: user.id,
+          role: "customer",
+          ...profilePayload,
+        });
+        error = insertError;
+      }
 
       if (error) {
-        Alert.alert(
-          "Error",
-          error.message || "Could not save profile. Please try again.",
-        );
+        Alert.alert("Error", profileSaveErrorMessage(error.message ?? ""));
       } else {
         if (isPartnerProfile) {
           const { error: ppErr } = await supabase
             .from("partner_profiles")
             .update({
-              image_url: upsertPayload.image_url ?? null,
+              image_url: profilePayload.image_url ?? null,
               updated_at: now,
             })
             .eq("id", user.id);

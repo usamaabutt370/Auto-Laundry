@@ -6,7 +6,7 @@ import { useOnboardingComplete } from "@/hooks/use-onboarding-complete";
 
 /**
  * Root entry: redirects to onboarding, auth, or app based on state.
- * Flow: onboarding (first time) → auth → customer/partner.
+ * Flow: onboarding (first time) → auth → customer or partner from profiles.role.
  */
 export default function IndexScreen() {
   const { hasCompleted: onboardingComplete } = useOnboardingComplete();
@@ -28,11 +28,20 @@ export default function IndexScreen() {
     return <Redirect href="/(auth)" />;
   }
 
+  // Role is loaded async after session (e.g. sign-in). Never send a launderer to the
+  // customer app just because role is still null for a frame.
+  if (role === null) {
+    return (
+      <View style={styles.centered}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
+
   if (role === "launderer") {
     return <Redirect href="/(partner)" />;
   }
 
-  // Default to customer when logged in (role can be null until backend returns it)
   return <Redirect href="/(customer)" />;
 }
 
