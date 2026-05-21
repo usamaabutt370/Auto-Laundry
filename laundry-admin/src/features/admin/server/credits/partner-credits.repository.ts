@@ -25,7 +25,7 @@ export async function listPartnerCreditsForAdmin(): Promise<{
   const [accountsResult, ledgerResult, partnersResult, requestsResult] = await Promise.all([
     supabase
       .from("partner_credit_accounts")
-      .select("partner_id, balance, total_earned, total_spent, created_at, updated_at")
+      .select("id, partner_id, balance, total_earned, total_spent, created_at, updated_at")
       .order("updated_at", { ascending: false, nullsFirst: false }),
     supabase
       .from("partner_credit_ledger")
