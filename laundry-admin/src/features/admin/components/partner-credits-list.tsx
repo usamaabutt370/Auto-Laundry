@@ -193,7 +193,8 @@ export function PartnerCreditsList({
       }
 
       if (result.transaction) {
-        setTransactions((prev) => [result.transaction, ...prev]);
+        const tx = result.transaction;
+        setTransactions((prev) => [tx, ...prev]);
       }
       setPartnerBalances((prev) =>
         prev.map((item) => (item.userId === result.balance.userId ? { ...item, ...result.balance } : item)),
