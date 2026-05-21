@@ -7,7 +7,7 @@ import { useAuth } from "@/contexts/auth-context";
 import { onForegroundChatMessage } from "@/lib/push-notifications";
 
 /**
- * Opens the order chat when the user taps an FCM notification (cold start or background).
+ * Routes push-notification taps to the right screen (chat or order detail).
  */
 export function FcmNotificationRouter() {
   const { role, isAuthenticated } = useAuth();
@@ -16,37 +16,80 @@ export function FcmNotificationRouter() {
   roleRef.current = role;
   const pathnameRef = useRef(pathname);
   pathnameRef.current = pathname;
+  const lastHandledTapRef = useRef<string>("");
 
-  useEffect(() => {
-    if (!isAuthenticated) return;
+  const normalizeData = (raw: unknown): Record<string, string> => {
+    if (!raw || typeof raw !== "object") return {};
+    const out: Record<string, string> = {};
+    for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+      if (v == null) continue;
+      out[k] = String(v);
+    }
+    return out;
+  };
 
-    const go = (orderId: string) => {
-      const r = roleRef.current;
-      if (r === "launderer") {
+  const routeFromData = (data: Record<string, string>) => {
+    const orderId = data.orderId ?? data.order_id ?? "";
+    if (!orderId) return;
+
+    const isChat =
+      Boolean(data.conversationId || data.conversation_id || data.messageId || data.message_id) ||
+      data.type === "chat_message";
+
+    const currentRole = roleRef.current;
+    if (isChat) {
+      if (currentRole === "launderer") {
         router.push(`/(partner)/chat/${orderId}`);
       } else {
         router.push(`/(customer)/chat/${orderId}`);
       }
-    };
+      return;
+    }
+
+    if (currentRole === "launderer") {
+      router.push({ pathname: "/(partner)/order-detail", params: { orderId } });
+    } else {
+      router.push({ pathname: "/(customer)/order-detail", params: { orderId } });
+    }
+  };
+
+  const handleTapData = (data: Record<string, string>) => {
+    const dedupeKey = [
+      data.messageId ?? data.message_id ?? "",
+      data.conversationId ?? data.conversation_id ?? "",
+      data.orderId ?? data.order_id ?? "",
+      data.type ?? "",
+    ].join("|");
+    if (dedupeKey && dedupeKey === lastHandledTapRef.current) return;
+    lastHandledTapRef.current = dedupeKey;
+    routeFromData(data);
+  };
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
 
     const unsubOpened = messaging().onNotificationOpenedApp((remoteMessage) => {
-      const orderId = remoteMessage?.data?.orderId;
-      if (typeof orderId === "string" && orderId.length > 0) {
-        go(orderId);
-      }
+      handleTapData(normalizeData(remoteMessage?.data));
     });
 
     void messaging()
       .getInitialNotification()
       .then((remoteMessage) => {
-        const orderId = remoteMessage?.data?.orderId;
-        if (typeof orderId === "string" && orderId.length > 0) {
-          go(orderId);
-        }
+        handleTapData(normalizeData(remoteMessage?.data));
       });
+
+    const responseSub = Notifications.addNotificationResponseReceivedListener((response) => {
+      handleTapData(normalizeData(response.notification.request.content.data));
+    });
+
+    void Notifications.getLastNotificationResponseAsync().then((response) => {
+      if (!response) return;
+      handleTapData(normalizeData(response.notification.request.content.data));
+    });
 
     return () => {
       unsubOpened();
+      responseSub.remove();
     };
   }, [isAuthenticated]);
 
