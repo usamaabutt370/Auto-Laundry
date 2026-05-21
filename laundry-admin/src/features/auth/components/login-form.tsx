@@ -21,10 +21,37 @@ const titleStyle = {
 export function LoginForm() {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    router.push("/dashboard");
+    setError(null);
+    setLoading(true);
+
+    const form = new FormData(event.currentTarget);
+    const username = (form.get("username") as string | null)?.trim() ?? "";
+    const password = (form.get("password") as string | null) ?? "";
+
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      });
+
+      if (!response.ok) {
+        const data = (await response.json().catch(() => null)) as { error?: string } | null;
+        setError(data?.error ?? "Invalid username or password");
+        return;
+      }
+
+      router.push("/dashboard");
+    } catch {
+      setError("Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -87,11 +114,16 @@ export function LoginForm() {
             </button>
           </div>
 
+          {error ? (
+            <p className="text-center text-sm text-red-400">{error}</p>
+          ) : null}
+
           <Button
             type="submit"
             className="mt-6 sm:mt-8"
+            disabled={loading}
           >
-            Sign In
+            {loading ? "Signing in…" : "Sign In"}
           </Button>
         </form>
       </section>

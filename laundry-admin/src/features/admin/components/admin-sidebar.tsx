@@ -151,8 +151,9 @@ export function AdminSidebar() {
         description="You will need to sign in again to access the admin panel."
         confirmLabel="Log out"
         cancelLabel="Stay signed in"
-        onConfirm={() => {
+        onConfirm={async () => {
           setLogoutOpen(false);
+          await fetch("/api/auth/logout", { method: "POST" });
           router.push("/login");
         }}
         onCancel={() => setLogoutOpen(false)}
