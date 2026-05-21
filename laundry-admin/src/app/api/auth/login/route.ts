@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { ADMIN_PASSWORD, ADMIN_USERNAME, SESSION_COOKIE, SESSION_SECRET } from "@/lib/auth/session";
+import { SESSION_COOKIE, SESSION_SECRET } from "@/lib/auth/session";
 
 export async function POST(request: Request) {
   let body: unknown;
@@ -12,7 +12,14 @@ export async function POST(request: Request) {
 
   const { username, password } = body as Record<string, unknown>;
 
-  if (username !== ADMIN_USERNAME || password !== ADMIN_PASSWORD) {
+  const expectedUsername = process.env.ADMIN_USERNAME ?? "admin";
+  const expectedPassword = process.env.ADMIN_PASSWORD ?? "";
+
+  if (!expectedPassword) {
+    return NextResponse.json({ error: "Server misconfigured: ADMIN_PASSWORD not set" }, { status: 500 });
+  }
+
+  if (username !== expectedUsername || password !== expectedPassword) {
     return NextResponse.json({ error: "Invalid username or password" }, { status: 401 });
   }
 
