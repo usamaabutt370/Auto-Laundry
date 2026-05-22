@@ -6,7 +6,7 @@ const SESSION_SECRET =
 
 const PUBLIC_PREFIXES = ["/login", "/api/auth", "/_next", "/favicon.ico", "/icons"];
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   if (PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix))) {
