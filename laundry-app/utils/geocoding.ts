@@ -32,7 +32,20 @@ export async function getCoordinatesFromOpenStreetMap(
   const trimmedAddress = address.trim();
   if (!trimmedAddress) return null;
   try {
-    return geocodeFromNominatimQuery(trimmedAddress);
+    const candidates = Array.from(
+      new Set(
+        [
+          trimmedAddress,
+          `${trimmedAddress}, Pakistan`,
+          trimmedAddress.replace(/\s+/g, " "),
+        ].map((value) => value.trim()).filter((value) => value.length > 0),
+      ),
+    );
+    for (const candidate of candidates) {
+      const coords = await geocodeFromNominatimQuery(candidate);
+      if (coords) return coords;
+    }
+    return null;
   } catch {
     return null;
   }

@@ -25,7 +25,7 @@ import { useLocale } from "@/contexts/locale-context";
 import { useAuth } from "@/contexts/auth-context";
 import { getStrings } from "@/locales";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
-import { getCoordinatesWithFallback } from "@/utils/geocoding";
+import { getDeviceCoordinatesWithStatus } from "@/utils/device-location";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
 import { type CountryCode } from "react-native-country-picker-modal";
 
@@ -289,7 +289,36 @@ export function PartnerBusinessDetailsForm({ mode }: Props) {
 
     setIsSaving(true);
     try {
-      const coords = await getCoordinatesWithFallback(address.trim());
+      const locationResult = await getDeviceCoordinatesWithStatus();
+      console.log("[partner-location] location status:", locationResult.status);
+      console.log("[partner-location] coordinates:", locationResult.coords);
+      if (!locationResult.coords) {
+        if (locationResult.status === "denied") {
+          Alert.alert(
+            "Location permission required",
+            "Please allow location permission so we can place your business marker on the map.",
+          );
+        } else {
+          Alert.alert(
+            "Location unavailable",
+            "We could not detect your current location. Please try again in an open area with GPS enabled.",
+          );
+        }
+        return;
+      }
+      const coords = locationResult.coords;
+      console.log("[partner-location] using coords for profile:", {
+        latitude: coords.latitude,
+        longitude: coords.longitude,
+      });
+
+      if (!coords) {
+        Alert.alert(
+          "Location unavailable",
+          "Unable to detect your current location. Please try again.",
+        );
+        return;
+      }
       const fullPhone = `+${callingCode}${phoneNumber}`;
       const parsedPhoneObj = parsePhoneNumberFromString(fullPhone);
       const normalizedPhone = parsedPhoneObj ? parsedPhoneObj.number : fullPhone;
@@ -338,10 +367,12 @@ export function PartnerBusinessDetailsForm({ mode }: Props) {
         business_images: uploadedImageUrls,
         updated_at: new Date().toISOString(),
       };
-      if (coords) {
-        payload.latitude = coords.latitude;
-        payload.longitude = coords.longitude;
-      }
+      payload.latitude = coords.latitude;
+      payload.longitude = coords.longitude;
+      console.log("[partner-location] payload coordinates:", {
+        latitude: payload.latitude,
+        longitude: payload.longitude,
+      });
 
       const { error } = await supabase.from("partner_profiles").upsert(payload, {
         onConflict: "id",
