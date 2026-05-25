@@ -99,17 +99,10 @@ export function PartnerServicesScreen({ mode }: PartnerServicesScreenProps) {
   };
 
   const handleServicePress = (key: ServiceKey) => {
-    if (key === "washAndFold") {
-      router.push({
-        pathname: "/(partner)/onboarding/step3",
-        params: { service: key },
-      });
-    } else {
-      router.push({
-        pathname: "/(partner)/onboarding/service-other",
-        params: { service: key },
-      });
-    }
+    router.push({
+      pathname: "/(partner)/onboarding/service-other",
+      params: { service: key },
+    });
   };
 
   const handleFinish = async () => {

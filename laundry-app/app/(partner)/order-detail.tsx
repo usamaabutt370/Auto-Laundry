@@ -17,6 +17,7 @@ import { AppHeader } from "@/components/app-header";
 import { theme } from "@/constants/theme";
 import { getOrderDetail, type DemoOrderDetail } from "@/data/demo-order-details";
 import { useLocale } from "@/contexts/locale-context";
+import { confirmPartnerOrderBill } from "@/lib/partner-order-intake";
 import { fetchPartnerOrderDetail, type PartnerOrderDetailData } from "@/lib/partner-orders";
 import { partnerUpdateOrderStatus } from "@/lib/partner-order-status";
 import { getStrings } from "@/locales";
@@ -55,6 +56,10 @@ function mapDemoDetail(detail: DemoOrderDetail): PartnerOrderDetailData {
     numItems: bag.numItems,
     preferences: bag.preferences,
     estimatedPrice: bag.estimatedPrice,
+    estimatedQuantity: Number.parseInt(bag.numItems, 10) || 0,
+    confirmedQuantity: null,
+    unitPriceAmount: null,
+    confirmedPrice: null,
   }));
   return {
     orderId: detail.orderId,
@@ -81,6 +86,9 @@ function mapDemoDetail(detail: DemoOrderDetail): PartnerOrderDetailData {
     delivery: detail.delivery,
     courier: detail.courier,
     estimatedTotal: bags[0]?.estimatedPrice ?? "0",
+    confirmedTotal: null,
+    confirmedAt: null,
+    intakeNotes: null,
     totalItems: String(
       bags.reduce((sum, bag) => sum + (Number.parseInt(bag.numItems, 10) || 0), 0),
     ),
@@ -115,6 +123,9 @@ export default function PartnerOrderDetailScreen() {
   const [rejectModalVisible, setRejectModalVisible] = useState(false);
   const [selectedRejectionOption, setSelectedRejectionOption] = useState<RejectionOption | null>(null);
   const [otherRejectionReason, setOtherRejectionReason] = useState("");
+  const [intakeQuantities, setIntakeQuantities] = useState<Record<string, number>>({});
+  const [intakeNotes, setIntakeNotes] = useState("");
+  const [isConfirmingBill, setIsConfirmingBill] = useState(false);
 
   const detail = useMemo(
     () => (params.orderId ? getOrderDetail(params.orderId) : null),
@@ -141,7 +152,23 @@ export default function PartnerOrderDetailScreen() {
     setIsLoadingLiveDetail(true);
     fetchPartnerOrderDetail(orderIdParam)
       .then((data) => {
-        if (!cancelled) setLiveDetail(data);
+        if (!cancelled) {
+          setLiveDetail(data);
+          if (data) {
+            const initial: Record<string, number> = {};
+            for (const bag of data.bags) {
+              if (bag.estimatedQuantity > 0 || Number.parseInt(bag.numItems, 10) > 0) {
+                initial[bag.id] =
+                  bag.confirmedQuantity ??
+                  bag.estimatedQuantity ??
+                  Number.parseInt(bag.numItems, 10) ??
+                  0;
+              }
+            }
+            setIntakeQuantities(initial);
+            setIntakeNotes(data.intakeNotes ?? "");
+          }
+        }
       })
       .catch((error) => {
         if (!cancelled) {
@@ -346,8 +373,12 @@ export default function PartnerOrderDetailScreen() {
           </View>
           <View style={styles.metricsRow}>
             <View style={styles.metricCard}>
-              <Text style={styles.metricLabel}>Estimated total</Text>
-              <Text style={styles.metricValue}>{formatMoney(finalDetail.estimatedTotal)}</Text>
+              <Text style={styles.metricLabel}>
+                {finalDetail.confirmedTotal ? s.confirmedTotalLabel : s.estimatedTotalLabel}
+              </Text>
+              <Text style={styles.metricValue}>
+                {formatMoney(finalDetail.confirmedTotal ?? finalDetail.estimatedTotal)}
+              </Text>
             </View>
             <View style={styles.metricCard}>
               <Text style={styles.metricLabel}>Items</Text>
@@ -449,6 +480,109 @@ export default function PartnerOrderDetailScreen() {
             </View>
           ))}
         </View>
+
+        {finalDetail.confirmedTotal == null &&
+        finalDetail.rawStatus !== "rejected" &&
+        finalDetail.rawStatus !== "cancelled" &&
+        finalDetail.bags.some((b) => b.estimatedQuantity > 0) ? (
+          <View style={styles.sectionCard}>
+            <Text style={styles.sectionTitle}>{s.intakeTitle}</Text>
+            <Text style={styles.intakeHint}>{s.intakeHint}</Text>
+            {finalDetail.bags
+              .filter((b) => b.estimatedQuantity > 0)
+              .map((item) => {
+                const qty = intakeQuantities[item.id] ?? item.estimatedQuantity;
+                const unit = item.unitPriceAmount;
+                const lineTotal =
+                  unit != null ? Math.round(unit * qty * 100) / 100 : null;
+                return (
+                  <View key={item.id} style={styles.intakeRow}>
+                    <View style={styles.intakeRowLeft}>
+                      <Text style={styles.itemLabel}>{item.label}</Text>
+                      <Text style={styles.itemMeta}>
+                        Est. {item.estimatedQuantity}×
+                        {lineTotal != null ? ` · ${formatMoney(String(lineTotal))}` : ""}
+                      </Text>
+                    </View>
+                    <View style={styles.intakeStepper}>
+                      <Pressable
+                        onPress={() =>
+                          setIntakeQuantities((prev) => ({
+                            ...prev,
+                            [item.id]: Math.max(0, (prev[item.id] ?? qty) - 1),
+                          }))
+                        }
+                        style={styles.intakeStepBtn}
+                      >
+                        <MaterialCommunityIcons name="minus" size={18} color={c.white} />
+                      </Pressable>
+                      <Text style={styles.intakeQty}>{qty}</Text>
+                      <Pressable
+                        onPress={() =>
+                          setIntakeQuantities((prev) => ({
+                            ...prev,
+                            [item.id]: (prev[item.id] ?? qty) + 1,
+                          }))
+                        }
+                        style={styles.intakeStepBtn}
+                      >
+                        <MaterialCommunityIcons name="plus" size={18} color={c.white} />
+                      </Pressable>
+                    </View>
+                  </View>
+                );
+              })}
+            <TextInput
+              style={styles.intakeNotesInput}
+              value={intakeNotes}
+              onChangeText={setIntakeNotes}
+              placeholder={s.intakeNotesPlaceholder}
+              placeholderTextColor="rgba(255,255,255,0.45)"
+              multiline
+            />
+            <Pressable
+              onPress={async () => {
+                const lines = finalDetail.bags
+                  .filter((b) => b.estimatedQuantity > 0)
+                  .map((b) => ({
+                    id: b.id,
+                    confirmedQuantity: intakeQuantities[b.id] ?? b.estimatedQuantity,
+                  }));
+                setIsConfirmingBill(true);
+                const result = await confirmPartnerOrderBill(
+                  finalDetail.orderId,
+                  lines,
+                  intakeNotes,
+                );
+                setIsConfirmingBill(false);
+                if (!result.ok) {
+                  Alert.alert("Could not confirm bill", result.error);
+                  return;
+                }
+                Alert.alert(s.intakeSuccessTitle, s.intakeSuccessMessage);
+                const refreshed = await fetchPartnerOrderDetail(finalDetail.orderId);
+                if (refreshed) setLiveDetail(refreshed);
+              }}
+              disabled={isConfirmingBill}
+              style={({ pressed }) => [
+                styles.intakeConfirmBtn,
+                pressed && !isConfirmingBill && styles.pressed,
+                isConfirmingBill && styles.disabled,
+              ]}
+            >
+              <Text style={styles.intakeConfirmText}>
+                {isConfirmingBill ? s.intakeConfirming : s.intakeConfirm}
+              </Text>
+            </Pressable>
+          </View>
+        ) : null}
+
+        {finalDetail.intakeNotes ? (
+          <View style={styles.sectionCard}>
+            <Text style={styles.sectionTitle}>Intake notes</Text>
+            <Text style={styles.notesText}>{finalDetail.intakeNotes}</Text>
+          </View>
+        ) : null}
 
         <View style={styles.sectionCard}>
           <Text style={styles.sectionTitle}>Order notes</Text>
@@ -823,6 +957,59 @@ const styles = StyleSheet.create({
     color: c.white,
     fontSize: fs.smallText,
     lineHeight: 22,
+  },
+  intakeHint: {
+    color: c.blue500,
+    fontSize: fs.descText,
+    lineHeight: 20,
+    marginBottom: 14,
+  },
+  intakeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 12,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255,255,255,0.08)",
+  },
+  intakeRowLeft: { flex: 1, paddingRight: 12 },
+  intakeStepper: { flexDirection: "row", alignItems: "center", gap: 8 },
+  intakeStepBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  intakeQty: {
+    color: c.white,
+    fontSize: fs.smallText,
+    fontWeight: "700",
+    minWidth: 24,
+    textAlign: "center",
+  },
+  intakeNotesInput: {
+    backgroundColor: "rgba(255,255,255,0.08)",
+    borderRadius: 12,
+    padding: 12,
+    color: c.white,
+    fontSize: fs.descText,
+    minHeight: 72,
+    marginBottom: 12,
+    marginTop: 4,
+  },
+  intakeConfirmBtn: {
+    backgroundColor: c.lightBlue,
+    borderRadius: 999,
+    paddingVertical: 14,
+    alignItems: "center",
+  },
+  intakeConfirmText: {
+    color: c.white,
+    fontSize: fs.smallText,
+    fontWeight: "700",
   },
   rejectionDetailText: {
     color: c.blue500,

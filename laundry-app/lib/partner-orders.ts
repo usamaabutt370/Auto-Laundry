@@ -35,8 +35,12 @@ export interface PartnerOrderDetailBag {
   service: string;
   weight: string;
   numItems: string;
+  estimatedQuantity: number;
+  confirmedQuantity: number | null;
+  unitPriceAmount: number | null;
   preferences: string;
   estimatedPrice: string;
+  confirmedPrice: string | null;
 }
 
 export interface PartnerOrderServiceGroup {
@@ -62,6 +66,9 @@ export interface PartnerOrderDetailData {
   delivery: string;
   courier: string;
   estimatedTotal: string;
+  confirmedTotal: string | null;
+  confirmedAt: string | null;
+  intakeNotes: string | null;
   totalItems: string;
   servicesSummary: string;
   notes: string;
@@ -77,6 +84,10 @@ type CustomerOrderRow = {
   status: PartnerOrderStatus;
   estimated_total: number | null;
   estimated_partial_total: number;
+  confirmed_total: number | null;
+  confirmed_at: string | null;
+  intake_notes: string | null;
+  pickup_fee: number | null;
   pickup_day_label: string | null;
   pickup_time_slot_label: string | null;
   delivery_day_label: string | null;
@@ -97,7 +108,10 @@ type OrderServiceItemRow = {
   id: string;
   item_name: string;
   quantity: number;
+  unit_price_amount: number | null;
   line_total_amount: number | null;
+  confirmed_quantity: number | null;
+  confirmed_line_total_amount: number | null;
 };
 
 type ProfileRow = {
@@ -221,7 +235,7 @@ export async function fetchPartnerOrders(): Promise<PartnerOrderListItem[]> {
   const { data, error } = await supabase
     .from("customer_orders")
     .select(
-      "id,customer_id,status,estimated_total,estimated_partial_total,pickup_day_label,pickup_time_slot_label,delivery_day_label,delivery_time_slot_label,rejection_reason_option,rejection_reason_details",
+      "id,customer_id,status,estimated_total,estimated_partial_total,confirmed_total,confirmed_at,intake_notes,pickup_fee,pickup_day_label,pickup_time_slot_label,delivery_day_label,delivery_time_slot_label,rejection_reason_option,rejection_reason_details",
     )
     .eq("partner_id", partnerId)
     .order("created_at", { ascending: false });
@@ -294,7 +308,7 @@ export async function fetchPartnerOrderDetail(
   const { data, error } = await supabase
     .from("customer_orders")
     .select(
-      "id,customer_id,status,estimated_total,estimated_partial_total,pickup_day_label,pickup_time_slot_label,delivery_day_label,delivery_time_slot_label,rejection_reason_option,rejection_reason_details",
+      "id,customer_id,status,estimated_total,estimated_partial_total,confirmed_total,confirmed_at,intake_notes,pickup_fee,pickup_day_label,pickup_time_slot_label,delivery_day_label,delivery_time_slot_label,rejection_reason_option,rejection_reason_details",
     )
     .eq("id", orderId)
     .eq("partner_id", partnerId)
@@ -320,7 +334,9 @@ export async function fetchPartnerOrderDetail(
   if (serviceIds.length > 0) {
     const { data: itemData, error: itemError } = await supabase
       .from("order_service_items")
-      .select("id,order_service_id,item_name,quantity,line_total_amount")
+      .select(
+        "id,order_service_id,item_name,quantity,unit_price_amount,line_total_amount,confirmed_quantity,confirmed_line_total_amount",
+      )
       .in("order_service_id", serviceIds);
     if (itemError) {
       throw new Error(itemError.message);
@@ -347,11 +363,20 @@ export async function fetchPartnerOrderDetail(
             label: itemRow.item_name,
             service: serviceTypeLabel(serviceRow.service_type),
             weight: "N/A",
-            numItems: String(itemRow.quantity),
+            numItems: String(
+              itemRow.confirmed_quantity ?? itemRow.quantity,
+            ),
+            estimatedQuantity: itemRow.quantity,
+            confirmedQuantity: itemRow.confirmed_quantity,
+            unitPriceAmount: itemRow.unit_price_amount,
             preferences: serviceRow.instructions?.trim() || "None",
             estimatedPrice: String(
               itemRow.line_total_amount ?? serviceRow.estimated_amount ?? 0,
             ),
+            confirmedPrice:
+              itemRow.confirmed_line_total_amount != null
+                ? String(itemRow.confirmed_line_total_amount)
+                : null,
           }))
         : [
             {
@@ -360,8 +385,12 @@ export async function fetchPartnerOrderDetail(
               service: serviceTypeLabel(serviceRow.service_type),
               weight: "Pending at intake",
               numItems: "0",
+              estimatedQuantity: 0,
+              confirmedQuantity: null,
+              unitPriceAmount: null,
               preferences: serviceRow.instructions?.trim() || "None",
               estimatedPrice: String(serviceRow.estimated_amount ?? 0),
+              confirmedPrice: null,
             },
           ];
 
@@ -384,8 +413,12 @@ export async function fetchPartnerOrderDetail(
             service: "Laundry order",
             weight: "Pending at intake",
             numItems: "0",
+            estimatedQuantity: 0,
+            confirmedQuantity: null,
+            unitPriceAmount: null,
             preferences: "None",
             estimatedPrice: String(order.estimated_total ?? order.estimated_partial_total ?? 0),
+            confirmedPrice: null,
           },
         ];
 
@@ -422,6 +455,10 @@ export async function fetchPartnerOrderDetail(
     ),
     courier: "Not Yet Assigned",
     estimatedTotal: String(order.estimated_total ?? order.estimated_partial_total ?? 0),
+    confirmedTotal:
+      order.confirmed_total != null ? String(order.confirmed_total) : null,
+    confirmedAt: order.confirmed_at,
+    intakeNotes: order.intake_notes?.trim() || null,
     totalItems: String(totalItems),
     servicesSummary,
     notes: notes || "No special instructions",
