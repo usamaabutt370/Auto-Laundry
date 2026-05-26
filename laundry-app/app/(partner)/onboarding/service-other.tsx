@@ -2,6 +2,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import {
+  Alert,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -15,10 +16,19 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AppHeader } from "@/components/app-header";
+import {
+  WashFoldPackageBox,
+  WashFoldPackageGrid,
+} from "@/components/wash-fold-package-box";
 import { AppButton } from "@/components/ui/button";
 import { theme } from "@/constants/theme";
 import { useLocale } from "@/contexts/locale-context";
-import type { ItemizeState } from "@/contexts/merchant-services-context";
+import type {
+  ItemizeState,
+  OnboardingServicesSnapshot,
+  ServicePricing,
+  ServicePricingRow,
+} from "@/contexts/merchant-services-context";
 import { useMerchantServices } from "@/contexts/merchant-services-context";
 import {
   isWashFoldPackageItem,
@@ -129,7 +139,7 @@ function parseServiceKey(
 
 /**
  * Dry Cleaning / Tailoring - Itemize: list of items with name + price only (no quantity).
- * Continue saves draft state only; DB write happens on Step 2 Finish.
+ * Continue saves prices to the database when at least one price is set.
  */
 export default function ServiceOtherScreen() {
   const router = useRouter();
@@ -148,6 +158,8 @@ export default function ServiceOtherScreen() {
     setDryCleaningItemizeState,
     tailoringItemizeState,
     setTailoringItemizeState,
+    submitOnboardingServices,
+    isSubmittingOnboardingServices,
   } = useMerchantServices();
 
   const serviceKey = useMemo(
@@ -280,7 +292,7 @@ export default function ServiceOtherScreen() {
     closeEditModal();
   };
 
-  const pricedRows = items
+  const pricedRows: ServicePricingRow[] = items
     .map((item) => ({
       label: item.label,
       value: prices[item.id]?.trim() ?? "",
@@ -289,40 +301,66 @@ export default function ServiceOtherScreen() {
 
   const canContinue = serviceKey != null && pricedRows.length > 0;
 
+  const persistPricingToDatabase = async (
+    key: ItemizeServiceKey,
+    pricingWithRows: ServicePricing,
+    itemize: ItemizeState,
+  ): Promise<boolean> => {
+    if (key === "washAndFold") {
+      setWashAndFoldPricing(pricingWithRows);
+      setWashFoldItemizeState(itemize);
+    } else if (key === "dryCleaning") {
+      setDryCleaningPricing(pricingWithRows);
+      setDryCleaningItemizeState(itemize);
+    } else if (key === "tailoring") {
+      setTailoringPricing(pricingWithRows);
+      setTailoringItemizeState(itemize);
+    }
+
+    const snapshot: OnboardingServicesSnapshot = { [key]: pricingWithRows };
+    const result = await submitOnboardingServices(snapshot);
+    if (!result.ok) {
+      Alert.alert(
+        "Could not save prices",
+        result.error ?? "Please try again.",
+      );
+      return false;
+    }
+    return true;
+  };
+
   const handleContinue = async () => {
     if (serviceKey == null) return;
+    const itemize: ItemizeState = { items, prices };
     if (!canContinue) {
-      const state: ItemizeState = { items, prices };
       if (serviceKey === "washAndFold") {
         setWashAndFoldPricing(null);
-        setWashFoldItemizeState(state);
+        setWashFoldItemizeState(itemize);
       } else if (serviceKey === "dryCleaning") {
         setDryCleaningPricing(null);
-        setDryCleaningItemizeState(state);
+        setDryCleaningItemizeState(itemize);
       } else if (serviceKey === "tailoring") {
         setTailoringPricing(null);
-        setTailoringItemizeState(state);
+        setTailoringItemizeState(itemize);
       }
       router.back();
       return;
     }
-    const pricingWithRows = { rows: pricedRows };
-
-    if (serviceKey === "washAndFold") {
-      setWashAndFoldPricing(pricingWithRows);
-      setWashFoldItemizeState({ items, prices });
-    } else if (serviceKey === "dryCleaning") {
-      setDryCleaningPricing(pricingWithRows);
-      setDryCleaningItemizeState({ items, prices });
-    } else if (serviceKey === "tailoring") {
-      setTailoringPricing(pricingWithRows);
-      setTailoringItemizeState({ items, prices });
-    }
+    const ok = await persistPricingToDatabase(
+      serviceKey,
+      { rows: pricedRows },
+      itemize,
+    );
+    if (!ok) return;
     router.back();
   };
 
-  const handleBack = () => {
-    if (items.length === 0 && serviceKey != null) {
+  const handleBack = async () => {
+    if (serviceKey == null) {
+      router.back();
+      return;
+    }
+    if (items.length === 0) {
       if (serviceKey === "washAndFold") {
         setWashAndFoldPricing(null);
         setWashFoldItemizeState(null);
@@ -336,13 +374,21 @@ export default function ServiceOtherScreen() {
       router.back();
       return;
     }
-    const state: ItemizeState = { items, prices };
-    if (serviceKey === "washAndFold") {
-      setWashFoldItemizeState(state);
+
+    const itemize: ItemizeState = { items, prices };
+    if (pricedRows.length > 0) {
+      const ok = await persistPricingToDatabase(
+        serviceKey,
+        { rows: pricedRows },
+        itemize,
+      );
+      if (!ok) return;
+    } else if (serviceKey === "washAndFold") {
+      setWashFoldItemizeState(itemize);
     } else if (serviceKey === "dryCleaning") {
-      setDryCleaningItemizeState(state);
+      setDryCleaningItemizeState(itemize);
     } else if (serviceKey === "tailoring") {
-      setTailoringItemizeState(state);
+      setTailoringItemizeState(itemize);
     }
     router.back();
   };
@@ -396,63 +442,21 @@ export default function ServiceOtherScreen() {
     );
 
   const renderPackageBox = (item: ServiceItemRow) => {
-    const priceValue = prices[item.id] ?? "";
-    const hasPrice = priceValue.trim().length > 0;
     const isCustomPackage = isWashFoldCustomPackageId(item.id);
 
     return (
-      <View key={item.id} style={styles.packageBox}>
-        <View style={styles.packageBoxTopRow}>
-          <View style={styles.packageIconWrap}>
-            <MaterialCommunityIcons
-              name="package-variant-closed"
-              size={26}
-              color={c.lightBlue}
-            />
-          </View>
-          {isCustomPackage ? (
-            <Pressable
-              onPress={() => removeItem(item.id)}
-              style={({ pressed }) => [
-                styles.packageActionBtn,
-                pressed && styles.pressed,
-              ]}
-              hitSlop={8}
-              accessibilityRole="button"
-              accessibilityLabel={`Remove ${item.label}`}
-            >
-              <MaterialCommunityIcons name="close" size={18} color={c.white} />
-            </Pressable>
-          ) : null}
-        </View>
-
-        <Text style={styles.packageBoxTitle} numberOfLines={2}>
-          {item.label}
-        </Text>
-        <Text style={styles.packageBoxSubInfo}>{packageDescription(item)}</Text>
-
-        <View style={styles.packagePriceBlock}>
-          <TextInput
-            style={styles.packagePriceInput}
-            placeholder={onboardingStrings.itemizePricePlaceholder}
-            placeholderTextColor="rgba(0,0,0,0.4)"
-            value={priceValue}
-            onChangeText={(text) => setPrice(item.id, text)}
-            keyboardType="decimal-pad"
-            editable
-            {...(Platform.OS === "android" && { includeFontPadding: false })}
-          />
-        </View>
-
-        {hasPrice ? (
-          <View style={styles.packageSetBadge}>
-            <MaterialCommunityIcons name="check-circle" size={14} color={c.lightBlue} />
-            <Text style={styles.packageSetBadgeText}>
-              {onboardingStrings.washFoldPackageBoxPriceSet}
-            </Text>
-          </View>
-        ) : null}
-      </View>
+      <WashFoldPackageBox
+        key={item.id}
+        mode="partner"
+        title={item.label}
+        description={packageDescription(item)}
+        priceValue={prices[item.id] ?? ""}
+        pricePlaceholder={onboardingStrings.itemizePricePlaceholder}
+        onPriceChange={(text) => setPrice(item.id, text)}
+        priceSetLabel={onboardingStrings.washFoldPackageBoxPriceSet}
+        onRemove={isCustomPackage ? () => removeItem(item.id) : undefined}
+        removeAccessibilityLabel={`Remove ${item.label}`}
+      />
     );
   };
 
@@ -591,9 +595,9 @@ export default function ServiceOtherScreen() {
           </>
         ) : null}
         {isWashFold && washFoldTab === "packages" ? (
-          <View style={styles.packageGrid}>
+          <WashFoldPackageGrid>
             {packageItems.map(renderPackageBox)}
-          </View>
+          </WashFoldPackageGrid>
         ) : (
           visibleItems.map(renderItemRow)
         )}
@@ -604,6 +608,7 @@ export default function ServiceOtherScreen() {
           variant="filled"
           rightIcon="arrow-right"
           fullWidth
+          disabled={isSubmittingOnboardingServices}
           style={styles.continueBtn}
           accessibilityLabel={onboardingStrings.continue}
         />
@@ -788,85 +793,6 @@ const styles = StyleSheet.create({
     color: "rgba(255,255,255,0.65)",
     lineHeight: 20,
     marginBottom: 12,
-  },
-  packageGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 12,
-    marginBottom: 8,
-  },
-  packageBox: {
-    width: "48%",
-    minWidth: 150,
-    backgroundColor: c.blue900,
-    borderRadius: 16,
-    borderWidth: 1.5,
-    borderColor: "rgba(255,255,255,0.2)",
-    padding: 14,
-    marginBottom: 4,
-  },
-  packageBoxTopRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-    marginBottom: 10,
-  },
-  packageIconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: "rgba(255,255,255,0.1)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  packageActionBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "rgba(255,255,255,0.15)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  packageBoxTitle: {
-    fontSize: fs.smallText,
-    fontWeight: "800",
-    color: c.white,
-    lineHeight: 20,
-    marginBottom: 6,
-  },
-  packageBoxSubInfo: {
-    fontSize: 12,
-    color: "rgba(255,255,255,0.6)",
-    lineHeight: 17,
-    marginTop: 4,
-    marginBottom: 12,
-  },
-  packagePriceBlock: {
-    backgroundColor: c.white,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  packagePriceInput: {
-    fontSize: 17,
-    fontWeight: "700",
-    color: c.themeBlack,
-    padding: 0,
-    minHeight: 24,
-  },
-  packageSetBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    marginTop: 10,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: "rgba(255,255,255,0.12)",
-  },
-  packageSetBadgeText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: c.lightBlue,
   },
   headerIconBtn: {
     padding: 8,

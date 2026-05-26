@@ -3,7 +3,9 @@ import { TAILORING_ITEM_DEFS } from "@/constants/tailoring-items";
 import type { CustomerOrderDraft } from "@/contexts/customer-order-draft-context";
 import {
   dryCleanUnitForItem,
+  listPricedWashFoldDefs,
   tailoringUnitForItem,
+  washFoldUnitForItem,
   type OrderEstimateResult,
 } from "@/lib/customer-order-estimate";
 import type { PartnerDetailRow, PartnerServiceLine } from "@/lib/partner-discovery";
@@ -98,9 +100,10 @@ export async function submitCustomerOrder({
     pricing_mode: "per_item",
     total_item_count:
       serviceType === "washAndFold"
-        ? draft.washFold?.pricingMode === "per_item"
-          ? draft.washFold?.bagDetailsByIndex[1]?.itemCount ?? 0
-          : draft.washFold?.bagCount ?? 0
+        ? Object.values(draft.washFold?.itemizedQuantities ?? {}).reduce(
+            (acc, qty) => acc + Math.max(0, qty),
+            0,
+          )
         : serviceType === "dryCleaning"
           ? DRY_CLEAN_ITEM_DEFS.reduce(
               (acc, def) => acc + (draft.dryClean?.itemizedQuantities[def.id] ?? 0),
@@ -112,7 +115,7 @@ export async function submitCustomerOrder({
             ),
     instructions:
       serviceType === "washAndFold"
-        ? draft.washFold?.bagDetailsByIndex[1]?.instructions?.trim() ?? ""
+        ? draft.washFold?.itemizedInstructions?.trim() ?? ""
         : serviceType === "dryCleaning"
           ? draft.dryClean?.itemizedInstructions?.trim() ?? ""
           : draft.tailoring?.itemizedInstructions?.trim() ?? "",
@@ -141,7 +144,7 @@ export async function submitCustomerOrder({
 
   const itemPayload: {
     order_service_id: string;
-    service_type: "dryCleaning" | "tailoring";
+    service_type: "washAndFold" | "dryCleaning" | "tailoring";
     item_key: string;
     item_name: string;
     quantity: number;
@@ -149,6 +152,27 @@ export async function submitCustomerOrder({
     unit_price_amount: number | null;
     line_total_amount: number | null;
   }[] = [];
+
+  const washServiceId = byType.get("washAndFold");
+  if (washServiceId && draft.washFold) {
+    const washDefs = listPricedWashFoldDefs(services);
+    for (const def of washDefs) {
+      const quantity = draft.washFold.itemizedQuantities[def.id] ?? 0;
+      if (quantity <= 0) continue;
+      const unit = washFoldUnitForItem(services, def);
+      itemPayload.push({
+        order_service_id: washServiceId,
+        service_type: "washAndFold",
+        item_key: def.id,
+        item_name: def.name,
+        quantity,
+        unit_price_display: unit.priceLabel === "—" ? null : unit.priceLabel,
+        unit_price_amount: unit.amount,
+        line_total_amount:
+          unit.amount != null ? Math.round(unit.amount * quantity * 100) / 100 : null,
+      });
+    }
+  }
 
   const dryServiceId = byType.get("dryCleaning");
   if (dryServiceId && draft.dryClean) {

@@ -173,15 +173,31 @@ export const en = {
       save: "Save",
     },
     washFoldOrder: {
-      title: "Your wash & fold load",
+      title: "Wash & fold items",
       lead:
-        "Choose how this load is priced, enter the number that sets your total, and add any notes for your launderer below.",
-      howPriced: "Price this load",
-      perBag: "Per bag",
-      perItem: "Per item",
-      chargedTitle: "What you’re paying for",
-      calcLine: "{qty}: {amount}",
-      calcNoRate: "{qty} — rate not on partner list",
+        "Select each item type and quantity. Your estimated total updates as you go.",
+      estimateDisclaimer:
+        "This is an estimate. Final amount may change after the launderer counts items at pickup.",
+      itemsSection: "Items",
+      packagesSection: "Bulk packages",
+      packagesHint: "Tap a package to add it to your order (one per package).",
+      noGarmentRates:
+        "No per-item rates listed yet — your launderer may confirm price at pickup.",
+      noPackageRates:
+        "This launderer has not set bulk package prices yet.",
+      noRates: "This launderer has not set wash & fold prices yet.",
+      noPartner: "Choose a launderer from the map first.",
+      loadError: "Could not load this launderer's prices. Pull to refresh or try again.",
+      saveHint:
+        "Partner: open Wash & Fold, enter prices, tap Continue (not only back), then Save on Merchant Services.",
+      each: "each",
+      packageUnit: "per package",
+    },
+    orderDetail: {
+      estimatedTotal: "Estimated total",
+      confirmedTotal: "Confirmed total",
+      confirmedAtPickup: "Confirmed after pickup inspection",
+      qtyConfirmed: "Qty (confirmed)",
     },
     liveEstimate: {
       estimatedLabel: "Estimated total",

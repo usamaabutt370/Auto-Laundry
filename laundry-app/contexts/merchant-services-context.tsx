@@ -26,6 +26,11 @@ export interface ServicePricing {
 
 export type ServicePricingKey = "washAndFold" | "dryCleaning" | "tailoring";
 
+/** Optional pricing snapshot when persisting before React state has flushed. */
+export type OnboardingServicesSnapshot = Partial<
+  Record<ServicePricingKey, ServicePricing | null>
+>;
+
 /** Optional pickup + delivery add-on pricing shared across onboarding and settings services screen. */
 export interface PickupDeliveryPricing {
   enabled: boolean;
@@ -60,7 +65,9 @@ interface MerchantServicesContextValue {
   setPickupDeliveryPricing: React.Dispatch<React.SetStateAction<PickupDeliveryPricing>>;
   savePickupDeliveryPricing: () => Promise<boolean>;
   isSavingPickupDeliveryPricing: boolean;
-  submitOnboardingServices: () => Promise<{ ok: boolean; error?: string }>;
+  submitOnboardingServices: (
+    snapshot?: OnboardingServicesSnapshot,
+  ) => Promise<{ ok: boolean; error?: string }>;
   isSubmittingOnboardingServices: boolean;
   addService: (item: Omit<ServiceItem, "id">) => void | Promise<void>;
   updateService: (id: string, updates: Partial<Omit<ServiceItem, "id">>) => void;
@@ -280,10 +287,15 @@ export function MerchantServicesProvider({ children }: { children: React.ReactNo
     [user?.id]
   );
 
-  const submitOnboardingServices = useCallback(async () => {
+  const submitOnboardingServices = useCallback(
+    async (snapshot?: OnboardingServicesSnapshot) => {
     if (!isSupabaseConfigured() || !supabase || !user?.id) {
       return { ok: false, error: "Supabase is not configured or user is not signed in." };
     }
+
+    const wafPricing = snapshot?.washAndFold ?? washAndFoldPricing;
+    const dcPricing = snapshot?.dryCleaning ?? dryCleaningPricing;
+    const tailPricing = snapshot?.tailoring ?? tailoringPricing;
 
     const payload: Array<{
       user_id: string;
@@ -305,9 +317,9 @@ export function MerchantServicesProvider({ children }: { children: React.ReactNo
       });
     };
 
-    appendRows("Wash & Fold", washAndFoldPricing?.rows);
-    appendRows("Dry Cleaning", dryCleaningPricing?.rows);
-    appendRows("Tailoring", tailoringPricing?.rows);
+    appendRows("Wash & Fold", wafPricing?.rows);
+    appendRows("Dry Cleaning", dcPricing?.rows);
+    appendRows("Tailoring", tailPricing?.rows);
 
     if (pickupDeliveryPricing.enabled && pickupDeliveryPricing.amount.trim().length > 0) {
       payload.push({
@@ -355,7 +367,8 @@ export function MerchantServicesProvider({ children }: { children: React.ReactNo
     } finally {
       setIsSubmittingOnboardingServices(false);
     }
-  }, [
+  },
+    [
     user?.id,
     washAndFoldPricing,
     dryCleaningPricing,
@@ -363,7 +376,8 @@ export function MerchantServicesProvider({ children }: { children: React.ReactNo
     pickupDeliveryPricing.enabled,
     pickupDeliveryPricing.amount,
     fetchServices,
-  ]);
+  ],
+  );
 
   const value = useMemo(
     () => ({

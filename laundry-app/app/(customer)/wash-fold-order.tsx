@@ -1,6 +1,6 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
+import { useFocusEffect, useRouter } from "expo-router";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   KeyboardAvoidingView,
   Platform,
@@ -12,194 +12,253 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Image } from "expo-image";
-import { AppHeader } from "@/components/app-header";
 
-import { assets } from "@/assets/assets";
+import { AppHeader } from "@/components/app-header";
 import { CustomerLiveEstimateFooter } from "@/components/customer-live-estimate-footer";
-import { strings } from "@/constants/strings";
+import {
+  WashFoldPackageBox,
+  WashFoldPackageGrid,
+} from "@/components/wash-fold-package-box";
 import { theme } from "@/constants/theme";
 import type { CustomerOrderDraft } from "@/contexts/customer-order-draft-context";
 import { useCustomerOrderDraft } from "@/contexts/customer-order-draft-context";
+import { useLocale } from "@/contexts/locale-context";
+import { initialWashFoldQuantities } from "@/constants/wash-fold-items";
+import {
+  getWashFoldPackageDescription,
+  type WashFoldPackageCatalogKey,
+} from "@/constants/partner-wash-fold-items";
 import { usePartnerOrderEstimate } from "@/hooks/use-partner-order-estimate";
-import { washFoldUnitForMode } from "@/lib/customer-order-estimate";
+import {
+  listPricedWashFoldDefs,
+  washFoldUnitForItem,
+} from "@/lib/customer-order-estimate";
+import { getStrings } from "@/locales";
 import { formatMoney } from "@/utils/format-money";
 
 const c = theme.colors;
 
-const MIN_BAGS_PRIMARY = 0;
-const MAX_BAGS = 99;
-const MIN_ITEMS = 0;
-const MAX_ITEMS = 999;
-
-const WASH_FOLD_ESTIMATE_LINE_KEYS = new Set([
-  "wash_fold_bag",
-  "wash_fold_bag_no_rate",
-  "wash_fold_item",
-  "wash_fold_item_no_rate",
-  "wash_fold_missing",
-  "wash_fold_missing_bag",
-  "wash_fold_missing_item",
-]);
-
-const WASH_PREVIEW_BAG_KEYS = new Set([
-  "wash_fold_bag",
-  "wash_fold_bag_no_rate",
-  "wash_fold_missing_bag",
-]);
-
-const WASH_PREVIEW_ITEM_KEYS = new Set([
-  "wash_fold_item",
-  "wash_fold_item_no_rate",
-  "wash_fold_missing_item",
-]);
-
 export default function WashFoldOrderScreen() {
   const router = useRouter();
+  const { locale } = useLocale();
+  const s = getStrings(locale).customer.washFoldOrder;
+  const sDet = getStrings(locale).customer.laundryBagDetail;
+  const sLive = getStrings(locale).customer.liveEstimate;
+
   const {
     draft,
-    setWashFoldBagCount,
-    setWashFoldPricingMode,
-    setWashFoldBagDetail,
+    setWashFoldItemizedQuantities,
+    setWashFoldItemizedInstructions,
   } = useCustomerOrderDraft();
 
-  const sBags = strings.customer.bags;
-  const sDet = strings.customer.laundryBagDetail;
-  const sOrder = strings.customer.washFoldOrder;
-  const sLive = strings.customer.liveEstimate;
-
-  const [bagCount, setBagCount] = useState(() => draft.washFold?.bagCount ?? 0);
-  const [itemCount, setItemCount] = useState(() =>
-    Math.max(
-      MIN_ITEMS,
-      draft.washFold?.bagDetailsByIndex[1]?.itemCount ?? 0,
-    ),
-  );
+  const [quantities, setQuantities] = useState<Record<string, number>>(() => {
+    const next = initialWashFoldQuantities();
+    const saved = draft.washFold?.itemizedQuantities ?? {};
+    for (const key of Object.keys(next)) {
+      const q = saved[key];
+      if (q != null) next[key] = q;
+    }
+    return next;
+  });
   const [instructions, setInstructions] = useState(
-    () => draft.washFold?.bagDetailsByIndex[1]?.instructions ?? "",
+    () => draft.washFold?.itemizedInstructions ?? "",
   );
-
-  const pricingMode = draft.washFold?.pricingMode ?? "per_bag";
-
-  /** Only per-bag mode edits bag count; per-item keeps the last bag count in the draft for when user switches back. */
-  useEffect(() => {
-    if (pricingMode === "per_bag") {
-      setWashFoldBagCount(bagCount);
-    }
-  }, [pricingMode, bagCount, setWashFoldBagCount]);
-
-  /** Always persist item count so switching per bag ↔ per item does not reset it. Estimate uses it only in per-item mode. */
-  useEffect(() => {
-    setWashFoldBagDetail(1, {
-      weightLabel: "—",
-      weightLb: 1,
-      itemCount,
-      instructions,
-    });
-  }, [itemCount, instructions, setWashFoldBagDetail]);
+  const [washFoldTab, setWashFoldTab] = useState<"items" | "packages">("items");
 
   useEffect(() => {
-    if (pricingMode === "per_bag") {
-      setBagCount((n) => Math.max(MIN_BAGS_PRIMARY, n));
-    }
-  }, [pricingMode]);
+    setWashFoldItemizedQuantities(quantities);
+  }, [quantities, setWashFoldItemizedQuantities]);
+
+  useEffect(() => {
+    setWashFoldItemizedInstructions(instructions.trim());
+  }, [instructions, setWashFoldItemizedInstructions]);
 
   const washOnlyDraft: CustomerOrderDraft = useMemo(
     () => ({
       ...draft,
       selectedServiceIds: ["washAndFold"],
       dryClean: null,
+      tailoring: null,
       pickup: null,
       delivery: null,
     }),
     [draft],
   );
 
-  const { loading, estimate, services } = usePartnerOrderEstimate(
+  const { loading, error, estimate, services, reload } = usePartnerOrderEstimate(
     draft.partnerId,
     washOnlyDraft,
   );
-  const perBagUnit = washFoldUnitForMode(services, "per_bag");
-  const perItemUnit = washFoldUnitForMode(services, "per_item");
-  const perBagAvailable = perBagUnit.amount != null;
-  const perItemAvailable = perItemUnit.amount != null;
-  const perBagLabel =
-    perBagUnit.amount != null
-      ? formatMoney(estimate.currencyPrefix || "RS : ", perBagUnit.amount)
-      : perBagUnit.priceLabel;
-  const perItemLabel =
-    perItemUnit.amount != null
-      ? formatMoney(estimate.currencyPrefix || "RS : ", perItemUnit.amount)
-      : perItemUnit.priceLabel;
 
-  const hasPerBag = perBagUnit.amount !== null;
-  const hasPerItem = perItemUnit.amount !== null;
+  useFocusEffect(
+    useCallback(() => {
+      if (draft.partnerId) reload();
+    }, [draft.partnerId, reload]),
+  );
 
-  useEffect(() => {
-    if (hasPerBag && !hasPerItem && pricingMode !== "per_bag") {
-      setWashFoldPricingMode("per_bag");
-    } else if (!hasPerBag && hasPerItem && pricingMode !== "per_item") {
-      setWashFoldPricingMode("per_item");
-    }
-  }, [hasPerBag, hasPerItem, pricingMode, setWashFoldPricingMode]);
-
-  /** Under the stepper: only the line for the active toggle (footer still shows full combined breakdown). */
-  const washFoldPreviewLines = useMemo(() => {
-    if (!draft.partnerId || loading) return [];
-    if (pricingMode === "per_bag" && bagCount === 0) return [];
-    if (pricingMode === "per_item" && itemCount === 0) return [];
-    const wash = estimate.lines.filter((l) =>
-      WASH_FOLD_ESTIMATE_LINE_KEYS.has(l.key),
-    );
-    const modeKeys =
-      pricingMode === "per_bag" ? WASH_PREVIEW_BAG_KEYS : WASH_PREVIEW_ITEM_KEYS;
-    const matched = wash.filter((l) => modeKeys.has(l.key));
-    if (matched.length > 0) return matched;
-    return wash.filter((l) => l.key === "wash_fold_missing");
-  }, [
-    draft.partnerId,
-    loading,
-    estimate.lines,
-    pricingMode,
-    bagCount,
-    itemCount,
-  ]);
-
-  const washCalcLineTexts = useMemo(() => {
-    return washFoldPreviewLines.map((line) => {
-      if (line.amount != null) {
-        return sOrder.calcLine
-          .replace("{qty}", line.qtyLabel)
-          .replace("{amount}", formatMoney(estimate.currencyPrefix, line.amount));
-      }
-      return sOrder.calcNoRate.replace("{qty}", line.qtyLabel);
+  const setQty = (id: string, delta: number) => {
+    setQuantities((prev) => {
+      const next = (prev[id] ?? 0) + delta;
+      return { ...prev, [id]: Math.max(0, next) };
     });
-  }, [washFoldPreviewLines, estimate.currencyPrefix, sOrder]);
+  };
+
+  const currencyPrefix = estimate.currencyPrefix;
+
+  const pricedDefs = useMemo(() => listPricedWashFoldDefs(services), [services]);
+
+  const availableGarments = useMemo(
+    () => pricedDefs.filter((item) => item.kind === "garment"),
+    [pricedDefs],
+  );
+
+  const availablePackages = useMemo(
+    () => pricedDefs.filter((item) => item.kind === "package"),
+    [pricedDefs],
+  );
+
+  const hasSelectedItems = useMemo(
+    () => Object.values(quantities).some((q) => q > 0),
+    [quantities],
+  );
+
+  const hasAnyRates = availableGarments.length > 0 || availablePackages.length > 0;
+
+  const selectedGarmentCount = useMemo(
+    () =>
+      availableGarments.reduce(
+        (sum, def) => sum + Math.max(0, quantities[def.id] ?? 0),
+        0,
+      ),
+    [availableGarments, quantities],
+  );
+
+  const selectedPackageCount = useMemo(
+    () =>
+      availablePackages.reduce(
+        (sum, def) => sum + ((quantities[def.id] ?? 0) > 0 ? 1 : 0),
+        0,
+      ),
+    [availablePackages, quantities],
+  );
 
   useEffect(() => {
-    if (perBagAvailable && perItemAvailable) return;
-    if (perBagAvailable && pricingMode !== "per_bag") {
-      setWashFoldPricingMode("per_bag");
-      return;
+    if (!hasAnyRates) return;
+    if (washFoldTab === "items" && availableGarments.length === 0) {
+      setWashFoldTab("packages");
+    } else if (washFoldTab === "packages" && availablePackages.length === 0) {
+      setWashFoldTab("items");
     }
-    if (perItemAvailable && pricingMode !== "per_item") {
-      setWashFoldPricingMode("per_item");
-    }
-  }, [perBagAvailable, perItemAvailable, pricingMode, setWashFoldPricingMode]);
+  }, [hasAnyRates, washFoldTab, availableGarments.length, availablePackages.length]);
 
-  const handleContinue = () => {
-    router.back();
+  useEffect(() => {
+    if (availableGarments.length > 0) {
+      setWashFoldTab("items");
+    } else if (availablePackages.length > 0) {
+      setWashFoldTab("packages");
+    }
+  }, [draft.partnerId, availableGarments.length, availablePackages.length]);
+
+  const onboardingStrings = getStrings(locale).partner.onboarding;
+
+  const displayName = (def: { id: string; name: string }) => {
+    const onboarding = onboardingStrings as Record<string, string>;
+    return onboarding[def.id]?.trim() || def.name;
+  };
+
+  const packageDescriptions = useMemo(
+    () => ({
+      washFoldPkg25: onboardingStrings.washFoldPkg25Desc,
+      washFoldPkg50: onboardingStrings.washFoldPkg50Desc,
+      washFoldPkg75: onboardingStrings.washFoldPkg75Desc,
+      washFoldPkg100: onboardingStrings.washFoldPkg100Desc,
+    }),
+    [onboardingStrings],
+  );
+
+  const togglePackage = (id: string) => {
+    setQuantities((prev) => ({
+      ...prev,
+      [id]: (prev[id] ?? 0) > 0 ? 0 : 1,
+    }));
+  };
+
+  const renderGarmentRow = (def: (typeof pricedDefs)[number]) => {
+    const qty = quantities[def.id] ?? 0;
+    const { amount: unit, priceLabel } = washFoldUnitForItem(services, def);
+    const lineTotal =
+      unit != null && qty > 0 ? Math.round(unit * qty * 100) / 100 : null;
+
+    return (
+      <View key={def.id} style={styles.itemCard}>
+        <View style={styles.itemLeft}>
+          <Text style={styles.itemName}>{displayName(def)}</Text>
+          <Text style={styles.unitPrice}>
+            {unit != null
+              ? `${formatMoney(currencyPrefix || "", unit)} ${s.each} · ${priceLabel}`
+              : `Rate: ${priceLabel}`}
+          </Text>
+          {qty > 0 && lineTotal != null ? (
+            <Text style={styles.lineSubtotal}>
+              Subtotal: {formatMoney(currencyPrefix || "", lineTotal)}
+            </Text>
+          ) : null}
+        </View>
+        <View style={styles.stepper}>
+          <Pressable
+            onPress={() => setQty(def.id, -1)}
+            style={styles.stepperBtn}
+            disabled={qty <= 0}
+          >
+            <MaterialCommunityIcons
+              name="minus"
+              size={20}
+              color={qty <= 0 ? "rgba(255,255,255,0.5)" : c.white}
+            />
+          </Pressable>
+          <Text style={styles.stepperValue}>{qty}</Text>
+          <Pressable onPress={() => setQty(def.id, 1)} style={styles.stepperBtn}>
+            <MaterialCommunityIcons name="plus" size={20} color={c.white} />
+          </Pressable>
+        </View>
+      </View>
+    );
+  };
+
+  const renderPackageBox = (def: (typeof pricedDefs)[number]) => {
+    const selected = (quantities[def.id] ?? 0) > 0;
+    const { amount: unit, priceLabel } = washFoldUnitForItem(services, def);
+    const label = displayName(def);
+    const description = getWashFoldPackageDescription(
+      { id: def.id, label: def.name },
+      packageDescriptions as Record<WashFoldPackageCatalogKey, string>,
+      onboardingStrings.washFoldPackageBoxCustomDesc,
+    );
+    const priceDisplay =
+      unit != null ? formatMoney(currencyPrefix || "", unit) : priceLabel;
+
+    return (
+      <WashFoldPackageBox
+        key={def.id}
+        mode="customer"
+        title={label}
+        description={description}
+        priceDisplay={priceDisplay}
+        selected={selected}
+        onPress={() => togglePackage(def.id)}
+        accessibilityLabel={`${label}, ${priceDisplay}`}
+      />
+    );
   };
 
   return (
     <View style={styles.container}>
       <SafeAreaView edges={["top"]}>
         <AppHeader
-          title={sOrder.title}
+          title={s.title}
           leftIcon="arrow-left"
           onLeftPress={() => router.back()}
           leftAccessibilityLabel="Go back"
-
         />
       </SafeAreaView>
 
@@ -213,181 +272,107 @@ export default function WashFoldOrderScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <Text style={styles.lead}>{sOrder.lead}</Text>
+          <Text style={styles.lead}>{s.lead}</Text>
+          <Text style={styles.disclaimer}>{s.estimateDisclaimer}</Text>
 
-          {hasPerBag && hasPerItem && (
-            <View style={styles.toggleRow}>
-              <Pressable
-                onPress={() => setWashFoldPricingMode("per_bag")}
-                style={({ pressed }) => [
-                  styles.toggleBtn,
-                  pricingMode === "per_bag" ? styles.toggleBtnActive : styles.toggleBtnIdle,
-                  pressed && styles.pressed,
-                ]}
-                accessibilityRole="button"
-                accessibilityState={{ selected: pricingMode === "per_bag" }}
-              >
-                <MaterialCommunityIcons
-                  name="package-variant"
-                  size={30}
-                  color={pricingMode === "per_bag" ? c.themeBlack : "rgba(255,255,255,0.85)"}
-                  style={styles.toggleIcon}
-                />
-                <View >
-                  <Text
-                    style={[
-                      styles.toggleLabel,
-                      pricingMode === "per_bag" ? styles.toggleLabelOnLight : styles.toggleLabelIdle,
-                    ]}
-                  >
-                    {sOrder.perBag}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.toggleRate,
-                      pricingMode === "per_bag"
-                        ? styles.toggleRateOnLight
-                        : styles.toggleRateIdle,
-                    ]}
-                  >
-                    {perBagLabel}
-                  </Text>
-                </View>
-              </Pressable>
-              <Pressable
-                onPress={() => setWashFoldPricingMode("per_item")}
-                style={({ pressed }) => [
-                  styles.toggleBtn,
-                  pricingMode === "per_item" ? styles.toggleBtnActive : styles.toggleBtnIdle,
-                  pressed && styles.pressed,
-                ]}
-                accessibilityRole="button"
-                accessibilityState={{ selected: pricingMode === "per_item" }}
-              >
-                <MaterialCommunityIcons
-                  name="tshirt-crew-outline"
-                  size={30}
-                  color={pricingMode === "per_item" ? c.themeBlack : "rgba(255,255,255,0.85)"}
-                  style={styles.toggleIcon}
-                />
-                <View>
-                  <Text
-                    style={[
-                      styles.toggleLabel,
-                      pricingMode === "per_item" ? styles.toggleLabelOnLight : styles.toggleLabelIdle,
-                    ]}
-                  >
-                    {sOrder.perItem}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.toggleRate,
-                      pricingMode === "per_item"
-                        ? styles.toggleRateOnLight
-                        : styles.toggleRateIdle,
-                    ]}
-                  >
-                    {perItemLabel}
-                  </Text>
-                </View>
-              </Pressable>
-            </View>
-          )}
+          {!draft.partnerId ? (
+            <Text style={styles.emptyText}>{s.noPartner}</Text>
+          ) : loading ? (
+            <Text style={styles.emptyText}>{sLive.loading}</Text>
+          ) : error ? (
+            <Text style={styles.emptyText}>{s.loadError}</Text>
+          ) : !hasAnyRates ? (
+            <>
+              <Text style={styles.emptyText}>{s.noRates}</Text>
+              <Text style={styles.hintText}>{s.saveHint}</Text>
+            </>
+          ) : null}
 
-          {!hasPerBag && !hasPerItem && !loading && (
-            <Text style={styles.emptyText}>This launderer has not set prices for Wash & Fold yet.</Text>
-          )}
-
-          {(!hasPerBag || !hasPerItem) && (hasPerBag || hasPerItem) && (
-            <View style={[styles.toggleBtn, styles.toggleBtnActive, { marginBottom: 10 }]}>
-              <MaterialCommunityIcons
-                name={hasPerBag ? "package-variant" : "tshirt-crew-outline"}
-                size={30}
-                color={c.themeBlack}
-                style={styles.toggleIcon}
-              />
-              <View>
-                <Text style={[styles.toggleLabel, styles.toggleLabelOnLight]}>
-                  {hasPerBag ? sOrder.perBag : sOrder.perItem}
-                </Text>
-                <Text style={[styles.toggleRate, styles.toggleRateOnLight]}>
-                  {hasPerBag ? perBagLabel : perItemLabel}
-                </Text>
-              </View>
-            </View>
-          )}
-
-          <Text style={styles.chargedTitle}>{sOrder.chargedTitle}</Text>
-
-          {pricingMode === "per_bag" ? (
-            <View style={[styles.inputRow, styles.inputRowDriver]}>
-              <MaterialCommunityIcons
-                name="package-variant"
-                size={22}
-                color={c.white}
-                style={styles.inputIcon}
-              />
-              <Text style={styles.inputLabel}>{sBags.heading}</Text>
-              <View style={styles.stepperRow}>
+          {hasAnyRates ? (
+            <>
+              <View style={styles.tabRow}>
                 <Pressable
-                  onPress={() =>
-                    setBagCount((n) => Math.max(n - 1, MIN_BAGS_PRIMARY))
-                  }
-                  disabled={bagCount <= MIN_BAGS_PRIMARY}
-                  style={styles.roundStep}
+                  onPress={() => setWashFoldTab("items")}
+                  style={({ pressed }) => [
+                    styles.tabBtn,
+                    washFoldTab === "items" && styles.tabBtnActive,
+                    pressed && styles.pressed,
+                  ]}
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected: washFoldTab === "items" }}
                 >
-                  <MaterialCommunityIcons name="minus" size={22} color={c.white} />
+                  <Text
+                    style={[
+                      styles.tabLabel,
+                      washFoldTab === "items" && styles.tabLabelActive,
+                    ]}
+                  >
+                    {onboardingStrings.washFoldTabItems}
+                  </Text>
+                  {selectedGarmentCount > 0 ? (
+                    <View style={styles.tabBadge}>
+                      <Text style={styles.tabBadgeText}>{selectedGarmentCount}</Text>
+                    </View>
+                  ) : null}
                 </Pressable>
-                <Text style={styles.stepperValueWide}>{bagCount}</Text>
                 <Pressable
-                  onPress={() => setBagCount((n) => Math.min(n + 1, MAX_BAGS))}
-                  disabled={bagCount >= MAX_BAGS}
-                  style={styles.roundStep}
+                  onPress={() => setWashFoldTab("packages")}
+                  style={({ pressed }) => [
+                    styles.tabBtn,
+                    washFoldTab === "packages" && styles.tabBtnActive,
+                    pressed && styles.pressed,
+                  ]}
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected: washFoldTab === "packages" }}
                 >
-                  <MaterialCommunityIcons name="plus" size={22} color={c.white} />
+                  <Text
+                    style={[
+                      styles.tabLabel,
+                      washFoldTab === "packages" && styles.tabLabelActive,
+                    ]}
+                  >
+                    {onboardingStrings.washFoldTabPackages}
+                  </Text>
+                  {selectedPackageCount > 0 ? (
+                    <View style={styles.tabBadge}>
+                      <Text style={styles.tabBadgeText}>{selectedPackageCount}</Text>
+                    </View>
+                  ) : null}
                 </Pressable>
               </View>
-            </View>
-          ) : (
-            <View style={[styles.inputRow, styles.inputRowDriver]}>
-              <MaterialCommunityIcons
-                name="tshirt-crew-outline"
-                size={22}
-                color={c.white}
-                style={styles.inputIcon}
-              />
-              <Text style={styles.inputLabel}>{sDet.numberOfItems}</Text>
-              <View style={styles.stepperRow}>
-                <Pressable
-                  onPress={() => setItemCount((n) => Math.max(n - 1, MIN_ITEMS))}
-                  disabled={itemCount <= MIN_ITEMS}
-                  style={styles.roundStep}
-                >
-                  <MaterialCommunityIcons name="minus" size={22} color={c.white} />
-                </Pressable>
-                <Text style={styles.stepperValueWide}>{itemCount}</Text>
-                <Pressable
-                  onPress={() => setItemCount((n) => Math.min(n + 1, MAX_ITEMS))}
-                  disabled={itemCount >= MAX_ITEMS}
-                  style={styles.roundStep}
-                >
-                  <MaterialCommunityIcons name="plus" size={22} color={c.white} />
-                </Pressable>
-              </View>
-            </View>
-          )}
 
-          {/* {washFoldPreviewLines.length > 0 ? (
-          <View style={styles.calcPreviewBlock}>
-            {washFoldPreviewLines.map((line, i) => (
-              <Text key={`${line.key}-${i}`} style={styles.calcPreview}>
-                {washCalcLineTexts[i] ?? ""}
-              </Text>
-            ))}
-          </View>
-        ) : null} */}
+              {washFoldTab === "items" ? (
+                <>
+                  <Text style={styles.tabLead}>
+                    {onboardingStrings.washFoldPricingLead}
+                  </Text>
+                  {availableGarments.length > 0 ? (
+                    availableGarments.map(renderGarmentRow)
+                  ) : (
+                    <Text style={styles.emptyText}>{s.noGarmentRates}</Text>
+                  )}
+                </>
+              ) : (
+                <>
+                  <Text style={styles.tabLead}>
+                    {onboardingStrings.washFoldPackagesTabLead}
+                  </Text>
+                  <Text style={styles.sectionHint}>{s.packagesHint}</Text>
+                  {availablePackages.length > 0 ? (
+                    <WashFoldPackageGrid>
+                      {availablePackages.map(renderPackageBox)}
+                    </WashFoldPackageGrid>
+                  ) : (
+                    <Text style={styles.emptyText}>{s.noPackageRates}</Text>
+                  )}
+                </>
+              )}
+            </>
+          ) : null}
 
-          <Text style={styles.sectionLabel}>{sDet.instructions}</Text>
+          <Text style={[styles.sectionLabel, styles.sectionLabelSpaced]}>
+            {sDet.instructions}
+          </Text>
           <TextInput
             style={styles.instructions}
             value={instructions}
@@ -398,27 +383,24 @@ export default function WashFoldOrderScreen() {
             numberOfLines={3}
             textAlignVertical="top"
           />
-
-          <Text style={styles.hint}>{sBags.hint}</Text>
         </ScrollView>
       </KeyboardAvoidingView>
 
-      <SafeAreaView edges={["bottom"]} style={styles.footerSafe}>
-        {washFoldPreviewLines.length > 0 ? (
+      <SafeAreaView style={styles.footer} edges={["bottom"]}>
+        {hasSelectedItems ? (
           <CustomerLiveEstimateFooter
             strings={sLive}
             partnerName={draft.partnerName}
             loading={loading}
             hasPartner={Boolean(draft.partnerId)}
             estimate={estimate}
-            defaultBreakdownOpen
           />
         ) : null}
         <Pressable
-          onPress={handleContinue}
+          onPress={() => router.back()}
           style={({ pressed }) => [styles.continueBtn, pressed && styles.pressed]}
         >
-          <Text style={styles.continueLabel}>{sBags.continue}</Text>
+          <Text style={styles.continueLabel}>{sDet.save}</Text>
         </Pressable>
       </SafeAreaView>
     </View>
@@ -428,20 +410,25 @@ export default function WashFoldOrderScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: c.background },
   keyboardView: { flex: 1 },
-  headerRight: { padding: 8 },
-  headerRightIcon: { width: 20, height: 20, tintColor: c.white },
-  pressed: { opacity: 0.85 },
+  pressed: { opacity: 0.8 },
+  lead: {
+    fontSize: 15,
+    color: "rgba(255,255,255,0.8)",
+    lineHeight: 22,
+    marginBottom: 10,
+  },
+  disclaimer: {
+    fontSize: 13,
+    color: "rgba(255,255,255,0.65)",
+    lineHeight: 20,
+    marginBottom: 20,
+    fontStyle: "italic",
+  },
   scroll: { flex: 1 },
   scrollContent: {
     paddingHorizontal: 24,
     paddingTop: 8,
     paddingBottom: 24,
-  },
-  lead: {
-    fontSize: 15,
-    color: "rgba(255,255,255,0.8)",
-    lineHeight: 22,
-    marginBottom: 20,
   },
   sectionLabel: {
     fontSize: 13,
@@ -450,109 +437,63 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 0.6,
     marginBottom: 8,
-    marginTop: 4,
   },
-  chargedTitle: {
-    fontSize: 13,
-    fontWeight: "800",
-    color: c.white,
-    textTransform: "uppercase",
-    letterSpacing: 0.6,
-    marginBottom: 10,
-    marginTop: 16,
-  },
-  calcPreviewBlock: {
-    marginTop: 10,
-    marginBottom: 18,
-    gap: 6,
-    backgroundColor: 'transparent'
-  },
-  calcPreview: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: c.lightBlue,
-  },
-  toggleRow: {
+  sectionLabelSpaced: { marginTop: 8 },
+  tabRow: {
     flexDirection: "row",
     gap: 10,
-    marginBottom: 10,
+    marginBottom: 12,
   },
-  toggleBtn: {
+  tabBtn: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    paddingVertical: 14,
+    paddingVertical: 12,
     paddingHorizontal: 10,
-    borderRadius: 14,
-    borderWidth: 2,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: "rgba(255,255,255,0.35)",
+    backgroundColor: "rgba(0,0,0,0.12)",
   },
-  toggleBtnActive: {
+  tabBtnActive: {
     backgroundColor: c.white,
     borderColor: c.white,
   },
-  toggleBtnIdle: {
-    backgroundColor: "rgba(0,0,0,0.12)",
-    borderColor: "rgba(255,255,255,0.35)",
-  },
-  toggleBtnDisabled: {
-    opacity: 0.45,
-  },
-  toggleIcon: { marginRight: 0 },
-  toggleLabel: {
+  tabLabel: {
     fontSize: 15,
     fontWeight: "700",
-  },
-  toggleRate: {
-    fontSize: 12,
-    marginTop: 2,
-  },
-  toggleLabelOnLight: {
-    color: c.themeBlack,
-  },
-  toggleLabelIdle: {
-    color: "rgba(255,255,255,0.95)",
-  },
-  toggleRateOnLight: {
-    color: "rgba(0,0,0,0.9)",
-  },
-  toggleRateIdle: {
     color: "rgba(255,255,255,0.9)",
   },
-  inputRowDriver: {
-    borderWidth: 2,
-    borderColor: c.outline,
-    backgroundColor: "rgba(255,255,255,0.08)",
+  tabLabelActive: {
+    color: c.themeBlack,
   },
-  inputRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: c.blue900,
-    borderRadius: 14,
-    paddingVertical: 14,
-    paddingHorizontal: 14,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.15)",
-  },
-  inputIcon: { marginRight: 10 },
-  inputLabel: { flex: 1, fontSize: 15, color: c.white, fontWeight: "500" },
-  stepperRow: { flexDirection: "row", alignItems: "center", gap: 12 },
-  stepperValueWide: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: c.white,
-    minWidth: 40,
-    textAlign: "center",
-  },
-  roundStep: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(255,255,255,0.18)",
+  tabBadge: {
+    minWidth: 22,
+    height: 22,
+    borderRadius: 11,
+    paddingHorizontal: 6,
+    backgroundColor: c.lightBlue,
     alignItems: "center",
     justifyContent: "center",
+  },
+  tabBadgeText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: c.white,
+  },
+  tabLead: {
+    fontSize: 14,
+    color: "rgba(255,255,255,0.75)",
+    lineHeight: 20,
+    marginBottom: 14,
+  },
+  sectionHint: {
+    fontSize: 13,
+    color: "rgba(255,255,255,0.6)",
+    marginBottom: 12,
+    lineHeight: 18,
   },
   instructions: {
     backgroundColor: c.white,
@@ -564,18 +505,59 @@ const styles = StyleSheet.create({
     minHeight: 88,
     marginBottom: 12,
   },
-  hint: {
+  itemCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: c.blue900,
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.15)",
+  },
+  itemLeft: { flex: 1, paddingRight: 12 },
+  itemName: { fontSize: 17, fontWeight: "700", color: c.white },
+  unitPrice: {
     fontSize: 13,
     color: "rgba(255,255,255,0.65)",
-    lineHeight: 19,
-    marginTop: 8,
+    marginTop: 4,
+  },
+  lineSubtotal: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: c.lightBlue,
+    marginTop: 6,
   },
   emptyText: {
     color: "rgba(255,255,255,0.75)",
     fontSize: 14,
-    marginBottom: 10,
+    marginBottom: 12,
   },
-  footerSafe: {
+  hintText: {
+    color: "rgba(255,255,255,0.55)",
+    fontSize: 13,
+    lineHeight: 19,
+    marginBottom: 12,
+  },
+  stepper: { flexDirection: "row", alignItems: "center", gap: 10 },
+  stepperBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  stepperValue: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: c.white,
+    minWidth: 28,
+    textAlign: "center",
+  },
+  footer: {
     backgroundColor: c.background,
     borderTopWidth: 1,
     borderTopColor: "rgba(255,255,255,0.06)",
@@ -586,14 +568,8 @@ const styles = StyleSheet.create({
     marginTop: 4,
     backgroundColor: c.backgroundLight,
     paddingVertical: 16,
-    borderRadius: 14,
+    borderRadius: 12,
     alignItems: "center",
   },
   continueLabel: { fontSize: 17, fontWeight: "700", color: c.white },
-  emptyText: {
-    fontSize: 14,
-    color: "rgba(255,255,255,0.75)",
-    marginTop: 4,
-    marginBottom: 16,
-  },
 });

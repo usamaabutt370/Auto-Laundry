@@ -173,15 +173,29 @@ export const ur = {
       save: "حفظ",
     },
     washFoldOrder: {
-      title: "واش اینڈ فولڈ لوڈ",
-      lead:
-        "قیمت کیسے لگے گی منتخب کریں، کل کی تعداد درج کریں، نیچے لانڈرر کے لیے نوٹس شامل کریں۔",
-      howPriced: "اس لوڈ کی قیمت",
-      perBag: "فی بیگ",
-      perItem: "فی آئٹم",
-      chargedTitle: "جس کے لیے آپ ادائی کریں گے",
-      calcLine: "{qty}: {amount}",
-      calcNoRate: "{qty} — شرح فہرست میں نہیں",
+      title: "واش اینڈ فولڈ آئٹمز",
+      lead: "ہر آئٹم کی قسم اور تعداد منتخب کریں۔ تخمینی کل خود بخود اپ ڈیٹ ہوتی ہے۔",
+      estimateDisclaimer:
+        "یہ تخمینہ ہے۔ پک اپ پر گنتی کے بعد حتمی رقم بدل سکتی ہے۔",
+      itemsSection: "آئٹمز",
+      packagesSection: "بلک پیکجز",
+      packagesHint: "پیکج پر ٹیپ کریں — ہر پیکج آرڈر میں ایک لائن بنے گی۔",
+      noGarmentRates:
+        "فی آئٹم شرح ابھی نہیں — لانڈرر پک اپ پر قیمت طے کر سکتا ہے۔",
+      noPackageRates: "اس لانڈرر نے بلک پیکج کی قیمتیں سیٹ نہیں کیں۔",
+      noRates: "اس لانڈرر نے واش اینڈ فولڈ کی قیمتیں سیٹ نہیں کیں۔",
+      noPartner: "پہلے نقشے سے لانڈرر منتخب کریں۔",
+      loadError: "اس لانڈرر کی قیمتیں لوڈ نہیں ہوئیں۔ دوبارہ کوشش کریں۔",
+      saveHint:
+        "پارٹنر: واش اینڈ فولڈ کھولیں، قیمتیں درج کریں، Continue دبائیں، پھر Merchant Services پر Save۔",
+      each: "فی عدد",
+      packageUnit: "فی پیکج",
+    },
+    orderDetail: {
+      estimatedTotal: "تخمینی کل",
+      confirmedTotal: "حتمی کل",
+      confirmedAtPickup: "پک اپ پر گنتی کے بعد طے شدہ",
+      qtyConfirmed: "تعداد (طے شدہ)",
     },
     liveEstimate: {
       estimatedLabel: "تخمینی کل",

@@ -80,6 +80,7 @@ export function PartnerServicesScreen({ mode }: PartnerServicesScreenProps) {
     savePickupDeliveryPricing,
     isSavingPickupDeliveryPricing,
     submitOnboardingServices,
+    isSubmittingOnboardingServices,
   } = useMerchantServices();
   const onboardingStrings = getStrings(locale).partner.onboarding;
   const settingsStrings = getStrings(locale).partner.settings;
@@ -319,12 +320,20 @@ export function PartnerServicesScreen({ mode }: PartnerServicesScreenProps) {
   };
 
   const handleSaveSettings = async () => {
-    const ok = await savePickupDeliveryPricing();
-    if (ok) {
-      Alert.alert("Saved", "Pickup and delivery settings have been saved.");
+    const servicesResult = await submitOnboardingServices();
+    if (!servicesResult.ok) {
+      Alert.alert(
+        "Error",
+        servicesResult.error ?? "Could not save service prices. Please try again.",
+      );
       return;
     }
-    Alert.alert("Error", "Could not save settings. Please try again.");
+    const pickupOk = await savePickupDeliveryPricing();
+    if (pickupOk) {
+      Alert.alert("Saved", "Service prices and pickup settings have been saved.");
+      return;
+    }
+    Alert.alert("Error", "Service prices saved, but pickup settings could not be saved.");
   };
 
   return (
@@ -443,7 +452,9 @@ export function PartnerServicesScreen({ mode }: PartnerServicesScreenProps) {
             variant="filled"
             rightIcon="check"
             fullWidth
-            disabled={isSavingPickupDeliveryPricing}
+            disabled={
+              isSavingPickupDeliveryPricing || isSubmittingOnboardingServices
+            }
             style={styles.finishBtn}
             accessibilityLabel={settingsStrings.save}
           />
