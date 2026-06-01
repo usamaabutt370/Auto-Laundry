@@ -17,6 +17,11 @@ import { useLocale } from "@/contexts/locale-context";
 import { useMerchantServices } from "@/contexts/merchant-services-context";
 import { getStrings } from "@/locales";
 import { isMissingPartnerOnboardingRequestsTableError } from "@/lib/partner-onboarding-request";
+import {
+  awardWelcomeCredits,
+  isWelcomeCreditsRpcMissingError,
+  PARTNER_ORDER_DEDUCTION_RATE_PERCENT,
+} from "@/lib/partner-credits";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { allowDecimalOnly } from "@/utils/input-filter";
 
@@ -307,10 +312,45 @@ export function PartnerServicesScreen({ mode }: PartnerServicesScreenProps) {
         return;
       }
 
-      // Show the KYC modal immediately after successful submit.
-      // Approval refresh should not block this UX.
-      setSuccessModalVisible(true);
       void refreshPartnerApproval();
+
+      try {
+        const creditsResult = await awardWelcomeCredits();
+        const tokenLabel = dashboardStrings.tokensUnit;
+        const alertBody =
+          creditsResult.awarded > 0
+            ? onboardingStrings.creditsGrantedAlertMessageNew
+                .replace(/\{\{awarded\}\}/g, String(creditsResult.awarded))
+                .replace(/\{\{balance\}\}/g, String(creditsResult.balance))
+                .replace(/\{\{tokensUnit\}\}/g, tokenLabel)
+            : onboardingStrings.creditsGrantedAlertMessageAlready
+                .replace(/\{\{balance\}\}/g, String(creditsResult.balance))
+                .replace(/\{\{tokensUnit\}\}/g, tokenLabel);
+
+        const goToCreditsAwarded = () => {
+          router.replace({
+            pathname: "/(partner)/onboarding/credits-awarded",
+            params: {
+              awarded: String(creditsResult.awarded),
+              balance: String(creditsResult.balance),
+              deductionRate: String(PARTNER_ORDER_DEDUCTION_RATE_PERCENT),
+            },
+          });
+        };
+
+        Alert.alert(onboardingStrings.creditsGrantedAlertTitle, alertBody, [
+          { text: onboardingStrings.creditsGrantedAlertOk, onPress: goToCreditsAwarded },
+        ]);
+      } catch (creditsErr) {
+        if (isWelcomeCreditsRpcMissingError(creditsErr)) {
+          setSuccessModalVisible(true);
+          return;
+        }
+        const msg =
+          creditsErr instanceof Error ? creditsErr.message : "Could not grant welcome credits.";
+        Alert.alert("Credits", msg);
+        setSuccessModalVisible(true);
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : "Could not submit onboarding request.";
       Alert.alert("Error", message);

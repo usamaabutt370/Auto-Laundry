@@ -488,18 +488,19 @@ const styles = StyleSheet.create({
     backgroundColor: c.white,
     borderRadius: 12,
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    minHeight: theme.dimensions.customerPartnerSearchBarMinHeight,
+    paddingVertical: theme.dimensions.customerPartnerSearchBarPaddingV,
     gap: 8,
   },
   addressIcon: {
-    width: 20,
-    height: 20,
+    width: 22,
+    height: 22,
   },
   addressInput: {
     flex: 1,
     fontSize: 14,
     color: c.themeBlack,
-    paddingVertical: 0,
+    paddingVertical: Platform.OS === "android" ? 4 : 0,
   },
   pressed: { opacity: 0.8 },
   screenTitle: {

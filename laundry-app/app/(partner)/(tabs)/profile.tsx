@@ -8,6 +8,8 @@ import { useRouter, useFocusEffect } from "expo-router";
 import { theme } from "@/constants/theme";
 import { strings } from "@/constants/strings";
 import { useAuth } from "@/contexts/auth-context";
+import { useLocale } from "@/contexts/locale-context";
+import { getStrings } from "@/locales";
 import { avatarUrlWithCacheBuster } from "@/lib/avatar";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { assets } from "@/assets/assets";
@@ -21,33 +23,52 @@ const WHATSAPP_URL =
 export default function PartnerProfileMenu() {
 	const router = useRouter();
 	const { user, signOut, refreshRole } = useAuth();
+	const { locale } = useLocale();
+	const dashboardStrings = getStrings(locale).partner.dashboard;
 
 	const [isUpdatingRole, setIsUpdatingRole] = useState(false);
 	const [roleSwitchValue, setRoleSwitchValue] = useState<boolean | null>(null);
 	const [avatarUri, setAvatarUri] = useState<string | undefined>(undefined);
 	const [displayName, setDisplayName] = useState<string>("Launderer");
 	const [displayEmail, setDisplayEmail] = useState<string>("");
+	const [creditUi, setCreditUi] = useState<{ loading: boolean; balance: number | null }>({
+		loading: true,
+		balance: null,
+	});
 
 	const fetchProfile = useCallback(async () => {
-		if (!isSupabaseConfigured() || !user?.id) return;
+		if (!isSupabaseConfigured() || !user?.id) {
+			setCreditUi({ loading: false, balance: null });
+			return;
+		}
+		setCreditUi((prev) => ({ ...prev, loading: prev.balance === null }));
 		try {
-			const { data, error } = await supabase
-				.from("partner_profiles")
-				.select("image_url,updated_at")
-				.eq("id", user.id)
-				.maybeSingle();
-			const { data: profileData } = await supabase
-				.from("profiles")
-				.select("full_name,first_name,last_name,email,image_url,updated_at")
-				.eq("id", user.id)
-				.maybeSingle<{
-					full_name: string | null;
-					first_name: string | null;
-					last_name: string | null;
-					email: string | null;
-					image_url: string | null;
-					updated_at: string | null;
-				}>();
+			const [
+				{ data, error },
+				{ data: profileData },
+				{ data: creditRow },
+			] = await Promise.all([
+				supabase
+					.from("partner_profiles")
+					.select("image_url,updated_at")
+					.eq("id", user.id)
+					.maybeSingle(),
+				supabase
+					.from("profiles")
+					.select("full_name,first_name,last_name,email,image_url,updated_at")
+					.eq("id", user.id)
+					.maybeSingle<{
+						full_name: string | null;
+						first_name: string | null;
+						last_name: string | null;
+						email: string | null;
+						image_url: string | null;
+						updated_at: string | null;
+					}>(),
+				supabase.from("partner_credit_accounts").select("balance").eq("partner_id", user.id).maybeSingle(),
+			]);
+
+			setCreditUi({ loading: false, balance: Number(creditRow?.balance ?? 0) });
 
 			const resolvedName =
 				(profileData?.full_name ?? "").trim() ||
@@ -59,16 +80,28 @@ export default function PartnerProfileMenu() {
 			setDisplayName(resolvedName);
 			setDisplayEmail(profileData?.email ?? user?.email ?? "");
 
-			if (error || !data) {
-				// Fallback to customer profile image if partner image is missing
-				if (profileData) {
-					setAvatarUri(avatarUrlWithCacheBuster(profileData.image_url, profileData.updated_at));
-				}
-				return;
+			const partnerHasImage =
+				!error &&
+				data != null &&
+				typeof data.image_url === "string" &&
+				data.image_url.trim().length > 0;
+			const profileHasImage =
+				profileData != null &&
+				typeof profileData.image_url === "string" &&
+				profileData.image_url.trim().length > 0;
+
+			if (partnerHasImage) {
+				setAvatarUri(avatarUrlWithCacheBuster(data!.image_url, data!.updated_at));
+			} else if (profileHasImage) {
+				// Same photo is stored on profiles when partner row has no image_url yet
+				setAvatarUri(
+					avatarUrlWithCacheBuster(profileData!.image_url, profileData!.updated_at),
+				);
+			} else {
+				setAvatarUri(undefined);
 			}
-			setAvatarUri(avatarUrlWithCacheBuster(data.image_url, data.updated_at));
 		} catch {
-			// ignore and leave placeholder
+			setCreditUi((prev) => ({ loading: false, balance: prev.balance }));
 		}
 	}, [user?.id]);
 
@@ -134,7 +167,9 @@ export default function PartnerProfileMenu() {
 					</View>
 				</Pressable>
 
+
 				<View style={styles.divider} />
+
 				<View style={styles.menuGroup}>
 					<MenuItem icon="storefront-outline" label="Business detail" onPress={() => router.push("/(partner)/business-detail")} />
 					<MenuItem icon="cog-outline" label="Services prices" onPress={() => router.push("/(partner)/settings")} />
@@ -162,17 +197,35 @@ export default function PartnerProfileMenu() {
 					/>
 				</View>
 
-				<AppButton
-					label="Buy Credits"
-					onPress={() => {
-						Linking.openURL(WHATSAPP_URL).catch(() => {
-							Alert.alert("Error", "Could not open WhatsApp.");
-						});
-					}}
-					variant="filled"
-					style={styles.buyCreditsBtn}
-					accessibilityLabel="Buy Credits"
-				/>
+				<View style={styles.actionRow}>
+					<View style={styles.tokenCard} accessibilityRole="summary">
+						<View style={styles.tokenCardLeft}>
+							<Text style={styles.tokenLabel}>Available credits</Text>
+						</View>
+						{creditUi.loading && creditUi.balance === null ? (
+							<ActivityIndicator color={c.white} size="small" />
+						) : (
+							<Text style={styles.tokenValue}>
+								{creditUi.balance === null
+									? "—"
+									: `${Intl.NumberFormat().format(creditUi.balance)}`}
+							</Text>
+						)}
+					</View>
+
+					<AppButton
+						label="Buy Credits"
+						onPress={() => {
+							Linking.openURL(WHATSAPP_URL).catch(() => {
+								Alert.alert("Error", "Could not open WhatsApp.");
+							});
+						}}
+						variant="filled"
+						style={styles.buyCreditsBtn}
+						accessibilityLabel="Buy Credits"
+					/>
+				</View>
+
 
 				<View style={styles.roleCard}>
 					<View style={styles.roleRow}>
@@ -211,6 +264,31 @@ const styles = StyleSheet.create({
 	userInfo: { flex: 1 },
 	name: { fontSize: 18, fontWeight: "700", color: c.white },
 	email: { fontSize: 13, color: c.blue500, marginTop: 2 },
+	tokenCard: {
+		flex: 1.6,
+		flexDirection: "row",
+		alignItems: "center",
+		justifyContent: "space-between",
+		minHeight: 48,
+		paddingVertical: 12,
+		paddingHorizontal: 12,
+		backgroundColor: "transparent",
+		borderRadius: 12,
+		borderWidth: 1,
+		borderColor: c.filledButtonBorder,
+	},
+	tokenCardLeft: { flex: 1, marginRight: 2 },
+	tokenLabel: { fontSize: 13, fontWeight: "600", color: c.white },
+	tokenValue: { fontSize: 15, fontWeight: "700", color: c.white },
+
+	actionRow: {
+		flexDirection: "row",
+		alignItems: "center",
+		gap: 10,
+		marginTop: 20,
+		marginBottom: 8,
+	},
+
 	divider: { height: 1, backgroundColor: "rgba(255,255,255,0.06)", marginVertical: 16 },
 	menuGroup: { backgroundColor: "transparent", gap: 8 },
 	menuItem: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 14 },
@@ -222,9 +300,7 @@ const styles = StyleSheet.create({
 	switchWrap: { transform: [{ scale: 1.02 }] },
 	roleHint: { fontSize: 13, color: c.blue500, lineHeight: 18, marginTop: 8 },
 	buyCreditsBtn: {
-		marginTop: 20,
-		marginBottom: 8,
-		alignSelf: "stretch",
+		flex: 1,
 		borderRadius: 12,
 		minHeight: 48,
 	},

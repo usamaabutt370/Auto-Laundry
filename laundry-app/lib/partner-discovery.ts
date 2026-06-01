@@ -29,6 +29,11 @@ export type PartnerServiceLine = {
 
 export type PartnerFulfillmentMode = "dropoff" | "pickupDelivery";
 
+/**
+ * Customer-facing partner lists (drop-off, pickup/delivery, map).
+ * Supabase RLS only returns partners with partner_onboarding_requests.status = 'approved'.
+ */
+
 /** Partners who offer pickup & delivery (for customer Pick Up & Delivery list). */
 export async function fetchPickupPartners(): Promise<{
   data: PartnerPublicRow[] | null;

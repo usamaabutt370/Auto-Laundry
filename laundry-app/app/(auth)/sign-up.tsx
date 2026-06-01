@@ -16,6 +16,8 @@ import { strings } from "@/constants/strings";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
 import { type CountryCode } from "react-native-country-picker-modal";
+import { normalizePhoneE164, phoneToAuthEmail } from "@/lib/phone-auth";
+import { fetchUserRoleFromProfile } from "@/lib/user-role";
 
 const c = theme.colors;
 
@@ -88,10 +90,8 @@ export default function SignUpScreen() {
     try {
       const fullName = `${firstName} ${lastName}`.trim();
 
-      // Normalize phone number to E.164
-      const phoneNumber = parsePhoneNumberFromString(`+${callingCode}${mobileNumber}`);
-      const normalizedPhone = phoneNumber ? phoneNumber.number : `+${callingCode}${mobileNumber}`;
-      const generatedEmail = `${normalizedPhone.replace(/\D/g, "")}@autolaundry.app`;
+      const normalizedPhone = normalizePhoneE164(callingCode, mobileNumber);
+      const generatedEmail = phoneToAuthEmail(normalizedPhone);
 
       // 1) Create auth user with email + password (no email OTP).
       const { data, error } = await supabase.auth.signUp({
@@ -116,26 +116,53 @@ export default function SignUpScreen() {
 
       // 2) Create/update profile row to map phone → email for phone-login later.
       if (user) {
-        try {
-          await supabase.from("profiles").upsert(
-            {
-              id: user.id,
-              email: generatedEmail,
-              phone: normalizedPhone,
-              full_name: fullName,
-              first_name: firstName,
-              last_name: lastName,
-              role: "customer",
-            },
-            { onConflict: "id" }
-          );
-        } catch {
-          // Ignore profile errors for now; auth account is still created.
+        if (!data.session) {
+          const { error: signInError } = await supabase.auth.signInWithPassword({
+            email: generatedEmail,
+            password,
+          });
+          if (signInError) {
+            showAuthError(
+              "Sign up incomplete",
+              "Your account was created but we could not finish setup. Please sign in with your phone number.",
+            );
+            return;
+          }
+        }
+
+        const { error: profileError } = await supabase.from("profiles").upsert(
+          {
+            id: user.id,
+            email: generatedEmail,
+            phone: normalizedPhone,
+            full_name: fullName,
+            first_name: firstName,
+            last_name: lastName,
+            role: "customer",
+          },
+          { onConflict: "id" },
+        );
+
+        if (profileError) {
+          if (profileError.message?.includes("profiles_phone_key")) {
+            showAuthError(
+              "Phone already registered",
+              "This phone number is already linked to an account. Please sign in instead.",
+            );
+            return;
+          }
+          console.warn("[SignUp] Profile upsert failed:", profileError.message);
         }
       }
 
-      // Go directly to customer dashboard after signup.
-      router.replace("/(customer)");
+      const { data: sessionData } = await supabase.auth.getSession();
+      const uid = sessionData.session?.user?.id;
+      if (uid) {
+        const role = await fetchUserRoleFromProfile(uid);
+        router.replace(role === "launderer" ? "/(partner)" : "/(customer)");
+      } else {
+        router.replace("/(customer)");
+      }
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : "Something went wrong. Please try again.";

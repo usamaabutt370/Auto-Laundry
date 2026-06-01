@@ -14,6 +14,7 @@ import {
   type PartnerOnboardingRequestStatus,
 } from "@/lib/partner-onboarding-request";
 import { getSession, onAuthStateChange, supabase } from "@/lib/supabase";
+import { fetchUserRoleFromProfile } from "@/lib/user-role";
 import type { UserRole } from "@/types/user";
 
 export interface AuthState {
@@ -45,22 +46,6 @@ const defaultState: AuthState = {
 
 const AuthContext = createContext<AuthState | null>(null);
 
-const VALID_ROLES: UserRole[] = ["customer", "launderer"];
-
-/** Load role from profiles.role. Defaults to customer when missing or invalid. */
-async function fetchUserRole(userId: string): Promise<UserRole | null> {
-  if (!supabase) return null;
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", userId)
-    .maybeSingle<{ role: string | null }>();
-  if (error || !data?.role || !VALID_ROLES.includes(data.role as UserRole)) {
-    return "customer";
-  }
-  return data.role as UserRole;
-}
-
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [role, setRole] = useState<UserRole | null>(null);
@@ -70,7 +55,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   const loadRole = useCallback(async (userId: string) => {
-    const r = await fetchUserRole(userId);
+    const r = await fetchUserRoleFromProfile(userId);
     setRole(r);
     return r;
   }, []);

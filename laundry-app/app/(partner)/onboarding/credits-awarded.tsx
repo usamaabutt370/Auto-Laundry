@@ -25,6 +25,7 @@ export default function PartnerOnboardingCreditsAwardedScreen() {
   const router = useRouter();
   const { locale } = useLocale();
   const strings = getStrings(locale).partner.onboarding;
+  const dashboardStrings = getStrings(locale).partner.dashboard;
   const params = useLocalSearchParams<{
     awarded?: string;
     balance?: string;
@@ -47,6 +48,7 @@ export default function PartnerOnboardingCreditsAwardedScreen() {
       >
         <Text style={styles.title}>{strings.creditsScreenTitle}</Text>
         <Text style={styles.subtitle}>{strings.creditsScreenSubtitle}</Text>
+        <Text style={styles.kycNote}>{dashboardStrings.pendingMessage}</Text>
 
         <View style={styles.card}>
           <Text style={styles.cardLabel}>{strings.creditsAwardedLabel}</Text>
@@ -106,6 +108,13 @@ const styles = StyleSheet.create({
     fontSize: fs.descText,
     marginTop: 10,
     lineHeight: 20,
+    maxWidth: 330,
+  },
+  kycNote: {
+    color: c.blue500,
+    fontSize: fs.xxSmallText,
+    marginTop: 14,
+    lineHeight: 18,
     maxWidth: 330,
   },
   card: {

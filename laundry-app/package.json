@@ -3,7 +3,9 @@
   "main": "expo-router/entry",
   "version": "1.0.0",
   "scripts": {
+    "postinstall": "node ./scripts/patch-rnfb-messaging-ios-imports.cjs",
     "start": "expo start",
+    "start:clean": "expo start --clear",
     "reset-project": "node ./scripts/reset-project.js",
     "android": "expo run:android",
     "ios": "expo run:ios",
@@ -13,6 +15,8 @@
     "apk:release": "cd android && ./gradlew assembleRelease",
     "prebuild:android": "npx expo prebuild --platform android",
     "prebuild:ios": "npx expo prebuild --platform ios",
+    "supabase:link": "npx supabase link --project-ref $(cat supabase/PROJECT_REF)",
+    "supabase:db:push": "npx supabase db push",
     "supabase:deploy:chat-push": "npx supabase functions deploy chat-message-push --no-verify-jwt",
     "supabase:deploy:functions": "npx supabase functions deploy chat-message-push --no-verify-jwt",
     "supabase:secret:firebase": "node scripts/set-firebase-service-account-secret.cjs"
@@ -36,6 +40,7 @@
     "expo-image-picker": "~17.0.10",
     "expo-linear-gradient": "^55.0.8",
     "expo-linking": "~8.0.11",
+    "expo-local-authentication": "~17.0.8",
     "expo-location": "~19.0.8",
     "expo-notifications": "~0.32.17",
     "expo-router": "~6.0.23",

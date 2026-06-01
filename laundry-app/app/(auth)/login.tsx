@@ -16,6 +16,8 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
 import { type CountryCode } from "react-native-country-picker-modal";
+import { normalizePhoneE164, phoneToAuthEmail } from "@/lib/phone-auth";
+import { fetchUserRoleFromProfile } from "@/lib/user-role";
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -80,21 +82,20 @@ export default function LoginScreen() {
 
     setIsLoading(true);
     try {
-      // Normalize to E.164 format: +[countryCode][number]
-      const phoneNumber = parsePhoneNumberFromString(`+${callingCode}${mobileNumber}`);
-      const normalizedPhone = phoneNumber ? phoneNumber.number : `+${callingCode}${mobileNumber}`;
+      const normalizedPhone = normalizePhoneE164(callingCode, mobileNumber);
+      const authEmail = phoneToAuthEmail(normalizedPhone);
 
-      // 1) Look up email by phone number from profiles.
+      // Confirm account exists for this phone (profiles.email may differ from auth email).
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
-        .select("email")
+        .select("id")
         .eq("phone", normalizedPhone)
         .maybeSingle();
 
       if (profileError) {
         throw profileError;
       }
-      if (!profile?.email) {
+      if (!profile?.id) {
         showAuthError(
           "Account not found",
           "We couldn’t find an account with that phone number. Please check it or sign up first.",
@@ -102,20 +103,33 @@ export default function LoginScreen() {
         return;
       }
 
-      // 2) Sign in to Supabase with resolved email + password.
       const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: profile.email,
+        email: authEmail,
         password,
       });
 
       if (signInError) {
-        showAuthError("Sign in failed", signInError.message);
+        const message =
+          signInError.message === "Invalid login credentials"
+            ? "The password is incorrect. If you changed your email in profile settings, sign in with your phone number and the password you set at sign-up."
+            : signInError.message;
+        showAuthError("Sign in failed", message);
         return;
       }
 
-      // Auth state change listener (AuthProvider) has the session;
-      // go directly to the customer area instead of bouncing through root.
-      router.replace("/(customer)");
+      // Auth context may not have session on the next paint yet; read session + role here
+      // so we never bounce through "/" as logged-out and land back on login.
+      const { data: sessionData } = await supabase.auth.getSession();
+      const uid = sessionData.session?.user?.id;
+      if (!uid) {
+        showAuthError(
+          "Sign in failed",
+          "Could not load your session. Please try again.",
+        );
+        return;
+      }
+      const role = await fetchUserRoleFromProfile(uid);
+      router.replace(role === "launderer" ? "/(partner)" : "/(customer)");
     } catch (err: unknown) {
       const message =
         err instanceof Error

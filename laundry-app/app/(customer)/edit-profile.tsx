@@ -51,10 +51,10 @@ export default function EditProfileScreen() {
   const segments = useSegments();
   const { mode } = useLocalSearchParams<{ mode?: string }>();
   const isPaymentMode = mode === "payment";
-  const profileRoute =
-    segments[0] === "(partner)"
-      ? "/(partner)/(tabs)/profile"
-      : "/(customer)/(tabs)/profile";
+  const isPartnerProfile = segments[0] === "(partner)";
+  const profileRoute = isPartnerProfile
+    ? "/(partner)/(tabs)/profile"
+    : "/(customer)/(tabs)/profile";
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -336,8 +336,7 @@ export default function EditProfileScreen() {
       const phoneVal = phoneNumberObj.number;
 
       const now = new Date().toISOString();
-      const upsertPayload = {
-        id: user.id,
+      const profilePayload = {
         first_name: firstName.trim() || null,
         last_name: lastName.trim() || null,
         full_name:
@@ -350,16 +349,55 @@ export default function EditProfileScreen() {
         updated_at: now,
       };
 
-      const { error } = await supabase
+      const profileSaveErrorMessage = (message: string) => {
+        if (message.includes("profiles_phone_key")) {
+          return "This phone number is already linked to another account.";
+        }
+        if (message.includes("profiles_email_key")) {
+          return "This email is already linked to another account.";
+        }
+        return message || "Could not save profile. Please try again.";
+      };
+
+      // Update existing row first (signup creates profiles.id = auth user id).
+      // Upsert can attempt INSERT when the row already exists with this phone,
+      // which triggers profiles_phone_key if another row holds the same phone.
+      const { data: updatedRows, error: updateError } = await supabase
         .from("profiles")
-        .upsert(upsertPayload, { onConflict: "id" });
+        .update(profilePayload)
+        .eq("id", user.id)
+        .select("id");
+
+      let error = updateError;
+      if (!error && !updatedRows?.length) {
+        const { error: insertError } = await supabase.from("profiles").insert({
+          id: user.id,
+          role: "customer",
+          ...profilePayload,
+        });
+        error = insertError;
+      }
 
       if (error) {
-        Alert.alert(
-          "Error",
-          error.message || "Could not save profile. Please try again.",
-        );
+        Alert.alert("Error", profileSaveErrorMessage(error.message ?? ""));
       } else {
+        if (isPartnerProfile) {
+          const { error: ppErr } = await supabase
+            .from("partner_profiles")
+            .update({
+              image_url: profilePayload.image_url ?? null,
+              updated_at: now,
+            })
+            .eq("id", user.id);
+          if (ppErr) {
+            Alert.alert(
+              "Error",
+              ppErr.message || "Could not sync partner profile photo.",
+            );
+            setSaving(false);
+            return;
+          }
+        }
         setProfileUpdatedAt(now);
         setLocalImageUri(null);
         // Navigate to profile tab so it refetches and shows updated image
@@ -385,6 +423,7 @@ export default function EditProfileScreen() {
     imageUrl,
     router,
     profileRoute,
+    isPartnerProfile,
   ]);
 
   const savePayment = useCallback(async () => {
@@ -494,6 +533,20 @@ export default function EditProfileScreen() {
         return;
       }
 
+      if (isPartnerProfile) {
+        const { error: ppErr } = await supabase
+          .from("partner_profiles")
+          .update({
+            image_url: publicUrl,
+            updated_at: now,
+          })
+          .eq("id", user.id);
+        if (ppErr) {
+          Alert.alert("Update failed", ppErr.message);
+          return;
+        }
+      }
+
       setImageUrl(publicUrl);
       setProfileUpdatedAt(now);
       Alert.alert("Success", "Profile image updated successfully.");
@@ -504,7 +557,7 @@ export default function EditProfileScreen() {
     } finally {
       setUploadingImage(false);
     }
-  }, []);
+  }, [isPartnerProfile]);
 
   if (loading) {
     return (
@@ -830,6 +883,7 @@ export default function EditProfileScreen() {
                 onChangeText={(t) => setPhone(t.replace(/\D/g, ""))}
                 placeholder="306 1234567"
                 placeholderTextColor={c.blue500}
+                editable={!isPartnerProfile}
                 selectedCca2={countryCode}
                 selectedCallingCode={callingCode}
                 onCountrySelect={(c) => {

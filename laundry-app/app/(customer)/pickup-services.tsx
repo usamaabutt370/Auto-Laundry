@@ -43,6 +43,8 @@ const SERVICE_KEYS: LaundererServiceType[] = [
   "tailoring",
 ];
 
+const SERVICE_CARD_RADIUS = 16;
+
 export default function PickupServicesScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -250,54 +252,55 @@ export default function PickupServicesScreen() {
             const isSelected = selectedItems.length > 0;
             return (
               <View key={id} style={styles.serviceBlock}>
-                <Pressable
-                  onPress={() => toggle(id)}
-                  style={({ pressed }) => [
-                    styles.servicePill,
-                    isSelected
-                      ? styles.servicePillSelected
-                      : styles.servicePillUnselected,
-                    pressed && styles.pressed,
+                <View
+                  style={[
+                    styles.serviceCard,
+                    isSelected ? styles.serviceCardSelected : styles.serviceCardUnselected,
                   ]}
                 >
-                  <View
-                    style={[
-                      styles.radioOuter,
-                      isSelected && styles.radioOuterSelected,
+                  <Pressable
+                    onPress={() => toggle(id)}
+                    style={({ pressed }) => [
+                      styles.serviceCardHeader,
+                      pressed && styles.pressed,
                     ]}
                   >
-                    {isSelected && (
-                      <MaterialCommunityIcons
-                        name="check"
-                        size={18}
-                        color={c.white}
-                      />
-                    )}
-                  </View>
-                  <Text
-                    style={[
-                      styles.serviceLabel,
-                      isSelected
-                        ? styles.serviceLabelSelected
-                        : styles.serviceLabelUnselected,
-                    ]}
-                  >
-                    {s[id]}
-                  </Text>
-                </Pressable>
-                {isSelected && selectedItems.length > 0 ? (
-                  <View style={styles.selectedItemsCard}>
-                    {selectedItems.map((item, idx) => (
-                      <View key={`${id}-${item.name}-${idx}`} style={styles.selectedItemRow}>
-                        <Text style={styles.selectedItemName}>{item.name}</Text>
-                        <View style={styles.selectedItemRight}>
-                          <Text style={styles.selectedItemQty}>{item.qtyLabel}</Text>
-                          <Text style={styles.selectedItemPrice}>{item.priceLabel}</Text>
+                    <View
+                      style={[
+                        styles.radioOuter,
+                        isSelected && styles.radioOuterSelected,
+                      ]}
+                    >
+                      {isSelected && (
+                        <MaterialCommunityIcons
+                          name="check"
+                          size={18}
+                          color={c.white}
+                        />
+                      )}
+                    </View>
+                    <Text style={styles.serviceLabel}>{s[id]}</Text>
+                  </Pressable>
+                  {isSelected && selectedItems.length > 0 ? (
+                    <View style={styles.serviceCardItems}>
+                      {selectedItems.map((item, idx) => (
+                        <View
+                          key={`${id}-${item.name}-${idx}`}
+                          style={[
+                            styles.selectedItemRow,
+                            idx === selectedItems.length - 1 && styles.selectedItemRowLast,
+                          ]}
+                        >
+                          <Text style={styles.selectedItemName}>{item.name}</Text>
+                          <View style={styles.selectedItemRight}>
+                            <Text style={styles.selectedItemQty}>{item.qtyLabel}</Text>
+                            <Text style={styles.selectedItemPrice}>{item.priceLabel}</Text>
+                          </View>
                         </View>
-                      </View>
-                    ))}
-                  </View>
-                ) : null}
+                      ))}
+                    </View>
+                  ) : null}
+                </View>
               </View>
             );
           })}
@@ -373,31 +376,43 @@ const styles = StyleSheet.create({
   serviceBlock: {
     marginBottom: 12,
   },
+  serviceCard: {
+    borderRadius: SERVICE_CARD_RADIUS,
+    overflow: "hidden",
+    borderWidth: 1,
+  },
+  serviceCardUnselected: {
+    backgroundColor: c.blue900,
+    borderColor: c.backgroundLight,
+  },
+  serviceCardSelected: {
+    backgroundColor: c.backgroundLight,
+    borderColor: "transparent",
+  },
+  serviceCardHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    backgroundColor: "transparent",
+    borderTopLeftRadius: SERVICE_CARD_RADIUS,
+    borderTopRightRadius: SERVICE_CARD_RADIUS,
+  },
+  serviceCardItems: {
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255,255,255,0.14)",
+    backgroundColor: c.blue900,
+    borderBottomLeftRadius: SERVICE_CARD_RADIUS,
+    borderBottomRightRadius: SERVICE_CARD_RADIUS,
+    overflow: "hidden",
+  },
   chooseHeading: {
     fontSize: 18,
     fontWeight: "700",
     color: c.white,
     marginBottom: 24,
     backgroundColor: "transparent",
-  },
-  servicePill: {
-    gap: 14,
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    borderRadius: 999,
-    marginBottom: 0,
-    backgroundColor: "transparent",
-  },
-  servicePillSelected: {
-    backgroundColor: c.backgroundLight,
-    borderWidth: 0,
-  },
-  servicePillUnselected: {
-    backgroundColor: c.blue900,
-    borderWidth: 1,
-    borderColor: c.backgroundLight,
   },
   radioOuter: {
     width: 24,
@@ -413,15 +428,11 @@ const styles = StyleSheet.create({
     borderColor: c.blue500,
   },
   serviceLabel: {
+    flex: 1,
     fontSize: 16,
     fontWeight: "600",
-  },
-  serviceLabelSelected: {
     color: c.white,
-  },
-  serviceLabelUnselected: {
-    color: c.white,
-    opacity: 0.9,
+    opacity: 0.95,
   },
   confirmBtn: {
     marginTop: 32,
@@ -442,14 +453,6 @@ const styles = StyleSheet.create({
     color: "rgba(255,255,255,0.75)",
     marginTop: 4,
   },
-  selectedItemsCard: {
-    marginTop: 8,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.22)",
-    backgroundColor: "rgba(0,0,0,0.14)",
-    overflow: "hidden",
-  },
   selectedItemRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -459,6 +462,9 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderBottomWidth: 1,
     borderBottomColor: "rgba(255,255,255,0.08)",
+  },
+  selectedItemRowLast: {
+    borderBottomWidth: 0,
   },
   selectedItemName: {
     flex: 1,
@@ -477,7 +483,7 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   selectedItemPrice: {
-    color: c.lightBlue,
+    color: c.white,
     fontSize: 12,
     fontWeight: "700",
     textAlign: "right",

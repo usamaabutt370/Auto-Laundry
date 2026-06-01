@@ -121,6 +121,9 @@ const dimensions = {
   },
   headerHeight: Platform.OS === "ios" ? 64 : 50,
   artworkSummary: 140,
+  /** White pill search row on partner discovery (pick-launderer); shared sizing for consistency */
+  customerPartnerSearchBarMinHeight: 52,
+  customerPartnerSearchBarPaddingV: 14,
 };
 
 const animations = {

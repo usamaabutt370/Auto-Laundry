@@ -16,6 +16,8 @@ import { Spacer, ThemedText, ThemedView } from "@/components";
 import { theme } from "@/constants/theme";
 import { strings } from "@/constants/strings";
 import { verifyPhoneOtp } from "@/lib/phone-otp";
+import { isSupabaseConfigured, supabase } from "@/lib/supabase";
+import { fetchUserRoleFromProfile } from "@/lib/user-role";
 
 const c = theme.colors;
 const OTP_LENGTH = 4;
@@ -49,7 +51,18 @@ export default function OtpScreen() {
         return;
       }
 
-      router.replace("/(customer)");
+      if (!isSupabaseConfigured() || !supabase) {
+        router.replace("/(customer)");
+        return;
+      }
+      const { data: sessionData } = await supabase.auth.getSession();
+      const uid = sessionData.session?.user?.id;
+      if (!uid) {
+        router.replace("/(customer)");
+        return;
+      }
+      const role = await fetchUserRoleFromProfile(uid);
+      router.replace(role === "launderer" ? "/(partner)" : "/(customer)");
     } finally {
       setIsVerifying(false);
     }

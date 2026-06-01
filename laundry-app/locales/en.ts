@@ -233,6 +233,10 @@ export const en = {
       title: "Order Summary",
       service: "Service",
       orderNumber: "Order Number",
+      lineItems: "Line items",
+      pickupFees: "Pickup & delivery",
+      noItemsYet: "No items added yet.",
+      otherCharges: "Other charges",
       estimatedTotal: "Estimated Total",
       submitOrder: "Submit Order",
     },
@@ -586,6 +590,12 @@ export const en = {
       creditsRuleTopup:
         "When credits run low, top up your wallet to keep getting new orders.",
       creditsContinueToDashboard: "Continue to dashboard",
+      creditsGrantedAlertTitle: "Credits granted",
+      creditsGrantedAlertMessageNew:
+        "Onboarding is complete. You received {{awarded}} welcome {{tokensUnit}}. Your balance is {{balance}} {{tokensUnit}}.",
+      creditsGrantedAlertMessageAlready:
+        "Welcome {{tokensUnit}} were already on your account. Your balance is {{balance}} {{tokensUnit}}.",
+      creditsGrantedAlertOk: "OK",
     },
     settings: {
       merchantServices: "Merchant Services",

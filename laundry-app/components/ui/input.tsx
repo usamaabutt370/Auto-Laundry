@@ -115,6 +115,7 @@ export function Input({
               selectedCca2={selectedCca2}
               selectedCallingCode={selectedCallingCode}
               onSelect={onCountrySelect || (() => {})}
+              disabled={editable === false}
             />
           </View>
         )}

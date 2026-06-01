@@ -53,7 +53,7 @@ export function DashboardPeriodSelector({
 
   return (
     <>
-      <Pressable
+      {/* <Pressable
         onPress={() => setVisible(true)}
         style={({ pressed }) => [
           styles.trigger,
@@ -73,7 +73,7 @@ export function DashboardPeriodSelector({
           size={20}
           color={c.white}
         />
-      </Pressable>
+      </Pressable> */}
 
       <Modal
         visible={visible}
