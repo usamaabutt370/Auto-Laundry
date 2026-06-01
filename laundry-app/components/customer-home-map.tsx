@@ -2,17 +2,13 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { WebView } from "react-native-webview";
-import { SafeAreaView } from "react-native-safe-area-context";
 
 import { theme } from "@/constants/theme";
 import { fetchPartnersByFulfillmentMode, type PartnerPublicRow } from "@/lib/partner-discovery";
+import { getDeviceCoordinates } from "@/utils/device-location";
 import { getCoordinatesWithFallback, type Coordinates } from "@/utils/geocoding";
 
 const c = theme.colors;
-const DEFAULT_USER_COORDINATES: Coordinates = {
-  latitude: 31.365,
-  longitude: 74.2143,
-};
 const DEFAULT_ZOOM = 11;
 
 type PartnerMapMarker = PartnerPublicRow & {
@@ -25,6 +21,11 @@ type WebMapMarker = {
   mode: "dropoff" | "pickupDelivery";
   latitude: number;
   longitude: number;
+};
+
+type GroupedMarker = {
+  partner: PartnerMapMarker;
+  coords: Coordinates;
 };
 
 type HomeStrings = {
@@ -66,7 +67,7 @@ export function CustomerHomeMap({
 }: Props) {
   const mapRef = useRef<WebView | null>(null);
   const geocodeCacheRef = useRef<Map<string, Coordinates | null>>(new Map());
-  const [userCoordinates] = useState<Coordinates | null>(DEFAULT_USER_COORDINATES);
+  const [userCoordinates, setUserCoordinates] = useState<Coordinates | null>(null);
   const [partners, setPartners] = useState<PartnerMapMarker[]>([]);
   const [partnerCoordinates, setPartnerCoordinates] = useState<Record<string, Coordinates | null>>(
     {},
@@ -94,6 +95,18 @@ export function CustomerHomeMap({
   useEffect(() => {
     void loadPartners();
   }, [loadPartners]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const coords = await getDeviceCoordinates();
+      if (cancelled) return;
+      setUserCoordinates(coords);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -175,14 +188,46 @@ export function CustomerHomeMap({
   const selectedPartnerPrimaryImage = getPartnerPrimaryImage(selectedPartner);
 
   const mapMarkers = useMemo<WebMapMarker[]>(
-    () =>
-      markers.map(({ partner, coords }) => ({
-        id: partner.id,
-        name: partner.business_name.trim(),
-        mode: partner.fulfillmentMode,
-        latitude: coords.latitude,
-        longitude: coords.longitude,
-      })),
+    () => {
+      const groups = new Map<string, GroupedMarker[]>();
+      for (const item of markers) {
+        // Normalize keys so tiny float noise does not split same-location partners.
+        const key = `${item.coords.latitude.toFixed(6)},${item.coords.longitude.toFixed(6)}`;
+        const list = groups.get(key) ?? [];
+        list.push(item);
+        groups.set(key, list);
+      }
+
+      const out: WebMapMarker[] = [];
+      for (const grouped of groups.values()) {
+        const count = grouped.length;
+        for (let i = 0; i < count; i += 1) {
+          const { partner, coords } = grouped[i];
+          if (count === 1) {
+            out.push({
+              id: partner.id,
+              name: partner.business_name.trim(),
+              mode: partner.fulfillmentMode,
+              latitude: coords.latitude,
+              longitude: coords.longitude,
+            });
+            continue;
+          }
+
+          // Spread overlapping markers around the real coordinate for better tapability.
+          const angle = (2 * Math.PI * i) / count;
+          const radiusDegrees = 0.00018; // ~20m visual spread
+          out.push({
+            id: partner.id,
+            name: partner.business_name.trim(),
+            mode: partner.fulfillmentMode,
+            latitude: coords.latitude + Math.sin(angle) * radiusDegrees,
+            longitude: coords.longitude + Math.cos(angle) * radiusDegrees,
+          });
+        }
+      }
+      return out;
+    },
     [markers],
   );
 
@@ -200,7 +245,25 @@ export function CustomerHomeMap({
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
     html, body, #map { height: 100%; width: 100%; margin: 0; padding: 0; }
-    .marker-pin { width: 12px; height: 12px; border-radius: 6px; border: 2px solid #fff; box-shadow: 0 0 0 1px rgba(0,0,0,0.2); }
+    .partner-pin {
+      width: 18px;
+      height: 18px;
+      border-radius: 9px 9px 9px 0;
+      transform: rotate(-45deg);
+      border: 2px solid #fff;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.35);
+      position: relative;
+    }
+    .partner-pin::after {
+      content: "";
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #fff;
+      position: absolute;
+      left: 4px;
+      top: 4px;
+    }
     .leaflet-right { right: 8px; }
     .leaflet-bottom { bottom: ${zoomControlBottomOffset}px; }
   </style>
@@ -245,9 +308,15 @@ export function CustomerHomeMap({
 
     markers.forEach((item) => {
       const div = document.createElement('div');
-      div.className = 'marker-pin';
+      div.className = 'partner-pin';
       div.style.background = colorForMode(item.mode);
-      const icon = L.divIcon({ html: div.outerHTML, className: '', iconSize: [16, 16], iconAnchor: [8, 8] });
+      const icon = L.divIcon({
+        html: div.outerHTML,
+        className: '',
+        iconSize: [18, 24],
+        iconAnchor: [9, 20],
+        popupAnchor: [0, -20],
+      });
       const m = L.marker([item.latitude, item.longitude], { icon }).addTo(map);
       m.bindPopup(item.name + ' (' + labelForMode(item.mode) + ')');
       m.on('click', () => {

@@ -32,6 +32,7 @@ import {
   getCoordinatesWithFallback,
   type Coordinates,
 } from "@/utils/geocoding";
+import { getDeviceCoordinatesWithStatus } from "@/utils/device-location";
 
 const c = theme.colors;
 
@@ -166,6 +167,9 @@ export default function PickLaundererScreen() {
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [userCoordinates, setUserCoordinates] = useState<Coordinates | null>(null);
+  const [locationState, setLocationState] = useState<
+    "idle" | "loading" | "granted" | "denied" | "unavailable"
+  >("idle");
   const [partnerCoordinates, setPartnerCoordinates] = useState<Record<string, Coordinates | null>>(
     {}
   );
@@ -189,6 +193,26 @@ export default function PickLaundererScreen() {
   useEffect(() => {
     load();
   }, [load]);
+
+  const resolveUserLocation = useCallback(async () => {
+    setLocationState("loading");
+    const result = await getDeviceCoordinatesWithStatus();
+    setUserCoordinates(result.coords);
+    setLocationState(result.status);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const result = await getDeviceCoordinatesWithStatus();
+      if (cancelled) return;
+      setUserCoordinates(result.coords);
+      setLocationState(result.status);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -368,6 +392,29 @@ export default function PickLaundererScreen() {
             returnKeyType="done"
           />
         </View>
+        <View style={styles.locationInfoRow}>
+          <View style={styles.locationInfoTextWrap}>
+            <Text style={styles.locationInfoText}>
+              {locationState === "loading"
+                ? "Detecting your location..."
+                : locationState === "granted"
+                  ? "Showing distance from your current location."
+                  : locationState === "denied"
+                    ? "Location permission is off. Distance may show as — km."
+                    : locationState === "unavailable"
+                      ? "Unable to detect location right now. Distance may show as — km."
+                      : "Use your location to see accurate distance."}
+            </Text>
+          </View>
+          <Pressable
+            onPress={() => void resolveUserLocation()}
+            style={({ pressed }) => [styles.locationCtaBtn, pressed && styles.pressed]}
+          >
+            <Text style={styles.locationCtaText}>
+              {locationState === "granted" ? "Refresh" : "Use my location"}
+            </Text>
+          </Pressable>
+        </View>
       </SafeAreaView>
 
 
@@ -493,6 +540,33 @@ const styles = StyleSheet.create({
     color: c.lightBlue,
     fontSize: 15,
     fontWeight: "600",
+  },
+  locationInfoRow: {
+    marginTop: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  locationInfoTextWrap: {
+    flex: 1,
+  },
+  locationInfoText: {
+    color: c.blue500,
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  locationCtaBtn: {
+    borderWidth: 1,
+    borderColor: c.outline,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    backgroundColor: c.blue900,
+  },
+  locationCtaText: {
+    color: c.white,
+    fontSize: 12,
+    fontWeight: "700",
   },
   card: {
     flexDirection: "row",
