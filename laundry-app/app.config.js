@@ -20,6 +20,13 @@ const firebasePlugins = [
       cameraPermission: "Allow the app to use the camera to share photos in chat.",
     },
   ],
+  [
+    "expo-location",
+    {
+      locationWhenInUsePermission:
+        "Allow location access to show nearby launderers and accurate distance.",
+    },
+  ],
 ];
 
 module.exports = {

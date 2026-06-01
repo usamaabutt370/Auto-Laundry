@@ -1,21 +1,26 @@
-import { useCallback, useState } from "react";
-import { ScrollView, StyleSheet, Text, View, Pressable } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
+import { useFocusEffect, useRouter } from "expo-router";
+import { useCallback, useMemo, useState } from "react";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { DashboardChart } from "@/components/dashboard-chart";
+import { AppHeader } from "@/components/app-header";
+import { getTabBarBottomInset } from "@/components/bottom-tab-bar";
+import {
+  PartnerDashboardHero,
+  PartnerPanelCard,
+  PartnerServiceOverviewCard,
+} from "@/components/partner-dashboard-cards";
+import { AppButton } from "@/components/ui/button";
 import {
   DashboardPeriodSelector,
   type DashboardPeriod,
 } from "@/components/dashboard-period-selector";
-import { useFocusEffect, useRouter } from "expo-router";
-import { AppHeader } from "@/components/app-header";
-import { AppButton } from "@/components/ui/button";
+import { DashboardChart } from "@/components/dashboard-chart";
 import { theme } from "@/constants/theme";
 import { useAuth } from "@/contexts/auth-context";
 import { useLocale } from "@/contexts/locale-context";
-import { useSidebar } from "@/contexts/sidebar-context";
 import { useLaundererDashboard } from "@/hooks/use-launderer-dashboard";
+import { formatDashboardPeriodRange } from "@/lib/dashboard-period-bounds";
 import { getStrings } from "@/locales";
 
 const c = theme.colors;
@@ -32,97 +37,27 @@ function formatMoney(value: number): string {
   return `Rs ${formatted}`;
 }
 
-function formatMoneyCompact(value: number): string {
-  if (value >= 1000) {
-    const compact = value / 1000;
-    const display = compact % 1 === 0 ? compact.toFixed(0) : compact.toFixed(1);
-    return `rs ${display}k`;
-  }
-  return `Rs ${Math.round(value)}`;
-}
-
-function formatShortDate(valueIso: string): string {
-  const d = new Date(valueIso);
-  if (Number.isNaN(d.getTime())) return "-";
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-  }).format(d);
-}
-
-function ServiceBreakdownCard({
-  title,
-  total,
-  washAndFold,
-  dryCleaning,
-  tailoring,
-  s,
-  onPress,
-}: {
-  title: string;
-  total: number;
-  washAndFold: number;
-  dryCleaning: number;
-  tailoring: number;
-  s: ReturnType<typeof getStrings>["partner"]["dashboard"];
-  onPress?: () => void;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      disabled={!onPress}
-      style={({ pressed }) => [
-        styles.serviceCard,
-        pressed && onPress && styles.serviceCardPressed,
-      ]}
-    >
-      <View style={styles.serviceCircleWrap}>
-        <View style={styles.serviceCircle}>
-          <Text style={styles.serviceCircleTitle}>{title}</Text>
-          <Text style={styles.serviceCircleTotal}>{total}</Text>
-        </View>
-      </View>
-      <View style={styles.serviceList}>
-        <Text style={styles.serviceRow}>
-          {s.washAndFold}: {washAndFold}
-        </Text>
-        <Text style={styles.serviceRow}>
-          {s.dryCleaning}: {dryCleaning}
-        </Text>
-        <Text style={styles.serviceRow}>
-          {s.tailoring}: {tailoring}
-        </Text>
-      </View>
-    </Pressable>
-  );
-}
-
-function SummaryCard({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
-  return (
-    <View style={styles.summaryCard}>
-      <Text style={styles.summaryLabel}>{label}</Text>
-      <Text style={styles.summaryValue}>{value}</Text>
-    </View>
-  );
-}
-
 /**
  * Partner dashboard tab: shown as the home tab with bottom navigation.
  */
 export default function PartnerDashboardScreen() {
   const router = useRouter();
   const { partnerApprovalStatus, partnerRejectionReason, refreshPartnerApproval } = useAuth();
-  const { open: openSidebar } = useSidebar();
   const { locale } = useLocale();
   const s = getStrings(locale).partner.dashboard;
   const [period, setPeriod] = useState<DashboardPeriod>("week");
-  const tabBarHeight = useBottomTabBarHeight();
+  const insets = useSafeAreaInsets();
+  const tabBarInset = getTabBarBottomInset(Math.max(insets.bottom, 8));
+
+  const periodRangeLabel = useMemo(
+    () =>
+      formatDashboardPeriodRange(
+        period,
+        new Date(),
+        locale === "ur" ? "ur-PK" : "en-US",
+      ),
+    [period, locale],
+  );
 
   const isApproved = partnerApprovalStatus === "approved";
   const { data, refresh } = useLaundererDashboard(isApproved, period);
@@ -161,19 +96,15 @@ export default function PartnerDashboardScreen() {
       <SafeAreaView edges={["top"]} style={styles.safeArea}>
         <AppHeader
           title={s.title}
-
           rightElement={
-            <DashboardPeriodSelector
-              value={period}
-              onValueChange={setPeriod}
-            />
+            <DashboardPeriodSelector value={period} onValueChange={setPeriod} />
           }
         />
       </SafeAreaView>
 
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={[styles.content, { paddingBottom: tabBarHeight + 16 }]}
+        contentContainerStyle={[styles.content, { paddingBottom: tabBarInset + 16 }]}
         showsVerticalScrollIndicator={false}
       >
         {showOnboardingPlaceholder ? (
@@ -191,97 +122,77 @@ export default function PartnerDashboardScreen() {
         ) : null}
         {!showOnboardingPlaceholder ? (
           <>
-        <View style={styles.serviceCards}>
-          <ServiceBreakdownCard
-            title={s.dropOff}
-            total={data.dropOff.total}
-            washAndFold={data.dropOff.washAndFold}
-            dryCleaning={data.dropOff.dryCleaning}
-            tailoring={data.dropOff.tailoring}
-            s={s}
-            onPress={() =>
-              router.push({
-                pathname: "/(partner)/dashboard-orders",
-                params: { kind: "dropoff" },
-              })
-            }
-          />
-          <ServiceBreakdownCard
-            title={s.delivery}
-            total={data.delivery.total}
-            washAndFold={data.delivery.washAndFold}
-            dryCleaning={data.delivery.dryCleaning}
-            tailoring={data.delivery.tailoring}
-            s={s}
-            onPress={() =>
-              router.push({
-                pathname: "/(partner)/dashboard-orders",
-                params: { kind: "delivery" },
-              })
-            }
-          />
-        </View>
-
-        <Text style={styles.sectionTitle}>{s.summary}</Text>
-        <View style={styles.summaryRow}>
-          <SummaryCard label={s.totalIncome} value={formatMoney(data.totalIncome)} />
-          <SummaryCard label={s.dropOffIncome} value={formatMoney(data.dropOffIncome)} />
-          <SummaryCard label={s.deliveryIncome} value={formatMoney(data.deliveryIncome)} />
-        </View>
-
-        <View style={styles.balanceCard}>
-          <Text style={styles.balanceLabel}>{s.earningsGraphLabel}</Text>
-          <Text style={styles.earningsTotalLabel}>
-            {s.periodEarningsTotal}: {formatMoney(earningsTotalForPeriod)}
-          </Text>
-          <View style={styles.chartWrap}>
-            <DashboardChart
-              values={data.earningsChartValues}
-              labels={data.chartLabels}
-              showPointLabels
-              valueLabelFormatter={formatMoneyCompact}
-              hideZeroPointLabels
+            <PartnerDashboardHero
+              totalIncomeLabel={s.totalIncome}
+              totalIncomeFormatted={formatMoney(data.totalIncome)}
+              periodEarningsLabel={s.periodEarningsTotal}
+              periodEarningsFormatted={formatMoney(earningsTotalForPeriod)}
+              periodFilterLabel={
+                period === "week" ? s.week : period === "month" ? s.month : s.year
+              }
+              totalIncomeAmount={data.totalIncome}
+              periodEarningsAmount={earningsTotalForPeriod}
+              periodRangeLabel={periodRangeLabel}
+              completedOrdersLabel={s.heroCompletedOrders}
+              completedOrdersCount={data.completedOrdersInPeriod}
+              avgPerOrderLabel={s.heroAvgPerOrder}
+              avgPerOrderFormatted={
+                data.completedOrdersInPeriod > 0
+                  ? formatMoney(
+                      Math.round(data.totalIncome / data.completedOrdersInPeriod),
+                    )
+                  : "—"
+              }
             />
-          </View>
-          <View style={styles.earningsListWrap}>
-            <Text style={styles.deductionListTitle}>{s.recentEarnings}</Text>
-            {data.recentCompletedEarnings.length === 0 ? (
-              <Text style={styles.deductionEmpty}>{s.noRecentEarnings}</Text>
-            ) : (
-              data.recentCompletedEarnings.map((item) => (
-                <Pressable
-                  key={`${item.orderId}-${item.earnedAtIso}`}
+
+            <Text style={styles.sectionTitle}>{s.pipelineSectionTitle}</Text>
+            <View style={styles.pipelineRow}>
+              <View style={styles.pipelineCardWrap}>
+                <PartnerServiceOverviewCard
+                  compact
+                  title={s.dropOff}
+                  icon="storefront-outline"
+                  accent={c.lightBlue}
+                  totalActive={data.dropOff.total}
+                  activeOrdersCaption={s.activeOrdersCaption}
                   onPress={() =>
                     router.push({
-                      pathname: "/(partner)/order-detail",
-                      params: { orderId: item.orderId },
+                      pathname: "/(partner)/dashboard-orders",
+                      params: { kind: "dropoff" },
                     })
                   }
-                  style={({ pressed }) => [styles.deductionRow, pressed && styles.serviceCardPressed]}
-                >
-                  <View style={styles.deductionRowLeft}>
-                    <Text style={styles.deductionOrderId}>
-                      {s.orderIdLabel}: {item.orderId.slice(0, 8)}
-                    </Text>
-                    <Text style={styles.deductionMeta}>
-                      {formatShortDate(item.earnedAtIso)} • {s.viewOrderDetails}
-                    </Text>
-                  </View>
-                  <Text style={styles.earningAmount}>{formatMoney(item.earnedAmount)}</Text>
-                </Pressable>
-              ))
-            )}
-            <Pressable
-              onPress={() => router.push("/(partner)/earnings-history")}
-              style={({ pressed }) => [
-                styles.viewAllBtn,
-                pressed && styles.serviceCardPressed,
-              ]}
-            >
-              <Text style={styles.viewAllBtnText}>{s.viewAllEarnings}</Text>
-            </Pressable>
-          </View>
-        </View>
+                />
+              </View>
+              <View style={styles.pipelineCardWrap}>
+                <PartnerServiceOverviewCard
+                  compact
+                  title={s.delivery}
+                  icon="truck-fast-outline"
+                  accent={c.outline}
+                  totalActive={data.delivery.total}
+                  activeOrdersCaption={s.activeOrdersCaption}
+                  onPress={() =>
+                    router.push({
+                      pathname: "/(partner)/dashboard-orders",
+                      params: { kind: "delivery" },
+                    })
+                  }
+                />
+              </View>
+            </View>
+
+            <PartnerPanelCard title={s.earningsGraphLabel} icon="chart-bar">
+              <Text style={styles.earningsTotalLabel}>
+                {s.periodEarningsTotal}: {formatMoney(earningsTotalForPeriod)}
+              </Text>
+              <View style={styles.chartWrap}>
+                <DashboardChart
+                  values={data.earningsChartValues}
+                  labels={data.chartLabels}
+                  valueLabelFormatter={formatMoney}
+                />
+              </View>
+            </PartnerPanelCard>
           </>
         ) : null}
       </ScrollView>
@@ -323,169 +234,31 @@ const styles = StyleSheet.create({
     color: c.blue500,
     lineHeight: 20,
   },
-  serviceCards: {
-    gap: 12,
-    marginBottom: 20,
-  },
-  serviceCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: c.blue900,
-    borderRadius: CARD_RADIUS,
-    borderWidth: 1,
-    borderColor: c.outline,
-    padding: 20,
-  },
-  serviceCardPressed: {
-    opacity: 0.9,
-  },
-  serviceCircleWrap: {
-    marginRight: 20,
-  },
-  serviceCircle: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    backgroundColor: c.blue900,
-    borderWidth: 1,
-    borderColor: c.outline,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  serviceCircleTitle: {
-    fontSize: fs.xxSmallText,
-    fontWeight: "600",
-    color: c.blue500,
-    textTransform: "uppercase",
-  },
-  serviceCircleTotal: {
-    fontSize: fs.titleMedium,
-    fontWeight: "700",
-    color: c.white,
-  },
-  serviceList: {
-    flex: 1,
-  },
-  serviceRow: {
-    fontSize: fs.smallText,
-    color: c.white,
-    marginBottom: 4,
-  },
   sectionTitle: {
     fontSize: fs.smallTitle,
-    fontWeight: "600",
+    fontWeight: "700",
     color: c.white,
     marginBottom: 12,
+    letterSpacing: 0.2,
   },
-  summaryRow: {
+  pipelineRow: {
     flexDirection: "row",
-    gap: 12,
+    alignItems: "stretch",
+    gap: 10,
     marginBottom: 20,
   },
-  summaryCard: {
+  pipelineCardWrap: {
     flex: 1,
-    backgroundColor: c.blue900,
-    borderRadius: CARD_RADIUS,
-    borderWidth: 1,
-    borderColor: c.outline,
-    padding: 16,
-  },
-  summaryLabel: {
-    fontSize: fs.xxSmallText,
-    fontWeight: "500",
-    color: c.blue500,
-    marginBottom: 6,
-  },
-  summaryValue: {
-    fontSize: fs.smallTitle,
-    fontWeight: "700",
-    color: c.white,
-  },
-  balanceCard: {
-    backgroundColor: c.blue900,
-    borderRadius: CARD_RADIUS,
-    borderWidth: 1,
-    borderColor: c.outline,
-    padding: 20,
-    marginBottom: 24,
-  },
-  balanceLabel: {
-    fontSize: fs.smallText,
-    fontWeight: "500",
-    color: c.blue500,
-    marginBottom: 4,
-  },
-  balanceValue: {
-    fontSize: fs.titleMedium,
-    fontWeight: "700",
-    color: c.white,
+    minWidth: 0,
   },
   chartWrap: {
-    marginTop: 8,
+    marginTop: 4,
     width: "100%",
   },
   earningsTotalLabel: {
-    marginTop: 2,
-    fontSize: fs.xxSmallText,
-    color: c.white,
-    fontWeight: "600",
-  },
-  earningsListWrap: {
-    marginTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: c.outline,
-    paddingTop: 12,
-    gap: 10,
-  },
-  deductionListTitle: {
-    fontSize: fs.smallText,
-    color: c.white,
-    fontWeight: "700",
-  },
-  deductionEmpty: {
-    fontSize: fs.xxSmallText,
-    color: c.blue500,
-  },
-  deductionRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: c.outline,
-    gap: 8,
-  },
-  deductionRowLeft: {
-    flex: 1,
-  },
-  deductionOrderId: {
+    marginBottom: 8,
     fontSize: fs.descText,
-    color: c.white,
-    fontWeight: "600",
-  },
-  deductionMeta: {
-    marginTop: 2,
-    fontSize: fs.xxSmallText,
     color: c.blue500,
-  },
-  earningAmount: {
-    fontSize: fs.descText,
-    color: c.white,
-    fontWeight: "700",
-  },
-  viewAllBtn: {
-    marginTop: 4,
-    alignSelf: "flex-start",
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderWidth: 1,
-    borderColor: c.outline,
-    borderRadius: 999,
-    backgroundColor: c.blue900,
-  },
-  viewAllBtnText: {
-    color: c.white,
-    fontSize: fs.xxSmallText,
-    fontWeight: "700",
+    fontWeight: "600",
   },
 });

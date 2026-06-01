@@ -18,6 +18,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { theme } from "@/constants/theme";
 import { useAuth } from "@/contexts/auth-context";
+import { useLocale } from "@/contexts/locale-context";
+import { getStrings } from "@/locales";
 import {
   fetchCustomerOrderDetail,
   hasCustomerOrderFeedback,
@@ -49,6 +51,8 @@ function statusColor(status: CustomerOrderDisplayStatus): string {
 export default function CustomerOrderDetailScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  const { locale } = useLocale();
+  const sDetail = getStrings(locale).customer.orderDetail;
   const params = useLocalSearchParams<{ orderId?: string }>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -197,16 +201,21 @@ export default function CustomerOrderDetailScreen() {
             <Text style={styles.partner}>{order.partnerName}</Text>
             <View style={styles.metricsRow}>
               <View style={styles.metricCard}>
-                <Text style={styles.metricLabel}>Estimated total</Text>
+                <Text style={styles.metricLabel}>{sDetail.estimatedTotal}</Text>
                 <Text style={styles.metricValue}>{order.estimatedTotalLabel}</Text>
               </View>
+              {order.confirmedTotalLabel ? (
+                <View style={styles.metricCard}>
+                  <Text style={styles.metricLabel}>{sDetail.confirmedTotal}</Text>
+                  <Text style={[styles.metricValue, styles.confirmedValue]}>
+                    {order.confirmedTotalLabel}
+                  </Text>
+                  <Text style={styles.metricHint}>{sDetail.confirmedAtPickup}</Text>
+                </View>
+              ) : null}
               <View style={styles.metricCard}>
                 <Text style={styles.metricLabel}>Items</Text>
                 <Text style={styles.metricValue}>{order.totalItems}</Text>
-              </View>
-              <View style={styles.metricCard}>
-                <Text style={styles.metricLabel}>Services</Text>
-                <Text style={styles.metricValue}>{order.serviceGroups.length}</Text>
               </View>
             </View>
           </View>
@@ -272,10 +281,21 @@ export default function CustomerOrderDetailScreen() {
                   <View key={item.id} style={styles.itemRow}>
                     <View style={styles.itemTextWrap}>
                       <Text style={styles.itemLabel}>{item.name}</Text>
-                      <Text style={styles.itemMeta}>Qty: {item.quantity}</Text>
+                      <Text style={styles.itemMeta}>
+                        {item.confirmedQuantity != null
+                          ? `${sDetail.qtyConfirmed}: ${item.confirmedQuantity} (est. ${item.quantity})`
+                          : `Qty: ${item.quantity}`}
+                      </Text>
                       <Text style={styles.itemMeta}>Preferences: {item.preferences}</Text>
                     </View>
-                    <Text style={styles.itemPrice}>{item.estimatedPriceLabel}</Text>
+                    <View style={styles.itemPriceCol}>
+                      <Text style={styles.itemPrice}>{item.estimatedPriceLabel}</Text>
+                      {item.confirmedPriceLabel ? (
+                        <Text style={styles.itemPriceConfirmed}>
+                          {item.confirmedPriceLabel}
+                        </Text>
+                      ) : null}
+                    </View>
                   </View>
                 ))}
               </View>
@@ -488,6 +508,15 @@ const styles = StyleSheet.create({
     fontSize: fs.smallText,
     fontWeight: "700",
   },
+  confirmedValue: {
+    color: c.lightBlue,
+  },
+  metricHint: {
+    color: "rgba(255,255,255,0.55)",
+    fontSize: 11,
+    marginTop: 4,
+    lineHeight: 14,
+  },
   sectionCard: {
     borderRadius: CARD_RADIUS,
     borderWidth: 1,
@@ -584,8 +613,17 @@ const styles = StyleSheet.create({
     fontSize: fs.descText,
     lineHeight: 18,
   },
+  itemPriceCol: {
+    alignItems: "flex-end",
+    gap: 4,
+  },
   itemPrice: {
     color: c.white,
+    fontSize: fs.smallText,
+    fontWeight: "700",
+  },
+  itemPriceConfirmed: {
+    color: c.lightBlue,
     fontSize: fs.smallText,
     fontWeight: "700",
   },

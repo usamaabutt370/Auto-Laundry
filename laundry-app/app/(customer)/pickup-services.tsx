@@ -26,8 +26,9 @@ import { useCustomerOrderDraft } from "@/contexts/customer-order-draft-context";
 import { fetchPartnerDetail, serviceCategoriesToTypes } from "@/lib/partner-discovery";
 import {
   dryCleanUnitForItem,
+  listPricedWashFoldDefs,
   tailoringUnitForItem,
-  washFoldUnitForMode,
+  washFoldUnitForItem,
 } from "@/lib/customer-order-estimate";
 import { formatMoney } from "@/utils/format-money";
 import { parsePriceDisplay } from "@/utils/parse-price-display";
@@ -116,24 +117,20 @@ export default function PickupServicesScreen() {
       tailoring: [],
     };
 
-    const washBagCount = Math.max(0, draft.washFold?.bagCount ?? 0);
-    const washItemCount = Math.max(0, draft.washFold?.bagDetailsByIndex[1]?.itemCount ?? 0);
-    const perBagUnit = washFoldUnitForMode(partnerServiceRows, "per_bag");
-    const perItemUnit = washFoldUnitForMode(partnerServiceRows, "per_item");
-    if (washBagCount > 0) {
-      byService.washAndFold.push({
-        name: "Wash & Fold (Per Bag)",
-        qtyLabel: `${washBagCount} bag(s)`,
-        priceLabel: formatLinePrice(perBagUnit.amount, washBagCount, perBagUnit.priceLabel),
+    byService.washAndFold = listPricedWashFoldDefs(partnerServiceRows).map((def) => ({
+      def,
+      qty: Math.max(0, draft.washFold?.itemizedQuantities?.[def.id] ?? 0),
+    }))
+      .filter((item) => item.qty > 0)
+      .map((item) => {
+        const unit = washFoldUnitForItem(partnerServiceRows, item.def);
+        return {
+          name: item.def.name,
+          qtyLabel:
+            item.def.kind === "package" ? `${item.qty} pkg` : `${item.qty} item(s)`,
+          priceLabel: formatLinePrice(unit.amount, item.qty, unit.priceLabel),
+        };
       });
-    }
-    if (washItemCount > 0) {
-      byService.washAndFold.push({
-        name: "Wash & Fold (Per Item)",
-        qtyLabel: `${washItemCount} item(s)`,
-        priceLabel: formatLinePrice(perItemUnit.amount, washItemCount, perItemUnit.priceLabel),
-      });
-    }
 
     byService.dryCleaning = DRY_CLEAN_ITEM_DEFS
       .map((def) => ({
@@ -169,9 +166,7 @@ export default function PickupServicesScreen() {
   }, [
     draft.dryClean?.itemizedQuantities,
     draft.tailoring?.itemizedQuantities,
-    draft.washFold?.bagCount,
-    draft.washFold?.bagDetailsByIndex,
-    draft.washFold?.pricingMode,
+    draft.washFold?.itemizedQuantities,
     partnerServiceRows,
   ]);
 

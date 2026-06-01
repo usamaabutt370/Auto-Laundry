@@ -1,6 +1,6 @@
-import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useRouter } from "expo-router";
 import { Image } from "expo-image";
+import { getTabBarBottomInset } from "@/components/bottom-tab-bar";
 import { CustomerHomeMap } from "@/components/customer-home-map";
 import { ThemedText } from "@/components/themed-text";
 import { strings } from "@/constants/strings";
@@ -8,13 +8,15 @@ import { theme } from "@/constants/theme";
 import { assets } from "@/assets/assets";
 import { useSidebar } from "@/contexts/sidebar-context";
 import { Platform, Pressable, StyleSheet, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const c = theme.colors;
 
 export default function CustomerHomeScreen() {
   const router = useRouter();
   const s = strings.customer.home;
-  const tabBarHeight = useBottomTabBarHeight();
+  const insets = useSafeAreaInsets();
+  const tabBarInset = getTabBarBottomInset(Math.max(insets.bottom, 8));
   const { open: openSidebar } = useSidebar();
 
   return (
@@ -28,12 +30,12 @@ export default function CustomerHomeScreen() {
             params: { id: partnerId, mode },
           })
         }
-        recenterBottomOffset={Math.max(0, tabBarHeight - 18) + 180}
+        recenterBottomOffset={tabBarInset + 162}
       />
 
       {/* Service selection card (bottom sheet style) */}
       <View
-        style={[styles.serviceCard, { bottom: Math.max(0, tabBarHeight - 18) }]}
+        style={[styles.serviceCard, { bottom: tabBarInset }]}
       >
         <ThemedText style={styles.serviceCardTitle}>
           {s.chooseService}

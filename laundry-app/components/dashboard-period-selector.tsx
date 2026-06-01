@@ -2,9 +2,11 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useState } from "react";
 import {
   Modal,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
+  View,
   type ViewStyle,
 } from "react-native";
 
@@ -44,8 +46,8 @@ export function DashboardPeriodSelector({
     year: s.year,
   };
 
-  const handleSelect = (period: DashboardPeriod) => {
-    onValueChange(period);
+  const handleSelect = (next: DashboardPeriod) => {
+    onValueChange(next);
     setVisible(false);
   };
 
@@ -58,6 +60,7 @@ export function DashboardPeriodSelector({
           pressed && styles.pressed,
           customStyle,
         ]}
+        hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
         accessibilityRole="button"
         accessibilityLabel={`Period: ${labels[value]}`}
         accessibilityHint="Filter progress by Week, Month or Year"
@@ -76,35 +79,42 @@ export function DashboardPeriodSelector({
         visible={visible}
         transparent
         animationType="fade"
+        presentationStyle={Platform.OS === "ios" ? "overFullScreen" : undefined}
+        statusBarTranslucent={Platform.OS === "android"}
         onRequestClose={() => setVisible(false)}
       >
-        <Pressable
-          style={styles.overlay}
-          onPress={() => setVisible(false)}
-        >
-          <Pressable style={styles.dropdown} onPress={() => {}}>
-            {PERIODS.map((period) => (
-              <Pressable
-                key={period}
-                onPress={() => handleSelect(period)}
-                style={({ pressed }) => [
-                  styles.option,
-                  period === value && styles.optionSelected,
-                  pressed && styles.pressed,
-                ]}
-              >
-                <Text style={styles.optionText}>{labels[period]}</Text>
-                {period === value && (
-                  <MaterialCommunityIcons
-                    name="check"
-                    size={20}
-                    color={c.outline}
-                  />
-                )}
-              </Pressable>
-            ))}
-          </Pressable>
-        </Pressable>
+        <View style={styles.modalRoot}>
+          <Pressable
+            style={styles.backdrop}
+            onPress={() => setVisible(false)}
+            accessibilityRole="button"
+            accessibilityLabel="Close period menu"
+          />
+          <View style={styles.menuPosition} pointerEvents="box-none">
+            <View style={styles.dropdown}>
+              {PERIODS.map((period) => (
+                <Pressable
+                  key={period}
+                  onPress={() => handleSelect(period)}
+                  style={({ pressed }) => [
+                    styles.option,
+                    period === value && styles.optionSelected,
+                    pressed && styles.pressed,
+                  ]}
+                >
+                  <Text style={styles.optionText}>{labels[period]}</Text>
+                  {period === value && (
+                    <MaterialCommunityIcons
+                      name="check"
+                      size={20}
+                      color={c.outline}
+                    />
+                  )}
+                </Pressable>
+              ))}
+            </View>
+          </View>
+        </View>
       </Modal>
     </>
   );
@@ -132,13 +142,18 @@ const styles = StyleSheet.create({
   pressed: {
     opacity: 0.8,
   },
-  overlay: {
+  modalRoot: {
     flex: 1,
-    backgroundColor: "transparent",
-    justifyContent: "flex-start",
-    alignItems: "flex-end",
-    paddingTop: 56,
-    paddingRight: 20,
+  },
+  /** Non-transparent so Android reliably receives backdrop taps. */
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: c.sheetBackdrop,
+  },
+  menuPosition: {
+    position: "absolute",
+    top: 56,
+    right: 20,
   },
   dropdown: {
     backgroundColor: c.blue900,
@@ -157,7 +172,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   optionSelected: {
-    backgroundColor: "rgba(59, 127, 149, 0.35)",
+    backgroundColor: c.selectionWash,
   },
   optionText: {
     fontSize: fs.smallText,
