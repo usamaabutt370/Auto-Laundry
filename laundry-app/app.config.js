@@ -1,6 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const appJson = require("./app.json");
+const withIosNonModularHeaders = require("./plugins/withIosNonModularHeaders");
 
 require("dotenv").config();
 
@@ -27,6 +28,7 @@ const firebasePlugins = [
         "Allow location access to show nearby launderers and accurate distance.",
     },
   ],
+  withIosNonModularHeaders,
 ];
 
 module.exports = {

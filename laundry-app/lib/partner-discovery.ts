@@ -48,6 +48,8 @@ export async function fetchPickupPartners(): Promise<{
   if (error) {
     return { data: null, error: error.message };
   }
+  // RLS policy "Partner profiles: authenticated can read verified discovery partners"
+  // already filters to approved-only rows at the DB level.
   const rows = (data ?? []).filter(
     (r) => typeof r.business_name === "string" && r.business_name.trim().length > 0
   ) as PartnerPublicRow[];

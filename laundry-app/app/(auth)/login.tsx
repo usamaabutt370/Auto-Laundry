@@ -84,12 +84,12 @@ export default function LoginScreen() {
       const phoneNumber = parsePhoneNumberFromString(`+${callingCode}${mobileNumber}`);
       const normalizedPhone = phoneNumber ? phoneNumber.number : `+${callingCode}${mobileNumber}`;
 
-      // 1) Look up email by phone number from profiles.
+      // 1) Look up email AND role by phone number from profiles.
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
-        .select("email")
+        .select("email, role")
         .eq("phone", normalizedPhone)
-        .maybeSingle();
+        .maybeSingle<{ email: string | null; role: string | null }>();
 
       if (profileError) {
         throw profileError;
@@ -97,7 +97,7 @@ export default function LoginScreen() {
       if (!profile?.email) {
         showAuthError(
           "Account not found",
-          "We couldn’t find an account with that phone number. Please check it or sign up first.",
+          "We couldn't find an account with that phone number. Please check it or sign up first.",
         );
         return;
       }
@@ -113,9 +113,14 @@ export default function LoginScreen() {
         return;
       }
 
-      // Auth state change listener (AuthProvider) has the session;
-      // go directly to the customer area instead of bouncing through root.
-      router.replace("/(customer)");
+      // 3) Navigate directly to the correct area based on role.
+      //    We cannot go through "/" first — onAuthStateChange fires asynchronously,
+      //    so index.tsx would see session=null and bounce back to the auth screen.
+      if (profile.role === "launderer") {
+        router.replace("/(partner)");
+      } else {
+        router.replace("/(customer)");
+      }
     } catch (err: unknown) {
       const message =
         err instanceof Error

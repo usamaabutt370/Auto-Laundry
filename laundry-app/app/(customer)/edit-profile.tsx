@@ -494,6 +494,16 @@ export default function EditProfileScreen() {
         return;
       }
 
+      // If the user is editing from the partner flow, also sync the new image
+      // into partner_profiles so the partner Profile tab (which reads that
+      // table first) shows the updated photo immediately on next focus.
+      if (segments[0] === "(partner)") {
+        await supabase
+          .from("partner_profiles")
+          .update({ image_url: publicUrl, updated_at: now })
+          .eq("id", user.id);
+      }
+
       setImageUrl(publicUrl);
       setProfileUpdatedAt(now);
       Alert.alert("Success", "Profile image updated successfully.");
@@ -504,7 +514,7 @@ export default function EditProfileScreen() {
     } finally {
       setUploadingImage(false);
     }
-  }, []);
+  }, [segments]);
 
   if (loading) {
     return (
@@ -835,7 +845,9 @@ export default function EditProfileScreen() {
                 onCountrySelect={(c) => {
                   setCountryCode(c.cca2);
                   setCallingCode(c.callingCode);
+
                 }}
+                editable={false}
               />
             </View>
 

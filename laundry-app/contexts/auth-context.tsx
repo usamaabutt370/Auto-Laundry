@@ -77,7 +77,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const loadPartnerApproval = useCallback(async (userId: string) => {
     const { data } = await fetchPartnerOnboardingRequest(userId);
-    setPartnerApprovalStatus(data?.status ?? null);
+    setPartnerApprovalStatus((data?.status ?? null) as PartnerOnboardingRequestStatus | null);
     setPartnerRejectionReason(data?.rejection_reason ?? null);
   }, []);
 
@@ -106,6 +106,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!mounted) return;
       setSession(newSession);
       if (newSession?.user?.id) {
+        // Keep role + approval in sync when token refreshes or user updates.
+        // isLoading is NOT touched here — the cold-start case is owned by
+        // getSession() above, and login navigates directly by role.
         loadRole(newSession.user.id);
         loadPartnerApproval(newSession.user.id);
       } else {

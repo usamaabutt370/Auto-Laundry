@@ -249,14 +249,18 @@ export default function PickupServicesScreen() {
             const selectedItems = selectedItemsByService[id];
             const isSelected = selectedItems.length > 0;
             return (
-              <View key={id} style={styles.serviceBlock}>
+              <View
+                key={id}
+                style={[
+                  styles.serviceCard,
+                  isSelected ? styles.serviceCardSelected : styles.serviceCardUnselected,
+                ]}
+              >
                 <Pressable
                   onPress={() => toggle(id)}
                   style={({ pressed }) => [
-                    styles.servicePill,
-                    isSelected
-                      ? styles.servicePillSelected
-                      : styles.servicePillUnselected,
+                    styles.serviceCardHeader,
+                    isSelected && styles.serviceCardHeaderActive,
                     pressed && styles.pressed,
                   ]}
                 >
@@ -270,7 +274,7 @@ export default function PickupServicesScreen() {
                       <MaterialCommunityIcons
                         name="check"
                         size={18}
-                        color={c.white}
+                        color={c.backgroundLight}
                       />
                     )}
                   </View>
@@ -286,9 +290,15 @@ export default function PickupServicesScreen() {
                   </Text>
                 </Pressable>
                 {isSelected && selectedItems.length > 0 ? (
-                  <View style={styles.selectedItemsCard}>
+                  <View style={styles.selectedItemsContainer}>
                     {selectedItems.map((item, idx) => (
-                      <View key={`${id}-${item.name}-${idx}`} style={styles.selectedItemRow}>
+                      <View
+                        key={`${id}-${item.name}-${idx}`}
+                        style={[
+                          styles.selectedItemRow,
+                          idx === selectedItems.length - 1 && { borderBottomWidth: 0 },
+                        ]}
+                      >
                         <Text style={styles.selectedItemName}>{item.name}</Text>
                         <View style={styles.selectedItemRight}>
                           <Text style={styles.selectedItemQty}>{item.qtyLabel}</Text>
@@ -380,41 +390,49 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     backgroundColor: "transparent",
   },
-  servicePill: {
+  serviceCard: {
+    borderRadius: 16,
+    borderWidth: 1.5,
+    marginBottom: 16,
+    overflow: "hidden",
+  },
+  serviceCardSelected: {
+    borderColor: c.backgroundLight,
+  },
+  serviceCardUnselected: {
+    backgroundColor: c.blue900,
+    borderColor: "rgba(255, 255, 255, 0.15)",
+  },
+  serviceCardHeader: {
     gap: 14,
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 16,
+    paddingVertical: 18,
     paddingHorizontal: 20,
-    borderRadius: 999,
-    marginBottom: 0,
-    backgroundColor: "transparent",
   },
-  servicePillSelected: {
+  serviceCardHeaderActive: {
     backgroundColor: c.backgroundLight,
-    borderWidth: 0,
   },
-  servicePillUnselected: {
-    backgroundColor: c.blue900,
-    borderWidth: 1,
-    borderColor: c.backgroundLight,
+  selectedItemsContainer: {
+    backgroundColor: "rgba(0, 0, 0, 0.18)",
+    paddingVertical: 4,
   },
   radioOuter: {
     width: 24,
     height: 24,
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: c.backgroundLight,
+    borderColor: c.white,
     alignItems: "center",
     justifyContent: "center",
   },
   radioOuterSelected: {
-    backgroundColor: c.blue500,
-    borderColor: c.blue500,
+    backgroundColor: c.white,
+    borderColor: c.white,
   },
   serviceLabel: {
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "700",
   },
   serviceLabelSelected: {
     color: c.white,
@@ -442,23 +460,15 @@ const styles = StyleSheet.create({
     color: "rgba(255,255,255,0.75)",
     marginTop: 4,
   },
-  selectedItemsCard: {
-    marginTop: 8,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.22)",
-    backgroundColor: "rgba(0,0,0,0.14)",
-    overflow: "hidden",
-  },
   selectedItemRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     gap: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(255,255,255,0.08)",
+    borderBottomColor: "rgba(255, 255, 255, 0.08)",
   },
   selectedItemName: {
     flex: 1,
@@ -468,18 +478,18 @@ const styles = StyleSheet.create({
   },
   selectedItemQty: {
     color: c.white,
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: "700",
     textAlign: "right",
   },
   selectedItemRight: {
     alignItems: "flex-end",
-    gap: 2,
+    gap: 4,
   },
   selectedItemPrice: {
-    color: c.lightBlue,
+    color: "rgba(255, 255, 255, 0.8)",
     fontSize: 12,
-    fontWeight: "700",
+    fontWeight: "500",
     textAlign: "right",
   },
   selectedItemsEmpty: {

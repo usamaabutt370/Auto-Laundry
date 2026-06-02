@@ -96,9 +96,9 @@ export default function PartnerDashboardScreen() {
       <SafeAreaView edges={["top"]} style={styles.safeArea}>
         <AppHeader
           title={s.title}
-          rightElement={
-            <DashboardPeriodSelector value={period} onValueChange={setPeriod} />
-          }
+        // rightElement={
+        //   <DashboardPeriodSelector value={period} onValueChange={setPeriod} />
+        // }
         />
       </SafeAreaView>
 
