@@ -1,16 +1,18 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View, Switch, ActivityIndicator } from "react-native";
 import { Linking } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter, useFocusEffect } from "expo-router";
 
+import { getTabBarBottomInset } from "@/components/bottom-tab-bar";
 import { theme } from "@/constants/theme";
 import { strings } from "@/constants/strings";
 import { useAuth } from "@/contexts/auth-context";
 import { avatarUrlWithCacheBuster } from "@/lib/avatar";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { assets } from "@/assets/assets";
+import { DeleteAccountButton } from "@/components/delete-account-button";
 import { AppButton } from "@/components/ui/button";
 import { AppHeader } from "@/components/app-header";
 
@@ -21,6 +23,8 @@ const WHATSAPP_URL =
 export default function PartnerProfileMenu() {
 	const router = useRouter();
 	const { user, signOut, refreshRole } = useAuth();
+	const insets = useSafeAreaInsets();
+	const tabBarInset = getTabBarBottomInset(Math.max(insets.bottom, 8));
 
 	const [isUpdatingRole, setIsUpdatingRole] = useState(false);
 	const [roleSwitchValue, setRoleSwitchValue] = useState<boolean | null>(null);
@@ -120,7 +124,11 @@ export default function PartnerProfileMenu() {
 			<SafeAreaView edges={["top"]}>
 				<AppHeader title={strings.tabs.partner.profile} />
 			</SafeAreaView>
-			<ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+			<ScrollView
+				style={styles.scroll}
+				contentContainerStyle={styles.content}
+				showsVerticalScrollIndicator={false}
+			>
 				<Pressable style={styles.topRow} onPress={() => router.push("/(partner)/laundrerinfo")}>
 					<View style={styles.avatarWrap}>
 						<Image
@@ -195,16 +203,19 @@ export default function PartnerProfileMenu() {
 					</View>
 					<Text style={styles.roleHint}>Switch back to customer mode to place orders.</Text>
 				</View>
-				<View style={styles.divider} />
-
 			</ScrollView>
+			<View style={[styles.deleteFooter, { paddingBottom: tabBarInset + 12 }]}>
+				<DeleteAccountButton />
+			</View>
 		</View>
 	);
 }
 
 const styles = StyleSheet.create({
 	container: { flex: 1, backgroundColor: c.background },
-	content: { padding: 20 },
+	scroll: { flex: 1 },
+	content: { padding: 20, paddingBottom: 8 },
+	deleteFooter: { paddingHorizontal: 20, paddingTop: 12 },
 	topRow: { flexDirection: "row", alignItems: "center", gap: 16, marginBottom: 12 },
 	avatarWrap: { width: 64, height: 64, borderRadius: 32, overflow: "hidden", backgroundColor: c.backgroundLight, borderWidth: 1, borderColor: c.blue600 },
 	avatar: { width: "100%", height: "100%" },

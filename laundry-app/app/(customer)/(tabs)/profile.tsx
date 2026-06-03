@@ -1,9 +1,11 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View, Switch, ActivityIndicator } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter, useFocusEffect } from "expo-router";
 
+import { getTabBarBottomInset } from "@/components/bottom-tab-bar";
+import { DeleteAccountButton } from "@/components/delete-account-button";
 import { theme } from "@/constants/theme";
 import { useAuth } from "@/contexts/auth-context";
 import { avatarUrlWithCacheBuster } from "@/lib/avatar";
@@ -16,6 +18,8 @@ const c = theme.colors;
 export default function CustomerProfileMenu() {
 	const router = useRouter();
 	const { user, signOut, refreshRole } = useAuth();
+	const insets = useSafeAreaInsets();
+	const tabBarInset = getTabBarBottomInset(Math.max(insets.bottom, 8));
 
 	const [isUpdatingRole, setIsUpdatingRole] = useState(false);
 	const [roleSwitchValue, setRoleSwitchValue] = useState<boolean | null>(null);
@@ -179,7 +183,11 @@ export default function CustomerProfileMenu() {
 
 	return (
 		<SafeAreaView style={styles.container} edges={["top"]}>
-			<ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+			<ScrollView
+				style={styles.scroll}
+				contentContainerStyle={styles.content}
+				showsVerticalScrollIndicator={false}
+			>
 				<Pressable style={styles.topRow} onPress={() => router.push("/(customer)/edit-profile")}>
 					<View style={styles.avatarWrap}>
 						<Image
@@ -247,16 +255,19 @@ export default function CustomerProfileMenu() {
 					</View>
 					<Text style={styles.roleHint}>Offer laundry services and manage orders as a launderer.</Text>
 				</View>
-				<View style={styles.divider} />
-
 			</ScrollView>
+			<View style={[styles.deleteFooter, { paddingBottom: tabBarInset + 12 }]}>
+				<DeleteAccountButton />
+			</View>
 		</SafeAreaView>
 	);
 }
 
 const styles = StyleSheet.create({
 	container: { flex: 1, backgroundColor: c.background },
-	content: { padding: 20 },
+	scroll: { flex: 1 },
+	content: { padding: 20, paddingBottom: 8 },
+	deleteFooter: { paddingHorizontal: 20, paddingTop: 12 },
 	topRow: { flexDirection: "row", alignItems: "center", gap: 16, marginBottom: 12 },
 	avatarWrap: { width: 64, height: 64, borderRadius: 32, overflow: "hidden", backgroundColor: c.backgroundLight, borderWidth: 1, borderColor: c.blue600 },
 	avatar: { width: "100%", height: "100%" },
