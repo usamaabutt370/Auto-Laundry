@@ -16,4 +16,4 @@ https://usamaabutt370.github.io/Auto-Laundry/privacy-policy.html
 
 Edit `docs/privacy-policy.html`, commit, and push to `main`.
 
-**Support:** info@devorium.com
+**Support:** usamaabutt370@gmail.com
