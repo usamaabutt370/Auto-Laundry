@@ -106,6 +106,7 @@ export const en = {
     settings: "Settings",
     contactSupport: "Contact support",
     faq: "FAQ",
+    privacyPolicy: "Privacy Policy",
     signOut: "Sign Out",
   },
 
@@ -325,6 +326,10 @@ export const en = {
             "You can add new team members from your profile or settings. Contact support if you need assistance with team management.",
         },
       ],
+    },
+    privacyPolicy: {
+      title: "Privacy Policy",
+      lastUpdated: "Last updated",
     },
   },
 
