@@ -19,16 +19,16 @@ Paste this in **Google Play Console → App content → Privacy policy**.
 
 ## Enable hosting (one-time)
 
-This repo publishes from `laundry-app/docs` via GitHub Actions (not the root `/docs` folder).
+GitHub Pages serves the repo-root **`/docs`** folder (not `laundry-app/docs` directly).
 
-1. Push `laundry-app/docs/` and `.github/workflows/pages.yml` to `main`.
-2. Open [github.com/usamaabutt370/Auto-Laundry](https://github.com/usamaabutt370/Auto-Laundry) → **Settings → Pages**.
-3. Under **Build and deployment → Source**, choose **GitHub Actions**.
-4. After the workflow runs, open the Play Store URL above.
+1. Edit policy in `laundry-app/docs/privacy-policy.html` (source of truth).
+2. Copy the same file to repo-root `docs/privacy-policy.html` before pushing (or keep both in sync).
+3. **Settings → Pages → Source:** **Deploy from a branch** → branch **`main`** → folder **`/docs`** → Save.
+4. Wait 1–3 minutes, then open the Play Store URL above.
 
 ## Updates
 
-Edit `laundry-app/docs/privacy-policy.html`, commit, and push. The workflow redeploys automatically.
+Update **both** `laundry-app/docs/privacy-policy.html` and `docs/privacy-policy.html`, then push to `main`.
 
 - **Contact:** info@getbubblesapp.com (section 11)
 - Update **Last updated** when you change the policy
