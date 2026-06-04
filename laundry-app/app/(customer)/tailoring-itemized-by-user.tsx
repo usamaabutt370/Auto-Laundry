@@ -1,28 +1,26 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
-import {
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { AppHeader } from "@/components/app-header";
 
+import {
+  CUSTOMER_ORDER_NOTES_MAX_HEIGHT,
+  CustomerItemizedOrderLayout,
+} from "@/components/customer-itemized-order-layout";
 import { CustomerLiveEstimateFooter } from "@/components/customer-live-estimate-footer";
 import { strings } from "@/constants/strings";
-import { TAILORING_ITEM_DEFS, initialTailoringQuantities } from "@/constants/tailoring-items";
+import { initialTailoringQuantities } from "@/constants/tailoring-items";
 import { theme } from "@/constants/theme";
 import type { CustomerOrderDraft } from "@/contexts/customer-order-draft-context";
 import { useCustomerOrderDraft } from "@/contexts/customer-order-draft-context";
 import { usePartnerOrderEstimate } from "@/hooks/use-partner-order-estimate";
-import { tailoringUnitForItem } from "@/lib/customer-order-estimate";
+import {
+  listPricedTailoringDefs,
+  tailoringUnitForItem,
+} from "@/lib/customer-order-estimate";
 import { formatMoney } from "@/utils/format-money";
 
 const c = theme.colors;
@@ -38,15 +36,10 @@ export default function TailoringItemizedByUserScreen() {
   const sDet = strings.customer.laundryBagDetail;
   const sLive = strings.customer.liveEstimate;
 
-  const [quantities, setQuantities] = useState<Record<string, number>>(() => {
-    const next = initialTailoringQuantities();
-    const saved = draft.tailoring?.itemizedQuantities ?? {};
-    for (const def of TAILORING_ITEM_DEFS) {
-      const q = saved[def.id];
-      if (q != null) next[def.id] = q;
-    }
-    return next;
-  });
+  const [quantities, setQuantities] = useState<Record<string, number>>(() => ({
+    ...initialTailoringQuantities(),
+    ...(draft.tailoring?.itemizedQuantities ?? {}),
+  }));
   const [instructions, setInstructions] = useState(
     () => draft.tailoring?.itemizedInstructions ?? "",
   );
@@ -89,7 +82,7 @@ export default function TailoringItemizedByUserScreen() {
 
   const currencyPrefix = estimate.currencyPrefix;
   const availableItems = useMemo(
-    () => TAILORING_ITEM_DEFS.filter((item) => tailoringUnitForItem(services, item.name).amount != null),
+    () => listPricedTailoringDefs(services),
     [services],
   );
 
@@ -108,16 +101,28 @@ export default function TailoringItemizedByUserScreen() {
         />
       </SafeAreaView>
 
-      <KeyboardAvoidingView
-        style={styles.keyboardView}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      <CustomerItemizedOrderLayout
+        scrollContentStyle={styles.scrollContent}
+        footer={
+          <>
+            {hasSelectedItems ? (
+              <CustomerLiveEstimateFooter
+                strings={sLive}
+                partnerName={draft.partnerName}
+                loading={loading}
+                hasPartner={Boolean(draft.partnerId)}
+                estimate={estimate}
+              />
+            ) : null}
+            <Pressable
+              onPress={handleSave}
+              style={({ pressed }) => [styles.continueBtn, pressed && styles.pressed]}
+            >
+              <Text style={styles.continueLabel}>{sDet.save}</Text>
+            </Pressable>
+          </>
+        }
       >
-        <ScrollView
-          style={styles.scroll}
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
         <Text style={styles.lead}>
           Set quantities for each type. Line totals use your launderer’s prices
           when available.
@@ -125,10 +130,7 @@ export default function TailoringItemizedByUserScreen() {
 
         {availableItems.map((item) => {
           const qty = quantities[item.id] ?? 0;
-          const { amount: unit, priceLabel } = tailoringUnitForItem(
-            services,
-            item.name,
-          );
+          const { amount: unit, priceLabel } = tailoringUnitForItem(services, item);
           const lineTotal =
             unit != null && qty > 0 ? Math.round(unit * qty * 100) / 100 : null;
 
@@ -185,33 +187,13 @@ export default function TailoringItemizedByUserScreen() {
           numberOfLines={3}
           textAlignVertical="top"
         />
-      </ScrollView>
-    </KeyboardAvoidingView>
-
-      <SafeAreaView style={styles.footer} edges={["bottom"]}>
-        {hasSelectedItems ? (
-          <CustomerLiveEstimateFooter
-            strings={sLive}
-            partnerName={draft.partnerName}
-            loading={loading}
-            hasPartner={Boolean(draft.partnerId)}
-            estimate={estimate}
-          />
-        ) : null}
-        <Pressable
-          onPress={handleSave}
-          style={({ pressed }) => [styles.continueBtn, pressed && styles.pressed]}
-        >
-          <Text style={styles.continueLabel}>{sDet.save}</Text>
-        </Pressable>
-      </SafeAreaView>
+      </CustomerItemizedOrderLayout>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: c.background },
-  keyboardView: { flex: 1 },
   pressed: { opacity: 0.8 },
   lead: {
     fontSize: 15,
@@ -219,7 +201,6 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     marginBottom: 20,
   },
-  scroll: { flex: 1 },
   scrollContent: {
     paddingHorizontal: 24,
     paddingTop: 8,
@@ -242,6 +223,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: c.themeBlack,
     minHeight: 88,
+    maxHeight: CUSTOMER_ORDER_NOTES_MAX_HEIGHT,
     marginBottom: 12,
   },
   itemCard: {
@@ -289,11 +271,6 @@ const styles = StyleSheet.create({
     color: c.white,
     minWidth: 28,
     textAlign: "center",
-  },
-  footer: {
-    backgroundColor: c.background,
-    borderTopWidth: 1,
-    borderTopColor: "rgba(255,255,255,0.06)",
   },
   continueBtn: {
     marginHorizontal: 24,

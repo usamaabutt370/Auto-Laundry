@@ -1,8 +1,8 @@
-import { DRY_CLEAN_ITEM_DEFS } from "@/constants/dry-clean-items";
-import { TAILORING_ITEM_DEFS } from "@/constants/tailoring-items";
 import type { CustomerOrderDraft } from "@/contexts/customer-order-draft-context";
 import {
   dryCleanUnitForItem,
+  listPricedDryCleanDefs,
+  listPricedTailoringDefs,
   listPricedWashFoldDefs,
   tailoringUnitForItem,
   washFoldUnitForItem,
@@ -105,12 +105,12 @@ export async function submitCustomerOrder({
             0,
           )
         : serviceType === "dryCleaning"
-          ? DRY_CLEAN_ITEM_DEFS.reduce(
-              (acc, def) => acc + (draft.dryClean?.itemizedQuantities[def.id] ?? 0),
+          ? Object.values(draft.dryClean?.itemizedQuantities ?? {}).reduce(
+              (acc, qty) => acc + Math.max(0, qty),
               0,
             )
-          : TAILORING_ITEM_DEFS.reduce(
-              (acc, def) => acc + (draft.tailoring?.itemizedQuantities[def.id] ?? 0),
+          : Object.values(draft.tailoring?.itemizedQuantities ?? {}).reduce(
+              (acc, qty) => acc + Math.max(0, qty),
               0,
             ),
     instructions:
@@ -176,10 +176,10 @@ export async function submitCustomerOrder({
 
   const dryServiceId = byType.get("dryCleaning");
   if (dryServiceId && draft.dryClean) {
-    for (const def of DRY_CLEAN_ITEM_DEFS) {
+    for (const def of listPricedDryCleanDefs(services)) {
       const quantity = draft.dryClean.itemizedQuantities[def.id] ?? 0;
       if (quantity <= 0) continue;
-      const unit = dryCleanUnitForItem(services, def.name);
+      const unit = dryCleanUnitForItem(services, def);
       itemPayload.push({
         order_service_id: dryServiceId,
         service_type: "dryCleaning",
@@ -196,10 +196,10 @@ export async function submitCustomerOrder({
 
   const tailoringServiceId = byType.get("tailoring");
   if (tailoringServiceId && draft.tailoring) {
-    for (const def of TAILORING_ITEM_DEFS) {
+    for (const def of listPricedTailoringDefs(services)) {
       const quantity = draft.tailoring.itemizedQuantities[def.id] ?? 0;
       if (quantity <= 0) continue;
-      const unit = tailoringUnitForItem(services, def.name);
+      const unit = tailoringUnitForItem(services, def);
       itemPayload.push({
         order_service_id: tailoringServiceId,
         service_type: "tailoring",
