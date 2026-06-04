@@ -9,18 +9,20 @@ import {
   Alert,
   FlatList,
   ScrollView,
-  KeyboardAvoidingView,
   Modal,
   Platform,
+  type ScrollViewProps,
   Pressable,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
+import { KeyboardStickyView } from "react-native-keyboard-controller";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AppHeader } from "@/components/app-header";
+import { ChatListScrollView } from "@/components/chat/chat-list-scroll-view";
 import { theme } from "@/constants/theme";
 import { useAuth } from "@/contexts/auth-context";
 import {
@@ -427,12 +429,21 @@ export function OrderChatScreen() {
     );
   }, [selectableMessageIds]);
 
+  const composerBottomPad = Math.max(insets.bottom, 10);
+
+  const scrollToLatest = useCallback(() => {
+    requestAnimationFrame(() => {
+      listRef.current?.scrollToEnd({ animated: true });
+    });
+  }, []);
+
+  const renderScrollComponent = useCallback(
+    (props: ScrollViewProps) => <ChatListScrollView {...props} />,
+    [],
+  );
+
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 10}
-    >
+    <View style={styles.container}>
       <SafeAreaView style={styles.safeTop} edges={["top"]}>
         <AppHeader
           title={selectionMode ? `${selectedMessageIds.length} selected` : headerTitle}
@@ -487,7 +498,9 @@ export function OrderChatScreen() {
         <View style={styles.body}>
           <FlatList
             ref={listRef}
+            style={styles.messageList}
             data={displayMessages}
+            renderScrollComponent={renderScrollComponent}
             keyExtractor={(row) => (row.kind === "sent" ? row.item.id : `uploading-${row.item.tempId}`)}
             contentContainerStyle={styles.listContent}
             onContentSizeChange={() => {
@@ -618,7 +631,11 @@ export function OrderChatScreen() {
             }
           />
 
-          <View style={[styles.composer, { paddingBottom: Math.max(insets.bottom, 10) }]}>
+          <KeyboardStickyView
+            offset={{ closed: 0, opened: 0 }}
+            style={styles.composerSticky}
+          >
+            <View style={[styles.composer, { paddingBottom: composerBottomPad }]}>
             {pendingImages.length > 0 ? (
               <ScrollView
                 horizontal
@@ -653,6 +670,7 @@ export function OrderChatScreen() {
                 <TextInput
                   value={draft}
                   onChangeText={setDraft}
+                  onFocus={scrollToLatest}
                   onSubmitEditing={() => {
                     void onSend();
                   }}
@@ -705,7 +723,8 @@ export function OrderChatScreen() {
                 <MaterialCommunityIcons name="send" size={20} color={c.white} />
               </Pressable>
             </View>
-          </View>
+            </View>
+          </KeyboardStickyView>
         </View>
       )}
       <Modal
@@ -734,7 +753,7 @@ export function OrderChatScreen() {
           </Pressable>
         </View>
       </Modal>
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 
@@ -781,9 +800,13 @@ const styles = StyleSheet.create({
   body: {
     flex: 1,
   },
+  messageList: {
+    flex: 1,
+  },
   listContent: {
     paddingHorizontal: PAD,
-    paddingVertical: 10,
+    paddingTop: 10,
+    paddingBottom: 12,
     gap: 10,
   },
   bubbleWrap: {
@@ -921,6 +944,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "rgba(0,0,0,0.6)",
+  },
+  composerSticky: {
+    backgroundColor: c.background,
   },
   composer: {
     borderTopWidth: 1,

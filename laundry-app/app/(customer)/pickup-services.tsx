@@ -17,15 +17,15 @@ import { Image } from "expo-image";
 import { Spacer } from "@/components";
 import { AppHeader } from "@/components/app-header";
 import { assets } from "@/assets/assets";
-import { DRY_CLEAN_ITEM_DEFS } from "@/constants/dry-clean-items";
 import { strings } from "@/constants/strings";
-import { TAILORING_ITEM_DEFS } from "@/constants/tailoring-items";
 import type { LaundererServiceType } from "@/constants/launderers";
 import { theme } from "@/constants/theme";
 import { useCustomerOrderDraft } from "@/contexts/customer-order-draft-context";
 import { fetchPartnerDetail, serviceCategoriesToTypes } from "@/lib/partner-discovery";
 import {
   dryCleanUnitForItem,
+  listPricedDryCleanDefs,
+  listPricedTailoringDefs,
   listPricedWashFoldDefs,
   tailoringUnitForItem,
   washFoldUnitForItem,
@@ -130,31 +130,31 @@ export default function PickupServicesScreen() {
         };
       });
 
-    byService.dryCleaning = DRY_CLEAN_ITEM_DEFS
+    byService.dryCleaning = listPricedDryCleanDefs(partnerServiceRows)
       .map((def) => ({
-        name: def.name,
+        def,
         qty: Math.max(0, draft.dryClean?.itemizedQuantities?.[def.id] ?? 0),
       }))
       .filter((item) => item.qty > 0)
       .map((item) => {
-        const unit = dryCleanUnitForItem(partnerServiceRows, item.name);
+        const unit = dryCleanUnitForItem(partnerServiceRows, item.def);
         return {
-          name: item.name,
+          name: item.def.name,
           qtyLabel: `${item.qty} item(s)`,
           priceLabel: formatLinePrice(unit.amount, item.qty, unit.priceLabel),
         };
       });
 
-    byService.tailoring = TAILORING_ITEM_DEFS
+    byService.tailoring = listPricedTailoringDefs(partnerServiceRows)
       .map((def) => ({
-        name: def.name,
+        def,
         qty: Math.max(0, draft.tailoring?.itemizedQuantities?.[def.id] ?? 0),
       }))
       .filter((item) => item.qty > 0)
       .map((item) => {
-        const unit = tailoringUnitForItem(partnerServiceRows, item.name);
+        const unit = tailoringUnitForItem(partnerServiceRows, item.def);
         return {
-          name: item.name,
+          name: item.def.name,
           qtyLabel: `${item.qty} item(s)`,
           priceLabel: formatLinePrice(unit.amount, item.qty, unit.priceLabel),
         };
