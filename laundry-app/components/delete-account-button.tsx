@@ -5,6 +5,7 @@ import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from "rea
 
 import { useAuth } from "@/contexts/auth-context";
 import { deleteUserAccount } from "@/lib/account-deletion";
+
 type Props = {
   supportEmail?: string;
 };
@@ -13,6 +14,14 @@ export function DeleteAccountButton({ supportEmail = "usamaabutt370@gmail.com" }
   const router = useRouter();
   const { signOut } = useAuth();
   const [isDeleting, setIsDeleting] = useState(false);
+
+  const goToSignUpAfterDelete = async () => {
+    await signOut();
+    if (router.canDismiss?.()) {
+      router.dismissAll?.();
+    }
+    router.replace("/(auth)/sign-up");
+  };
 
   const runDelete = async () => {
     setIsDeleting(true);
@@ -23,21 +32,11 @@ export function DeleteAccountButton({ supportEmail = "usamaabutt370@gmail.com" }
         return;
       }
 
+      await goToSignUpAfterDelete();
+
       Alert.alert(
         "Account deleted",
-        "Your account and personal data have been removed from Laundri.",
-        [
-          {
-            text: "OK",
-            onPress: async () => {
-              await signOut();
-              if (router.canDismiss?.()) {
-                router.dismissAll?.();
-              }
-              router.replace("/(auth)/login");
-            },
-          },
-        ],
+        "Your account has been deleted. Sign up again with the same phone number to restore your account and order history.",
       );
     } catch (err) {
       const message =
@@ -51,16 +50,16 @@ export function DeleteAccountButton({ supportEmail = "usamaabutt370@gmail.com" }
   const onPress = () => {
     Alert.alert(
       "Delete account",
-      `This permanently deletes your Laundri account and profile data. You will not be able to sign in again with this phone number unless you sign up again.\n\nAccounts with order or chat history must contact ${supportEmail}.`,
+      `Your Laundri account will be deleted and you will be signed out. Your orders and messages are kept so you can sign up again later with the same phone number.\n\nFor permanent data removal, contact ${supportEmail}.`,
       [
         { text: "Cancel", style: "cancel" },
         {
-          text: "Delete account",
+          text: "Delete",
           style: "destructive",
           onPress: () => {
             Alert.alert(
               "Are you sure?",
-              "This action cannot be undone.",
+              "You will need to sign up again with the same phone number to use the app.",
               [
                 { text: "Cancel", style: "cancel" },
                 { text: "Delete", style: "destructive", onPress: () => void runDelete() },

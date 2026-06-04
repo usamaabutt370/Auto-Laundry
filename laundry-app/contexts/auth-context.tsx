@@ -13,6 +13,7 @@ import {
   fetchPartnerOnboardingRequest,
   type PartnerOnboardingRequestStatus,
 } from "@/lib/partner-onboarding-request";
+import { isCurrentUserDeleted } from "@/lib/account-deletion";
 import { getSession, onAuthStateChange, supabase } from "@/lib/supabase";
 import type { UserRole } from "@/types/user";
 
@@ -69,17 +70,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [partnerRejectionReason, setPartnerRejectionReason] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const loadRole = useCallback(async (userId: string) => {
-    const r = await fetchUserRole(userId);
-    setRole(r);
-    return r;
+  const signOutDeleted = useCallback(async () => {
+    if (supabase) {
+      await supabase.auth.signOut();
+    }
+    setSession(null);
+    setRole(null);
+    setPartnerApprovalStatus(null);
+    setPartnerRejectionReason(null);
   }, []);
 
-  const loadPartnerApproval = useCallback(async (userId: string) => {
-    const { data } = await fetchPartnerOnboardingRequest(userId);
-    setPartnerApprovalStatus((data?.status ?? null) as PartnerOnboardingRequestStatus | null);
-    setPartnerRejectionReason(data?.rejection_reason ?? null);
-  }, []);
+  const syncUserState = useCallback(
+    async (userId: string) => {
+      if (await isCurrentUserDeleted()) {
+        await signOutDeleted();
+        return;
+      }
+
+      const r = await fetchUserRole(userId);
+      setRole(r);
+
+      const { data } = await fetchPartnerOnboardingRequest(userId);
+      setPartnerApprovalStatus((data?.status ?? null) as PartnerOnboardingRequestStatus | null);
+      setPartnerRejectionReason(data?.rejection_reason ?? null);
+    },
+    [signOutDeleted],
+  );
 
   useEffect(() => {
     let mounted = true;
@@ -88,10 +104,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!mounted) return;
       setSession(data.session);
       if (data.session?.user?.id) {
-        Promise.all([
-          loadRole(data.session.user.id),
-          loadPartnerApproval(data.session.user.id),
-        ]).finally(() => {
+        syncUserState(data.session.user.id).finally(() => {
           if (mounted) setIsLoading(false);
         });
       } else {
@@ -106,11 +119,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!mounted) return;
       setSession(newSession);
       if (newSession?.user?.id) {
-        // Keep role + approval in sync when token refreshes or user updates.
+        // Keep role + approval in sync when token refreshes or user signs in.
         // isLoading is NOT touched here — the cold-start case is owned by
-        // getSession() above, and login navigates directly by role.
-        loadRole(newSession.user.id);
-        loadPartnerApproval(newSession.user.id);
+        // getSession() above, and login/sign-up navigate directly by role.
+        void syncUserState(newSession.user.id);
       } else {
         setRole(null);
         setPartnerApprovalStatus(null);
@@ -122,7 +134,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       mounted = false;
       unsubscribe();
     };
-  }, [loadPartnerApproval, loadRole]);
+  }, [syncUserState]);
 
   useEffect(() => {
     const uid = session?.user?.id;
@@ -132,9 +144,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const refreshRole = useCallback(async () => {
     if (session?.user?.id) {
-      await loadRole(session.user.id);
+      const r = await fetchUserRole(session.user.id);
+      setRole(r);
     }
-  }, [session?.user?.id, loadRole]);
+  }, [session?.user?.id]);
 
   const signOut = useCallback(async () => {
     const uid = session?.user?.id;
@@ -151,9 +164,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const refreshPartnerApproval = useCallback(async () => {
     if (session?.user?.id) {
-      await loadPartnerApproval(session.user.id);
+      const { data } = await fetchPartnerOnboardingRequest(session.user.id);
+      setPartnerApprovalStatus((data?.status ?? null) as PartnerOnboardingRequestStatus | null);
+      setPartnerRejectionReason(data?.rejection_reason ?? null);
     }
-  }, [session?.user?.id, loadPartnerApproval]);
+  }, [session?.user?.id]);
 
   const value = useMemo<AuthState>(
     () => ({

@@ -13,6 +13,7 @@ import { StatusBar } from "expo-status-bar";
 import { AuthErrorModal, Input, Spacer, ThemedText, ThemedView } from "@/components";
 import { theme } from "@/constants/theme";
 import { strings } from "@/constants/strings";
+import { reactivateDeletedAccount } from "@/lib/account-deletion";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
 import { type CountryCode } from "react-native-country-picker-modal";
@@ -93,6 +94,55 @@ export default function SignUpScreen() {
       const normalizedPhone = phoneNumber ? phoneNumber.number : `+${callingCode}${mobileNumber}`;
       const generatedEmail = `${normalizedPhone.replace(/\D/g, "")}@autolaundry.app`;
 
+      const { data: existingProfile, error: existingProfileError } = await supabase
+        .from("profiles")
+        .select("is_deleted, role")
+        .eq("phone", normalizedPhone)
+        .maybeSingle<{ is_deleted: boolean | null; role: string | null }>();
+
+      if (existingProfileError) {
+        throw existingProfileError;
+      }
+
+      if (existingProfile) {
+        if (existingProfile.is_deleted) {
+          const restored = await reactivateDeletedAccount({
+            phone: normalizedPhone,
+            password,
+            firstName,
+            lastName,
+          });
+
+          if (!restored.ok) {
+            showAuthError("Could not restore account", restored.message);
+            return;
+          }
+
+          const { error: signInError } = await supabase.auth.signInWithPassword({
+            email: restored.email,
+            password,
+          });
+
+          if (signInError) {
+            showAuthError("Sign in failed", signInError.message);
+            return;
+          }
+
+          if (restored.role === "launderer") {
+            router.replace("/(partner)");
+          } else {
+            router.replace("/(customer)");
+          }
+          return;
+        }
+
+        showAuthError(
+          "Account already exists",
+          "An account with this phone number already exists. Please sign in instead.",
+        );
+        return;
+      }
+
       // 1) Create auth user with email + password (no email OTP).
       const { data, error } = await supabase.auth.signUp({
         email: generatedEmail,
@@ -126,6 +176,7 @@ export default function SignUpScreen() {
               first_name: firstName,
               last_name: lastName,
               role: "customer",
+              is_deleted: false,
             },
             { onConflict: "id" }
           );

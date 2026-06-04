@@ -1,5 +1,4 @@
 /// <reference path="../deno-globals.d.ts" />
-// Deno resolves npm: imports at deploy; Node/IDE TypeScript does not.
 // @ts-expect-error Supabase Edge Runtime import
 import { createClient } from "npm:@supabase/supabase-js@2.49.1";
 
@@ -42,8 +41,16 @@ Deno.serve(async (req) => {
   }
 
   const authHeader = req.headers.get("Authorization");
-  if (!authHeader) {
+  if (!authHeader?.startsWith("Bearer ")) {
     return jsonResponse({ success: false, message: "Unauthorized", code: "UNAUTHORIZED" }, 401);
+  }
+
+  const bearerToken = authHeader.slice("Bearer ".length).trim();
+  if (!bearerToken || bearerToken.split(".").length !== 3) {
+    return jsonResponse(
+      { success: false, message: "Invalid session token. Please sign in again.", code: "UNAUTHORIZED" },
+      401,
+    );
   }
 
   const userClient = createClient(supabaseUrl, anonKey, {
@@ -64,82 +71,36 @@ Deno.serve(async (req) => {
   });
 
   const userId = user.id;
+  const now = new Date().toISOString();
 
-  // Remove draft orders so new users without history can delete cleanly.
-  await admin.from("customer_orders").delete().eq("customer_id", userId).eq("status", "draft");
+  const { data: profile, error: profileError } = await admin
+    .from("profiles")
+    .select("is_deleted")
+    .eq("id", userId)
+    .maybeSingle();
 
-  const { count: customerOrderCount, error: customerOrdersError } = await admin
-    .from("customer_orders")
-    .select("id", { count: "exact", head: true })
-    .eq("customer_id", userId);
-
-  if (customerOrdersError) {
+  if (profileError) {
     return jsonResponse(
-      { success: false, message: customerOrdersError.message, code: "CHECK_FAILED" },
+      { success: false, message: profileError.message, code: "CHECK_FAILED" },
       500,
     );
   }
 
-  const { count: partnerOrderCount, error: partnerOrdersError } = await admin
-    .from("customer_orders")
-    .select("id", { count: "exact", head: true })
-    .eq("partner_id", userId);
-
-  if (partnerOrdersError) {
+  if (profile?.is_deleted) {
     return jsonResponse(
-      { success: false, message: partnerOrdersError.message, code: "CHECK_FAILED" },
-      500,
-    );
-  }
-
-  if ((customerOrderCount ?? 0) > 0 || (partnerOrderCount ?? 0) > 0) {
-    return jsonResponse(
-      {
-        success: false,
-        code: "HAS_ORDER_HISTORY",
-        message:
-          "Your account has order history and cannot be deleted automatically. Please contact support to request account deletion.",
-      },
+      { success: false, message: "Account is already deleted.", code: "ALREADY_DELETED" },
       409,
     );
   }
 
-  const { count: chatCount, error: chatError } = await admin
-    .from("chat_messages")
-    .select("id", { count: "exact", head: true })
-    .eq("sender_id", userId);
-
-  if (chatError) {
-    return jsonResponse(
-      { success: false, message: chatError.message, code: "CHECK_FAILED" },
-      500,
-    );
-  }
-
-  if ((chatCount ?? 0) > 0) {
-    return jsonResponse(
-      {
-        success: false,
-        code: "HAS_CHAT_HISTORY",
-        message:
-          "Your account has chat history and cannot be deleted automatically. Please contact support.",
-      },
-      409,
-    );
-  }
-
-  // Best-effort avatar cleanup (ignore errors).
-  try {
-    const { data: files } = await admin.storage.from("avatars").list(userId);
-    if (files?.length) {
-      const paths = files.map((f: { name: string }) => `${userId}/${f.name}`);
-      await admin.storage.from("avatars").remove(paths);
-    }
-  } catch {
-    // ignore
-  }
-
-  const { error: deleteError } = await admin.auth.admin.deleteUser(userId);
+  const { error: deleteError } = await admin
+    .from("profiles")
+    .update({
+      is_deleted: true,
+      deactivated_at: now,
+      updated_at: now,
+    })
+    .eq("id", userId);
 
   if (deleteError) {
     return jsonResponse(
@@ -148,5 +109,15 @@ Deno.serve(async (req) => {
     );
   }
 
-  return jsonResponse({ success: true, message: "Account deleted" });
+  await admin
+    .from("user_push_tokens")
+    .update({ is_active: false, updated_at: now })
+    .eq("user_id", userId);
+
+  // Do not global sign-out here — it invalidates the JWT before the app reads the
+  // success response and causes a misleading "invalid JWT" error. The app signs out locally.
+  return jsonResponse({
+    success: true,
+    message: "Account deleted. Sign up again with the same phone number to restore your account.",
+  });
 });
