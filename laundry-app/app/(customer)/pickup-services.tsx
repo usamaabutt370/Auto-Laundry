@@ -46,7 +46,7 @@ const SERVICE_KEYS: LaundererServiceType[] = [
 export default function PickupServicesScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { draft, setPickupDeliveryRequested, setSelectedServiceIds } =
+  const { draft, editingOrderId, setPickupDeliveryRequested, setSelectedServiceIds } =
     useCustomerOrderDraft();
   const s = strings.customer.pickupServices;
   const selectedIds = draft.selectedServiceIds;
@@ -80,10 +80,13 @@ export default function PickupServicesScreen() {
         .filter((id, idx, arr) => arr.indexOf(id) === idx);
       setPartnerServiceTypes(available);
       const pickupEnabled = Boolean(profile?.pickup_delivery_amount?.trim());
-      setPickupDeliveryEnabled(pickupEnabled);
+      const requested = draft.pickupDeliveryRequested;
+      setPickupDeliveryEnabled(pickupEnabled && requested);
       setPickupFeeLabel(profile?.pickup_delivery_amount?.trim() || null);
-      if (!pickupEnabled) {
+      if (!pickupEnabled && !requested) {
         setPickupDeliveryRequested(false);
+      } else if (requested) {
+        setPickupDeliveryRequested(true);
       }
       setLoading(false);
     };
@@ -91,7 +94,7 @@ export default function PickupServicesScreen() {
     return () => {
       cancelled = true;
     };
-  }, [draft.partnerId, setPickupDeliveryRequested]);
+  }, [draft.partnerId, draft.pickupDeliveryRequested, setPickupDeliveryRequested]);
 
   const servicesToShow = useMemo(() => {
     if (partnerServiceTypes.length > 0) return partnerServiceTypes;
@@ -242,6 +245,12 @@ export default function PickupServicesScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.spacer} />
+        {editingOrderId ? (
+          <View style={styles.editingBanner}>
+            <MaterialCommunityIcons name="information-outline" size={18} color={c.lightBlue} />
+            <Text style={styles.editingBannerText}>{s.editingBanner}</Text>
+          </View>
+        ) : null}
         <View style={styles.servicesBlock}>
           <Text style={styles.chooseHeading}>{s.chooseServices}</Text>
           <Spacer.Column numberOfSpaces={10} />
@@ -526,5 +535,22 @@ const styles = StyleSheet.create({
     paddingVertical: 40,
     alignItems: "center",
     justifyContent: "center",
+  },
+  editingBanner: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+    marginBottom: 16,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(31, 200, 255, 0.35)",
+    backgroundColor: "rgba(31, 200, 255, 0.08)",
+  },
+  editingBannerText: {
+    flex: 1,
+    color: c.white,
+    fontSize: 13,
+    lineHeight: 18,
   },
 });

@@ -148,6 +148,8 @@ export const ur = {
       pickupDeliveryFee: "پک اپ اور ڈیلیوری فیس: {amount}",
       pickupDeliveryFeeUnknown: "پک اپ اور ڈیلیوری فیس لاگو ہوگی",
       confirm: "تصدیق",
+      editingBanner:
+        "آرڈر میں ترمیم — خلاصے پر محفوظ کرنے کے بعد تبدیلیاں لاگو ہوں گی۔",
       months:
         "جنوری,فروری,مارچ,اپریل,مئی,جون,جولائی,اگست,ستمبر,اکتوبر,نومبر,دسمبر",
     },
@@ -197,6 +199,12 @@ export const ur = {
       confirmedTotal: "حتمی کل",
       confirmedAtPickup: "پک اپ پر گنتی کے بعد طے شدہ",
       qtyConfirmed: "تعداد (طے شدہ)",
+      editOrder: "آرڈر میں ترمیم",
+      editOrderHint:
+        "جب تک لانڈرر آرڈر قبول نہیں کرتا آپ اس میں تبدیلی کر سکتے ہیں۔",
+      editOrderLoading: "آرڈر لوڈ ہو رہا ہے…",
+      editOrderUnavailable:
+        "لانڈرر آرڈر قبول کر چکا ہے — اب ترمیم ممکن نہیں۔",
     },
     liveEstimate: {
       estimatedLabel: "تخمینی کل",
@@ -228,10 +236,15 @@ export const ur = {
     },
     orderSummary: {
       title: "آرڈر خلاصہ",
+      editTitle: "آرڈر اپ ڈیٹ",
       service: "سروس",
       orderNumber: "آرڈر نمبر",
       estimatedTotal: "تخمینی کل",
       submitOrder: "آرڈر جمع کرائیں",
+      saveChanges: "تبدیلیاں محفوظ کریں",
+      orderUpdated: "آرڈر اپ ڈیٹ ہو گیا",
+      orderUpdatedMessage:
+        "آپ کی تبدیلیاں محفوظ ہو گئیں۔ لانڈرر کو اپ ڈیٹ شدہ آرڈر نظر آئے گا۔",
     },
     ordersTab: {
       title: "میرے آرڈرز",

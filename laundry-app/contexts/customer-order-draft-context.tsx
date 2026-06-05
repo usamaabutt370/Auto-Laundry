@@ -3,6 +3,7 @@ import React, {
   useCallback,
   useContext,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
@@ -53,6 +54,8 @@ const emptyDraft = (): CustomerOrderDraft => ({
 
 type Value = {
   draft: CustomerOrderDraft;
+  /** Set while customer is editing a submitted order (before partner accepts). */
+  editingOrderId: string | null;
   setPartner: (partnerId: string, partnerName: string | null) => void;
   setPickupDeliveryRequested: (enabled: boolean) => void;
   setSelectedServiceIds: (ids: CustomerServiceId[]) => void;
@@ -64,6 +67,8 @@ type Value = {
   setTailoringItemizedInstructions: (instructions: string) => void;
   setPickupSchedule: (slot: CustomerOrderDraft["pickup"]) => void;
   setDeliverySchedule: (slot: CustomerOrderDraft["delivery"]) => void;
+  loadDraftForEdit: (draft: CustomerOrderDraft, orderId: string) => void;
+  clearEditingOrder: () => void;
   resetDraft: () => void;
 };
 
@@ -75,8 +80,14 @@ export function CustomerOrderDraftProvider({
   children: React.ReactNode;
 }) {
   const [draft, setDraft] = useState<CustomerOrderDraft>(emptyDraft);
+  const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
+  const draftRef = useRef(draft);
+  draftRef.current = draft;
 
   const setPartner = useCallback((partnerId: string, partnerName: string | null) => {
+    if (draftRef.current.partnerId && draftRef.current.partnerId !== partnerId) {
+      setEditingOrderId(null);
+    }
     setDraft((p) => {
       if (p.partnerId === partnerId) {
         return { ...p, partnerName };
@@ -192,11 +203,24 @@ export function CustomerOrderDraftProvider({
     setDraft((p) => ({ ...p, delivery: slot }));
   }, []);
 
-  const resetDraft = useCallback(() => setDraft(emptyDraft()), []);
+  const loadDraftForEdit = useCallback((nextDraft: CustomerOrderDraft, orderId: string) => {
+    setDraft(nextDraft);
+    setEditingOrderId(orderId);
+  }, []);
+
+  const clearEditingOrder = useCallback(() => {
+    setEditingOrderId(null);
+  }, []);
+
+  const resetDraft = useCallback(() => {
+    setDraft(emptyDraft());
+    setEditingOrderId(null);
+  }, []);
 
   const value = useMemo<Value>(
     () => ({
       draft,
+      editingOrderId,
       setPartner,
       setPickupDeliveryRequested,
       setSelectedServiceIds,
@@ -208,10 +232,13 @@ export function CustomerOrderDraftProvider({
       setTailoringItemizedInstructions,
       setPickupSchedule,
       setDeliverySchedule,
+      loadDraftForEdit,
+      clearEditingOrder,
       resetDraft,
     }),
     [
       draft,
+      editingOrderId,
       setPartner,
       setPickupDeliveryRequested,
       setSelectedServiceIds,
@@ -223,6 +250,8 @@ export function CustomerOrderDraftProvider({
       setTailoringItemizedInstructions,
       setPickupSchedule,
       setDeliverySchedule,
+      loadDraftForEdit,
+      clearEditingOrder,
       resetDraft,
     ],
   );

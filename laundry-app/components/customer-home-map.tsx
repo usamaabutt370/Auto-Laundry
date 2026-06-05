@@ -21,6 +21,8 @@ type WebMapMarker = {
   mode: "dropoff" | "pickupDelivery";
   latitude: number;
   longitude: number;
+  imageUrl: string | null;
+  initial: string;
 };
 
 type GroupedMarker = {
@@ -210,6 +212,8 @@ export function CustomerHomeMap({
               mode: partner.fulfillmentMode,
               latitude: coords.latitude,
               longitude: coords.longitude,
+              imageUrl: getPartnerPrimaryImage(partner),
+              initial: partner.business_name.trim().charAt(0).toUpperCase() || "P",
             });
             continue;
           }
@@ -223,6 +227,8 @@ export function CustomerHomeMap({
             mode: partner.fulfillmentMode,
             latitude: coords.latitude + Math.sin(angle) * radiusDegrees,
             longitude: coords.longitude + Math.cos(angle) * radiusDegrees,
+            imageUrl: getPartnerPrimaryImage(partner),
+            initial: partner.business_name.trim().charAt(0).toUpperCase() || "P",
           });
         }
       }
@@ -245,24 +251,77 @@ export function CustomerHomeMap({
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
     html, body, #map { height: 100%; width: 100%; margin: 0; padding: 0; }
-    .partner-pin {
-      width: 18px;
-      height: 18px;
-      border-radius: 9px 9px 9px 0;
-      transform: rotate(-45deg);
-      border: 2px solid #fff;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.35);
-      position: relative;
+    .leaflet-div-icon.partner-marker-icon {
+      background: transparent !important;
+      border: none !important;
+      box-shadow: none !important;
     }
-    .partner-pin::after {
-      content: "";
-      width: 6px;
-      height: 6px;
+    .partner-marker {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 48px;
+      line-height: 0;
+    }
+    .partner-marker-frame {
+      width: 48px;
+      height: 48px;
       border-radius: 50%;
-      background: #fff;
+      border: 3px solid #A0D0E9;
+      background: #3b7f95;
+      overflow: hidden;
+      box-sizing: border-box;
+      box-shadow: 0 2px 8px rgba(18, 129, 151, 0.35);
+      position: relative;
+      flex-shrink: 0;
+    }
+    .partner-marker-frame.pickupDelivery {
+      border-color: #64B5D9;
+      background: #128197;
+    }
+    .partner-marker-media {
       position: absolute;
-      left: 4px;
-      top: 4px;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+    }
+    .partner-marker-media img {
+      width: 100%;
+      height: 100%;
+      min-width: 100%;
+      min-height: 100%;
+      object-fit: cover;
+      object-position: center center;
+      display: block;
+      border: 0;
+      margin: 0;
+      padding: 0;
+    }
+    .partner-marker-fallback {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #3b7f95;
+      color: #F9FAFB;
+      font-size: 18px;
+      font-weight: 700;
+      line-height: 1;
+    }
+    .partner-marker-frame.pickupDelivery .partner-marker-fallback {
+      background: #128197;
+    }
+    .partner-marker-pointer {
+      width: 0;
+      height: 0;
+      margin-top: -1px;
+      border-left: 7px solid transparent;
+      border-right: 7px solid transparent;
+      border-top: 9px solid #A0D0E9;
+    }
+    .partner-marker-pointer.pickupDelivery {
+      border-top-color: #64B5D9;
     }
     .leaflet-right { right: 8px; }
     .leaflet-bottom { bottom: ${zoomControlBottomOffset}px; }
@@ -286,12 +345,29 @@ export function CustomerHomeMap({
     const allPoints = [];
     const bounds = [];
 
-    function colorForMode(mode) {
-      return mode === 'pickupDelivery' ? '#14B8A6' : '#F97316';
-    }
-
     function labelForMode(mode) {
       return mode === 'pickupDelivery' ? ${pickupLabel} : ${dropOffLabel};
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function markerHtml(item) {
+      const modeClass = item.mode === 'pickupDelivery' ? 'pickupDelivery' : 'dropoff';
+      const imageHtml = item.imageUrl
+        ? '<div class="partner-marker-media"><img src="' + escapeHtml(item.imageUrl) + '" alt="" /></div>'
+        : '<span class="partner-marker-fallback">' + escapeHtml(item.initial || 'P') + '</span>';
+      return ''
+        + '<div class="partner-marker">'
+        +   '<div class="partner-marker-frame ' + modeClass + '">' + imageHtml + '</div>'
+        +   '<div class="partner-marker-pointer ' + modeClass + '"></div>'
+        + '</div>';
     }
 
     if (user && Number.isFinite(user.latitude) && Number.isFinite(user.longitude)) {
@@ -307,15 +383,12 @@ export function CustomerHomeMap({
     }
 
     markers.forEach((item) => {
-      const div = document.createElement('div');
-      div.className = 'partner-pin';
-      div.style.background = colorForMode(item.mode);
       const icon = L.divIcon({
-        html: div.outerHTML,
-        className: '',
-        iconSize: [18, 24],
-        iconAnchor: [9, 20],
-        popupAnchor: [0, -20],
+        html: markerHtml(item),
+        className: 'partner-marker-icon',
+        iconSize: [48, 58],
+        iconAnchor: [24, 54],
+        popupAnchor: [0, -50],
       });
       const m = L.marker([item.latitude, item.longitude], { icon }).addTo(map);
       m.bindPopup(item.name + ' (' + labelForMode(item.mode) + ')');

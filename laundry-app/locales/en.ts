@@ -149,6 +149,8 @@ export const en = {
       pickupDeliveryFee: "Pickup & delivery fee: {amount}",
       pickupDeliveryFeeUnknown: "Pickup & delivery fee will be applied",
       confirm: "Confirm",
+      editingBanner:
+        "Editing order — changes apply after you save on the summary screen.",
       months: "January,February,March,April,May,June,July,August,September,October,November,December",
     },
     dryCleanItemize: {
@@ -199,6 +201,12 @@ export const en = {
       confirmedTotal: "Confirmed total",
       confirmedAtPickup: "Confirmed after pickup inspection",
       qtyConfirmed: "Qty (confirmed)",
+      editOrder: "Edit order",
+      editOrderHint:
+        "You can change this order until your launderer accepts it.",
+      editOrderLoading: "Loading order…",
+      editOrderUnavailable:
+        "This order can no longer be edited because your launderer has already accepted it.",
     },
     liveEstimate: {
       estimatedLabel: "Estimated total",
@@ -232,10 +240,14 @@ export const en = {
     },
     orderSummary: {
       title: "Order Summary",
+      editTitle: "Update order",
       service: "Service",
       orderNumber: "Order Number",
       estimatedTotal: "Estimated Total",
       submitOrder: "Submit Order",
+      saveChanges: "Save changes",
+      orderUpdated: "Order updated",
+      orderUpdatedMessage: "Your changes have been saved. Your launderer will see the updated order.",
     },
     ordersTab: {
       title: "My orders",

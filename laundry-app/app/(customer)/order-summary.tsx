@@ -15,6 +15,7 @@ import { strings } from "@/constants/strings";
 import { theme } from "@/constants/theme";
 import { useAuth } from "@/contexts/auth-context";
 import { useCustomerOrderDraft } from "@/contexts/customer-order-draft-context";
+import { updateCustomerOrder } from "@/lib/customer-order-edit";
 import { submitCustomerOrder } from "@/lib/customer-order-submit";
 import { usePartnerOrderEstimate } from "@/hooks/use-partner-order-estimate";
 import { formatMoney } from "@/utils/format-money";
@@ -24,8 +25,9 @@ const c = theme.colors;
 export default function OrderSummaryScreen() {
   const router = useRouter();
   const { user } = useAuth();
-  const { draft, resetDraft } = useCustomerOrderDraft();
+  const { draft, editingOrderId, resetDraft } = useCustomerOrderDraft();
   const [submitting, setSubmitting] = useState(false);
+  const isEditing = Boolean(editingOrderId);
   const s = strings.customer.orderSummary;
   const sServices = strings.customer.pickupServices;
 
@@ -48,6 +50,34 @@ export default function OrderSummaryScreen() {
       return;
     }
     setSubmitting(true);
+    if (isEditing && editingOrderId) {
+      const result = await updateCustomerOrder({
+        customerId: user.id,
+        orderId: editingOrderId,
+        draft,
+        estimate,
+        services,
+      });
+      setSubmitting(false);
+      if (!result.ok) {
+        Alert.alert("Unable to save changes", result.error);
+        return;
+      }
+      const savedOrderId = editingOrderId;
+      resetDraft();
+      Alert.alert(s.orderUpdated, s.orderUpdatedMessage, [
+        {
+          text: "OK",
+          onPress: () =>
+            router.replace({
+              pathname: "/(customer)/order-detail",
+              params: { orderId: savedOrderId },
+            }),
+        },
+      ]);
+      return;
+    }
+
     const result = await submitCustomerOrder({
       customerId: user.id,
       draft,
@@ -66,15 +96,18 @@ export default function OrderSummaryScreen() {
   };
 
   const orderRef = useMemo(() => {
+    if (isEditing && editingOrderId) {
+      return editingOrderId.replace(/-/g, "").slice(0, 8).toUpperCase();
+    }
     const t = Date.now().toString(36).toUpperCase();
     return `AL-${t.slice(-8)}`;
-  }, []);
+  }, [editingOrderId, isEditing]);
 
   return (
     <View style={styles.container}>
       <SafeAreaView edges={["top"]}>
         <AppHeader
-          title={s.title}
+          title={isEditing ? s.editTitle : s.title}
           leftIcon="arrow-left"
           onLeftPress={() => router.back()}
           leftAccessibilityLabel="Go back"
@@ -166,7 +199,13 @@ export default function OrderSummaryScreen() {
           ]}
         >
           <Text style={styles.submitLabel}>
-            {submitting ? "Submitting..." : s.submitOrder}
+            {submitting
+              ? isEditing
+                ? "Saving..."
+                : "Submitting..."
+              : isEditing
+                ? s.saveChanges
+                : s.submitOrder}
           </Text>
         </Pressable>
       </SafeAreaView>

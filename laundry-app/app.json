@@ -37,7 +37,6 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
-      "react-native-keyboard-controller",
       "expo-router",
       [
         "expo-splash-screen",
