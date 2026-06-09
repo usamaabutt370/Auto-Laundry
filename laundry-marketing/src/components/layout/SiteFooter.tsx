@@ -14,6 +14,7 @@ function IconInstagram({ className }: { className?: string }) {
     </svg>
   );
 }
+//console
 
 function IconFacebook({ className }: { className?: string }) {
   return (
