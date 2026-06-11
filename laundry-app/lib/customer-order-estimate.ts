@@ -86,6 +86,14 @@ function washFoldLabelCandidates(def: WashFoldItemDef): string[] {
   return [...set];
 }
 
+function normalizeGarmentLabel(label: string): string {
+  return label.trim().toLowerCase();
+}
+
+function washFoldLabelsMatch(left: string, right: string): boolean {
+  return normalizeGarmentLabel(left) === normalizeGarmentLabel(right);
+}
+
 function matchDryCleanService(
   rows: PartnerServiceLine[],
   itemName: string,
@@ -118,18 +126,11 @@ function matchWashFoldService(
   rows: PartnerServiceLine[],
   def: WashFoldItemDef,
 ): PartnerServiceLine | null {
-  const candidates = washFoldLabelCandidates(def).map((c) => c.toLowerCase());
+  const candidates = washFoldLabelCandidates(def);
   for (const row of rows) {
     const label = stripWashFoldPrefix(row.name);
     if (LEGACY_WASH_FOLD_PRICE_LABELS.has(label)) continue;
-    const norm = label.toLowerCase();
-    if (candidates.some((c) => c === norm)) return row;
-  }
-  for (const row of rows) {
-    const label = stripWashFoldPrefix(row.name);
-    if (LEGACY_WASH_FOLD_PRICE_LABELS.has(label)) continue;
-    const norm = label.toLowerCase();
-    if (candidates.some((c) => norm.includes(c) || c.includes(norm))) return row;
+    if (candidates.some((candidate) => washFoldLabelsMatch(label, candidate))) return row;
   }
   return null;
 }
@@ -351,33 +352,58 @@ function washFoldRowByLabel(
   rows: PartnerServiceLine[],
   label: string,
 ): PartnerServiceLine | null {
-  const target = label.trim().toLowerCase();
+  const target = label.trim();
   if (!target) return null;
   for (const row of rows) {
     const stripped = stripWashFoldPrefix(row.name);
     if (LEGACY_WASH_FOLD_PRICE_LABELS.has(stripped)) continue;
-    if (stripped.toLowerCase() === target) return row;
-  }
-  for (const row of rows) {
-    const stripped = stripWashFoldPrefix(row.name);
-    if (LEGACY_WASH_FOLD_PRICE_LABELS.has(stripped)) continue;
-    const norm = stripped.toLowerCase();
-    if (norm.includes(target) || target.includes(norm)) return row;
+    if (washFoldLabelsMatch(stripped, target)) return row;
   }
   return null;
+}
+
+function washFoldMatchedRow(
+  services: PartnerServiceLine[],
+  def: WashFoldItemDef,
+): PartnerServiceLine | null {
+  const rows = washFoldRows(services);
+  if (
+    def.id.startsWith("partner_") ||
+    !WASH_FOLD_ITEM_DEFS.some((d) => d.id === def.id)
+  ) {
+    return washFoldRowByLabel(rows, def.name);
+  }
+  return matchWashFoldService(rows, def);
+}
+
+function isPositivePrice(amount: number | null): amount is number {
+  return amount != null && amount > 0;
+}
+
+/** Partner row counts as a customer-facing wash & fold rate (positive price + label kind). */
+function isPricedWashFoldDef(
+  services: PartnerServiceLine[],
+  def: WashFoldItemDef,
+): boolean {
+  const row = washFoldMatchedRow(services, def);
+  if (!row) return false;
+  const label = stripWashFoldPrefix(row.name);
+  if (!label || LEGACY_WASH_FOLD_PRICE_LABELS.has(label)) return false;
+  const amount = parsePriceDisplay(row.price_display);
+  if (!isPositivePrice(amount)) return false;
+  const rowIsPackage = isWashFoldPackageLabel(label);
+  if (def.kind === "package") return rowIsPackage;
+  return !rowIsPackage;
 }
 
 export function washFoldUnitForItem(
   services: PartnerServiceLine[],
   def: WashFoldItemDef,
 ): { amount: number | null; priceLabel: string } {
-  const rows = washFoldRows(services);
-  const row =
-    def.id.startsWith("partner_") || !WASH_FOLD_ITEM_DEFS.some((d) => d.id === def.id)
-      ? washFoldRowByLabel(rows, def.name)
-      : matchWashFoldService(rows, def);
+  const row = washFoldMatchedRow(services, def);
   if (!row) return { amount: null, priceLabel: "—" };
   const amount = parsePriceDisplay(row.price_display);
+  if (!isPositivePrice(amount)) return { amount: null, priceLabel: "—" };
   return { amount, priceLabel: row.price_display.trim() || "—" };
 }
 
@@ -389,7 +415,7 @@ export function listPricedWashFoldDefs(
   const seen = new Set<string>();
 
   for (const def of WASH_FOLD_ITEM_DEFS) {
-    if (washFoldUnitForItem(services, def).amount == null) continue;
+    if (!isPricedWashFoldDef(services, def)) continue;
     result.push(def);
     seen.add(def.name.trim().toLowerCase());
   }
@@ -397,7 +423,7 @@ export function listPricedWashFoldDefs(
   for (const row of washFoldRows(services)) {
     const label = stripWashFoldPrefix(row.name);
     if (!label || LEGACY_WASH_FOLD_PRICE_LABELS.has(label)) continue;
-    if (parsePriceDisplay(row.price_display) == null) continue;
+    if (!isPositivePrice(parsePriceDisplay(row.price_display))) continue;
     const key = label.toLowerCase();
     if (seen.has(key)) continue;
     seen.add(key);

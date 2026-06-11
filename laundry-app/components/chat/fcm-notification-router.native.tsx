@@ -6,6 +6,20 @@ import { router, usePathname } from "expo-router";
 import { useAuth } from "@/contexts/auth-context";
 import { onForegroundChatMessage } from "@/lib/push-notifications";
 
+const APP_LAUNCHED_AT = Date.now();
+let hasHandledLaunchNotificationRouting = false;
+
+function notificationTimestampMs(value: number | undefined): number | null {
+  if (value == null || !Number.isFinite(value)) return null;
+  return value < 1_000_000_000_000 ? value * 1000 : value;
+}
+
+function isFreshLaunchNotificationTap(notificationDate: number | undefined): boolean {
+  const tappedAt = notificationTimestampMs(notificationDate);
+  if (tappedAt == null) return false;
+  return tappedAt >= APP_LAUNCHED_AT - 15_000;
+}
+
 /**
  * Routes push-notification taps to the right screen (chat or order detail).
  */
@@ -68,22 +82,30 @@ export function FcmNotificationRouter() {
   useEffect(() => {
     if (!isAuthenticated) return;
 
+    const routeLaunchNotificationOnce = async () => {
+      if (hasHandledLaunchNotificationRouting) return;
+      hasHandledLaunchNotificationRouting = true;
+
+      const remoteMessage = await messaging().getInitialNotification();
+      if (remoteMessage?.data) {
+        handleTapData(normalizeData(remoteMessage.data));
+        return;
+      }
+
+      const response = await Notifications.getLastNotificationResponseAsync();
+      if (!response) return;
+      if (!isFreshLaunchNotificationTap(response.notification.date)) return;
+
+      handleTapData(normalizeData(response.notification.request.content.data));
+    };
+
+    void routeLaunchNotificationOnce();
+
     const unsubOpened = messaging().onNotificationOpenedApp((remoteMessage) => {
       handleTapData(normalizeData(remoteMessage?.data));
     });
 
-    void messaging()
-      .getInitialNotification()
-      .then((remoteMessage) => {
-        handleTapData(normalizeData(remoteMessage?.data));
-      });
-
     const responseSub = Notifications.addNotificationResponseReceivedListener((response) => {
-      handleTapData(normalizeData(response.notification.request.content.data));
-    });
-
-    void Notifications.getLastNotificationResponseAsync().then((response) => {
-      if (!response) return;
       handleTapData(normalizeData(response.notification.request.content.data));
     });
 
@@ -109,7 +131,6 @@ export function FcmNotificationRouter() {
       const currentPath = pathnameRef.current ?? "";
       const isOnAnyChatScreen = /\/chat\/[^/]+$/.test(currentPath);
 
-      // No foreground alert when user is already inside chat.
       if (isOnAnyChatScreen) return;
 
       const title = remoteMessage?.notification?.title?.trim() || "New message";

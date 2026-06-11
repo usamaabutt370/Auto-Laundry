@@ -41,6 +41,7 @@ import {
 } from "@/constants/partner-wash-fold-items";
 import { getStrings } from "@/locales";
 import { allowDecimalOnly } from "@/utils/input-filter";
+import { parsePriceDisplay } from "@/utils/parse-price-display";
 
 const c = theme.colors;
 const fs = theme.fontSize;
@@ -297,7 +298,11 @@ export default function ServiceOtherScreen() {
       label: item.label,
       value: prices[item.id]?.trim() ?? "",
     }))
-    .filter((row) => row.value.length > 0);
+    .filter((row) => {
+      if (!row.value.length) return false;
+      const amount = parsePriceDisplay(row.value);
+      return amount != null && amount > 0;
+    });
 
   const canContinue = serviceKey != null && pricedRows.length > 0;
 

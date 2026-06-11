@@ -18,7 +18,10 @@ import { theme } from "@/constants/theme";
 import type { CustomerOrderDraft } from "@/contexts/customer-order-draft-context";
 import { useCustomerOrderDraft } from "@/contexts/customer-order-draft-context";
 import { useLocale } from "@/contexts/locale-context";
-import { initialWashFoldQuantities } from "@/constants/wash-fold-items";
+import {
+  initialWashFoldQuantities,
+  WASH_FOLD_PACKAGE_DEFS,
+} from "@/constants/wash-fold-items";
 import {
   getWashFoldPackageDescription,
   type WashFoldPackageCatalogKey,
@@ -103,9 +106,36 @@ export default function WashFoldOrderScreen() {
   );
 
   const availablePackages = useMemo(
-    () => pricedDefs.filter((item) => item.kind === "package"),
-    [pricedDefs],
+    () =>
+      pricedDefs.filter(
+        (item) =>
+          item.kind === "package" &&
+          washFoldUnitForItem(services, item).amount != null,
+      ),
+    [pricedDefs, services],
   );
+
+  useEffect(() => {
+    const availableIds = new Set(availablePackages.map((def) => def.id));
+    setQuantities((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      for (const def of WASH_FOLD_PACKAGE_DEFS) {
+        if (!availableIds.has(def.id) && (next[def.id] ?? 0) > 0) {
+          next[def.id] = 0;
+          changed = true;
+        }
+      }
+      for (const def of pricedDefs) {
+        if (def.kind !== "package" || availableIds.has(def.id)) continue;
+        if ((next[def.id] ?? 0) > 0) {
+          next[def.id] = 0;
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [availablePackages, pricedDefs]);
 
   const hasSelectedItems = useMemo(
     () => Object.values(quantities).some((q) => q > 0),
@@ -259,6 +289,7 @@ export default function WashFoldOrderScreen() {
             {hasSelectedItems ? (
               <CustomerLiveEstimateFooter
                 strings={sLive}
+                partnerId={draft.partnerId}
                 partnerName={draft.partnerName}
                 loading={loading}
                 hasPartner={Boolean(draft.partnerId)}

@@ -20,10 +20,16 @@ export interface PartnerOrderRejectionPayload {
   details?: string;
 }
 
+/**
+ * Updates order status via partner_update_order_status RPC.
+ * Rider assignment is handled separately in order-rider-assignment.ts so we
+ * never pass p_assigned_rider_id here (avoids overload ambiguity on the DB).
+ */
 export async function partnerUpdateOrderStatus(
   orderId: string,
   status: PartnerOrderStatusTarget,
   rejection?: PartnerOrderRejectionPayload,
+  _assignedRiderId?: string | null,
 ): Promise<PartnerOrderStatusUpdateResult> {
   if (!supabase) {
     throw new Error("Supabase is not configured.");

@@ -238,6 +238,33 @@ export const en = {
       instructionsPlaceholder: "Add Specific details on your items",
       confirm: "Confirm",
     },
+    trustBanner: {
+      message:
+        "Your clothes are covered. Verified Launderer. Report any issue in chat.",
+    },
+    reportProblem: {
+      title: "Report a problem",
+      subtitle: "Order #{{ref}} — this goes to our support team, not your launderer.",
+      adminNote: "A Super Admin will review your report. Your launderer will not see it directly.",
+      descriptionLabel: "Describe the issue",
+      descriptionPlaceholder: "What went wrong? Include any helpful details.",
+      photosLabel: "Photos (optional)",
+      addPhoto: "Add photo",
+      cancel: "Cancel",
+      submit: "Submit report",
+      reportButton: "Report a problem",
+      reportedButton: "Problem reported",
+      requiredTitle: "Description required",
+      requiredMessage: "Please describe what happened.",
+      photoLimitTitle: "Photo limit",
+      photoLimitMessage: "You can attach up to {{max}} photos.",
+      permissionTitle: "Photos access",
+      permissionMessage: "Allow photo access to attach evidence.",
+      submitErrorTitle: "Could not submit",
+      submitSuccessTitle: "Report submitted",
+      submitSuccessMessage:
+        "Our team will review your report. You can still chat with your launderer for quick updates.",
+    },
     orderSummary: {
       title: "Order Summary",
       editTitle: "Update order",
@@ -415,6 +442,16 @@ export const en = {
       intakeNotesPlaceholder: "Notes for customer (optional)",
       intakeSuccessTitle: "Bill confirmed",
       intakeSuccessMessage: "Final bill saved. Customer-facing total will be shown in a later release.",
+      selectRiderTitle: "Assign a rider",
+      selectRiderSubtitle: "Choose who will pick up and deliver for this order.",
+      selectRiderConfirm: "Accept & assign",
+      selectRiderCancel: "Cancel",
+      selectRiderRequired: "Please select a rider.",
+      loadingRiders: "Loading riders…",
+      noRidersTitle: "No riders registered",
+      noRidersMessage:
+        "Add riders in Rider detail before accepting pickup orders.",
+      acceptSuccess: "The order has been accepted and the rider details were sent in chat.",
     },
     dashboard: {
       title: "Dashboard",
@@ -508,6 +545,7 @@ export const en = {
       includePickupDelivery: "Include pickup and delivery",
       pickupDeliveryAmountLabel: "Pickup and delivery amount",
       pickupDeliveryAmountPlaceholder: "Enter pickup and delivery amount",
+      pickupDeliveryAmountRequired: "Enter the pickup and delivery amount before continuing.",
       confirm: "Confirm",
       next: "Next",
       complete: "Complete",
@@ -603,6 +641,38 @@ export const en = {
       creditsRuleTopup:
         "When credits run low, top up your wallet to keep getting new orders.",
       creditsContinueToDashboard: "Continue to dashboard",
+      riderRegistrationTitle: "Rider detail",
+      riderRegistrationHeading: "Register your riders",
+      riderRegistrationSubtitle:
+        "Add at least one rider with name, phone, and a clear face photo for pickup and delivery.",
+      riderDetailsSectionTitle: "Rider details",
+      riderDetailsSectionHint:
+        "Add at least one rider with a clear face photo. You can register more riders if needed.",
+      riderCardTitle: "Rider {index}",
+      riderNameLabel: "Rider name",
+      riderNamePlaceholder: "Full name",
+      riderPhoneLabel: "Rider phone",
+      riderPhonePlaceholder: "Mobile number",
+      riderPhoneInvalid: "Enter a valid mobile number for this rider.",
+      riderPhotoLabel: "Clear face photo",
+      riderPhotoPlaceholder: "Tap to upload a clear face photo",
+      riderPhotoRequired: "A clear face photo is required for each rider.",
+      riderPhotoPermissionTitle: "Permission needed",
+      riderPhotoPermissionMessage: "Please allow photo access to upload rider photos.",
+      addRider: "Add another rider",
+      removeRider: "Remove",
+      riderMinimumRequired: "Add at least one complete rider before continuing.",
+      riderResponsibilityLabel:
+        "I take full responsibility for my riders and any loss or damage. I understand claims will be deducted from my payouts.",
+      riderResponsibilityRequired: "Please accept rider responsibility to continue.",
+      configureRiderDetails: "Rider detail",
+      riderDetailsIncomplete:
+        "Please complete rider detail (name, phone, photo, and responsibility) before submitting KYC.",
+      pickupRidersRequiredHint:
+        "Pickup & delivery only: add at least one rider with a clear face photo and accept rider responsibility.",
+      pickupRidersOnlyTitle: "Pickup & delivery only",
+      pickupRidersOnlyMessage:
+        "Rider registration is required only when pickup & delivery is enabled.",
     },
     settings: {
       merchantServices: "Merchant Services",
@@ -676,5 +746,23 @@ export const en = {
   },
   onboardingLast: {
     getStarted: "Get started",
+  },
+
+  chat: {
+    riderAssignment: {
+      title: "Rider assigned",
+      riderLabel: "Your rider",
+      laundromat: "Laundromat",
+      orderDetails: "Order details",
+      orderNumber: "Order #{{number}}",
+      orderNumberLabel: "Order",
+      services: "Services",
+      estimatedTotal: "Estimated total",
+      pickup: "Pickup",
+      delivery: "Delivery",
+      address: "Address",
+      verified: "Verified",
+      trackOrder: "Track order",
+    },
   },
 } as const;

@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AppHeader } from "@/components/app-header";
+import { PartnerNameWithBadge } from "@/components/partner-name-with-badge";
 import { theme } from "@/constants/theme";
 import { strings } from "@/constants/strings";
 import { useAuth } from "@/contexts/auth-context";
@@ -134,9 +135,12 @@ export default function CustomerChatScreen() {
             >
               <View style={styles.mainContent}>
                 <View style={styles.rowTop}>
-                  <Text style={styles.nameText} numberOfLines={1}>
-                    {item.counterpartyName}
-                  </Text>
+                  <PartnerNameWithBadge
+                    name={item.counterpartyName}
+                    verified={item.counterpartyVerified}
+                    nameStyle={styles.nameText}
+                    containerStyle={styles.nameRow}
+                  />
                   <Text style={styles.timeText}>{formatShortDate(item.lastMessageAt)}</Text>
                 </View>
 
@@ -211,8 +215,11 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 2,
   },
-  nameText: {
+  nameRow: {
     flex: 1,
+    flexShrink: 1,
+  },
+  nameText: {
     color: c.white,
     fontSize: fs.smallText,
     fontWeight: "700",

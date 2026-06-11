@@ -11,6 +11,8 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { PartnerNameWithBadge } from "@/components/partner-name-with-badge";
+import { usePartnerVerified } from "@/hooks/use-partner-verified";
 import { theme } from "@/constants/theme";
 import type { OrderEstimateResult } from "@/lib/customer-order-estimate";
 import { formatMoney } from "@/utils/format-money";
@@ -35,6 +37,7 @@ export type LiveEstimateStrings = {
 
 type Props = {
   strings: LiveEstimateStrings;
+  partnerId?: string | null;
   partnerName: string | null;
   loading: boolean;
   hasPartner: boolean;
@@ -45,6 +48,7 @@ type Props = {
 
 export function CustomerLiveEstimateFooter({
   strings: s,
+  partnerId,
   partnerName,
   loading,
   hasPartner,
@@ -52,6 +56,7 @@ export function CustomerLiveEstimateFooter({
   defaultBreakdownOpen = false,
 }: Props) {
   const insets = useSafeAreaInsets();
+  const partnerVerified = usePartnerVerified(partnerId);
   const [open, setOpen] = useState(defaultBreakdownOpen);
 
   const toggle = () => {
@@ -87,9 +92,12 @@ export function CustomerLiveEstimateFooter({
             <View>
               <Text style={styles.totalLabel}>{s.estimatedLabel}</Text>
               {partnerName ? (
-                <Text style={styles.partnerHint} numberOfLines={1}>
-                  {partnerName}
-                </Text>
+                <PartnerNameWithBadge
+                  name={partnerName}
+                  verified={partnerVerified}
+                  nameStyle={styles.partnerHint}
+                  badgeSize={11}
+                />
               ) : null}
             </View>
             <Text style={styles.totalValue}>{showTotal}</Text>

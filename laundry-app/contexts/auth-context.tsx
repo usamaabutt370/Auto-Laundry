@@ -6,6 +6,7 @@ import React, {
   useMemo,
   useState,
 } from "react";
+import { Platform } from "react-native";
 import type { Session } from "@supabase/supabase-js";
 
 import { registerForChatPush, unregisterChatPush } from "@/lib/push-notifications";
@@ -140,6 +141,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const uid = session?.user?.id;
     if (uid) {
       await unregisterChatPush(uid);
+    }
+    if (Platform.OS !== "web") {
+      try {
+        const Notifications = await import("expo-notifications");
+        await Notifications.clearLastNotificationResponseAsync();
+      } catch {
+        // Ignore if notifications module is unavailable.
+      }
     }
     if (supabase) {
       await supabase.auth.signOut();

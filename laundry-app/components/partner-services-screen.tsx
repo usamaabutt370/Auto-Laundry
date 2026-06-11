@@ -16,7 +16,9 @@ import { useAuth } from "@/contexts/auth-context";
 import { useLocale } from "@/contexts/locale-context";
 import { useMerchantServices } from "@/contexts/merchant-services-context";
 import { getStrings } from "@/locales";
-import { isMissingPartnerOnboardingRequestsTableError } from "@/lib/partner-onboarding-request";
+import { submitPartnerOnboardingKyc } from "@/lib/partner-onboarding-submit";
+import { validatePickupRiderRequirements } from "@/lib/partner-pickup-rider-requirements";
+import { fetchPartnerRiders } from "@/lib/partner-riders";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { allowDecimalOnly } from "@/utils/input-filter";
 
@@ -99,11 +101,62 @@ export function PartnerServicesScreen({ mode }: PartnerServicesScreenProps) {
     tailoring: tailoringPricing,
   };
 
+  const hasConfiguredServices = SERVICE_KEYS.some((key) => {
+    const pricing = pricingByKey[key];
+    return pricing?.rows != null && pricing.rows.length > 0;
+  });
+
+  const normalizedPickupAmount = (pickupDeliveryPricing.amount ?? "").trim();
+  const hasPickupAmount = normalizedPickupAmount.length > 0;
+
+  const showRiderRequirementAlert = () => {
+    Alert.alert("Required", onboardingStrings.riderDetailsIncomplete);
+  };
+
+  const ensurePickupRiderRequirements = async (userId: string): Promise<boolean> => {
+    if (!pickupDeliveryPricing.enabled) return true;
+
+    const validation = await validatePickupRiderRequirements(userId, true);
+    if (validation.ok) return true;
+
+    showRiderRequirementAlert();
+    return false;
+  };
+
+  const handleOpenRiderDetail = async () => {
+    if (!pickupDeliveryPricing.enabled) {
+      Alert.alert(
+        onboardingStrings.pickupRidersOnlyTitle,
+        onboardingStrings.pickupRidersOnlyMessage,
+      );
+      return;
+    }
+    if (!hasPickupAmount) {
+      Alert.alert("Required", onboardingStrings.pickupDeliveryAmountRequired);
+      return;
+    }
+
+    const pickupSaved = await savePickupDeliveryPricing();
+    if (!pickupSaved) {
+      Alert.alert("Error", "Could not save pickup settings. Please try again.");
+      return;
+    }
+
+    router.push("/(partner)/onboarding/rider-registration");
+  };
+
   const handleServicePress = (key: ServiceKey) => {
     router.push({
       pathname: "/(partner)/onboarding/service-other",
       params: { service: key },
     });
+  };
+
+  const handlePickupToggle = () => {
+    setPickupDeliveryPricing((prev) => ({
+      ...prev,
+      enabled: !prev.enabled,
+    }));
   };
 
   const handleFinish = async () => {
@@ -128,10 +181,6 @@ export function PartnerServicesScreen({ mode }: PartnerServicesScreenProps) {
         return;
       }
 
-      const normalizedPickupAmount = (pickupDeliveryPricing.amount ?? "").trim();
-      const kycStatus = "submitted" as const;
-
-      // Persist Step-2 service data to DB before KYC snapshot.
       const persistedServiceResult = await submitOnboardingServices();
       if (!persistedServiceResult.ok) {
         Alert.alert(
@@ -141,60 +190,16 @@ export function PartnerServicesScreen({ mode }: PartnerServicesScreenProps) {
         return;
       }
 
-      // Ensure partner profile is fully persisted at submission time.
-      const { data: existingPartnerProfile, error: existingPartnerProfileError } = await supabase
-        .from("partner_profiles")
-        .select(
-          "business_name,business_description,phone_number,address,available_time,latitude,longitude,business_images",
-        )
-        .eq("id", resolvedUserId)
-        .maybeSingle<{
-          business_name: string | null;
-          business_description: string | null;
-          phone_number: string | null;
-          address: string | null;
-          available_time: string | null;
-          latitude: number | null;
-          longitude: number | null;
-          business_images: string[] | null;
-        }>();
-      if (existingPartnerProfileError) {
-        Alert.alert("Error", `Could not load business profile. ${existingPartnerProfileError.message}`);
+      if (!hasConfiguredServices) {
+        Alert.alert("Error", "Please add at least one service before submitting.");
         return;
       }
 
-      const businessName = (existingPartnerProfile?.business_name ?? "").trim();
-      const businessDescription = (existingPartnerProfile?.business_description ?? "").trim();
-      const phoneNumber = (existingPartnerProfile?.phone_number ?? "").trim();
-      const address = (existingPartnerProfile?.address ?? "").trim();
-      const availableTime = (existingPartnerProfile?.available_time ?? "").trim();
-      const businessImages = Array.isArray(existingPartnerProfile?.business_images)
-        ? existingPartnerProfile.business_images.filter((img) => typeof img === "string" && img.trim().length > 0)
-        : [];
-
-      if (!businessName || !businessDescription || !phoneNumber || !address || !availableTime) {
-        Alert.alert("Error", "Please complete business details before submitting KYC.");
+      if (pickupDeliveryPricing.enabled && !hasPickupAmount) {
+        Alert.alert("Required", onboardingStrings.pickupDeliveryAmountRequired);
         return;
       }
 
-      const { error: partnerProfileSaveError } = await supabase.from("partner_profiles").upsert(
-        {
-          id: resolvedUserId,
-          business_name: businessName,
-          business_description: businessDescription,
-          pickup_delivery_enabled: Boolean(pickupDeliveryPricing.enabled),
-          pickup_delivery_amount: normalizedPickupAmount,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "id" }
-      );
-
-      if (partnerProfileSaveError) {
-        Alert.alert("Error", `Could not save partner profile. ${partnerProfileSaveError.message}`);
-        return;
-      }
-
-      // Read latest persisted services to produce reliable KYC snapshot.
       const { data: persistedServices, error: persistedServicesError } = await supabase
         .from("partner_services")
         .select("name,category,price_display")
@@ -223,92 +228,68 @@ export function PartnerServicesScreen({ mode }: PartnerServicesScreenProps) {
         .filter((item) => item.name.length > 0 && item.priceDisplay.length > 0);
 
       const serviceLines = dbServiceLines.length > 0 ? dbServiceLines : memoryServiceLines;
+
       if (serviceLines.length === 0) {
         Alert.alert("Error", "Please add at least one service before submitting.");
         return;
       }
 
-      const notesPayload = {
-        businessProfile: {
-          businessName,
-          businessDescription,
-          phoneNumber,
-          address,
-          availableTime,
-          latitude: existingPartnerProfile?.latitude ?? null,
-          longitude: existingPartnerProfile?.longitude ?? null,
-          businessImages,
-        },
-        servicePricing: {
-          pickupDeliveryEnabled: Boolean(pickupDeliveryPricing.enabled),
-          pickupDeliveryAmount: normalizedPickupAmount,
-        },
+      if (!(await ensurePickupRiderRequirements(resolvedUserId))) {
+        return;
+      }
+
+      let riderPayload: Array<{ name: string; phone: string; photoUrl: string }> = [];
+      let ridersResponsibilityAccepted = false;
+
+      if (pickupDeliveryPricing.enabled) {
+        const existingRiders = await fetchPartnerRiders(resolvedUserId);
+        riderPayload = existingRiders
+          .filter(
+            (rider) =>
+              rider.name.trim().length > 0 &&
+              rider.phone.trim().length > 0 &&
+              rider.photoUrl.trim().length > 0,
+          )
+          .map((rider) => ({
+            name: rider.name.trim(),
+            phone: rider.phone.trim(),
+            photoUrl: rider.photoUrl.trim(),
+          }));
+
+        const { data: partnerProfile, error: partnerProfileError } = await supabase
+          .from("partner_profiles")
+          .select("riders_responsibility_accepted_at")
+          .eq("id", resolvedUserId)
+          .maybeSingle<{ riders_responsibility_accepted_at: string | null }>();
+
+        if (partnerProfileError) {
+          Alert.alert("Error", partnerProfileError.message);
+          return;
+        }
+
+        ridersResponsibilityAccepted = Boolean(
+          partnerProfile?.riders_responsibility_accepted_at,
+        );
+      }
+
+      const kycResult = await submitPartnerOnboardingKyc({
+        userId: resolvedUserId,
+        pickupDeliveryEnabled: Boolean(pickupDeliveryPricing.enabled),
+        pickupDeliveryAmount: normalizedPickupAmount,
         serviceLines,
-      };
+        riders: riderPayload,
+        ridersResponsibilityAccepted,
+      });
 
-      let notesSerialized = "";
-      try {
-        notesSerialized = JSON.stringify(notesPayload);
-      } catch {
-        Alert.alert("Error", "Could not prepare KYC snapshot.");
-        return;
-      }
-
-      const submittedAt = new Date().toISOString();
-      const kycPayload = {
-        user_id: resolvedUserId,
-        status: kycStatus,
-        submitted_at: submittedAt,
-        updated_at: submittedAt,
-        reviewed_at: null,
-        reviewed_by: null,
-        rejection_reason: null,
-        notes: notesSerialized,
-      };
-
-      // RLS can block updates on existing rows (e.g. already submitted/approved requests).
-      // For this screen, only create a request when it doesn't exist yet.
-      const { data: existingRequest, error: existingRequestError } = await supabase
-        .from("partner_onboarding_requests")
-        .select("user_id")
-        .eq("user_id", resolvedUserId)
-        .maybeSingle<{ user_id: string }>();
-
-      if (existingRequestError) {
-        setIsSubmittingRequest(false);
-        if (isMissingPartnerOnboardingRequestsTableError(existingRequestError)) {
-          Alert.alert(
-            "Database update required",
-            "The partner KYC table has not been created in Supabase yet. Run `npx supabase db push` from `laundry-app`, then try again.",
-          );
-          return;
+      if (!kycResult.ok) {
+        if (kycResult.code === "missing_table") {
+          Alert.alert("Database update required", kycResult.error);
+        } else {
+          Alert.alert("Error", kycResult.error);
         }
-        Alert.alert("Error", existingRequestError.message);
         return;
       }
 
-      let error: { message: string } | null = null;
-      if (!existingRequest) {
-        const insertResult = await supabase
-          .from("partner_onboarding_requests")
-          .insert(kycPayload);
-        error = insertResult.error;
-      }
-
-      if (error) {
-        if (isMissingPartnerOnboardingRequestsTableError(error)) {
-          Alert.alert(
-            "Database update required",
-            "The partner KYC table has not been created in Supabase yet. Run `npx supabase db push` from `laundry-app`, then try again.",
-          );
-          return;
-        }
-        Alert.alert("Error", error.message);
-        return;
-      }
-
-      // Show the KYC modal immediately after successful submit.
-      // Approval refresh should not block this UX.
       setSuccessModalVisible(true);
       void refreshPartnerApproval();
     } catch (err) {
@@ -320,6 +301,25 @@ export function PartnerServicesScreen({ mode }: PartnerServicesScreenProps) {
   };
 
   const handleSaveSettings = async () => {
+    const resolvedUserId =
+      user?.id ?? (isSupabaseConfigured() && supabase
+        ? (await supabase.auth.getSession()).data.session?.user?.id ?? null
+        : null);
+
+    if (!resolvedUserId) {
+      Alert.alert("Error", "Missing user ID. Please sign in again.");
+      return;
+    }
+
+    if (pickupDeliveryPricing.enabled && !hasPickupAmount) {
+      Alert.alert("Required", onboardingStrings.pickupDeliveryAmountRequired);
+      return;
+    }
+
+    if (!(await ensurePickupRiderRequirements(resolvedUserId))) {
+      return;
+    }
+
     const servicesResult = await submitOnboardingServices();
     if (!servicesResult.ok) {
       Alert.alert(
@@ -388,12 +388,7 @@ export function PartnerServicesScreen({ mode }: PartnerServicesScreenProps) {
               styles.checkboxRow,
               pressed && styles.checkboxRowPressed,
             ]}
-            onPress={() =>
-              setPickupDeliveryPricing((prev) => ({
-                ...prev,
-                enabled: !prev.enabled,
-              }))
-            }
+            onPress={handlePickupToggle}
             accessibilityRole="checkbox"
             accessibilityState={{ checked: pickupDeliveryPricing.enabled }}
             accessibilityLabel={onboardingStrings.includePickupDelivery}
@@ -413,10 +408,13 @@ export function PartnerServicesScreen({ mode }: PartnerServicesScreenProps) {
             </Text>
           </Pressable>
 
+          <Text style={styles.pickupHint}>{onboardingStrings.pickupRidersRequiredHint}</Text>
+
           {pickupDeliveryPricing.enabled && (
             <View style={styles.pickupAmountWrap}>
               <Text style={styles.pickupAmountLabel}>
                 {onboardingStrings.pickupDeliveryAmountLabel}
+                <Text style={styles.requiredAsterisk}> *</Text>
               </Text>
               <FormTextInput
                 value={pickupDeliveryPricing.amount}
@@ -429,11 +427,21 @@ export function PartnerServicesScreen({ mode }: PartnerServicesScreenProps) {
                 placeholder={onboardingStrings.pickupDeliveryAmountPlaceholder}
                 keyboardType="decimal-pad"
               />
+              <AppButton
+                label={onboardingStrings.configureRiderDetails}
+                onPress={handleOpenRiderDetail}
+                variant="outline"
+                rightIcon="arrow-right"
+                fullWidth
+                disabled={!hasPickupAmount}
+                style={styles.riderDetailBtn}
+                accessibilityLabel={onboardingStrings.configureRiderDetails}
+              />
             </View>
           )}
         </View>
 
-        {isOnboarding && (
+        {isOnboarding && hasConfiguredServices ? (
           <AppButton
             label={onboardingStrings.finish}
             onPress={handleFinish}
@@ -444,7 +452,7 @@ export function PartnerServicesScreen({ mode }: PartnerServicesScreenProps) {
             style={styles.finishBtn}
             accessibilityLabel={onboardingStrings.finish}
           />
-        )}
+        ) : null}
         {!isOnboarding && (
           <AppButton
             label={settingsStrings.save}
@@ -529,6 +537,12 @@ const styles = StyleSheet.create({
   pickupWrap: {
     marginTop: 18,
   },
+  pickupHint: {
+    marginTop: 10,
+    fontSize: fs.xxSmallText,
+    lineHeight: 18,
+    color: "rgba(255,255,255,0.55)",
+  },
   checkboxRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -564,6 +578,13 @@ const styles = StyleSheet.create({
   pickupAmountLabel: {
     fontSize: fs.descText,
     color: c.blue500,
+  },
+  requiredAsterisk: {
+    color: c.white,
+    fontWeight: "600",
+  },
+  riderDetailBtn: {
+    marginTop: 12,
   },
   modalOverlay: {
     flex: 1,

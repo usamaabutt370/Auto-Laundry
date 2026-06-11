@@ -1,3 +1,4 @@
+import { fetchVerifiedPartnerIds } from "@/lib/partner-verification";
 import { supabase } from "@/lib/supabase";
 
 /** DB values on customer_orders.status */
@@ -20,6 +21,7 @@ export interface CustomerOrderListItem {
   orderRef: string;
   partnerId: string;
   partnerName: string;
+  partnerVerified: boolean;
   /** @deprecated Prefer scheduleLines — kept for any legacy use */
   subtitle: string;
   /** One line per schedule: pickup and/or delivery when set */
@@ -63,6 +65,7 @@ export interface CustomerOrderDetailData {
   orderRef: string;
   partnerId: string;
   partnerName: string;
+  partnerVerified: boolean;
   partnerPhone: string;
   partnerAddress: string;
   displayStatus: CustomerOrderDisplayStatus;
@@ -290,7 +293,11 @@ export async function fetchCustomerOrders(customerId: string): Promise<CustomerO
   }
 
   const rows = (data ?? []) as OrderRow[];
-  const partners = await fetchPartnerNames(rows.map((r) => r.partner_id));
+  const partnerIds = rows.map((r) => r.partner_id);
+  const [partners, verifiedPartnerIds] = await Promise.all([
+    fetchPartnerNames(partnerIds),
+    fetchVerifiedPartnerIds(partnerIds),
+  ]);
 
   const orderIds = rows.map((r) => r.id);
   const servicesByOrderId = new Map<string, OrderServiceRow["service_type"][]>();
@@ -359,6 +366,7 @@ export async function fetchCustomerOrders(customerId: string): Promise<CustomerO
       orderRef: order.id.replace(/-/g, "").slice(0, 8).toUpperCase(),
       partnerId: order.partner_id,
       partnerName: partners.get(order.partner_id) ?? "Launderer",
+      partnerVerified: verifiedPartnerIds.has(order.partner_id),
       subtitle,
       scheduleLines,
       servicesSummary,
@@ -425,11 +433,14 @@ export async function fetchCustomerOrderDetail(
 
   const order = data as OrderRow & { customer_id?: string };
 
-  const { data: partnerData } = await supabase
-    .from("partner_profiles")
-    .select("id,business_name,phone_number,address")
-    .eq("id", order.partner_id)
-    .maybeSingle();
+  const [{ data: partnerData }, verifiedPartnerIds] = await Promise.all([
+    supabase
+      .from("partner_profiles")
+      .select("id,business_name,phone_number,address")
+      .eq("id", order.partner_id)
+      .maybeSingle(),
+    fetchVerifiedPartnerIds([order.partner_id]),
+  ]);
   const partner = (partnerData as PartnerRow | null) ?? null;
 
   const { data: serviceData, error: serviceError } = await supabase
@@ -522,6 +533,7 @@ export async function fetchCustomerOrderDetail(
     orderRef: order.id.replace(/-/g, "").slice(0, 8).toUpperCase(),
     partnerId: order.partner_id,
     partnerName: partner?.business_name?.trim() || "Launderer",
+    partnerVerified: verifiedPartnerIds.has(order.partner_id),
     partnerPhone: partner?.phone_number?.trim() || "Not provided",
     partnerAddress: partner?.address?.trim() || "Address not available",
     displayStatus: mapDbStatusForCustomer(order.status),

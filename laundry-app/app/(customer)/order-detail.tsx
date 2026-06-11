@@ -15,6 +15,9 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { CustomerTrustBanner } from "@/components/customer-trust-banner";
+import { PartnerNameWithBadge } from "@/components/partner-name-with-badge";
+import { ReportOrderProblemModal } from "@/components/report-order-problem-modal";
 import { theme } from "@/constants/theme";
 import { useAuth } from "@/contexts/auth-context";
 import { useLocale } from "@/contexts/locale-context";
@@ -29,6 +32,7 @@ import {
   type CustomerOrderDetailData,
   type CustomerOrderDisplayStatus,
 } from "@/lib/customer-orders";
+import { hasCustomerOrderDispute } from "@/lib/order-disputes";
 
 const c = theme.colors;
 const fs = theme.fontSize;
@@ -54,6 +58,7 @@ export default function CustomerOrderDetailScreen() {
   const { user } = useAuth();
   const { locale } = useLocale();
   const sDetail = getStrings(locale).customer.orderDetail;
+  const sReport = getStrings(locale).customer.reportProblem;
   const params = useLocalSearchParams<{ orderId?: string }>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -65,6 +70,8 @@ export default function CustomerOrderDetailScreen() {
   const [feedbackMessage, setFeedbackMessage] = useState("");
   const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
   const [isLoadingEdit, setIsLoadingEdit] = useState(false);
+  const [reportVisible, setReportVisible] = useState(false);
+  const [hasReportedProblem, setHasReportedProblem] = useState(false);
   const { loadDraftForEdit } = useCustomerOrderDraft();
 
   const orderId = typeof params.orderId === "string" ? params.orderId : "";
@@ -94,6 +101,22 @@ export default function CustomerOrderDetailScreen() {
       cancelled = true;
     };
   }, [orderId, user?.id]);
+
+  useEffect(() => {
+    if (!user?.id || !orderId || !order || order.displayStatus === "rejected") {
+      setHasReportedProblem(false);
+      return;
+    }
+
+    let cancelled = false;
+    void hasCustomerOrderDispute(user.id, orderId).then((reported) => {
+      if (!cancelled) setHasReportedProblem(reported);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [order, orderId, user?.id]);
 
   useEffect(() => {
     if (!user?.id || !order || order.displayStatus !== "completed") {
@@ -232,7 +255,11 @@ export default function CustomerOrderDetailScreen() {
                 </Text>
               </View>
             </View>
-            <Text style={styles.partner}>{order.partnerName}</Text>
+            <PartnerNameWithBadge
+              name={order.partnerName}
+              verified={order.partnerVerified}
+              nameStyle={styles.partner}
+            />
             <View style={styles.metricsRow}>
               <View style={styles.metricCard}>
                 <Text style={styles.metricLabel}>{sDetail.estimatedTotal}</Text>
@@ -254,11 +281,28 @@ export default function CustomerOrderDetailScreen() {
             </View>
           </View>
 
+          {order.displayStatus !== "rejected" ? (
+            <CustomerTrustBanner
+              verified={order.partnerVerified}
+              onPressChat={() =>
+                router.push({
+                  pathname: "/(customer)/chat/[orderId]",
+                  params: { orderId: order.id, memberName: order.partnerName },
+                })
+              }
+            />
+          ) : null}
+
           <View style={styles.sectionCard}>
             <Text style={styles.sectionTitle}>Partner</Text>
             <View style={styles.infoRow}>
               <MaterialCommunityIcons name="storefront-outline" size={18} color={c.outline} />
-              <Text style={styles.sectionValue}>{order.partnerName}</Text>
+              <PartnerNameWithBadge
+                name={order.partnerName}
+                verified={order.partnerVerified}
+                nameStyle={styles.sectionValue}
+                containerStyle={styles.partnerNameRow}
+              />
             </View>
             <View style={styles.infoRow}>
               <MaterialCommunityIcons name="phone-outline" size={18} color={c.outline} />
@@ -283,6 +327,24 @@ export default function CustomerOrderDetailScreen() {
               <MaterialCommunityIcons name="chat-processing-outline" size={16} color={c.white} />
               <Text style={styles.chatButtonText}>Chat with partner</Text>
             </Pressable>
+            {order.displayStatus !== "rejected" ? (
+              <Pressable
+                onPress={() => setReportVisible(true)}
+                style={({ pressed }) => [
+                  styles.reportButton,
+                  pressed && styles.pressed,
+                ]}
+              >
+                <MaterialCommunityIcons
+                  name={hasReportedProblem ? "check-circle-outline" : "alert-circle-outline"}
+                  size={16}
+                  color={hasReportedProblem ? c.outline : "#F6D36B"}
+                />
+                <Text style={styles.reportButtonText}>
+                  {hasReportedProblem ? sReport.reportedButton : sReport.reportButton}
+                </Text>
+              </Pressable>
+            ) : null}
           </View>
 
           <View style={styles.sectionCard}>
@@ -472,6 +534,17 @@ export default function CustomerOrderDetailScreen() {
           </KeyboardAvoidingView>
         </Modal>
       ) : null}
+      {order && user?.id && order.displayStatus !== "rejected" ? (
+        <ReportOrderProblemModal
+          visible={reportVisible}
+          orderId={order.id}
+          orderRef={order.orderRef}
+          customerId={user.id}
+          partnerId={order.partnerId}
+          onClose={() => setReportVisible(false)}
+          onSubmitted={() => setHasReportedProblem(true)}
+        />
+      ) : null}
     </View>
   );
 }
@@ -604,6 +677,9 @@ const styles = StyleSheet.create({
     gap: 10,
     marginBottom: 12,
   },
+  partnerNameRow: {
+    flex: 1,
+  },
   infoTextBlock: {
     flex: 1,
   },
@@ -626,6 +702,24 @@ const styles = StyleSheet.create({
     backgroundColor: c.background,
   },
   chatButtonText: {
+    color: c.white,
+    fontSize: fs.descText,
+    fontWeight: "600",
+  },
+  reportButton: {
+    marginTop: 10,
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    borderWidth: 1,
+    borderColor: "rgba(246, 211, 107, 0.45)",
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: "rgba(246, 211, 107, 0.12)",
+  },
+  reportButtonText: {
     color: c.white,
     fontSize: fs.descText,
     fontWeight: "600",

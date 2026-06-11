@@ -3,6 +3,9 @@
 drop policy if exists "Customer orders: customer can update own draft-like orders"
   on public.customer_orders;
 
+drop policy if exists "Customer orders: customer can update submitted orders"
+  on public.customer_orders;
+
 create policy "Customer orders: customer can update submitted orders"
   on public.customer_orders for update
   to authenticated
@@ -10,6 +13,9 @@ create policy "Customer orders: customer can update submitted orders"
   with check (auth.uid() = customer_id and status = 'submitted');
 
 drop policy if exists "Order services: customer can write own order services"
+  on public.order_services;
+
+drop policy if exists "Order services: customer can write own submitted order services"
   on public.order_services;
 
 create policy "Order services: customer can write own submitted order services"
@@ -33,6 +39,9 @@ create policy "Order services: customer can write own submitted order services"
   );
 
 drop policy if exists "Order service items: customer can write own items"
+  on public.order_service_items;
+
+drop policy if exists "Order service items: customer can write own submitted order items"
   on public.order_service_items;
 
 create policy "Order service items: customer can write own submitted order items"

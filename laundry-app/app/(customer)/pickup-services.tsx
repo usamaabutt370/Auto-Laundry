@@ -1,5 +1,5 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -43,8 +43,18 @@ const SERVICE_KEYS: LaundererServiceType[] = [
   "tailoring",
 ];
 
+function partnerOffersPickupDelivery(
+  profile: Awaited<ReturnType<typeof fetchPartnerDetail>>["profile"],
+): boolean {
+  if (!profile) return false;
+  if (profile.pickup_delivery_enabled) return true;
+  return Boolean(profile.pickup_delivery_amount?.trim());
+}
+
 export default function PickupServicesScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ mode?: string }>();
+  const prefersPickupDelivery = params.mode === "pickupDelivery";
   const insets = useSafeAreaInsets();
   const { draft, editingOrderId, setPickupDeliveryRequested, setSelectedServiceIds } =
     useCustomerOrderDraft();
@@ -79,13 +89,14 @@ export default function PickupServicesScreen() {
         .filter((id): id is ServiceId => SERVICE_KEYS.includes(id))
         .filter((id, idx, arr) => arr.indexOf(id) === idx);
       setPartnerServiceTypes(available);
-      const pickupEnabled = Boolean(profile?.pickup_delivery_amount?.trim());
-      const requested = draft.pickupDeliveryRequested;
-      setPickupDeliveryEnabled(pickupEnabled && requested);
+      const pickupEnabled = partnerOffersPickupDelivery(profile);
+      setPickupDeliveryEnabled(pickupEnabled);
       setPickupFeeLabel(profile?.pickup_delivery_amount?.trim() || null);
-      if (!pickupEnabled && !requested) {
-        setPickupDeliveryRequested(false);
-      } else if (requested) {
+      if (!pickupEnabled) {
+        if (draft.pickupDeliveryRequested) {
+          setPickupDeliveryRequested(false);
+        }
+      } else if (prefersPickupDelivery && !draft.pickupDeliveryRequested) {
         setPickupDeliveryRequested(true);
       }
       setLoading(false);
@@ -94,7 +105,12 @@ export default function PickupServicesScreen() {
     return () => {
       cancelled = true;
     };
-  }, [draft.partnerId, draft.pickupDeliveryRequested, setPickupDeliveryRequested]);
+  }, [
+    draft.partnerId,
+    draft.pickupDeliveryRequested,
+    prefersPickupDelivery,
+    setPickupDeliveryRequested,
+  ]);
 
   const servicesToShow = useMemo(() => {
     if (partnerServiceTypes.length > 0) return partnerServiceTypes;

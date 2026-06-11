@@ -9,7 +9,11 @@ const c = theme.colors;
 export default function LaundererDetailScreen() {
   const router = useRouter();
   const { setPartner } = useCustomerOrderDraft();
-  const params = useLocalSearchParams<{ id: string | string[]; name?: string }>();
+  const params = useLocalSearchParams<{
+    id: string | string[];
+    name?: string;
+    mode?: string;
+  }>();
   const partnerId = Array.isArray(params.id) ? params.id[0] : params.id;
 
   if (!partnerId) {
@@ -23,7 +27,10 @@ export default function LaundererDetailScreen() {
 
   const handleSelect = (id: string, name: string | null) => {
     setPartner(id, name);
-    router.push("/(customer)/pickup-services");
+    router.push({
+      pathname: "/(customer)/pickup-services",
+      params: { mode: params.mode === "pickupDelivery" ? "pickupDelivery" : "dropoff" },
+    });
   };
 
   return (

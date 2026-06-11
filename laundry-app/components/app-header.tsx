@@ -2,6 +2,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { type ComponentProps } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
+import { PartnerVerifiedBadge } from "@/components/partner-verified-badge";
 import { theme } from "@/constants/theme";
 
 const c = theme.colors;
@@ -14,6 +15,7 @@ const HIT_SLOP = 44;
 
 export interface AppHeaderProps {
   title?: string;
+  titleVerified?: boolean;
   subtitle?: string | null;
   leftIcon?: IconName;
   onLeftPress?: () => void;
@@ -30,6 +32,7 @@ export interface AppHeaderProps {
  */
 export function AppHeader({
   title,
+  titleVerified = false,
   subtitle,
   leftIcon,
   onLeftPress,
@@ -46,9 +49,12 @@ export function AppHeader({
     <View style={styles.container}>
       <View style={styles.row}>
         <View style={styles.titleWrap} pointerEvents="none">
-          <Text style={styles.title} numberOfLines={1}>
-            {title}
-          </Text>
+          <View style={styles.titleRow}>
+            <Text style={styles.title} numberOfLines={1}>
+              {title}
+            </Text>
+            {titleVerified ? <PartnerVerifiedBadge size={11} /> : null}
+          </View>
         </View>
 
         <View style={styles.slot}>
@@ -109,7 +115,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 60,
   },
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    maxWidth: "100%",
+  },
   title: {
+    flexShrink: 1,
     fontSize: fs.smallTitle,
     fontWeight: "700",
     color: c.white,

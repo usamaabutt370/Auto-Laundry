@@ -11,6 +11,9 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AppHeader } from "@/components/app-header";
+import { CustomerTrustBanner } from "@/components/customer-trust-banner";
+import { PartnerNameWithBadge } from "@/components/partner-name-with-badge";
+import { usePartnerVerified } from "@/hooks/use-partner-verified";
 import { strings } from "@/constants/strings";
 import { theme } from "@/constants/theme";
 import { useAuth } from "@/contexts/auth-context";
@@ -31,6 +34,7 @@ export default function OrderSummaryScreen() {
   const s = strings.customer.orderSummary;
   const sServices = strings.customer.pickupServices;
 
+  const partnerVerified = usePartnerVerified(draft.partnerId);
   const { loading, error, estimate, profile, services, reload } = usePartnerOrderEstimate(
     draft.partnerId,
     draft,
@@ -143,8 +147,28 @@ export default function OrderSummaryScreen() {
         ) : (
           <>
             {draft.partnerName ? (
-              <Text style={styles.partner}>{draft.partnerName}</Text>
+              <PartnerNameWithBadge
+                name={draft.partnerName}
+                verified={partnerVerified}
+                nameStyle={styles.partner}
+              />
             ) : null}
+            <CustomerTrustBanner
+              verified={partnerVerified}
+              onPressChat={() => {
+                if (editingOrderId) {
+                  router.push({
+                    pathname: "/(customer)/chat/[orderId]",
+                    params: {
+                      orderId: editingOrderId,
+                      memberName: draft.partnerName ?? "",
+                    },
+                  });
+                  return;
+                }
+                router.push("/(customer)/(tabs)/chat");
+              }}
+            />
             <View style={styles.card}>
               <Text style={styles.cardTitle}>{s.service}</Text>
               <Text style={styles.ref}>

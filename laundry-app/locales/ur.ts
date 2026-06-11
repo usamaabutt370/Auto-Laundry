@@ -234,6 +234,33 @@ export const ur = {
       instructionsPlaceholder: "اپنی اشیاء کی تفصیلات شامل کریں",
       confirm: "تصدیق",
     },
+    trustBanner: {
+      message:
+        "آپ کے کپڑے محفوظ ہیں۔ تصدیق شدہ لانڈرر۔ کوئی مسئلہ ہو تو چیٹ میں بتائیں۔",
+    },
+    reportProblem: {
+      title: "مسئلہ رپورٹ کریں",
+      subtitle: "آرڈر #{{ref}} — یہ سپورٹ ٹیم کو جائے گا، لانڈرر کو نہیں۔",
+      adminNote: "سپر ایڈمن آپ کی رپورٹ دیکھے گا۔ لانڈرر کو براہ راست نہیں دکھائی جائے گی۔",
+      descriptionLabel: "مسئلے کی تفصیل",
+      descriptionPlaceholder: "کیا ہوا؟ کوئی بھی مفید تفصیل لکھیں۔",
+      photosLabel: "تصاویر (اختیاری)",
+      addPhoto: "تصویر شامل کریں",
+      cancel: "منسوخ",
+      submit: "رپورٹ بھیجیں",
+      reportButton: "مسئلہ رپورٹ کریں",
+      reportedButton: "رپورٹ جمع ہو گئی",
+      requiredTitle: "تفصیل ضروری ہے",
+      requiredMessage: "براہ کرم بتائیں کیا ہوا۔",
+      photoLimitTitle: "تصویر کی حد",
+      photoLimitMessage: "آپ زیادہ سے زیادہ {{max}} تصاویر شامل کر سکتے ہیں۔",
+      permissionTitle: "تصاویر کی اجازت",
+      permissionMessage: "ثبوت شامل کرنے کے لیے تصاویر کی اجازت دیں۔",
+      submitErrorTitle: "جمع نہیں ہو سکی",
+      submitSuccessTitle: "رپورٹ جمع ہو گئی",
+      submitSuccessMessage:
+        "ہماری ٹیم آپ کی رپورٹ دیکھے گی۔ فوری اپ ڈیٹ کے لیے آپ لانڈرر سے چیٹ کر سکتے ہیں۔",
+    },
     orderSummary: {
       title: "آرڈر خلاصہ",
       editTitle: "آرڈر اپ ڈیٹ",
@@ -412,6 +439,16 @@ export const ur = {
       intakeSuccessTitle: "بل کی تصدیق ہو گئی",
       intakeSuccessMessage:
         "حتمی بل محفوظ ہو گیا۔ گاہک کو کل بعد میں دکھائی جائے گی۔",
+      selectRiderTitle: "رائیڈر تفویض کریں",
+      selectRiderSubtitle: "اس آرڈر کے لیے پک اپ اور ڈیلیوری کون کرے گا منتخب کریں۔",
+      selectRiderConfirm: "قبول کریں اور تفویض کریں",
+      selectRiderCancel: "منسوخ",
+      selectRiderRequired: "براہ کرم ایک رائیڈر منتخب کریں۔",
+      loadingRiders: "رائیڈرز لوڈ ہو رہے ہیں…",
+      noRidersTitle: "کوئی رائیڈر رجسٹرڈ نہیں",
+      noRidersMessage:
+        "پک اپ آرڈرز قبول کرنے سے پہلے رائیڈر کی تفصیل میں رائیڈرز شامل کریں۔",
+      acceptSuccess: "آرڈر قبول ہو گیا اور رائیڈر کی تفصیل چیٹ میں بھیج دی گئی۔",
     },
     dashboard: {
       title: "ڈیش بورڈ",
@@ -503,6 +540,7 @@ export const ur = {
       includePickupDelivery: "پک اپ اور ڈیلیوری شامل کریں",
       pickupDeliveryAmountLabel: "پک اپ اور ڈیلیوری کی رقم",
       pickupDeliveryAmountPlaceholder: "پک اپ اور ڈیلیوری کی رقم درج کریں",
+      pickupDeliveryAmountRequired: "جاری رکھنے سے پہلے پک اپ اور ڈیلیوری کی رقم درج کریں۔",
       confirm: "تصدیق کریں",
       next: "اگلا",
       complete: "مکمل کریں",
@@ -597,6 +635,38 @@ export const ur = {
       creditsRuleTopup:
         "جب کریڈٹس کم ہوں تو نئے آرڈرز جاری رکھنے کے لیے والٹ ٹاپ اپ کریں۔",
       creditsContinueToDashboard: "ڈیش بورڈ پر جائیں",
+      riderRegistrationTitle: "رائیڈر کی تفصیل",
+      riderRegistrationHeading: "اپنے رائیڈرز رجسٹر کریں",
+      riderRegistrationSubtitle:
+        "پک اپ اور ڈیلیوری کے لیے کم از کم ایک رائیڈر نام، فون اور واضح چہرے کی تصویر کے ساتھ شامل کریں۔",
+      riderDetailsSectionTitle: "رائیڈر کی تفصیلات",
+      riderDetailsSectionHint:
+        "کم از کم ایک رائیڈر واضح چہرے کی تصویر کے ساتھ شامل کریں۔ ضرورت ہو تو مزید رائیڈرز شامل کر سکتے ہیں۔",
+      riderCardTitle: "رائیڈر {index}",
+      riderNameLabel: "رائیڈر کا نام",
+      riderNamePlaceholder: "مکمل نام",
+      riderPhoneLabel: "رائیڈر کا فون",
+      riderPhonePlaceholder: "موبائل نمبر",
+      riderPhoneInvalid: "اس رائیڈر کے لیے درست موبائل نمبر درج کریں۔",
+      riderPhotoLabel: "واضح چہرے کی تصویر",
+      riderPhotoPlaceholder: "واضح چہرے کی تصویر اپ لوڈ کرنے کے لیے ٹیپ کریں",
+      riderPhotoRequired: "ہر رائیڈر کے لیے واضح چہرے کی تصویر لازمی ہے۔",
+      riderPhotoPermissionTitle: "اجازت درکار",
+      riderPhotoPermissionMessage: "رائیڈر کی تصاویر اپ لوڈ کرنے کے لیے فوٹو کی اجازت دیں۔",
+      addRider: "ایک اور رائیڈر شامل کریں",
+      removeRider: "ہٹائیں",
+      riderMinimumRequired: "جاری رکھنے سے پہلے کم از کم ایک مکمل رائیڈر شامل کریں۔",
+      riderResponsibilityLabel:
+        "میں اپنے رائیڈرز اور کسی بھی نقصان یا نقصان کی مکمل ذمہ داری لیتا/لیتی ہوں۔ میں سمجھتا/سمجھتی ہوں کہ دعوے میری ادائیگیوں سے کٹے جائیں گے۔",
+      riderResponsibilityRequired: "جاری رکھنے کے لیے رائیڈر کی ذمہ داری قبول کریں۔",
+      configureRiderDetails: "رائیڈر کی تفصیل",
+      riderDetailsIncomplete:
+        "KYC جمع کروانے سے پہلے رائیڈر کی تفصیل (نام، فون، تصویر اور ذمہ داری) مکمل کریں۔",
+      pickupRidersRequiredHint:
+        "صرف پک اپ اور ڈیلیوری: کم از کم ایک رائیڈر (واضح چہرے کی تصویر) اور ذمہ داری کی قبولیت ضروری ہے۔",
+      pickupRidersOnlyTitle: "صرف پک اپ اور ڈیلیوری",
+      pickupRidersOnlyMessage:
+        "رائیڈر رجسٹریشن صرف جب پک اپ اور ڈیلیوری آن ہو تب ضروری ہے۔",
     },
     settings: {
       merchantServices: "مرچنٹ سروسز",
@@ -658,5 +728,23 @@ export const ur = {
   },
   onboardingLast: {
     getStarted: "شروع کریں",
+  },
+
+  chat: {
+    riderAssignment: {
+      title: "رائیڈر تفویض ہو گیا",
+      riderLabel: "آپ کا رائیڈر",
+      laundromat: "لانڈرومیٹ",
+      orderDetails: "آرڈر کی تفصیل",
+      orderNumber: "آرڈر #{{number}}",
+      orderNumberLabel: "آرڈر",
+      services: "سروسز",
+      estimatedTotal: "تخمینی کل",
+      pickup: "پک اپ",
+      delivery: "ڈیلیوری",
+      address: "پتہ",
+      verified: "تصدیق شدہ",
+      trackOrder: "آرڈر ٹریک کریں",
+    },
   },
 } as const;

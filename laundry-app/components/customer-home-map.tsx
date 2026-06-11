@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { WebView } from "react-native-webview";
 
+import { PartnerNameWithBadge } from "@/components/partner-name-with-badge";
 import { theme } from "@/constants/theme";
 import { fetchPartnersByFulfillmentMode, type PartnerPublicRow } from "@/lib/partner-discovery";
 import { getDeviceCoordinates } from "@/utils/device-location";
@@ -504,7 +505,11 @@ export function CustomerHomeMap({
                   </View>
                 )}
                 <View style={styles.partnerInfoWrap}>
-                  <Text style={styles.partnerSheetTitle}>{selectedPartner.business_name.trim()}</Text>
+                  <PartnerNameWithBadge
+                    name={selectedPartner.business_name.trim()}
+                    verified
+                    nameStyle={styles.partnerSheetTitle}
+                  />
                   <Text style={styles.partnerSheetSubtitle}>
                     {selectedPartner.fulfillmentMode === "pickupDelivery"
                       ? strings.pickUpDelivery

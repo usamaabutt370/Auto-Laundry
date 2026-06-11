@@ -24,6 +24,7 @@ import { theme } from "@/constants/theme";
 import { useLocale } from "@/contexts/locale-context";
 import { useAuth } from "@/contexts/auth-context";
 import { getStrings } from "@/locales";
+import { ensureActiveUserProfile } from "@/lib/ensure-user-profile";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { getDeviceCoordinatesWithStatus } from "@/utils/device-location";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
@@ -284,6 +285,12 @@ export function PartnerBusinessDetailsForm({ mode }: Props) {
     }
     if (!user?.id) {
       Alert.alert("Authentication error", "Please sign in again and try.");
+      return;
+    }
+
+    const profileReady = await ensureActiveUserProfile(user);
+    if (!profileReady.ok) {
+      Alert.alert("Account error", profileReady.error);
       return;
     }
 
