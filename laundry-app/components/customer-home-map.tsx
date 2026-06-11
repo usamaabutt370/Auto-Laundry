@@ -325,7 +325,26 @@ export function CustomerHomeMap({
       border-top-color: #64B5D9;
     }
     .leaflet-right { right: 8px; }
-    .leaflet-bottom { bottom: ${zoomControlBottomOffset}px; }
+    .leaflet-bottom.leaflet-right { bottom: ${zoomControlBottomOffset}px; }
+    .leaflet-bottom.leaflet-left { bottom: 8px; left: 8px; }
+    .leaflet-control-attribution {
+      margin: 0 !important;
+      padding: 2px 6px !important;
+      font-size: 9px !important;
+      line-height: 1.25 !important;
+      border-radius: 6px !important;
+      background: rgba(3, 15, 27, 0.62) !important;
+      color: rgba(255, 255, 255, 0.82) !important;
+      box-shadow: none !important;
+      max-width: calc(100vw - 24px);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .leaflet-control-attribution a {
+      color: #A0D0E9 !important;
+      text-decoration: none !important;
+    }
   </style>
 </head>
 <body>
@@ -334,11 +353,13 @@ export function CustomerHomeMap({
   <script>
     const map = L.map('map', { zoomControl: false });
     L.control.zoom({ position: 'bottomright' }).addTo(map);
+    map.attributionControl.setPrefix(false);
+    map.attributionControl.setPosition('bottomleft');
     const defaultCenter = [31.365, 74.2143];
     map.setView(defaultCenter, ${DEFAULT_ZOOM});
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
-      attribution: '&copy; OpenStreetMap contributors'
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
     }).addTo(map);
 
     const markers = ${markersJson};
