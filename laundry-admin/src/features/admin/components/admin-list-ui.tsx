@@ -1,7 +1,9 @@
 "use client";
 
+import type { PaginatedResult } from "@/features/admin/server/admin-list-query";
 import { theme } from "@/lib/theme/theme";
-import type { ReactNode } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 
 type AdminDesktopTableProps = {
   minWidthClassName: string;
@@ -17,6 +19,73 @@ export function AdminDesktopTable({ minWidthClassName, children }: AdminDesktopT
       <div className={minWidthClassName}>{children}</div>
     </div>
   );
+}
+
+export function useAdminListUrl() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const push = useCallback(
+    (patch: Record<string, string | null | undefined>, resetPage = false) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (resetPage) params.delete("page");
+      for (const [key, value] of Object.entries(patch)) {
+        if (!value) params.delete(key);
+        else params.set(key, value);
+      }
+      const qs = params.toString();
+      router.push(qs ? `${pathname}?${qs}` : pathname);
+    },
+    [pathname, router, searchParams],
+  );
+
+  const setPage = useCallback((page: number) => push({ page: String(page) }), [push]);
+
+  return { searchParams, push, setPage };
+}
+
+export function useDebouncedListSearch() {
+  const { searchParams, push } = useAdminListUrl();
+  const query = searchParams.get("q") ?? "";
+  const [draft, setDraft] = useState(query);
+
+  useEffect(() => {
+    setDraft(query);
+  }, [query]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      if (draft === query) return;
+      push({ q: draft || null }, true);
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [draft, query, push]);
+
+  return { query: draft, setQuery: setDraft };
+}
+
+export function adminPaginationView(data: PaginatedResult<unknown>) {
+  const pageCount = Math.max(1, Math.ceil(data.total / data.pageSize));
+  const rangeStart = data.total === 0 ? 0 : (data.page - 1) * data.pageSize + 1;
+  const rangeEnd = Math.min(data.page * data.pageSize, data.total);
+  const pageNumbers = buildAdminPageNumbers(data.page, pageCount);
+  return { pageCount, rangeStart, rangeEnd, pageNumbers };
+}
+
+export function buildAdminPageNumbers(page: number, pageCount: number): number[] {
+  if (pageCount <= 7) {
+    return Array.from({ length: pageCount }, (_, i) => i + 1);
+  }
+  const nums: number[] = [];
+  const windowStart = Math.max(2, page - 1);
+  const windowEnd = Math.min(pageCount - 1, page + 1);
+  nums.push(1);
+  if (windowStart > 2) nums.push(-1);
+  for (let n = windowStart; n <= windowEnd; n++) nums.push(n);
+  if (windowEnd < pageCount - 1) nums.push(-1);
+  nums.push(pageCount);
+  return nums;
 }
 
 type AdminListPaginationProps = {

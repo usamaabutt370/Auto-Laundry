@@ -1,5 +1,7 @@
 import "server-only";
 
+import { escapeIlike, paginatedRange } from "@/features/admin/server/admin-list-query";
+import type { AdminListQuery, PaginatedResult } from "@/features/admin/server/admin-list-query";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { Database } from "@/lib/supabase/database.types";
 import type {
@@ -12,6 +14,118 @@ import type {
 type ProfileRow = Database["public"]["Tables"]["profiles"]["Row"];
 type PartnerOnboardingRequestRow =
   Database["public"]["Tables"]["partner_onboarding_requests"]["Row"];
+
+export async function listPartnerKycRequestsForAdminPaginated(
+  input: AdminListQuery,
+): Promise<PaginatedResult<AdminPartnerKycListItem>> {
+  const supabase = createSupabaseAdminClient();
+  const { from, to } = paginatedRange(input.page, input.pageSize);
+
+  let partnersQuery = supabase
+    .from("partner_profiles")
+    .select("id, business_name, status", { count: "exact" })
+    .order("business_name", { ascending: true, nullsFirst: false });
+
+  if (input.status && input.status !== "all") {
+    partnersQuery = partnersQuery.eq("status", input.status);
+  }
+
+  if (input.query) {
+    const q = escapeIlike(input.query);
+    const [profilesResult, partnerSearchResult] = await Promise.all([
+      supabase
+        .from("profiles")
+        .select("id")
+        .or(
+          `id.ilike.%${q}%,full_name.ilike.%${q}%,first_name.ilike.%${q}%,last_name.ilike.%${q}%,email.ilike.%${q}%,phone.ilike.%${q}%`,
+        ),
+      supabase
+        .from("partner_profiles")
+        .select("id")
+        .or(`id.ilike.%${q}%,business_name.ilike.%${q}%,phone_number.ilike.%${q}%`),
+    ]);
+    if (profilesResult.error) throw new Error(`profiles search failed: ${profilesResult.error.message}`);
+    if (partnerSearchResult.error) {
+      throw new Error(`partner_profiles search failed: ${partnerSearchResult.error.message}`);
+    }
+    const matchingIds = [
+      ...new Set([
+        ...(profilesResult.data ?? []).map((row) => row.id),
+        ...(partnerSearchResult.data ?? []).map((row) => row.id),
+      ]),
+    ];
+    if (matchingIds.length === 0) {
+      return { items: [], total: 0, page: input.page, pageSize: input.pageSize };
+    }
+    partnersQuery = partnersQuery.in("id", matchingIds);
+  }
+
+  const partnersResult = await partnersQuery.range(from, to);
+  if (partnersResult.error) {
+    throw new Error(`partner_profiles list failed: ${partnersResult.error.message}`);
+  }
+
+  const partnerProfiles = partnersResult.data ?? [];
+  if (partnerProfiles.length === 0) {
+    return {
+      items: [],
+      total: partnersResult.count ?? 0,
+      page: input.page,
+      pageSize: input.pageSize,
+    };
+  }
+
+  const userIds = partnerProfiles.map((row) => row.id);
+  const [profilesResult, requestsResult] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("id, full_name, first_name, last_name, email, phone, role")
+      .in("id", userIds),
+    supabase
+      .from("partner_onboarding_requests")
+      .select("id, user_id, status, submitted_at, reviewed_at, reviewed_by, updated_at, notes")
+      .in("user_id", userIds)
+      .order("updated_at", { ascending: false, nullsFirst: false }),
+  ]);
+
+  if (profilesResult.error) throw new Error(`profiles list failed: ${profilesResult.error.message}`);
+  if (requestsResult.error) {
+    throw new Error(`partner_onboarding_requests list failed: ${requestsResult.error.message}`);
+  }
+
+  const profilesById = new Map((profilesResult.data ?? []).map((p) => [p.id, p]));
+  const latestRequestByUserId = buildLatestRequestByUserMap(requestsResult.data ?? []);
+
+  const items = partnerProfiles.map((partnerProfile) => {
+    const userId = partnerProfile.id;
+    const req = latestRequestByUserId.get(userId);
+    const profile = profilesById.get(userId);
+    return {
+      userId,
+      partnerName:
+        (profile ? buildFullName(profile) : null) ??
+        readSnapshotText(req?.notes, "businessProfile", "contactName") ??
+        "N/A",
+      businessName:
+        asText(partnerProfile.business_name) ||
+        readSnapshotText(req?.notes, "businessProfile", "businessName") ||
+        "N/A",
+      email: asText(profile?.email) || "N/A",
+      phone: asText(profile?.phone) || "N/A",
+      status: resolvePartnerStatus(partnerProfile.status, req?.status),
+      submittedAt: asTextOrNull(req?.submitted_at),
+      reviewedAt: asTextOrNull(req?.reviewed_at),
+      reviewedBy: asTextOrNull(req?.reviewed_by),
+    };
+  });
+
+  return {
+    items,
+    total: partnersResult.count ?? items.length,
+    page: input.page,
+    pageSize: input.pageSize,
+  };
+}
 
 export async function listPartnerKycRequestsForAdmin(): Promise<AdminPartnerKycListItem[]> {
   const supabase = createSupabaseAdminClient();
@@ -71,7 +185,8 @@ export async function listPartnerKycRequestsForAdmin(): Promise<AdminPartnerKycL
 
 export async function getPartnerKycDetailForAdmin(userId: string): Promise<AdminPartnerKycDetail | null> {
   const supabase = createSupabaseAdminClient();
-  const [profileResult, partnerProfileResult, servicesResult, requestsResult] = await Promise.all([
+  const [profileResult, partnerProfileResult, servicesResult, requestsResult, ridersResult] =
+    await Promise.all([
     supabase
       .from("profiles")
       .select("id, full_name, first_name, last_name, email, phone, role, created_at")
@@ -96,6 +211,11 @@ export async function getPartnerKycDetailForAdmin(userId: string): Promise<Admin
       .order("updated_at", { ascending: false, nullsFirst: false })
       .limit(1)
       .maybeSingle(),
+    supabase
+      .from("partner_riders")
+      .select("id, partner_id, name, phone, photo_url, created_at")
+      .eq("partner_id", userId)
+      .order("created_at", { ascending: true }),
   ]);
 
   if (profileResult.error) throw new Error(`profiles detail failed: ${profileResult.error.message}`);
@@ -105,6 +225,9 @@ export async function getPartnerKycDetailForAdmin(userId: string): Promise<Admin
   if (servicesResult.error) throw new Error(`partner_services list failed: ${servicesResult.error.message}`);
   if (requestsResult.error) {
     throw new Error(`partner_onboarding_requests detail failed: ${requestsResult.error.message}`);
+  }
+  if (ridersResult.error && !isMissingPartnerRidersTableError(ridersResult.error)) {
+    throw new Error(`partner_riders list failed: ${ridersResult.error.message}`);
   }
 
   const profile = profileResult.data;
@@ -146,7 +269,23 @@ export async function getPartnerKycDetailForAdmin(userId: string): Promise<Admin
       pickupDeliveryAmount:
         asTextOrNull(partnerProfile?.pickup_delivery_amount) ??
         readSnapshotText(request?.notes, "servicePricing", "pickupDeliveryAmount"),
+      businessPhone:
+        asTextOrNull(partnerProfile?.phone_number) ??
+        readSnapshotText(request?.notes, "businessProfile", "phoneNumber"),
+      businessAddress:
+        asTextOrNull(partnerProfile?.address) ??
+        readSnapshotText(request?.notes, "businessProfile", "address"),
+      businessImages: buildBusinessImageUrls(partnerProfile, request?.notes),
+      ridersResponsibilityAcceptedAt:
+        asTextOrNull(
+          (partnerProfile as { riders_responsibility_accepted_at?: string | null } | null)
+            ?.riders_responsibility_accepted_at,
+        ) ??
+        (readSnapshotValue(request?.notes, "ridersResponsibilityAccepted") === true
+          ? asTextOrNull(request?.submitted_at)
+          : null),
     },
+    riders: buildRiderRows(ridersResult.data ?? [], request?.notes),
     services: buildServiceRows(servicesResult.data ?? [], request?.notes),
     request: {
       id: asTextOrNull(request?.id),
@@ -260,6 +399,67 @@ function buildLatestRequestByUserMap(
   return map;
 }
 
+function buildBusinessImageUrls(partnerProfile: unknown, notes: unknown): string[] {
+  const urls = new Set<string>();
+
+  const profile = partnerProfile as { business_images?: unknown } | null;
+  const fromProfile = profile?.business_images;
+  if (Array.isArray(fromProfile)) {
+    for (const item of fromProfile) {
+      if (typeof item === "string" && item.trim()) {
+        urls.add(item.trim());
+      }
+    }
+  }
+
+  const snapshotImages = readSnapshotValue(notes, "businessProfile", "businessImages");
+  if (Array.isArray(snapshotImages)) {
+    for (const item of snapshotImages) {
+      if (typeof item === "string" && item.trim()) {
+        urls.add(item.trim());
+      }
+    }
+  }
+
+  return Array.from(urls);
+}
+
+function buildRiderRows(
+  rows: Array<{
+    id: string;
+    name?: string | null;
+    phone?: string | null;
+    photo_url?: string | null;
+    created_at?: string | null;
+  }>,
+  notes: unknown,
+): AdminPartnerKycDetail["riders"] {
+  const dbRiders = rows.map((row) => ({
+    id: row.id,
+    name: asText(row.name) || "N/A",
+    phone: asText(row.phone) || "N/A",
+    photoUrl: asText(row.photo_url) || "",
+    createdAt: asTextOrNull(row.created_at),
+  }));
+
+  if (dbRiders.length > 0) {
+    return dbRiders;
+  }
+
+  const snapshotRiders = readSnapshotValue(notes, "riders");
+  if (!Array.isArray(snapshotRiders)) return [];
+  return snapshotRiders.map((rider, idx) => {
+    const item = isObject(rider) ? rider : {};
+    return {
+      id: `snapshot-rider-${idx + 1}`,
+      name: asText(item.name) || "N/A",
+      phone: asText(item.phone) || "N/A",
+      photoUrl: asText(item.photoUrl) || asText(item.photo_url) || "",
+      createdAt: null,
+    };
+  });
+}
+
 function buildServiceRows(
   rows: Array<{ id: string; name?: string | null; category?: string | null; price_display?: string | null }>,
   notes: unknown,
@@ -317,18 +517,50 @@ function isMissingPartnerStatusColumnError(error: { code?: string | null; messag
   return error.code === "42703" || message.includes("column") && message.includes("status") && message.includes("does not exist");
 }
 
+function parseNotesRoot(value: unknown): Record<string, unknown> | null {
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    try {
+      const parsed: unknown = JSON.parse(trimmed);
+      return isObject(parsed) ? parsed : null;
+    } catch {
+      return null;
+    }
+  }
+  return isObject(value) ? value : null;
+}
+
 function parseSnapshot(value: unknown): PartnerKycSnapshot | null {
-  if (!isObject(value)) return null;
+  const root = parseNotesRoot(value);
+  if (!root) return null;
   return {
-    businessProfile: isObject(value.businessProfile) ? value.businessProfile : null,
-    servicePricing: isObject(value.servicePricing) ? value.servicePricing : null,
-    serviceLines: Array.isArray(value.serviceLines) ? value.serviceLines : null,
+    businessProfile: isObject(root.businessProfile) ? root.businessProfile : null,
+    servicePricing: isObject(root.servicePricing) ? root.servicePricing : null,
+    serviceLines: Array.isArray(root.serviceLines) ? root.serviceLines : null,
+    riders: Array.isArray(root.riders) ? root.riders : null,
+    ridersResponsibilityAccepted:
+      typeof root.ridersResponsibilityAccepted === "boolean"
+        ? root.ridersResponsibilityAccepted
+        : null,
   };
 }
 
+function isMissingPartnerRidersTableError(error: {
+  code?: string | null;
+  message?: string | null;
+}): boolean {
+  const message = (error.message ?? "").toLowerCase();
+  return (
+    error.code === "42P01" ||
+    (message.includes("partner_riders") && message.includes("does not exist"))
+  );
+}
+
 function readSnapshotValue(value: unknown, ...path: string[]): unknown {
-  if (!isObject(value)) return null;
-  let current: unknown = value;
+  const root = parseNotesRoot(value);
+  if (!root) return null;
+  let current: unknown = root;
   for (const key of path) {
     if (!isObject(current) || !(key in current)) return null;
     current = (current as Record<string, unknown>)[key];

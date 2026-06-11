@@ -1,15 +1,12 @@
 import { PartnerCreditsList } from "@/features/admin/components/partner-credits-list";
-import { getAdminCredits } from "@/features/admin/data/admin-credits";
+import { parsePageSearchParams } from "@/features/admin/server/admin-list-query";
+import { listPartnerCreditBalancesForAdminPaginated } from "@/features/admin/server/credits/partner-credits.repository";
 
-export const dynamic = "force-dynamic";
-
-export default async function CreditsPage() {
-  const { transactions, balances } = await getAdminCredits();
-
-  return (
-    <PartnerCreditsList
-      transactions={transactions}
-      balances={balances}
-    />
-  );
+export default async function CreditsPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const data = await listPartnerCreditBalancesForAdminPaginated(parsePageSearchParams(await searchParams));
+  return <PartnerCreditsList data={data} />;
 }

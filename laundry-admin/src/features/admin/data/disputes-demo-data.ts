@@ -1,2 +1,2 @@
-export type { AdminDispute, DisputeCategory, DisputeStatus } from "./demo-backend";
-export { fetchDisputesDemoData } from "./demo-backend";
+export type { AdminDispute, DisputeCategory, DisputeStatus } from "@/features/admin/types/admin-dispute";
+export { getAdminDisputes as fetchDisputesDemoData } from "./admin-disputes";

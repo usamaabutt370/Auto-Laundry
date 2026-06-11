@@ -3,12 +3,15 @@
 import { PRODUCT_NAME } from "@/lib/branding";
 import { theme } from "@/lib/theme/theme";
 import type { AdminOrder, OrderStatus, ShippingService } from "@/features/admin/data/admin-orders";
-import { AdminDesktopTable, AdminListPagination } from "@/features/admin/components/admin-list-ui";
-import { useEffect, useMemo, useState } from "react";
-
-type OrdersListProps = {
-  orders: AdminOrder[];
-};
+import {
+  AdminDesktopTable,
+  AdminListPagination,
+  adminPaginationView,
+  useAdminListUrl,
+  useDebouncedListSearch,
+} from "@/features/admin/components/admin-list-ui";
+import type { PaginatedResult } from "@/features/admin/server/admin-list-query";
+import { useState } from "react";
 
 type StatusFilter = "all" | OrderStatus;
 
@@ -45,64 +48,17 @@ const statusPillClass = "admin-status-pill border text-[11px] font-semibold sm:t
 const tableGridClass =
   "grid grid-cols-[minmax(84px,0.8fr)_minmax(120px,1fr)_minmax(120px,1fr)_minmax(140px,1.2fr)_minmax(92px,0.8fr)_minmax(80px,0.7fr)_minmax(140px,1.2fr)_minmax(100px,0.85fr)] items-center gap-x-4 gap-y-1";
 
-function matchesQuery(order: AdminOrder, q: string): boolean {
-  const s = q.trim().toLowerCase();
-  if (!s) return true;
-  return (
-    order.id.toLowerCase().includes(s) ||
-    order.orderNumber.toLowerCase().includes(s) ||
-    order.customer.toLowerCase().includes(s) ||
-    order.partner.toLowerCase().includes(s) ||
-    order.trackingCode.toLowerCase().includes(s) ||
-    order.items.toLowerCase().includes(s)
-  );
-}
+type OrdersListProps = {
+  data: PaginatedResult<AdminOrder>;
+};
 
-export function OrdersList({ orders }: OrdersListProps) {
-  const [query, setQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
-  const [page, setPage] = useState(1);
+export function OrdersList({ data }: OrdersListProps) {
+  const { searchParams, push, setPage } = useAdminListUrl();
+  const { query, setQuery } = useDebouncedListSearch();
   const [selectedOrder, setSelectedOrder] = useState<AdminOrder | null>(null);
-
-  useEffect(() => {
-    setPage(1);
-  }, [query, statusFilter]);
-
-  const filteredOrders = useMemo(() => {
-    const searched = orders.filter((o) => matchesQuery(o, query));
-    if (statusFilter === "all") return searched;
-    return searched.filter((o) => o.status === statusFilter);
-  }, [orders, query, statusFilter]);
-
-  const pageCount = Math.max(1, Math.ceil(filteredOrders.length / PAGE_SIZE));
-
-  useEffect(() => {
-    if (page > pageCount) setPage(pageCount);
-  }, [page, pageCount]);
-
-  const pagedOrders = useMemo(() => {
-    const start = (page - 1) * PAGE_SIZE;
-    return filteredOrders.slice(start, start + PAGE_SIZE);
-  }, [filteredOrders, page]);
-
-  const total = filteredOrders.length;
-  const rangeStart = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
-  const rangeEnd = Math.min(page * PAGE_SIZE, total);
-
-  const pageNumbers = useMemo(() => {
-    if (pageCount <= 7) {
-      return Array.from({ length: pageCount }, (_, i) => i + 1);
-    }
-    const nums: number[] = [];
-    const windowStart = Math.max(2, page - 1);
-    const windowEnd = Math.min(pageCount - 1, page + 1);
-    nums.push(1);
-    if (windowStart > 2) nums.push(-1);
-    for (let n = windowStart; n <= windowEnd; n++) nums.push(n);
-    if (windowEnd < pageCount - 1) nums.push(-1);
-    nums.push(pageCount);
-    return nums;
-  }, [page, pageCount]);
+  const statusFilter = (searchParams.get("status") ?? "all") as StatusFilter;
+  const orders = data.items;
+  const { pageCount, rangeStart, rangeEnd, pageNumbers } = adminPaginationView(data);
 
   return (
     <section className="w-full min-w-0 space-y-3 sm:space-y-4">
@@ -143,7 +99,10 @@ export function OrdersList({ orders }: OrdersListProps) {
         <select
           id="orders-status-filter"
           value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
+          onChange={(e) => {
+            const value = e.target.value as StatusFilter;
+            push({ status: value === "all" ? null : value }, true);
+          }}
           className="admin-filter-select min-h-[44px] w-full cursor-pointer rounded-xl border py-2.5 pl-3 text-[13px] font-medium text-white outline-none sm:w-[min(100%,200px)]"
           style={{
             borderColor: theme.colors.outline,
@@ -176,10 +135,10 @@ export function OrdersList({ orders }: OrdersListProps) {
             <span className="text-left">Tracking</span>
             <span className="text-right">Status</span>
           </div>
-          {pagedOrders.length === 0 ? (
+          {orders.length === 0 ? (
             <div className="px-4 py-10 text-center text-sm text-white/60">No orders match your search or filters.</div>
           ) : null}
-          {pagedOrders.map((order) => {
+          {orders.map((order) => {
             const pill = STATUS_PILL[order.status];
             return (
               <button
@@ -228,12 +187,12 @@ export function OrdersList({ orders }: OrdersListProps) {
       </AdminDesktopTable>
 
       <div className="grid gap-3 md:hidden">
-        {pagedOrders.length === 0 ? (
+        {orders.length === 0 ? (
           <p className="rounded-xl border px-4 py-8 text-center text-sm text-white/60" style={{ borderColor: theme.colors.outline }}>
             No orders match your search or filters.
           </p>
         ) : null}
-        {pagedOrders.map((order) => {
+        {orders.map((order) => {
           const pill = STATUS_PILL[order.status];
           return (
             <button
@@ -298,9 +257,9 @@ export function OrdersList({ orders }: OrdersListProps) {
       </div>
 
       <AdminListPagination
-        page={page}
+        page={data.page}
         pageCount={pageCount}
-        total={total}
+        total={data.total}
         rangeStart={rangeStart}
         rangeEnd={rangeEnd}
         onPageChange={setPage}

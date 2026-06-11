@@ -1,10 +1,12 @@
 import { UsersList } from "@/features/admin/components/users-list";
-import { getAdminUsers } from "@/features/admin/data/admin-users";
+import { parsePageSearchParams } from "@/features/admin/server/admin-list-query";
+import { listCustomerProfilesForAdminPaginated } from "@/features/admin/server/users/customer-profiles.repository";
 
-export const dynamic = "force-dynamic";
-
-export default async function UsersPage() {
-  const users = await getAdminUsers();
-
-  return <UsersList users={users} />;
+export default async function UsersPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const data = await listCustomerProfilesForAdminPaginated(parsePageSearchParams(await searchParams));
+  return <UsersList data={data} />;
 }

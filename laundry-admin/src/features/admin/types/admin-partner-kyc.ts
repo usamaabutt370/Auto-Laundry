@@ -4,6 +4,16 @@ export type PartnerKycSnapshot = {
   businessProfile?: Record<string, unknown> | null;
   servicePricing?: Record<string, unknown> | null;
   serviceLines?: unknown[] | null;
+  riders?: unknown[] | null;
+  ridersResponsibilityAccepted?: boolean | null;
+};
+
+export type AdminPartnerRider = {
+  id: string;
+  name: string;
+  phone: string;
+  photoUrl: string;
+  createdAt: string | null;
 };
 
 export type AdminPartnerKycListItem = {
@@ -32,9 +42,14 @@ export type AdminPartnerKycDetail = {
   business: {
     businessName: string | null;
     businessDescription: string | null;
+    businessPhone: string | null;
+    businessAddress: string | null;
+    businessImages: string[];
     pickupDeliveryEnabled: boolean | null;
     pickupDeliveryAmount: string | null;
+    ridersResponsibilityAcceptedAt: string | null;
   };
+  riders: AdminPartnerRider[];
   services: Array<{
     id: string;
     name: string;

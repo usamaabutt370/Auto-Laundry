@@ -36,6 +36,40 @@ export type Database = {
         Update: Partial<Database["public"]["Tables"]["profiles"]["Insert"]>;
         Relationships: [];
       };
+      order_disputes: {
+        Row: {
+          id: string;
+          order_id?: string | null;
+          customer_id?: string | null;
+          partner_id?: string | null;
+          category?: string | null;
+          description?: string | null;
+          image_urls?: string[] | null;
+          status?: string | null;
+          admin_notes?: string | null;
+          reviewed_by?: string | null;
+          created_at?: string | null;
+          updated_at?: string | null;
+          [key: string]: Json | undefined;
+        };
+        Insert: {
+          id?: string;
+          order_id?: string | null;
+          customer_id?: string | null;
+          partner_id?: string | null;
+          category?: string | null;
+          description?: string | null;
+          image_urls?: string[] | null;
+          status?: string | null;
+          admin_notes?: string | null;
+          reviewed_by?: string | null;
+          created_at?: string | null;
+          updated_at?: string | null;
+          [key: string]: Json | undefined;
+        };
+        Update: Partial<Database["public"]["Tables"]["order_disputes"]["Insert"]>;
+        Relationships: [];
+      };
       customer_orders: {
         Row: {
           id: string;
@@ -162,8 +196,11 @@ export type Database = {
           business_name?: string | null;
           status?: string | null;
           business_description?: string | null;
+          phone_number?: string | null;
+          address?: string | null;
           pickup_delivery_enabled?: boolean | null;
           pickup_delivery_amount?: string | null;
+          riders_responsibility_accepted_at?: string | null;
           [key: string]: Json | undefined;
         };
         Insert: {
@@ -171,11 +208,37 @@ export type Database = {
           business_name?: string | null;
           status?: string | null;
           business_description?: string | null;
+          phone_number?: string | null;
+          address?: string | null;
           pickup_delivery_enabled?: boolean | null;
           pickup_delivery_amount?: string | null;
+          riders_responsibility_accepted_at?: string | null;
           [key: string]: Json | undefined;
         };
         Update: Partial<Database["public"]["Tables"]["partner_profiles"]["Insert"]>;
+        Relationships: [];
+      };
+      partner_riders: {
+        Row: {
+          id: string;
+          partner_id?: string;
+          name: string;
+          phone: string;
+          photo_url: string;
+          created_at?: string | null;
+          updated_at?: string | null;
+          [key: string]: Json | undefined;
+        };
+        Insert: {
+          id?: string;
+          partner_id: string;
+          name?: string;
+          phone?: string;
+          photo_url?: string;
+          created_at?: string | null;
+          updated_at?: string | null;
+        };
+        Update: Partial<Database["public"]["Tables"]["partner_riders"]["Insert"]>;
         Relationships: [];
       };
       partner_services: {
@@ -234,22 +297,14 @@ export type Database = {
       };
       partner_credit_accounts: {
         Row: {
-          id: string;
-          partner_id?: string | null;
+          partner_id: string;
           balance?: number | null;
-          total_earned?: number | null;
-          total_spent?: number | null;
-          created_at?: string | null;
           updated_at?: string | null;
           [key: string]: Json | undefined;
         };
         Insert: {
-          id?: string;
-          partner_id?: string | null;
+          partner_id: string;
           balance?: number | null;
-          total_earned?: number | null;
-          total_spent?: number | null;
-          created_at?: string | null;
           updated_at?: string | null;
           [key: string]: Json | undefined;
         };

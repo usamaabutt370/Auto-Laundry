@@ -1,10 +1,12 @@
 import { OrdersList } from "@/features/admin/components/orders-list";
-import { getAdminOrders } from "@/features/admin/data/admin-orders";
+import { parsePageSearchParams } from "@/features/admin/server/admin-list-query";
+import { listCustomerOrdersForAdminPaginated } from "@/features/admin/server/orders/customer-orders.repository";
 
-export const dynamic = "force-dynamic";
-
-export default async function OrdersPage() {
-  const orders = await getAdminOrders();
-
-  return <OrdersList orders={orders} />;
+export default async function OrdersPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const data = await listCustomerOrdersForAdminPaginated(parsePageSearchParams(await searchParams));
+  return <OrdersList data={data} />;
 }

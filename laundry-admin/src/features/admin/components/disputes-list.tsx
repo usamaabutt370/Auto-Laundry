@@ -2,13 +2,16 @@
 
 import { PRODUCT_NAME } from "@/lib/branding";
 import { theme } from "@/lib/theme/theme";
-import type { AdminDispute, DisputeCategory, DisputeStatus } from "@/features/admin/data/disputes-demo-data";
-import { AdminDesktopTable, AdminListPagination } from "@/features/admin/components/admin-list-ui";
-import { useEffect, useMemo, useState } from "react";
-
-type DisputesListProps = {
-  disputes: AdminDispute[];
-};
+import type { AdminDispute, DisputeCategory, DisputeStatus } from "@/features/admin/types/admin-dispute";
+import {
+  AdminDesktopTable,
+  AdminListPagination,
+  adminPaginationView,
+  useAdminListUrl,
+  useDebouncedListSearch,
+} from "@/features/admin/components/admin-list-ui";
+import type { PaginatedResult } from "@/features/admin/server/admin-list-query";
+import { useEffect, useState } from "react";
 
 type StatusFilter = "all" | DisputeStatus;
 type CategoryFilter = "all" | DisputeCategory;
@@ -38,66 +41,18 @@ const statusPillClass = "admin-status-pill border text-[11px] font-semibold sm:t
 const tableGridClass =
   "grid grid-cols-[minmax(88px,0.75fr)_minmax(88px,0.75fr)_minmax(120px,1.05fr)_minmax(120px,1.05fr)_minmax(112px,0.95fr)_minmax(160px,1.35fr)_minmax(100px,0.9fr)_minmax(88px,0.75fr)_minmax(88px,0.75fr)] items-center gap-x-4 gap-y-1";
 
-function matchesQuery(dispute: AdminDispute, q: string): boolean {
-  const s = q.trim().toLowerCase();
-  if (!s) return true;
-  return (
-    dispute.id.toLowerCase().includes(s) ||
-    dispute.orderId.toLowerCase().includes(s) ||
-    dispute.customer.toLowerCase().includes(s) ||
-    dispute.partner.toLowerCase().includes(s) ||
-    dispute.category.toLowerCase().includes(s) ||
-    dispute.summary.toLowerCase().includes(s) ||
-    dispute.status.toLowerCase().includes(s)
-  );
-}
+type DisputesListProps = {
+  data: PaginatedResult<AdminDispute>;
+};
 
-export function DisputesList({ disputes }: DisputesListProps) {
-  const [query, setQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
-  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all");
-  const [page, setPage] = useState(1);
+export function DisputesList({ data }: DisputesListProps) {
+  const { searchParams, push, setPage } = useAdminListUrl();
+  const { query, setQuery } = useDebouncedListSearch();
+  const statusFilter = (searchParams.get("status") ?? "all") as StatusFilter;
+  const categoryFilter = (searchParams.get("category") ?? "all") as CategoryFilter;
   const [selectedDispute, setSelectedDispute] = useState<AdminDispute | null>(null);
-
-  useEffect(() => {
-    setPage(1);
-  }, [query, statusFilter, categoryFilter]);
-
-  const filteredDisputes = useMemo(() => {
-    const searched = disputes.filter((d) => matchesQuery(d, query));
-    const byStatus = statusFilter === "all" ? searched : searched.filter((d) => d.status === statusFilter);
-    return categoryFilter === "all" ? byStatus : byStatus.filter((d) => d.category === categoryFilter);
-  }, [disputes, query, statusFilter, categoryFilter]);
-
-  const pageCount = Math.max(1, Math.ceil(filteredDisputes.length / PAGE_SIZE));
-
-  useEffect(() => {
-    if (page > pageCount) setPage(pageCount);
-  }, [page, pageCount]);
-
-  const pagedDisputes = useMemo(() => {
-    const start = (page - 1) * PAGE_SIZE;
-    return filteredDisputes.slice(start, start + PAGE_SIZE);
-  }, [filteredDisputes, page]);
-
-  const total = filteredDisputes.length;
-  const rangeStart = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
-  const rangeEnd = Math.min(page * PAGE_SIZE, total);
-
-  const pageNumbers = useMemo(() => {
-    if (pageCount <= 7) {
-      return Array.from({ length: pageCount }, (_, i) => i + 1);
-    }
-    const nums: number[] = [];
-    const windowStart = Math.max(2, page - 1);
-    const windowEnd = Math.min(pageCount - 1, page + 1);
-    nums.push(1);
-    if (windowStart > 2) nums.push(-1);
-    for (let n = windowStart; n <= windowEnd; n++) nums.push(n);
-    if (windowEnd < pageCount - 1) nums.push(-1);
-    nums.push(pageCount);
-    return nums;
-  }, [page, pageCount]);
+  const disputes = data.items;
+  const { pageCount, rangeStart, rangeEnd, pageNumbers } = adminPaginationView(data);
 
   useEffect(() => {
     if (!selectedDispute) return;
@@ -118,8 +73,8 @@ export function DisputesList({ disputes }: DisputesListProps) {
       <div>
         <h1 className="text-[clamp(1.125rem,4vw,1.5rem)] font-bold text-white">Disputes</h1>
         <p className="mt-1 max-w-2xl text-[13px] leading-relaxed text-white/75 sm:text-[15px]">
-          For {PRODUCT_NAME}: review customer issues about damaged items, missed pickups, billing, and delivery.
-          Super Admin view is read-only in this demo.
+          For {PRODUCT_NAME}: review customer-reported problems from the mobile app — damaged items, missed
+          pickups, billing, delivery, and more. Reports are sent to admin only, not partners.
         </p>
       </div>
 
@@ -153,7 +108,10 @@ export function DisputesList({ disputes }: DisputesListProps) {
         <select
           id="disputes-category-filter"
           value={categoryFilter}
-          onChange={(e) => setCategoryFilter(e.target.value as CategoryFilter)}
+          onChange={(e) => {
+            const value = e.target.value as CategoryFilter;
+            push({ category: value === "all" ? null : value }, true);
+          }}
           className="admin-filter-select min-h-[44px] w-full cursor-pointer rounded-xl border py-2.5 pl-3 text-[13px] font-medium text-white outline-none sm:w-[min(100%,220px)]"
           style={{
             borderColor: theme.colors.outline,
@@ -173,7 +131,10 @@ export function DisputesList({ disputes }: DisputesListProps) {
         <select
           id="disputes-status-filter"
           value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
+          onChange={(e) => {
+            const value = e.target.value as StatusFilter;
+            push({ status: value === "all" ? null : value }, true);
+          }}
           className="admin-filter-select min-h-[44px] w-full cursor-pointer rounded-xl border py-2.5 pl-3 text-[13px] font-medium text-white outline-none sm:w-[min(100%,200px)]"
           style={{
             borderColor: theme.colors.outline,
@@ -207,10 +168,10 @@ export function DisputesList({ disputes }: DisputesListProps) {
             <span className="text-right">Opened</span>
             <span className="text-right">Updated</span>
           </div>
-          {pagedDisputes.length === 0 ? (
+          {disputes.length === 0 ? (
             <div className="px-4 py-10 text-center text-sm text-white/60">No disputes match your search or filters.</div>
           ) : null}
-          {pagedDisputes.map((dispute) => {
+          {disputes.map((dispute) => {
             const pill = STATUS_PILL[dispute.status];
             return (
               <button
@@ -254,12 +215,12 @@ export function DisputesList({ disputes }: DisputesListProps) {
       </AdminDesktopTable>
 
       <div className="grid gap-3 md:hidden">
-        {pagedDisputes.length === 0 ? (
+        {disputes.length === 0 ? (
           <p className="rounded-xl border px-4 py-8 text-center text-sm text-white/60" style={{ borderColor: theme.colors.outline }}>
             No disputes match your search or filters.
           </p>
         ) : null}
-        {pagedDisputes.map((dispute) => {
+        {disputes.map((dispute) => {
           const pill = STATUS_PILL[dispute.status];
           return (
             <button
@@ -316,9 +277,9 @@ export function DisputesList({ disputes }: DisputesListProps) {
       </div>
 
       <AdminListPagination
-        page={page}
+        page={data.page}
         pageCount={pageCount}
-        total={total}
+        total={data.total}
         rangeStart={rangeStart}
         rangeEnd={rangeEnd}
         onPageChange={setPage}
@@ -384,11 +345,31 @@ export function DisputesList({ disputes }: DisputesListProps) {
                 </div>
               </div>
               <div>
-                <dt className="text-[11px] font-medium text-white/55">Summary</dt>
+                <dt className="text-[11px] font-medium text-white/55">Description</dt>
                 <dd className="mt-1 rounded-xl border px-3 py-2.5 leading-relaxed text-white/90" style={{ borderColor: "rgba(255,255,255,0.12)" }}>
-                  {selectedDispute.summary}
+                  {selectedDispute.description || selectedDispute.summary}
                 </dd>
               </div>
+              {selectedDispute.imageUrls.length > 0 ? (
+                <div>
+                  <dt className="text-[11px] font-medium text-white/55">Photos</dt>
+                  <dd className="mt-2 flex flex-wrap gap-2">
+                    {selectedDispute.imageUrls.map((url) => (
+                      <a
+                        key={url}
+                        href={url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="block overflow-hidden rounded-lg border"
+                        style={{ borderColor: "rgba(255,255,255,0.12)" }}
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={url} alt="Dispute evidence" className="h-24 w-24 object-cover" />
+                      </a>
+                    ))}
+                  </dd>
+                </div>
+              ) : null}
             </dl>
 
             <div className="mt-5">

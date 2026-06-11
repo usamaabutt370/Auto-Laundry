@@ -7,17 +7,22 @@ import type {
   AdminPartnerKycListItem,
   PartnerOnboardingStatus,
 } from "@/features/admin/types/admin-partner-kyc";
-import { AdminDesktopTable, AdminListPagination } from "@/features/admin/components/admin-list-ui";
+import {
+  AdminDesktopTable,
+  AdminListPagination,
+  adminPaginationView,
+  useAdminListUrl,
+  useDebouncedListSearch,
+} from "@/features/admin/components/admin-list-ui";
+import { PartnerBusinessImageGallery } from "@/features/admin/components/partner-business-image-gallery";
+import { PartnerRiderDetailCards } from "@/features/admin/components/partner-rider-detail-cards";
 import { ConfirmModal } from "@/components/ui/confirm-modal";
+import type { PaginatedResult } from "@/features/admin/server/admin-list-query";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 
 /** Lets the partner detail drawer finish closing before the success dialog opens (no stacked modals). */
 const APPROVE_SUCCESS_POPUP_DELAY_MS = 220;
-
-type PartnerKycListProps = {
-  partners: AdminPartnerKycListItem[];
-};
 
 type StatusFilter = "all" | PartnerOnboardingStatus;
 
@@ -39,18 +44,6 @@ const statusPillClass = "admin-status-pill border text-[11px] font-semibold sm:t
  */
 const tableGridClass =
   "grid grid-cols-[minmax(96px,1fr)_minmax(124px,1.15fr)_minmax(116px,1fr)_minmax(150px,1.2fr)_minmax(112px,0.95fr)_minmax(176px,1.3fr)_minmax(98px,0.82fr)] items-center gap-x-4 gap-y-1";
-
-function matchesQuery(row: AdminPartnerKycListItem, q: string): boolean {
-  const s = q.trim().toLowerCase();
-  if (!s) return true;
-  return (
-    row.userId.toLowerCase().includes(s) ||
-    row.businessName.toLowerCase().includes(s) ||
-    row.partnerName.toLowerCase().includes(s) ||
-    row.email.toLowerCase().includes(s) ||
-    row.phone.toLowerCase().includes(s)
-  );
-}
 
 function formatStatus(status: PartnerOnboardingStatus): string {
   if (status === "pending") return "Pending";
@@ -107,11 +100,15 @@ function PartnerKycFullscreenLoader() {
   );
 }
 
-export function PartnerKycList({ partners }: PartnerKycListProps) {
+type PartnerKycListProps = {
+  data: PaginatedResult<AdminPartnerKycListItem>;
+};
+
+export function PartnerKycList({ data }: PartnerKycListProps) {
   const router = useRouter();
-  const [query, setQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
-  const [page, setPage] = useState(1);
+  const { searchParams, push, setPage } = useAdminListUrl();
+  const { query, setQuery } = useDebouncedListSearch();
+  const statusFilter = (searchParams.get("status") ?? "all") as StatusFilter;
   const [selectedPartnerId, setSelectedPartnerId] = useState<string | null>(null);
   const [selectedPartnerDetail, setSelectedPartnerDetail] = useState<AdminPartnerKycDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -122,39 +119,8 @@ export function PartnerKycList({ partners }: PartnerKycListProps) {
   const [busy, setBusy] = useState<"approve" | "reject" | null>(null);
   const [approveSuccessOpen, setApproveSuccessOpen] = useState(false);
   const [approveSuccessPartnerName, setApproveSuccessPartnerName] = useState<string | null>(null);
-
-  const filtered = useMemo(() => {
-    const searched = partners.filter((p) => matchesQuery(p, query));
-    if (statusFilter === "all") return searched;
-    return searched.filter((p) => p.status === statusFilter);
-  }, [partners, query, statusFilter]);
-
-  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const safePage = Math.max(1, Math.min(page, pageCount));
-
-  const paged = useMemo(() => {
-    const start = (safePage - 1) * PAGE_SIZE;
-    return filtered.slice(start, start + PAGE_SIZE);
-  }, [filtered, safePage]);
-
-  const total = filtered.length;
-  const rangeStart = total === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1;
-  const rangeEnd = Math.min(safePage * PAGE_SIZE, total);
-
-  const pageNumbers = useMemo(() => {
-    if (pageCount <= 7) {
-      return Array.from({ length: pageCount }, (_, i) => i + 1);
-    }
-    const nums: number[] = [];
-    const windowStart = Math.max(2, safePage - 1);
-    const windowEnd = Math.min(pageCount - 1, safePage + 1);
-    nums.push(1);
-    if (windowStart > 2) nums.push(-1);
-    for (let n = windowStart; n <= windowEnd; n++) nums.push(n);
-    if (windowEnd < pageCount - 1) nums.push(-1);
-    nums.push(pageCount);
-    return nums;
-  }, [safePage, pageCount]);
+  const partners = data.items;
+  const { pageCount, rangeStart, rangeEnd, pageNumbers } = adminPaginationView(data);
 
   async function openDetailModal(partnerId: string) {
     setSelectedPartnerId(partnerId);
@@ -287,10 +253,7 @@ export function PartnerKycList({ partners }: PartnerKycListProps) {
           <input
             type="search"
             value={query}
-            onChange={(e) => {
-              setQuery(e.target.value);
-              setPage(1);
-            }}
+            onChange={(e) => setQuery(e.target.value)}
             placeholder="Search by KYC ID, business, name, email, phone…"
             className="w-full rounded-xl border py-2.5 pl-9 pr-3 text-[13px] text-white outline-none placeholder:text-white/40 focus-visible:ring-2 focus-visible:ring-[#ABE9FE] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent"
             style={{
@@ -306,8 +269,8 @@ export function PartnerKycList({ partners }: PartnerKycListProps) {
           id="kyc-status-filter"
           value={statusFilter}
           onChange={(e) => {
-            setStatusFilter(e.target.value as StatusFilter);
-            setPage(1);
+            const value = e.target.value as StatusFilter;
+            push({ status: value === "all" ? null : value }, true);
           }}
           className="admin-filter-select min-h-[44px] w-full cursor-pointer rounded-xl border py-2.5 pl-3 text-[13px] font-medium text-white outline-none sm:w-[min(100%,220px)]"
           style={{
@@ -340,12 +303,12 @@ export function PartnerKycList({ partners }: PartnerKycListProps) {
             <span className="text-left">Reviewed</span>
             <span className="text-left">Status</span>
           </div>
-          {paged.length === 0 ? (
+          {partners.length === 0 ? (
             <div className="px-4 py-10 text-center text-sm text-white/60">
               No partner submissions match your search or filters.
             </div>
           ) : null}
-          {paged.map((row) => {
+          {partners.map((row) => {
             const pill = STATUS_PILL[row.status];
             return (
               <button
@@ -392,12 +355,12 @@ export function PartnerKycList({ partners }: PartnerKycListProps) {
       </AdminDesktopTable>
 
       <div className="grid gap-3 md:hidden">
-        {paged.length === 0 ? (
+        {partners.length === 0 ? (
           <p className="rounded-xl border px-4 py-8 text-center text-sm text-white/60" style={{ borderColor: theme.colors.outline }}>
             No partner submissions match your search or filters.
           </p>
         ) : null}
-        {paged.map((row) => {
+        {partners.map((row) => {
           const pill = STATUS_PILL[row.status];
           return (
             <button
@@ -457,9 +420,9 @@ export function PartnerKycList({ partners }: PartnerKycListProps) {
       </div>
 
       <AdminListPagination
-        page={safePage}
+        page={data.page}
         pageCount={pageCount}
-        total={total}
+        total={data.total}
         rangeStart={rangeStart}
         rangeEnd={rangeEnd}
         onPageChange={setPage}
@@ -573,12 +536,48 @@ export function PartnerKycList({ partners }: PartnerKycListProps) {
                       <p className="text-[11px] uppercase tracking-wide text-white/55">Pickup & Delivery Amount</p>
                       <p className="mt-1 text-[13px] text-white">{selectedPartnerDetail.business.pickupDeliveryAmount || "N/A"}</p>
                     </article>
+                    <article className="rounded-lg border px-3 py-2.5" style={{ borderColor: "rgba(255,255,255,0.12)" }}>
+                      <p className="text-[11px] uppercase tracking-wide text-white/55">Business Phone</p>
+                      <p className="mt-1 text-[13px] text-white">{selectedPartnerDetail.business.businessPhone || "N/A"}</p>
+                    </article>
+                    <article className="rounded-lg border px-3 py-2.5 sm:col-span-2" style={{ borderColor: "rgba(255,255,255,0.12)" }}>
+                      <p className="text-[11px] uppercase tracking-wide text-white/55">Business Address</p>
+                      <p className="mt-1 text-[13px] text-white">{selectedPartnerDetail.business.businessAddress || "N/A"}</p>
+                    </article>
                     <article className="rounded-lg border px-3 py-2.5 sm:col-span-2" style={{ borderColor: "rgba(255,255,255,0.12)" }}>
                       <p className="text-[11px] uppercase tracking-wide text-white/55">Request ID</p>
                       <p className="mt-1 break-all font-mono text-[12px] text-white">{selectedPartnerDetail.request.id || "N/A"}</p>
                     </article>
                   </div>
                 </div>
+
+                <div className="mt-4 rounded-xl border p-3.5 sm:p-4" style={{ borderColor: "rgba(255,255,255,0.15)" }}>
+                  <h3 className="text-[14px] font-bold text-white">Business images</h3>
+                  <p className="mt-1 text-[12px] text-white/65">
+                    Photos uploaded during laundromat registration.
+                  </p>
+                  <div className="mt-3">
+                    <PartnerBusinessImageGallery
+                      imageUrls={selectedPartnerDetail.business.businessImages}
+                    />
+                  </div>
+                </div>
+
+                {selectedPartnerDetail.business.pickupDeliveryEnabled ||
+                selectedPartnerDetail.riders.length > 0 ? (
+                  <div className="mt-4 rounded-xl border p-3.5 sm:p-4" style={{ borderColor: "rgba(255,255,255,0.15)" }}>
+                    <h3 className="text-[14px] font-bold text-white">Rider details</h3>
+                    <div className="mt-3">
+                      <PartnerRiderDetailCards
+                        riders={selectedPartnerDetail.riders}
+                        responsibilityAcceptedAt={
+                          selectedPartnerDetail.business.ridersResponsibilityAcceptedAt
+                        }
+                        formatDate={formatDate}
+                      />
+                    </div>
+                  </div>
+                ) : null}
 
                 <div className="mt-4 rounded-xl border p-3.5 sm:p-4" style={{ borderColor: "rgba(255,255,255,0.15)" }}>
                   <h3 className="text-[14px] font-bold text-white">KYC actions</h3>

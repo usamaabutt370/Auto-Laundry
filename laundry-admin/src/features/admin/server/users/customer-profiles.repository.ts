@@ -1,5 +1,7 @@
 import "server-only";
 
+import { escapeIlike, paginatedRange } from "@/features/admin/server/admin-list-query";
+import type { AdminListQuery, PaginatedResult } from "@/features/admin/server/admin-list-query";
 import type { AdminUser } from "@/features/admin/types/admin-user";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { Database } from "@/lib/supabase/database.types";
@@ -8,6 +10,67 @@ type ProfileRow = Database["public"]["Tables"]["profiles"]["Row"];
 type CustomerOrderRow = Database["public"]["Tables"]["customer_orders"]["Row"];
 type PartnerOnboardingRequestRow =
   Database["public"]["Tables"]["partner_onboarding_requests"]["Row"];
+
+export async function listCustomerProfilesForAdminPaginated(
+  input: AdminListQuery,
+): Promise<PaginatedResult<AdminUser>> {
+  const supabase = createSupabaseAdminClient();
+  const { from, to } = paginatedRange(input.page, input.pageSize);
+
+  let profilesQuery = supabase
+    .from("profiles")
+    .select("id, email, phone, full_name, first_name, last_name, role, created_at", { count: "exact" })
+    .eq("role", "customer")
+    .order("created_at", { ascending: false, nullsFirst: false });
+
+  if (input.query) {
+    const q = escapeIlike(input.query);
+    profilesQuery = profilesQuery.or(
+      `id.ilike.%${q}%,email.ilike.%${q}%,phone.ilike.%${q}%,full_name.ilike.%${q}%,first_name.ilike.%${q}%,last_name.ilike.%${q}%`,
+    );
+  }
+
+  const profilesResult = await profilesQuery.range(from, to);
+  if (profilesResult.error) {
+    throw new Error(`profiles list failed: ${profilesResult.error.message}`);
+  }
+
+  const profiles = profilesResult.data ?? [];
+  if (profiles.length === 0) {
+    return {
+      items: [],
+      total: profilesResult.count ?? 0,
+      page: input.page,
+      pageSize: input.pageSize,
+    };
+  }
+
+  const userIds = profiles.map((row) => row.id);
+  const [ordersResult, onboardingResult] = await Promise.all([
+    supabase.from("customer_orders").select("id, customer_id").in("customer_id", userIds),
+    supabase
+      .from("partner_onboarding_requests")
+      .select("id, user_id, status, submitted_at, reviewed_at, created_at, updated_at")
+      .in("user_id", userIds),
+  ]);
+
+  if (ordersResult.error) {
+    throw new Error(`customer_orders list failed: ${ordersResult.error.message}`);
+  }
+  if (onboardingResult.error) {
+    throw new Error(`partner_onboarding_requests list failed: ${onboardingResult.error.message}`);
+  }
+
+  const orderCountsByCustomer = buildOrderCountMap(ordersResult.data ?? []);
+  const onboardingStatusByUser = buildOnboardingStatusMap(onboardingResult.data ?? []);
+
+  return {
+    items: profiles.map((row) => mapProfileRow(row, orderCountsByCustomer, onboardingStatusByUser)),
+    total: profilesResult.count ?? profiles.length,
+    page: input.page,
+    pageSize: input.pageSize,
+  };
+}
 
 export async function listCustomerProfilesForAdmin(): Promise<AdminUser[]> {
   const supabase = createSupabaseAdminClient();

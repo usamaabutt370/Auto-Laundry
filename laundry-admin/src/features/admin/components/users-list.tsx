@@ -3,12 +3,15 @@
 import { PRODUCT_NAME } from "@/lib/branding";
 import { theme } from "@/lib/theme/theme";
 import type { AdminUser } from "@/features/admin/types/admin-user";
-import { AdminDesktopTable, AdminListPagination } from "@/features/admin/components/admin-list-ui";
-import { useEffect, useMemo, useState } from "react";
-
-type UsersListProps = {
-  users: AdminUser[];
-};
+import {
+  AdminDesktopTable,
+  AdminListPagination,
+  adminPaginationView,
+  useAdminListUrl,
+  useDebouncedListSearch,
+} from "@/features/admin/components/admin-list-ui";
+import type { PaginatedResult } from "@/features/admin/server/admin-list-query";
+import { useState } from "react";
 
 const statusPillMap: Record<AdminUser["status"], { bg: string; fg: string; border: string }> = {
   Active: { bg: "rgba(110, 231, 168, 0.2)", fg: "#6EE7A8", border: "rgba(110, 231, 168, 0.45)" },
@@ -25,53 +28,16 @@ const tableGridClass =
 
 const PAGE_SIZE = 10;
 
-export function UsersList({ users }: UsersListProps) {
-  const [query, setQuery] = useState("");
-  const [page, setPage] = useState(1);
+type UsersListProps = {
+  data: PaginatedResult<AdminUser>;
+};
+
+export function UsersList({ data }: UsersListProps) {
+  const { setPage } = useAdminListUrl();
+  const { query, setQuery } = useDebouncedListSearch();
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
-
-  const filteredUsers = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return q
-      ? users.filter((user) =>
-          [user.id, user.name, user.email, user.phone].some((value) => value.toLowerCase().includes(q)),
-        )
-      : users;
-  }, [users, query]);
-
-  useEffect(() => {
-    setPage(1);
-  }, [query]);
-
-  const pageCount = Math.max(1, Math.ceil(filteredUsers.length / PAGE_SIZE));
-
-  useEffect(() => {
-    if (page > pageCount) setPage(pageCount);
-  }, [page, pageCount]);
-
-  const pagedUsers = useMemo(() => {
-    const start = (page - 1) * PAGE_SIZE;
-    return filteredUsers.slice(start, start + PAGE_SIZE);
-  }, [filteredUsers, page]);
-
-  const total = filteredUsers.length;
-  const rangeStart = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
-  const rangeEnd = Math.min(page * PAGE_SIZE, total);
-
-  const pageNumbers = useMemo(() => {
-    if (pageCount <= 7) {
-      return Array.from({ length: pageCount }, (_, i) => i + 1);
-    }
-    const nums: number[] = [];
-    const windowStart = Math.max(2, page - 1);
-    const windowEnd = Math.min(pageCount - 1, page + 1);
-    nums.push(1);
-    if (windowStart > 2) nums.push(-1);
-    for (let n = windowStart; n <= windowEnd; n++) nums.push(n);
-    if (windowEnd < pageCount - 1) nums.push(-1);
-    nums.push(pageCount);
-    return nums;
-  }, [page, pageCount]);
+  const users = data.items;
+  const { pageCount, rangeStart, rangeEnd, pageNumbers } = adminPaginationView(data);
 
   return (
     <section className="w-full min-w-0 space-y-3 sm:space-y-4">
@@ -105,7 +71,6 @@ export function UsersList({ users }: UsersListProps) {
         />
       </div>
 
-      {/* Tablet/desktop: horizontal scroll so columns never crush */}
       <AdminDesktopTable minWidthClassName="w-full min-w-[1080px]">
           <div
             className={`sticky top-0 z-[1] ${tableGridClass} border-b px-4 py-3 text-[11px] font-bold uppercase tracking-wide text-white/70 sm:text-xs`}
@@ -121,12 +86,12 @@ export function UsersList({ users }: UsersListProps) {
             <span className="text-center">Orders</span>
             <span className="text-right">Joined</span>
           </div>
-          {pagedUsers.length === 0 ? (
+          {users.length === 0 ? (
             <div className="px-4 py-10 text-center text-sm text-white/60">
               No users match the selected filter.
             </div>
           ) : null}
-          {pagedUsers.map((user) => (
+          {users.map((user) => (
             <button
               key={user.id}
               type="button"
@@ -159,14 +124,13 @@ export function UsersList({ users }: UsersListProps) {
           ))}
       </AdminDesktopTable>
 
-      {/* Mobile: stacked cards */}
       <div className="grid gap-3 md:hidden">
-        {pagedUsers.length === 0 ? (
+        {users.length === 0 ? (
           <p className="rounded-xl border px-4 py-8 text-center text-sm text-white/60" style={{ borderColor: theme.colors.outline }}>
             No users match the selected filter.
           </p>
         ) : null}
-        {pagedUsers.map((user) => (
+        {users.map((user) => (
           <button
             key={user.id}
             type="button"
@@ -219,9 +183,9 @@ export function UsersList({ users }: UsersListProps) {
       </div>
 
       <AdminListPagination
-        page={page}
+        page={data.page}
         pageCount={pageCount}
-        total={total}
+        total={data.total}
         rangeStart={rangeStart}
         rangeEnd={rangeEnd}
         onPageChange={setPage}

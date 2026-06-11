@@ -1,8 +1,20 @@
 "use client";
 
+import {
+  AdminListPagination,
+  adminPaginationView,
+  buildAdminPageNumbers,
+  useAdminListUrl,
+  useDebouncedListSearch,
+} from "@/features/admin/components/admin-list-ui";
+import type { PaginatedResult } from "@/features/admin/server/admin-list-query";
+import type { PartnerCreditBalanceListItem } from "@/features/admin/server/credits/partner-credits.repository";
 import { theme } from "@/lib/theme/theme";
 import type { CreditTransaction, UserCreditBalance } from "@/features/admin/types/admin-credits";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+
+const HISTORY_PAGE_SIZE = 5;
 
 function formatCredits(n: number) {
   const abs = Math.abs(n);
@@ -10,19 +22,16 @@ function formatCredits(n: number) {
 }
 
 type PartnerCreditsListProps = {
-  transactions: CreditTransaction[];
-  balances: UserCreditBalance[];
+  data: PaginatedResult<PartnerCreditBalanceListItem>;
 };
 
-export function PartnerCreditsList({
-  transactions: initialTransactions,
-  balances,
-}: PartnerCreditsListProps) {
-  const [transactions, setTransactions] = useState(initialTransactions);
-  const [partnerBalances, setPartnerBalances] = useState(balances);
-  const [query, setQuery] = useState("");
-  const [page, setPage] = useState(1);
-  const [selectedPartner, setSelectedPartner] = useState<UserCreditBalance | null>(null);
+export function PartnerCreditsList({ data }: PartnerCreditsListProps) {
+  const router = useRouter();
+  const { setPage } = useAdminListUrl();
+  const { query, setQuery } = useDebouncedListSearch();
+  const partners = data.items;
+  const { pageCount, rangeStart, rangeEnd, pageNumbers } = adminPaginationView(data);
+  const [selectedPartner, setSelectedPartner] = useState<PartnerCreditBalanceListItem | null>(null);
   const [amountByPartner, setAmountByPartner] = useState<Record<string, string>>({});
   const [editBalanceByPartner, setEditBalanceByPartner] = useState<Record<string, string>>({});
   const [editBalanceTouchedByPartner, setEditBalanceTouchedByPartner] = useState<Record<string, boolean>>({});
@@ -33,39 +42,67 @@ export function PartnerCreditsList({
   const [editingBalance, setEditingBalance] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const PAGE_SIZE = 10;
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyTransactions, setHistoryTransactions] = useState<CreditTransaction[]>([]);
+  const [historyTotal, setHistoryTotal] = useState(0);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
-  const filteredPartners = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return partnerBalances;
-    return partnerBalances.filter(
-      (p) =>
-        p.userName.toLowerCase().includes(q) ||
-        p.userPhone.toLowerCase().includes(q) ||
-        p.userId.toLowerCase().includes(q),
-    );
-  }, [partnerBalances, query]);
+  const historyPageCount = Math.max(1, Math.ceil(historyTotal / HISTORY_PAGE_SIZE));
+  const historyCurrentPage = Math.min(historyPage, historyPageCount);
+  const historyPageNumbers = useMemo(
+    () => buildAdminPageNumbers(historyCurrentPage, historyPageCount),
+    [historyCurrentPage, historyPageCount],
+  );
 
-  const pageCount = Math.max(1, Math.ceil(filteredPartners.length / PAGE_SIZE));
-  const currentPage = Math.min(page, pageCount);
-  const pagedPartners = useMemo(() => {
-    const start = (currentPage - 1) * PAGE_SIZE;
-    return filteredPartners.slice(start, start + PAGE_SIZE);
-  }, [filteredPartners, currentPage]);
+  useEffect(() => {
+    setHistoryPage(1);
+  }, [selectedPartner?.userId]);
 
-  const partnerTransactions = useMemo(() => {
-    if (!selectedPartner) return [];
-    return transactions.filter((t) => t.userId === selectedPartner.userId);
-  }, [transactions, selectedPartner]);
+  useEffect(() => {
+    if (!selectedPartner) {
+      setHistoryTransactions([]);
+      setHistoryTotal(0);
+      return;
+    }
+
+    const partnerId = selectedPartner.userId;
+    const controller = new AbortController();
+    async function loadHistory() {
+      setHistoryLoading(true);
+      try {
+        const params = new URLSearchParams({
+          page: String(historyPage),
+          pageSize: String(HISTORY_PAGE_SIZE),
+        });
+        const response = await fetch(
+          `/api/admin/partner-credits/${encodeURIComponent(partnerId)}/transactions?${params.toString()}`,
+          { signal: controller.signal, cache: "no-store" },
+        );
+        const payload = (await response.json().catch(() => null)) as
+          | { items: CreditTransaction[]; total: number; error?: string }
+          | null;
+        if (!response.ok || !payload) {
+          throw new Error(payload?.error ?? `Request failed with status ${response.status}`);
+        }
+        setHistoryTransactions(payload.items);
+        setHistoryTotal(payload.total);
+      } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        setHistoryTransactions([]);
+        setHistoryTotal(0);
+      } finally {
+        if (!controller.signal.aborted) setHistoryLoading(false);
+      }
+    }
+
+    void loadHistory();
+    return () => controller.abort();
+  }, [selectedPartner?.userId, historyPage]);
 
   const partnerStats = useMemo(() => {
     if (!selectedPartner) return { topup: 0, usage: 0 };
-    const tx = transactions.filter((t) => t.userId === selectedPartner.userId);
-    return {
-      topup: tx.filter((t) => t.amount > 0).reduce((s, t) => s + t.amount, 0),
-      usage: tx.filter((t) => t.amount < 0).reduce((s, t) => s + Math.abs(t.amount), 0),
-    };
-  }, [transactions, selectedPartner]);
+    return { topup: selectedPartner.topup, usage: selectedPartner.usage };
+  }, [selectedPartner]);
 
   const currentAmount = selectedPartner ? amountByPartner[selectedPartner.userId] ?? "" : "";
   const currentEditBalance = selectedPartner ? editBalanceByPartner[selectedPartner.userId] ?? "" : "";
@@ -148,13 +185,17 @@ export function PartnerCreditsList({
         throw new Error(result && "error" in result && result.error ? result.error : "Failed to add credits.");
       }
 
-      setTransactions((prev) => [result.transaction, ...prev]);
-      setPartnerBalances((prev) =>
-        prev.map((item) => (item.userId === result.balance.userId ? { ...item, ...result.balance } : item)),
-      );
       setSelectedPartner((prev) =>
-        prev && prev.userId === result.balance.userId ? { ...prev, ...result.balance } : prev,
+        prev && prev.userId === result.balance.userId
+          ? {
+              ...prev,
+              ...result.balance,
+              topup: prev.topup + result.transaction.amount,
+            }
+          : prev,
       );
+      setHistoryPage(1);
+      router.refresh();
       setConfirmInlineOpen(false);
       setSubmitting(false);
       setSuccess(`${Number(currentAmount).toLocaleString()} credits added to ${result.balance.userName}`);
@@ -192,16 +233,11 @@ export function PartnerCreditsList({
         throw new Error(result && "error" in result && result.error ? result.error : "Failed to edit balance.");
       }
 
-      if (result.transaction) {
-        const tx = result.transaction;
-        setTransactions((prev) => [tx, ...prev]);
-      }
-      setPartnerBalances((prev) =>
-        prev.map((item) => (item.userId === result.balance.userId ? { ...item, ...result.balance } : item)),
-      );
       setSelectedPartner((prev) =>
         prev && prev.userId === result.balance.userId ? { ...prev, ...result.balance } : prev,
       );
+      setHistoryPage(1);
+      router.refresh();
       setEditBalanceByPartner((prev) => ({ ...prev, [result.balance.userId]: String(result.balance.balance) }));
       setEditBalanceTouchedByPartner((prev) => ({ ...prev, [result.balance.userId]: false }));
       setIsEditingBalanceByPartner((prev) => ({ ...prev, [result.balance.userId]: false }));
@@ -213,9 +249,6 @@ export function PartnerCreditsList({
       setEditingBalance(false);
     }
   }
-
-  const rangeStart = filteredPartners.length === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1;
-  const rangeEnd = Math.min(currentPage * PAGE_SIZE, filteredPartners.length);
 
   return (
     <section className="w-full min-w-0 space-y-3 sm:space-y-4">
@@ -236,10 +269,7 @@ export function PartnerCreditsList({
           <input
             type="search"
             value={query}
-            onChange={(e) => {
-              setQuery(e.target.value);
-              setPage(1);
-            }}
+            onChange={(e) => setQuery(e.target.value)}
             placeholder="Search by partner name, phone or id..."
             className="w-full rounded-xl border py-2.5 pl-9 pr-3 text-[13px] text-white outline-none placeholder:text-white/40"
             style={{ borderColor: theme.colors.outline, backgroundColor: theme.colors.sidebarBackground }}
@@ -263,20 +293,10 @@ export function PartnerCreditsList({
             <span className="justify-self-end text-right">Spent</span>
             <span className="justify-self-end text-right">Top-up</span>
           </div>
-          {pagedPartners.length === 0 ? (
+          {partners.length === 0 ? (
             <div className="px-4 py-10 text-center text-sm text-white/60">No partners found.</div>
           ) : null}
-          {pagedPartners.map((partner) => {
-            const stats = transactions
-              .filter((t) => t.userId === partner.userId)
-              .reduce(
-                (acc, t) => {
-                  if (t.amount > 0) acc.topup += t.amount;
-                  if (t.amount < 0) acc.usage += Math.abs(t.amount);
-                  return acc;
-                },
-                { topup: 0, usage: 0 },
-              );
+          {partners.map((partner) => {
             return (
               <button
                 key={partner.userId}
@@ -297,8 +317,8 @@ export function PartnerCreditsList({
                 <span className="font-semibold">{partner.userName}</span>
                 <span className="text-white/70">{partner.userPhone}</span>
                 <span className="justify-self-end text-right font-bold tabular-nums text-[#6EE7A8]">{partner.balance.toLocaleString()} cr</span>
-                <span className="justify-self-end text-right tabular-nums font-semibold text-[#F18C8C]">-{stats.usage.toLocaleString()} cr</span>
-                <span className="justify-self-end text-right tabular-nums text-white/85">{stats.topup.toLocaleString()} cr</span>
+                <span className="justify-self-end text-right tabular-nums font-semibold text-[#F18C8C]">-{partner.usage.toLocaleString()} cr</span>
+                <span className="justify-self-end text-right tabular-nums text-white/85">{partner.topup.toLocaleString()} cr</span>
               </button>
             );
           })}
@@ -306,12 +326,12 @@ export function PartnerCreditsList({
       </div>
 
       <div className="grid gap-3 md:hidden">
-        {pagedPartners.length === 0 ? (
+        {partners.length === 0 ? (
           <p className="rounded-xl border px-4 py-8 text-center text-sm text-white/60" style={{ borderColor: theme.colors.outline }}>
             No partners found.
           </p>
         ) : null}
-        {pagedPartners.map((partner) => (
+        {partners.map((partner) => (
           <button
             key={partner.userId}
             type="button"
@@ -335,35 +355,16 @@ export function PartnerCreditsList({
         ))}
       </div>
 
-      <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-[12px] text-white/65 sm:text-sm">
-          Showing <span className="font-semibold text-white/85">{rangeStart} to {rangeEnd}</span> of{" "}
-          <span className="font-semibold text-white/85">{filteredPartners.length}</span> partners
-        </p>
-        {filteredPartners.length > 0 ? (
-          <div className="flex items-center gap-1.5">
-            <button
-              type="button"
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={currentPage <= 1}
-              className="min-h-[36px] min-w-[36px] rounded-lg border text-[13px] font-semibold text-white/85 disabled:opacity-35"
-              style={{ borderColor: theme.colors.outline }}
-            >
-              ‹
-            </button>
-            <span className="px-2 text-[12px] text-white/70">{currentPage}/{pageCount}</span>
-            <button
-              type="button"
-              onClick={() => setPage((p) => Math.min(pageCount, p + 1))}
-              disabled={currentPage >= pageCount}
-              className="min-h-[36px] min-w-[36px] rounded-lg border text-[13px] font-semibold text-white/85 disabled:opacity-35"
-              style={{ borderColor: theme.colors.outline }}
-            >
-              ›
-            </button>
-          </div>
-        ) : null}
-      </div>
+      <AdminListPagination
+        page={data.page}
+        pageCount={pageCount}
+        total={data.total}
+        rangeStart={rangeStart}
+        rangeEnd={rangeEnd}
+        onPageChange={setPage}
+        pageNumbers={pageNumbers}
+        noun="partners"
+      />
 
       {selectedPartner ? (
         <div className="fixed inset-0 z-[220] flex items-end justify-center p-3 sm:items-center sm:p-4" role="presentation">
@@ -558,8 +559,11 @@ export function PartnerCreditsList({
 
             <div className="mt-4 rounded-xl border p-3.5 sm:p-4" style={{ borderColor: "rgba(255,255,255,0.15)" }}>
               <h3 className="mb-3 text-[14px] font-bold text-white">Credits History</h3>
-              <div className="max-h-[220px] space-y-2 overflow-y-auto pr-1">
-                {partnerTransactions.map((txn) => (
+              <div className="space-y-2">
+                {historyLoading ? (
+                  <p className="text-[12px] text-white/55">Loading transactions…</p>
+                ) : null}
+                {historyTransactions.map((txn) => (
                   <div
                     key={txn.id}
                     className="flex items-center justify-between rounded-lg border px-3 py-2"
@@ -574,10 +578,24 @@ export function PartnerCreditsList({
                     </p>
                   </div>
                 ))}
-                {partnerTransactions.length === 0 ? (
+                {!historyLoading && historyTransactions.length === 0 ? (
                   <p className="text-[12px] text-white/55">No transactions for this partner yet.</p>
                 ) : null}
               </div>
+              {historyTotal > 0 ? (
+                <AdminListPagination
+                  page={historyCurrentPage}
+                  pageCount={historyPageCount}
+                  total={historyTotal}
+                  rangeStart={
+                    historyTotal === 0 ? 0 : (historyCurrentPage - 1) * HISTORY_PAGE_SIZE + 1
+                  }
+                  rangeEnd={Math.min(historyCurrentPage * HISTORY_PAGE_SIZE, historyTotal)}
+                  onPageChange={setHistoryPage}
+                  pageNumbers={historyPageNumbers}
+                  noun="transactions"
+                />
+              ) : null}
             </div>
 
           </section>

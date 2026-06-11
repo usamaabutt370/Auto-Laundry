@@ -5,6 +5,8 @@ import type {
   AdminPartnerKycDetail,
   PartnerOnboardingStatus,
 } from "@/features/admin/types/admin-partner-kyc";
+import { PartnerBusinessImageGallery } from "@/features/admin/components/partner-business-image-gallery";
+import { PartnerRiderDetailCards } from "@/features/admin/components/partner-rider-detail-cards";
 import { ConfirmModal } from "@/components/ui/confirm-modal";
 import { theme } from "@/lib/theme/theme";
 import { useRouter } from "next/navigation";
@@ -248,6 +250,14 @@ export function PartnerKycDetail({ partner }: PartnerKycDetailProps) {
               <dd className="mt-0.5 tabular-nums text-white">{partner.business.pickupDeliveryAmount || "N/A"}</dd>
             </div>
             <div>
+              <dt className="text-[11px] text-white/60">Business phone</dt>
+              <dd className="mt-0.5 text-white">{partner.business.businessPhone || "N/A"}</dd>
+            </div>
+            <div>
+              <dt className="text-[11px] text-white/60">Business address</dt>
+              <dd className="mt-0.5 text-white">{partner.business.businessAddress || "N/A"}</dd>
+            </div>
+            <div>
               <dt className="text-[11px] text-white/60">Submitted at</dt>
               <dd className="mt-0.5 text-white">{formatDate(partner.request.submittedAt)}</dd>
             </div>
@@ -258,6 +268,35 @@ export function PartnerKycDetail({ partner }: PartnerKycDetailProps) {
           </dl>
         </article>
       </section>
+
+      <section
+        className="rounded-2xl border p-4 sm:p-5"
+        style={{ borderColor: theme.colors.outline, backgroundColor: theme.colors.sidebarBackground }}
+      >
+        <h2 className="text-[15px] font-bold text-white sm:text-[17px]">Business images</h2>
+        <p className="mt-1 text-[12px] text-white/65 sm:text-[13px]">
+          Photos uploaded during laundromat registration.
+        </p>
+        <div className="mt-3">
+          <PartnerBusinessImageGallery imageUrls={partner.business.businessImages} />
+        </div>
+      </section>
+
+      {partner.business.pickupDeliveryEnabled || partner.riders.length > 0 ? (
+        <section
+          className="rounded-2xl border p-4 sm:p-5"
+          style={{ borderColor: theme.colors.outline, backgroundColor: theme.colors.sidebarBackground }}
+        >
+          <h2 className="text-[15px] font-bold text-white sm:text-[17px]">Rider details</h2>
+          <div className="mt-3">
+            <PartnerRiderDetailCards
+              riders={partner.riders}
+              responsibilityAcceptedAt={partner.business.ridersResponsibilityAcceptedAt}
+              formatDate={formatDate}
+            />
+          </div>
+        </section>
+      ) : null}
 
       <section className="rounded-2xl border p-4 sm:p-5" style={{ borderColor: theme.colors.outline, backgroundColor: theme.colors.sidebarBackground }}>
         <h2 className="text-[15px] font-bold text-white sm:text-[17px]">Services offered</h2>

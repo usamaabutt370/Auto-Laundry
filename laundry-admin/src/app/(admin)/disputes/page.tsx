@@ -1,8 +1,12 @@
 import { DisputesList } from "@/features/admin/components/disputes-list";
-import { fetchDisputesDemoData } from "@/features/admin/data/disputes-demo-data";
+import { parsePageSearchParams } from "@/features/admin/server/admin-list-query";
+import { listOrderDisputesForAdminPaginated } from "@/features/admin/server/disputes/order-disputes.repository";
 
-export default async function DisputesPage() {
-  const disputes = await fetchDisputesDemoData();
-
-  return <DisputesList disputes={disputes} />;
+export default async function DisputesPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const data = await listOrderDisputesForAdminPaginated(parsePageSearchParams(await searchParams));
+  return <DisputesList data={data} />;
 }

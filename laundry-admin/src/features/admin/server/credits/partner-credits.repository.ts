@@ -1,5 +1,7 @@
 import "server-only";
 
+import { escapeIlike, paginatedRange } from "@/features/admin/server/admin-list-query";
+import type { AdminListQuery, PaginatedResult } from "@/features/admin/server/admin-list-query";
 import type {
   CreditRequest,
   CreditRequestStatus,
@@ -15,6 +17,131 @@ type PartnerCreditLedgerRow = Database["public"]["Tables"]["partner_credit_ledge
 type PartnerCreditRequestRow = Database["public"]["Tables"]["partner_credit_requests"]["Row"];
 type PartnerProfileRow = Database["public"]["Tables"]["partner_profiles"]["Row"];
 
+export type PartnerCreditBalanceListItem = UserCreditBalance & {
+  topup: number;
+  usage: number;
+};
+
+export async function listPartnerCreditBalancesForAdminPaginated(
+  input: AdminListQuery,
+): Promise<PaginatedResult<PartnerCreditBalanceListItem>> {
+  const supabase = createSupabaseAdminClient();
+  const { from, to } = paginatedRange(input.page, input.pageSize);
+
+  let matchingPartnerIds: string[] | null = null;
+  if (input.query) {
+    const q = escapeIlike(input.query);
+    const partnersResult = await supabase
+      .from("partner_profiles")
+      .select("id")
+      .or(`id.ilike.%${q}%,business_name.ilike.%${q}%,phone_number.ilike.%${q}%`);
+    if (partnersResult.error) {
+      throw new Error(`partner_profiles search failed: ${partnersResult.error.message}`);
+    }
+    matchingPartnerIds = (partnersResult.data ?? []).map((row) => asText(row.id)).filter(Boolean);
+    if (matchingPartnerIds.length === 0) {
+      return { items: [], total: 0, page: input.page, pageSize: input.pageSize };
+    }
+  }
+
+  let accountsQuery = supabase
+    .from("partner_credit_accounts")
+    .select("partner_id, balance, updated_at", { count: "exact" })
+    .order("updated_at", { ascending: false, nullsFirst: false });
+
+  if (matchingPartnerIds) {
+    accountsQuery = accountsQuery.in("partner_id", matchingPartnerIds);
+  }
+
+  const accountsResult = await accountsQuery.range(from, to);
+
+  if (accountsResult.error) {
+    throw new Error(`partner_credit_accounts list failed: ${accountsResult.error.message}`);
+  }
+
+  const accounts = accountsResult.data ?? [];
+  if (accounts.length === 0) {
+    return {
+      items: [],
+      total: accountsResult.count ?? 0,
+      page: input.page,
+      pageSize: input.pageSize,
+    };
+  }
+
+  const partnerIds = accounts.map((row) => asText(row.partner_id)).filter(Boolean);
+  const [partnersResult, ledgerResult] = await Promise.all([
+    supabase.from("partner_profiles").select("id, business_name, phone_number").in("id", partnerIds),
+    supabase.from("partner_credit_ledger").select("partner_id, delta").in("partner_id", partnerIds),
+  ]);
+
+  if (partnersResult.error) {
+    throw new Error(`partner_profiles list failed: ${partnersResult.error.message}`);
+  }
+  if (ledgerResult.error) {
+    throw new Error(`partner_credit_ledger list failed: ${ledgerResult.error.message}`);
+  }
+
+  const partnerMetaById = buildPartnerMetaByIdMap(partnersResult.data ?? []);
+  const statsByPartner = buildPartnerCreditStatsMap(ledgerResult.data ?? []);
+  const items = accounts.map((row) => {
+    const balance = mapBalanceRow(row, partnerMetaById);
+    const stats = statsByPartner.get(balance.userId) ?? { topup: 0, usage: 0 };
+    return { ...balance, topup: stats.topup, usage: stats.usage };
+  });
+
+  return {
+    items,
+    total: accountsResult.count ?? items.length,
+    page: input.page,
+    pageSize: input.pageSize,
+  };
+}
+
+export async function listPartnerCreditTransactionsForAdminPaginated(
+  partnerId: string,
+  input: AdminListQuery,
+): Promise<PaginatedResult<CreditTransaction>> {
+  const supabase = createSupabaseAdminClient();
+  const { from, to } = paginatedRange(input.page, input.pageSize);
+  const normalizedPartnerId = partnerId.trim();
+  if (!normalizedPartnerId) {
+    return { items: [], total: 0, page: input.page, pageSize: input.pageSize };
+  }
+
+  const [ledgerResult, partnerResult] = await Promise.all([
+    supabase
+      .from("partner_credit_ledger")
+      .select("id, partner_id, event_type, delta, balance_after, note, metadata, created_at", { count: "exact" })
+      .eq("partner_id", normalizedPartnerId)
+      .order("created_at", { ascending: false, nullsFirst: false })
+      .range(from, to),
+    supabase
+      .from("partner_profiles")
+      .select("id, business_name, phone_number")
+      .eq("id", normalizedPartnerId)
+      .maybeSingle(),
+  ]);
+
+  if (ledgerResult.error) {
+    throw new Error(`partner_credit_ledger list failed: ${ledgerResult.error.message}`);
+  }
+  if (partnerResult.error) {
+    throw new Error(`partner_profiles detail failed: ${partnerResult.error.message}`);
+  }
+
+  const partnerName = asText(partnerResult.data?.business_name) || "Unknown partner";
+  const partnerPhone = asText(partnerResult.data?.phone_number) || "N/A";
+  const partnerMetaById = new Map([[normalizedPartnerId, { name: partnerName, phone: partnerPhone }]]);
+
+  return {
+    items: (ledgerResult.data ?? []).map((row) => mapLedgerRow(row, partnerMetaById)),
+    total: ledgerResult.count ?? 0,
+    page: input.page,
+    pageSize: input.pageSize,
+  };
+}
+
 export async function listPartnerCreditsForAdmin(): Promise<{
   transactions: CreditTransaction[];
   requests: CreditRequest[];
@@ -25,7 +152,7 @@ export async function listPartnerCreditsForAdmin(): Promise<{
   const [accountsResult, ledgerResult, partnersResult, requestsResult] = await Promise.all([
     supabase
       .from("partner_credit_accounts")
-      .select("id, partner_id, balance, total_earned, total_spent, created_at, updated_at")
+      .select("partner_id, balance, updated_at")
       .order("updated_at", { ascending: false, nullsFirst: false }),
     supabase
       .from("partner_credit_ledger")
@@ -322,6 +449,22 @@ function mapRequestRow(
     requestedAt: normalizeDate(firstDefinedText(row.requested_at, row.created_at)),
     whatsappNote: asText(row.whatsapp_note) || null,
   };
+}
+
+function buildPartnerCreditStatsMap(
+  rows: Array<{ partner_id?: string | null; delta?: number | null }>,
+): Map<string, { topup: number; usage: number }> {
+  const map = new Map<string, { topup: number; usage: number }>();
+  for (const row of rows) {
+    const partnerId = asText(row.partner_id);
+    if (!partnerId) continue;
+    const delta = toNumber(row.delta) ?? 0;
+    const current = map.get(partnerId) ?? { topup: 0, usage: 0 };
+    if (delta > 0) current.topup += delta;
+    if (delta < 0) current.usage += Math.abs(delta);
+    map.set(partnerId, current);
+  }
+  return map;
 }
 
 function buildPartnerMetaByIdMap(rows: PartnerProfileRow[]): Map<string, { name: string; phone: string }> {

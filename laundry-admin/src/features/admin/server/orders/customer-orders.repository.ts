@@ -1,5 +1,7 @@
 import "server-only";
 
+import { escapeIlike, paginatedRange } from "@/features/admin/server/admin-list-query";
+import type { AdminListQuery, PaginatedResult } from "@/features/admin/server/admin-list-query";
 import type { AdminOrder, OrderStatus, ShippingService } from "@/features/admin/types/admin-order";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { Database } from "@/lib/supabase/database.types";
@@ -9,6 +11,114 @@ type OrderServiceRow = Database["public"]["Tables"]["order_services"]["Row"];
 type OrderServiceItemRow = Database["public"]["Tables"]["order_service_items"]["Row"];
 type ProfileRow = Database["public"]["Tables"]["profiles"]["Row"];
 type PartnerProfileRow = Database["public"]["Tables"]["partner_profiles"]["Row"];
+
+export async function listCustomerOrdersForAdminPaginated(
+  input: AdminListQuery,
+): Promise<PaginatedResult<AdminOrder>> {
+  const supabase = createSupabaseAdminClient();
+  const { from, to } = paginatedRange(input.page, input.pageSize);
+
+  let customerIds: string[] = [];
+  let partnerIds: string[] = [];
+  if (input.query) {
+    const q = escapeIlike(input.query);
+    const [profilesResult, partnersResult] = await Promise.all([
+      supabase
+        .from("profiles")
+        .select("id")
+        .or(`full_name.ilike.%${q}%,first_name.ilike.%${q}%,last_name.ilike.%${q}%,email.ilike.%${q}%`),
+      supabase.from("partner_profiles").select("id").ilike("business_name", `%${q}%`),
+    ]);
+    if (profilesResult.error) {
+      throw new Error(`profiles search failed: ${profilesResult.error.message}`);
+    }
+    if (partnersResult.error) {
+      throw new Error(`partner_profiles search failed: ${partnersResult.error.message}`);
+    }
+    customerIds = (profilesResult.data ?? []).map((row) => row.id);
+    partnerIds = (partnersResult.data ?? []).map((row) => row.id);
+  }
+
+  let ordersQuery = supabase
+    .from("customer_orders")
+    .select(
+      "id, customer_id, partner_id, status, currency_prefix, estimated_total, delivery_time_slot_label, created_at",
+      { count: "exact" },
+    )
+    .order("created_at", { ascending: false, nullsFirst: false });
+
+  const dbStatus = adminOrderStatusToDb(input.status);
+  if (dbStatus) ordersQuery = ordersQuery.eq("status", dbStatus);
+
+  if (input.query) {
+    const q = escapeIlike(input.query);
+    const clauses = [`id.ilike.%${q}%`];
+    if (customerIds.length > 0) clauses.push(`customer_id.in.(${customerIds.join(",")})`);
+    if (partnerIds.length > 0) clauses.push(`partner_id.in.(${partnerIds.join(",")})`);
+    ordersQuery = ordersQuery.or(clauses.join(","));
+  }
+
+  const ordersResult = await ordersQuery.range(from, to);
+  if (ordersResult.error) throw new Error(`customer_orders list failed: ${ordersResult.error.message}`);
+
+  const orders = ordersResult.data ?? [];
+  if (orders.length === 0) {
+    return {
+      items: [],
+      total: ordersResult.count ?? 0,
+      page: input.page,
+      pageSize: input.pageSize,
+    };
+  }
+
+  const orderIds = orders.map((order) => order.id);
+  const pageCustomerIds = unique(orders.map((order) => asText(order.customer_id)).filter(Boolean));
+  const pagePartnerIds = unique(orders.map((order) => asText(order.partner_id)).filter(Boolean));
+
+  const servicesResult = await supabase
+    .from("order_services")
+    .select("id, order_id, service_type, estimated_amount, total_item_count, created_at")
+    .in("order_id", orderIds);
+  if (servicesResult.error) throw new Error(`order_services list failed: ${servicesResult.error.message}`);
+
+  const serviceIds = (servicesResult.data ?? []).map((row) => row.id).filter(Boolean);
+  const [serviceItemsResult, profilesResult, partnersResult] = await Promise.all([
+    serviceIds.length > 0
+      ? supabase.from("order_service_items").select("id, order_service_id, quantity").in("order_service_id", serviceIds)
+      : Promise.resolve({ data: [], error: null }),
+    pageCustomerIds.length > 0
+      ? supabase.from("profiles").select("id, full_name, first_name, last_name").in("id", pageCustomerIds)
+      : Promise.resolve({ data: [], error: null }),
+    pagePartnerIds.length > 0
+      ? supabase.from("partner_profiles").select("id, business_name").in("id", pagePartnerIds)
+      : Promise.resolve({ data: [], error: null }),
+  ]);
+
+  if (serviceItemsResult.error) {
+    throw new Error(`order_service_items list failed: ${serviceItemsResult.error.message}`);
+  }
+  if (profilesResult.error) throw new Error(`profiles list failed: ${profilesResult.error.message}`);
+  if (partnersResult.error) throw new Error(`partner_profiles list failed: ${partnersResult.error.message}`);
+
+  const servicesByOrder = buildServicesByOrderMap(servicesResult.data ?? []);
+  const itemCountByService = buildItemCountByServiceMap(serviceItemsResult.data ?? []);
+  const customerNameById = buildCustomerNameByIdMap(profilesResult.data ?? []);
+  const partnerNameById = buildPartnerNameByIdMap(partnersResult.data ?? []);
+
+  return {
+    items: orders.map((order, index) =>
+      mapOrderRow(order, from + index, {
+        servicesByOrder,
+        itemCountByService,
+        customerNameById,
+        partnerNameById,
+      }),
+    ),
+    total: ordersResult.count ?? orders.length,
+    page: input.page,
+    pageSize: input.pageSize,
+  };
+}
 
 export async function listCustomerOrdersForAdmin(): Promise<AdminOrder[]> {
   const supabase = createSupabaseAdminClient();
@@ -127,6 +237,25 @@ function buildFullName(fullName: unknown, firstName: unknown, lastName: unknown)
   if (direct) return direct;
   const merged = `${asText(firstName)} ${asText(lastName)}`.trim();
   return merged || "N/A";
+}
+
+function adminOrderStatusToDb(status: string): string | null {
+  switch (status) {
+    case "Placed":
+      return "placed";
+    case "Accepted":
+      return "accepted";
+    case "In Progress":
+      return "in_progress";
+    case "Ready":
+      return "ready";
+    case "Delivered":
+      return "delivered";
+    case "Cancelled":
+      return "cancelled";
+    default:
+      return null;
+  }
 }
 
 function normalizeOrderStatus(raw: unknown): OrderStatus {
