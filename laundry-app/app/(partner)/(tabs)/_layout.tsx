@@ -4,18 +4,20 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import {
   bottomTabIconStyle,
-  getBottomTabScreenOptions,
+  getBottomTabScreenOptionsForPlatform,
 } from "@/components/bottom-tab-bar";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { assets } from "@/assets/assets";
 import { strings } from "@/constants/strings";
+import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 
 export default function PartnerTabsLayout() {
   const insets = useSafeAreaInsets();
   const tabBarBottom = Math.max(insets.bottom, 8);
+  const { hideBottomTabBar } = useResponsiveLayout();
 
   return (
-    <Tabs screenOptions={getBottomTabScreenOptions(tabBarBottom)}>
+    <Tabs screenOptions={getBottomTabScreenOptionsForPlatform(tabBarBottom, hideBottomTabBar)}>
       <Tabs.Screen
         name="index"
         options={{

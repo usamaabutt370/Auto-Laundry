@@ -15,7 +15,7 @@ import { theme } from "@/constants/theme";
 import { strings } from "@/constants/strings";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
-import { type CountryCode } from "react-native-country-picker-modal";
+import type { CountryCode } from "libphonenumber-js";
 
 const c = theme.colors;
 

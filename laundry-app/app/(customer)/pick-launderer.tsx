@@ -17,10 +17,12 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 
 import { LaundererDetailView } from "@/components/launderer-detail-view";
+import { WebCenteredPanel } from "@/components/web-layout";
 import { assets } from "@/assets/assets";
 import { strings } from "@/constants/strings";
 import { theme } from "@/constants/theme";
 import { useCustomerOrderDraft } from "@/contexts/customer-order-draft-context";
+import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { avatarUrlWithCacheBuster } from "@/lib/avatar";
 import {
   fetchPartnersByFulfillmentMode,
@@ -68,15 +70,20 @@ function formatDistanceKm(distanceKm: number | null | undefined): string {
   return `${distanceKm.toFixed(1)} km`;
 }
 
+type LaundererCardVariant = "list" | "grid";
+
 function LaundererCard({
   partner,
   distanceLabel,
   onPress,
+  variant = "list",
 }: {
   partner: PartnerPublicRow;
   distanceLabel: string;
   onPress: () => void;
+  variant?: LaundererCardVariant;
 }) {
+  const isGrid = variant === "grid";
   const businessImageUri = Array.isArray(partner.business_images)
     ? partner.business_images.find(
       (item): item is string => typeof item === "string" && item.trim().length > 0
@@ -91,14 +98,25 @@ function LaundererCard({
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [styles.card, pressed && styles.pressed]}
+      style={({ pressed }) => [
+        styles.card,
+        isGrid && styles.cardGrid,
+        pressed && styles.pressed,
+      ]}
     >
       {imageUri ? (
-        <Image source={{ uri: imageUri }} style={styles.cardImage} contentFit="cover" />
+        <Image
+          source={{ uri: imageUri }}
+          style={[styles.cardImage, isGrid && styles.cardImageGrid]}
+          contentFit="cover"
+        />
       ) : (
-        <Image source={assets.onboarding.slide1} style={styles.cardImage} />
+        <Image
+          source={assets.onboarding.slide1}
+          style={[styles.cardImage, isGrid && styles.cardImageGrid]}
+        />
       )}
-      <View style={styles.cardBody}>
+      <View style={[styles.cardBody, isGrid && styles.cardBodyGrid]}>
         <View style={styles.ratingRow}>
           {[1, 2, 3, 4, 5].map((i) => (
             <MaterialCommunityIcons key={i} name="star" size={16} color="#EAB308" />
@@ -157,6 +175,7 @@ export default function PickLaundererScreen() {
   const params = useLocalSearchParams<{ reorderOrderId?: string; mode?: string }>();
   const s = strings.customer.pickLaunderer;
   const sHome = strings.customer.home;
+  const { isWebDesktop } = useResponsiveLayout();
   const reorderOrderId = typeof params.reorderOrderId === "string" ? params.reorderOrderId : "";
   const fulfillmentMode: PartnerFulfillmentMode =
     params.mode === "pickupDelivery" ? "pickupDelivery" : "dropoff";
@@ -322,10 +341,20 @@ export default function PickLaundererScreen() {
 
   const handlePartnerPress = useCallback(
     async (partner: PartnerPublicRow) => {
+      if (isWebDesktop && !isReassignMode) {
+        router.push({
+          pathname: "/(customer)/launderer-detail",
+          params: {
+            id: partner.id,
+            name: partner.business_name ?? "",
+          },
+        });
+        return;
+      }
       setSelectedPartnerId(partner.id);
       setSelectedPartnerName(partner.business_name);
     },
-    [],
+    [isReassignMode, isWebDesktop, router],
   );
 
   const handleSelect = useCallback(
@@ -355,7 +384,7 @@ export default function PickLaundererScreen() {
   );
 
   if (selectedPartnerId) {
-    return (
+    const detail = (
       <LaundererDetailView
         partnerId={selectedPartnerId}
         initialName={selectedPartnerName ?? undefined}
@@ -364,6 +393,7 @@ export default function PickLaundererScreen() {
         isModal
       />
     );
+    return isWebDesktop ? <WebCenteredPanel>{detail}</WebCenteredPanel> : detail;
   }
 
   return (
@@ -436,16 +466,21 @@ export default function PickLaundererScreen() {
       ) : (
         <ScrollView
           style={styles.scroll}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[
+            styles.scrollContent,
+            isWebDesktop && styles.scrollContentGrid,
+          ]}
           showsVerticalScrollIndicator={false}
         >
           {filteredPartners.map((partner) => (
-            <LaundererCard
-              key={partner.id}
-              partner={partner}
-              distanceLabel={partnerDistanceLabels[partner.id] ?? PARTNER_DISTANCE_PLACEHOLDER}
-              onPress={() => void handlePartnerPress(partner)}
-            />
+            <View key={partner.id} style={isWebDesktop ? styles.gridItem : styles.listItem}>
+              <LaundererCard
+                partner={partner}
+                distanceLabel={partnerDistanceLabels[partner.id] ?? PARTNER_DISTANCE_PLACEHOLDER}
+                onPress={() => void handlePartnerPress(partner)}
+                variant={isWebDesktop ? "grid" : "list"}
+              />
+            </View>
           ))}
         </ScrollView>
       )}
@@ -500,6 +535,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: c.themeBlack,
     paddingVertical: 0,
+    ...Platform.select({
+      web: {
+        borderWidth: 0,
+        outlineStyle: "none",
+        backgroundColor: "transparent",
+      },
+    }),
   },
   pressed: { opacity: 0.8 },
   screenTitle: {
@@ -514,6 +556,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 40,
     gap: 16,
+  },
+  scrollContentGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "stretch",
+    gap: 16,
+  },
+  listItem: {
+    width: "100%",
+  },
+  gridItem: {
+    width: "31.5%",
+    flexGrow: 0,
+    flexShrink: 0,
   },
   centerBlock: {
     flex: 1,
@@ -575,6 +631,14 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     paddingHorizontal: 10,
     alignItems: "center",
+    flex: 1,
+  },
+  cardGrid: {
+    flexDirection: "column",
+    alignItems: "stretch",
+    paddingHorizontal: 0,
+    paddingBottom: 0,
+    height: "100%",
   },
   cardImage: {
     width: 100,
@@ -582,11 +646,22 @@ const styles = StyleSheet.create({
     backgroundColor: c.blue500,
     borderRadius: 16,
   },
+  cardImageGrid: {
+    width: "100%",
+    height: 150,
+    borderRadius: 0,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+  },
   cardBody: {
     flex: 1,
     paddingVertical: 12,
     paddingHorizontal: 14,
     justifyContent: "space-between",
+  },
+  cardBodyGrid: {
+    paddingVertical: 12,
+    paddingHorizontal: 12,
   },
   ratingRow: {
     flexDirection: "row",

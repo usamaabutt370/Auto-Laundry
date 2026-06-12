@@ -169,8 +169,29 @@ export function getBottomTabScreenOptions(tabBarBottom: number) {
 }
 
 /** Total vertical space reserved above the home indicator / screen bottom. */
-export function getTabBarBottomInset(tabBarBottom: number) {
+export function getTabBarBottomInset(tabBarBottom: number, hideTabBar = false) {
+  if (hideTabBar) {
+    return Math.max(tabBarBottom, 20);
+  }
   return TAB_BAR_HEIGHT + tabBarBottom;
+}
+
+export function getBottomTabScreenOptionsForPlatform(
+  tabBarBottom: number,
+  hideTabBar: boolean,
+) {
+  const base = getBottomTabScreenOptions(tabBarBottom);
+  if (!hideTabBar) {
+    return base;
+  }
+  return {
+    ...base,
+    tabBarStyle: {
+      ...base.tabBarStyle,
+      display: "none" as const,
+      height: 0,
+    },
+  };
 }
 
 const styles = StyleSheet.create({

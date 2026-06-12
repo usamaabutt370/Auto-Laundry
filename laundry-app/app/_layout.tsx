@@ -7,6 +7,7 @@ import { KeyboardProvider } from "react-native-keyboard-controller";
 import "react-native-reanimated";
 
 import { FcmNotificationRouter } from "@/components/chat/fcm-notification-router";
+import { WebAppShell } from "@/components/web-shells";
 import { strings } from "@/constants/strings";
 import { AuthProvider } from "@/contexts/auth-context";
 import { LocaleProvider } from "@/contexts/locale-context";
@@ -25,19 +26,21 @@ export default function RootLayout() {
       <KeyboardProvider>
         <AuthProvider>
           <LocaleProvider>
-            <FcmNotificationRouter />
-            <Stack screenOptions={{ headerShown: false }}>
-              <Stack.Screen name="index" />
-              <Stack.Screen name="(onboarding)" />
-              <Stack.Screen name="(auth)" />
-              <Stack.Screen name="(customer)" />
-              <Stack.Screen name="(partner)" />
-              <Stack.Screen
-                name="modal"
-                options={{ presentation: "modal", title: strings.common.modal }}
-              />
-            </Stack>
-            <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
+            <WebAppShell>
+              <FcmNotificationRouter />
+              <Stack screenOptions={{ headerShown: false }}>
+                <Stack.Screen name="index" />
+                <Stack.Screen name="(onboarding)" />
+                <Stack.Screen name="(auth)" />
+                <Stack.Screen name="(customer)" />
+                <Stack.Screen name="(partner)" />
+                <Stack.Screen
+                  name="modal"
+                  options={{ presentation: "modal", title: strings.common.modal }}
+                />
+              </Stack>
+              <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
+            </WebAppShell>
           </LocaleProvider>
         </AuthProvider>
       </KeyboardProvider>

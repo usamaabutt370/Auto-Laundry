@@ -10,7 +10,7 @@ import {
   View,
   type ViewStyle,
 } from "react-native";
-import { type CountryCode } from "react-native-country-picker-modal";
+import type { CountryCode } from "libphonenumber-js";
 import {
   CountryCodePicker,
   type SelectedCountry,

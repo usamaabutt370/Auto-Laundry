@@ -24,7 +24,7 @@ import { avatarUrlWithCacheBuster } from "@/lib/avatar";
 import { getPaymentMethod, setPaymentMethod } from "@/lib/payment-storage";
 import { getSession, isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
-import { type CountryCode } from "react-native-country-picker-modal";
+import type { CountryCode } from "libphonenumber-js";
 import { Input } from "@/components";
 
 const c = theme.colors;

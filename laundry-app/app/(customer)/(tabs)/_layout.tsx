@@ -4,17 +4,24 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import {
   bottomTabIconStyle,
-  getBottomTabScreenOptions,
+  getBottomTabScreenOptionsForPlatform,
 } from "@/components/bottom-tab-bar";
 import { strings } from "@/constants/strings";
 import { assets } from "@/assets/assets";
+import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 
 export default function CustomerTabsLayout() {
   const insets = useSafeAreaInsets();
   const tabBarBottom = Math.max(insets.bottom, 8);
+  const { hideBottomTabBar } = useResponsiveLayout();
 
   return (
-    <Tabs screenOptions={getBottomTabScreenOptions(tabBarBottom)}>
+    <Tabs
+      screenOptions={{
+        ...getBottomTabScreenOptionsForPlatform(tabBarBottom, hideBottomTabBar),
+        sceneContainerStyle: { flex: 1, backgroundColor: "transparent" },
+      }}
+    >
       <Tabs.Screen
         name="index"
         options={{

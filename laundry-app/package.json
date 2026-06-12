@@ -8,6 +8,7 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
+    "export:web": "expo export --platform web",
     "lint": "expo lint",
     "build:clean": "expo prebuild --clean",
     "apk:release": "cd android && ./gradlew assembleRelease",
@@ -15,7 +16,8 @@
     "prebuild:ios": "npx expo prebuild --platform ios",
     "supabase:deploy:chat-push": "npx supabase functions deploy chat-message-push --no-verify-jwt",
     "supabase:deploy:functions": "npx supabase functions deploy chat-message-push --no-verify-jwt",
-    "supabase:secret:firebase": "node scripts/set-firebase-service-account-secret.cjs"
+    "supabase:secret:firebase": "node scripts/set-firebase-service-account-secret.cjs",
+    "build:android:production": "eas build --profile production --platform android"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",

@@ -27,7 +27,7 @@ import { getStrings } from "@/locales";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { getDeviceCoordinatesWithStatus } from "@/utils/device-location";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
-import { type CountryCode } from "react-native-country-picker-modal";
+import type { CountryCode } from "libphonenumber-js";
 
 const HOURS = Array.from({ length: 12 }, (_, idx) => idx + 1);
 const MINUTES = Array.from({ length: 60 }, (_, idx) => idx);
