@@ -17,6 +17,7 @@ export default function CustomerHomeScreen() {
   const s = strings.customer.home;
   const insets = useSafeAreaInsets();
   const tabBarInset = getTabBarBottomInset(Math.max(insets.bottom, 8));
+  const serviceCardHeight = 160;
   const { open: openSidebar } = useSidebar();
 
   return (
@@ -31,6 +32,7 @@ export default function CustomerHomeScreen() {
           })
         }
         recenterBottomOffset={tabBarInset + 162}
+        mapBottomInset={tabBarInset + serviceCardHeight}
       />
 
       {/* Service selection card (bottom sheet style) */}
@@ -104,6 +106,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 24,
     paddingBottom: 24,
+    minHeight: 160,
   },
   serviceCardTitle: {
     fontSize: 18,

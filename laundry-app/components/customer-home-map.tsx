@@ -10,7 +10,9 @@ import { getDeviceCoordinates } from "@/utils/device-location";
 import { getCoordinatesWithFallback, type Coordinates } from "@/utils/geocoding";
 
 const c = theme.colors;
-const DEFAULT_ZOOM = 11;
+const DEFAULT_ZOOM = 5;
+const DEFAULT_CENTER = [30.3753, 69.3451] as const;
+const USER_FOCUS_ZOOM = 14;
 
 type PartnerMapMarker = PartnerPublicRow & {
   fulfillmentMode: "dropoff" | "pickupDelivery";
@@ -41,6 +43,7 @@ type Props = {
   onMenuPress: () => void;
   onPartnerPress: (partnerId: string, mode: "dropoff" | "pickupDelivery") => void;
   recenterBottomOffset: number;
+  mapBottomInset?: number;
 };
 
 function formatPartnerUpdatedAt(updatedAt: string | null): string | null {
@@ -67,6 +70,7 @@ export function CustomerHomeMap({
   onMenuPress,
   onPartnerPress,
   recenterBottomOffset,
+  mapBottomInset = 0,
 }: Props) {
   const mapRef = useRef<WebView | null>(null);
   const geocodeCacheRef = useRef<Map<string, Coordinates | null>>(new Map());
@@ -76,6 +80,7 @@ export function CustomerHomeMap({
     {},
   );
   const [loadingPartners, setLoadingPartners] = useState(true);
+  const [locationResolved, setLocationResolved] = useState(false);
   const [selectedPartnerId, setSelectedPartnerId] = useState<string | null>(null);
 
   const loadPartners = useCallback(async () => {
@@ -105,6 +110,7 @@ export function CustomerHomeMap({
       const coords = await getDeviceCoordinates();
       if (cancelled) return;
       setUserCoordinates(coords);
+      setLocationResolved(true);
     })();
     return () => {
       cancelled = true;
@@ -237,13 +243,15 @@ export function CustomerHomeMap({
     },
     [markers],
   );
+  const shouldRenderMap =
+    mapMarkers.length > 0 || Boolean(userCoordinates) || (locationResolved && !loadingPartners);
 
   const mapHtml = useMemo(() => {
     const markersJson = JSON.stringify(mapMarkers);
     const userJson = JSON.stringify(userCoordinates);
     const dropOffLabel = JSON.stringify(strings.dropOff);
     const pickupLabel = JSON.stringify(strings.pickUpDelivery);
-    const zoomControlBottomOffset = Math.max(16, recenterBottomOffset + 52);
+    const zoomControlBottomOffset = 58;
     return `<!DOCTYPE html>
 <html>
 <head>
@@ -351,21 +359,29 @@ export function CustomerHomeMap({
   <div id="map"></div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
-    const map = L.map('map', { zoomControl: false });
+    // Web Mercator practical latitude limits for OSM tiles.
+    const worldBounds = L.latLngBounds([[-85.05112878, -180], [85.05112878, 180]]);
+    const map = L.map('map', {
+      zoomControl: false,
+      attributionControl: false,
+      minZoom: 2,
+      maxZoom: 19,
+      maxBounds: worldBounds,
+      maxBoundsViscosity: 1.0,
+    });
+    window.map = map;
     L.control.zoom({ position: 'bottomright' }).addTo(map);
-    map.attributionControl.setPrefix(false);
-    map.attributionControl.setPosition('bottomleft');
-    const defaultCenter = [31.365, 74.2143];
+    const defaultCenter = [${DEFAULT_CENTER[0]}, ${DEFAULT_CENTER[1]}];
     map.setView(defaultCenter, ${DEFAULT_ZOOM});
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      minZoom: 2,
       maxZoom: 19,
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+      noWrap: true,
+      attribution: ''
     }).addTo(map);
 
     const markers = ${markersJson};
     const user = ${userJson};
-    const allPoints = [];
-    const bounds = [];
 
     function labelForMode(mode) {
       return mode === 'pickupDelivery' ? ${pickupLabel} : ${dropOffLabel};
@@ -400,8 +416,6 @@ export function CustomerHomeMap({
         fillOpacity: 0.95,
       }).addTo(map);
       userMarker.bindPopup('Your location');
-      bounds.push([user.latitude, user.longitude]);
-      allPoints.push([user.latitude, user.longitude]);
     }
 
     markers.forEach((item) => {
@@ -421,31 +435,36 @@ export function CustomerHomeMap({
           mode: item.mode
         }));
       });
-      bounds.push([item.latitude, item.longitude]);
-      allPoints.push([item.latitude, item.longitude]);
     });
 
-    function fitAll() {
-      if (bounds.length === 0) {
-        map.setView(defaultCenter, ${DEFAULT_ZOOM});
-        return;
-      }
-      if (bounds.length === 1) {
-        map.setView(bounds[0], 14);
-        return;
-      }
-      map.fitBounds(bounds, { padding: [50, 50] });
+    function recenterToDefault() {
+      map.setView(defaultCenter, ${DEFAULT_ZOOM});
     }
 
-    window.__fitAll = fitAll;
-    fitAll();
+    window.__recenterToDefault = recenterToDefault;
+    recenterToDefault();
   </script>
 </body>
 </html>`;
-  }, [mapMarkers, recenterBottomOffset, strings.dropOff, strings.pickUpDelivery, userCoordinates]);
+  }, [mapMarkers, strings.dropOff, strings.pickUpDelivery, userCoordinates]);
 
   const focusMap = useCallback(() => {
-    mapRef.current?.injectJavaScript("window.__fitAll && window.__fitAll(); true;");
+    void (async () => {
+      const latestCoords = await getDeviceCoordinates();
+      if (
+        latestCoords &&
+        Number.isFinite(latestCoords.latitude) &&
+        Number.isFinite(latestCoords.longitude)
+      ) {
+        setUserCoordinates(latestCoords);
+        const script = `window.map && window.map.setView([${latestCoords.latitude}, ${latestCoords.longitude}], ${USER_FOCUS_ZOOM}); true;`;
+        mapRef.current?.injectJavaScript(script);
+        return;
+      }
+      mapRef.current?.injectJavaScript(
+        "window.__recenterToDefault && window.__recenterToDefault(); true;",
+      );
+    })();
   }, []);
 
   useEffect(() => {
@@ -454,29 +473,31 @@ export function CustomerHomeMap({
 
   return (
     <>
-      <WebView
-        ref={mapRef}
-        style={styles.mapArea}
-        source={{ html: mapHtml }}
-        onMessage={(event) => {
-          try {
-            const payload = JSON.parse(event.nativeEvent.data) as {
-              type?: string;
-              partnerId?: string;
-              mode?: "dropoff" | "pickupDelivery";
-            };
-            if (
-              payload.type === "partner-press" &&
-              typeof payload.partnerId === "string" &&
-              (payload.mode === "dropoff" || payload.mode === "pickupDelivery")
-            ) {
-              setSelectedPartnerId(payload.partnerId);
+      {shouldRenderMap ? (
+        <WebView
+          ref={mapRef}
+          style={[styles.mapArea, mapBottomInset > 0 ? { bottom: mapBottomInset } : null]}
+          source={{ html: mapHtml }}
+          onMessage={(event) => {
+            try {
+              const payload = JSON.parse(event.nativeEvent.data) as {
+                type?: string;
+                partnerId?: string;
+                mode?: "dropoff" | "pickupDelivery";
+              };
+              if (
+                payload.type === "partner-press" &&
+                typeof payload.partnerId === "string" &&
+                (payload.mode === "dropoff" || payload.mode === "pickupDelivery")
+              ) {
+                setSelectedPartnerId(payload.partnerId);
+              }
+            } catch {
+              // Ignore malformed webview messages.
             }
-          } catch {
-            // Ignore malformed webview messages.
-          }
-        }}
-      />
+          }}
+        />
+      ) : null}
 
       {loadingPartners ? (
         <View style={styles.mapLoading}>
