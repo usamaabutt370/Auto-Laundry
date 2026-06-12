@@ -176,7 +176,7 @@ export const en = {
       save: "Save",
     },
     washFoldOrder: {
-      title: "Wash & fold items",
+      title: "Wash & fold",
       lead:
         "Select each item type and quantity. Your estimated total updates as you go.",
       estimateDisclaimer:
@@ -217,6 +217,16 @@ export const en = {
         "Choose a launderer from the map first to see live prices for this load.",
       partialNote:
         "* Some lines are not in the partner’s price list — total is partial.",
+    },
+    schedulePickupDelivery: {
+      title: "Pickup & delivery schedule",
+      pickupSection: "Pickup",
+      deliverySection: "Delivery",
+      confirm: "Confirm",
+      incompleteSchedule: "Please choose pickup and delivery dates and times.",
+      deliveryBeforePickup: "Delivery cannot be before pickup.",
+      deliveryTimeBeforePickup:
+        "On the same day, delivery time must be at or after pickup time.",
     },
     schedulePickup: {
       title: "Pick up Schedule",
@@ -270,6 +280,8 @@ export const en = {
       editTitle: "Update order",
       service: "Service",
       orderNumber: "Order Number",
+      pickupDelivery: "Pickup & delivery",
+      pickupDeliveryFee: "Pickup & delivery fee",
       estimatedTotal: "Estimated Total",
       submitOrder: "Submit Order",
       saveChanges: "Save changes",

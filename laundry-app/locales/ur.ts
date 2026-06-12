@@ -176,7 +176,7 @@ export const ur = {
       save: "حفظ",
     },
     washFoldOrder: {
-      title: "واش اینڈ فولڈ آئٹمز",
+      title: "واش اینڈ فولڈ",
       lead: "ہر آئٹم کی قسم اور تعداد منتخب کریں۔ تخمینی کل خود بخود اپ ڈیٹ ہوتی ہے۔",
       estimateDisclaimer:
         "یہ تخمینہ ہے۔ پک اپ پر گنتی کے بعد حتمی رقم بدل سکتی ہے۔",
@@ -213,6 +213,16 @@ export const ur = {
       loading: "پارٹنر کی قیمتیں لوڈ ہو رہی ہیں…",
       noPartner: "لائیو قیمتوں کے لیے پہلے نقشے سے لانڈر منتخب کریں۔",
       partialNote: "* کچھ لائنوں کی قیمت فہرست میں نہیں — کل جزوی ہے۔",
+    },
+    schedulePickupDelivery: {
+      title: "پک اپ اور ڈیلیوری شیڈول",
+      pickupSection: "پک اپ",
+      deliverySection: "ڈیلیوری",
+      confirm: "تصدیق",
+      incompleteSchedule: "براہ کرم پک اپ اور ڈیلیوری کی تاریخ اور وقت منتخب کریں۔",
+      deliveryBeforePickup: "ڈیلیوری پک اپ سے پہلے نہیں ہو سکتی۔",
+      deliveryTimeBeforePickup:
+        "اسی دن ڈیلیوری کا وقت پک اپ کے وقت کے بعد یا برابر ہونا چاہیے۔",
     },
     schedulePickup: {
       title: "پک اپ شیڈول",
@@ -266,6 +276,8 @@ export const ur = {
       editTitle: "آرڈر اپ ڈیٹ",
       service: "سروس",
       orderNumber: "آرڈر نمبر",
+      pickupDelivery: "پک اپ اور ڈیلیوری",
+      pickupDeliveryFee: "پک اپ اور ڈیلیوری فیس",
       estimatedTotal: "تخمینی کل",
       submitOrder: "آرڈر جمع کرائیں",
       saveChanges: "تبدیلیاں محفوظ کریں",

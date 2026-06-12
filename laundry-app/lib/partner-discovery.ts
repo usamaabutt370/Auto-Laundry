@@ -29,6 +29,17 @@ export type PartnerServiceLine = {
 
 export type PartnerFulfillmentMode = "dropoff" | "pickupDelivery";
 
+export function partnerOffersPickupDelivery(
+  profile:
+    | Pick<PartnerDetailRow, "pickup_delivery_enabled" | "pickup_delivery_amount">
+    | null
+    | undefined,
+): boolean {
+  if (!profile) return false;
+  if (profile.pickup_delivery_enabled) return true;
+  return Boolean(profile.pickup_delivery_amount?.trim());
+}
+
 /** Partners who offer pickup & delivery (for customer Pick Up & Delivery list). */
 export async function fetchPickupPartners(): Promise<{
   data: PartnerPublicRow[] | null;

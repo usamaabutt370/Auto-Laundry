@@ -9,7 +9,11 @@ import {
   LEGACY_WASH_FOLD_PRICE_LABELS,
 } from "@/constants/partner-wash-fold-items";
 import type { CustomerOrderDraft } from "@/contexts/customer-order-draft-context";
-import type { PartnerDetailRow, PartnerServiceLine } from "@/lib/partner-discovery";
+import {
+  partnerOffersPickupDelivery,
+  type PartnerDetailRow,
+  type PartnerServiceLine,
+} from "@/lib/partner-discovery";
 import { getStrings, type LocaleCode } from "@/locales";
 import {
   currencyPrefixFromDisplay,
@@ -171,9 +175,8 @@ export function buildCustomerOrderEstimate(
 
   const addPickupFee = () => {
     if (!draft.pickupDeliveryRequested) return;
-    if (!profile?.pickup_delivery_enabled) return;
-    if (draft.pickup == null || draft.delivery == null) return;
-    const raw = profile.pickup_delivery_amount?.trim() ?? "";
+    if (!partnerOffersPickupDelivery(profile)) return;
+    const raw = profile?.pickup_delivery_amount?.trim() ?? "";
     const fee = parsePriceDisplay(raw);
     if (fee == null || fee <= 0) return;
     if (!currencyPrefix) currencyPrefix = currencyPrefixFromDisplay(raw);

@@ -21,7 +21,11 @@ import { strings } from "@/constants/strings";
 import type { LaundererServiceType } from "@/constants/launderers";
 import { theme } from "@/constants/theme";
 import { useCustomerOrderDraft } from "@/contexts/customer-order-draft-context";
-import { fetchPartnerDetail, serviceCategoriesToTypes } from "@/lib/partner-discovery";
+import {
+  fetchPartnerDetail,
+  partnerOffersPickupDelivery,
+  serviceCategoriesToTypes,
+} from "@/lib/partner-discovery";
 import {
   dryCleanUnitForItem,
   listPricedDryCleanDefs,
@@ -43,14 +47,6 @@ const SERVICE_KEYS: LaundererServiceType[] = [
   "tailoring",
 ];
 
-function partnerOffersPickupDelivery(
-  profile: Awaited<ReturnType<typeof fetchPartnerDetail>>["profile"],
-): boolean {
-  if (!profile) return false;
-  if (profile.pickup_delivery_enabled) return true;
-  return Boolean(profile.pickup_delivery_amount?.trim());
-}
-
 export default function PickupServicesScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ mode?: string }>();
@@ -67,6 +63,7 @@ export default function PickupServicesScreen() {
   >([]);
   const [pickupDeliveryEnabled, setPickupDeliveryEnabled] = useState(false);
   const [pickupFeeLabel, setPickupFeeLabel] = useState<string | null>(null);
+  const showPickupToggle = pickupDeliveryEnabled && !prefersPickupDelivery;
 
   useEffect(() => {
     let cancelled = false;
@@ -93,10 +90,8 @@ export default function PickupServicesScreen() {
       setPickupDeliveryEnabled(pickupEnabled);
       setPickupFeeLabel(profile?.pickup_delivery_amount?.trim() || null);
       if (!pickupEnabled) {
-        if (draft.pickupDeliveryRequested) {
-          setPickupDeliveryRequested(false);
-        }
-      } else if (prefersPickupDelivery && !draft.pickupDeliveryRequested) {
+        setPickupDeliveryRequested(false);
+      } else if (prefersPickupDelivery) {
         setPickupDeliveryRequested(true);
       }
       setLoading(false);
@@ -105,12 +100,7 @@ export default function PickupServicesScreen() {
     return () => {
       cancelled = true;
     };
-  }, [
-    draft.partnerId,
-    draft.pickupDeliveryRequested,
-    prefersPickupDelivery,
-    setPickupDeliveryRequested,
-  ]);
+  }, [draft.partnerId, prefersPickupDelivery, setPickupDeliveryRequested]);
 
   const servicesToShow = useMemo(() => {
     if (partnerServiceTypes.length > 0) return partnerServiceTypes;
@@ -340,7 +330,7 @@ export default function PickupServicesScreen() {
             <Text style={styles.emptyText}>No services configured by this launderer yet.</Text>
           ) : null}
 
-          {pickupDeliveryEnabled ? (
+          {showPickupToggle ? (
             <View style={styles.pickupRow}>
               <View style={styles.pickupTextWrap}>
                 <Text style={styles.pickupTitle}>{s.includePickupDelivery}</Text>

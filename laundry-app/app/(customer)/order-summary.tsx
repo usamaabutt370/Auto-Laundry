@@ -107,6 +107,23 @@ export default function OrderSummaryScreen() {
     return `AL-${t.slice(-8)}`;
   }, [editingOrderId, isEditing]);
 
+  const serviceLines = useMemo(
+    () => estimate.lines.filter((line) => line.key !== "pickup_delivery"),
+    [estimate.lines],
+  );
+  const pickupLine = useMemo(
+    () => estimate.lines.find((line) => line.key === "pickup_delivery"),
+    [estimate.lines],
+  );
+  const pickupFeeDisplay = useMemo(() => {
+    if (pickupLine?.amount != null) {
+      return formatMoney(estimate.currencyPrefix, pickupLine.amount);
+    }
+    const raw = profile?.pickup_delivery_amount?.trim();
+    if (!raw) return "—";
+    return raw;
+  }, [estimate.currencyPrefix, pickupLine?.amount, profile?.pickup_delivery_amount]);
+
   return (
     <View style={styles.container}>
       <SafeAreaView edges={["top"]}>
@@ -180,20 +197,33 @@ export default function OrderSummaryScreen() {
                   • {sServices[id]}
                 </Text>
               ))}
-              <Text style={[styles.subheading, styles.mt]}>Estimate</Text>
-              {estimate.lines.map((line) => (
-                <View key={line.key} style={styles.row}>
-                  <Text style={styles.rowName} numberOfLines={2}>
-                    {line.title}
-                  </Text>
-                  <Text style={styles.rowQty}>{line.qtyLabel}</Text>
-                  <Text style={styles.rowPrice}>
-                    {line.amount != null
-                      ? formatMoney(estimate.currencyPrefix, line.amount)
-                      : "—"}
-                  </Text>
-                </View>
-              ))}
+              {serviceLines.length > 0 ? (
+                <>
+                  <Text style={[styles.subheading, styles.mt]}>Estimate</Text>
+                  {serviceLines.map((line) => (
+                    <View key={line.key} style={styles.row}>
+                      <Text style={styles.rowName} numberOfLines={2}>
+                        {line.title}
+                      </Text>
+                      <Text style={styles.rowQty}>{line.qtyLabel}</Text>
+                      <Text style={styles.rowPrice}>
+                        {line.amount != null
+                          ? formatMoney(estimate.currencyPrefix, line.amount)
+                          : "—"}
+                      </Text>
+                    </View>
+                  ))}
+                </>
+              ) : null}
+              {draft.pickupDeliveryRequested ? (
+                <>
+                  <Text style={[styles.subheading, styles.mt]}>{s.pickupDelivery}</Text>
+                  <View style={styles.row}>
+                    <Text style={styles.rowName}>{s.pickupDeliveryFee}</Text>
+                    <Text style={styles.rowPrice}>{pickupFeeDisplay}</Text>
+                  </View>
+                </>
+              ) : null}
               <View style={styles.totalRow}>
                 <Text style={styles.totalLabel}>{s.estimatedTotal}</Text>
                 <Text style={styles.totalValue}>
