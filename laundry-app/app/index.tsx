@@ -1,12 +1,12 @@
 import { Redirect } from "expo-router";
-import { ActivityIndicator, StyleSheet, View } from "react-native";
+import { ActivityIndicator, Platform, StyleSheet, View } from "react-native";
 
 import { useAuth } from "@/contexts/auth-context";
 import { useOnboardingComplete } from "@/hooks/use-onboarding-complete";
 
 /**
  * Root entry: redirects to onboarding, auth, or app based on state.
- * Flow: onboarding (first time) → auth → customer/partner.
+ * Flow: onboarding (first time, iOS only) → auth → customer/partner.
  */
 export default function IndexScreen() {
   const { hasCompleted: onboardingComplete } = useOnboardingComplete();
@@ -20,7 +20,7 @@ export default function IndexScreen() {
     );
   }
 
-  if (!onboardingComplete) {
+  if (Platform.OS === "ios" && !onboardingComplete) {
     return <Redirect href="/(onboarding)" />;
   }
 
