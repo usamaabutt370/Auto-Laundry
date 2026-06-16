@@ -5,18 +5,20 @@ import { WebView } from "react-native-webview";
 
 import { PartnerNameWithBadge } from "@/components/partner-name-with-badge";
 import { theme } from "@/constants/theme";
-import { fetchPartnersByFulfillmentMode, type PartnerPublicRow } from "@/lib/partner-discovery";
+import { fetchMapPartners, type PartnerMapMarkerRow } from "@/lib/partner-discovery";
 import { getDeviceCoordinates } from "@/utils/device-location";
+import {
+  loadGeocodeCache,
+  normalizeGeocodeAddress,
+  persistGeocodeEntry,
+} from "@/utils/geocode-cache";
 import { getCoordinatesWithFallback, type Coordinates } from "@/utils/geocoding";
 
 const c = theme.colors;
 const DEFAULT_ZOOM = 5;
 const DEFAULT_CENTER = [30.3753, 69.3451] as const;
 const USER_FOCUS_ZOOM = 14;
-
-type PartnerMapMarker = PartnerPublicRow & {
-  fulfillmentMode: "dropoff" | "pickupDelivery";
-};
+const NOMINATIM_GAP_MS = 1100;
 
 type WebMapMarker = {
   id: string;
@@ -29,7 +31,7 @@ type WebMapMarker = {
 };
 
 type GroupedMarker = {
-  partner: PartnerMapMarker;
+  partner: PartnerMapMarkerRow;
   coords: Coordinates;
 };
 
@@ -46,6 +48,10 @@ type Props = {
   mapBottomInset?: number;
 };
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 function formatPartnerUpdatedAt(updatedAt: string | null): string | null {
   if (!updatedAt) return null;
   const parsed = new Date(updatedAt);
@@ -57,7 +63,7 @@ function formatPartnerUpdatedAt(updatedAt: string | null): string | null {
   });
 }
 
-function getPartnerPrimaryImage(partner: PartnerMapMarker | null): string | null {
+function getPartnerPrimaryImage(partner: PartnerMapMarkerRow | null): string | null {
   if (!partner) return null;
   const firstBusinessImage = partner.business_images?.[0]?.trim() ?? "";
   if (firstBusinessImage.length > 0) return firstBusinessImage;
@@ -65,194 +71,28 @@ function getPartnerPrimaryImage(partner: PartnerMapMarker | null): string | null
   return fallbackImage.length > 0 ? fallbackImage : null;
 }
 
-export function CustomerHomeMap({
-  strings,
-  onMenuPress,
-  onPartnerPress,
-  recenterBottomOffset,
-  mapBottomInset = 0,
-}: Props) {
-  const mapRef = useRef<WebView | null>(null);
-  const geocodeCacheRef = useRef<Map<string, Coordinates | null>>(new Map());
-  const [userCoordinates, setUserCoordinates] = useState<Coordinates | null>(null);
-  const [partners, setPartners] = useState<PartnerMapMarker[]>([]);
-  const [partnerCoordinates, setPartnerCoordinates] = useState<Record<string, Coordinates | null>>(
-    {},
-  );
-  const [loadingPartners, setLoadingPartners] = useState(true);
-  const [locationResolved, setLocationResolved] = useState(false);
-  const [selectedPartnerId, setSelectedPartnerId] = useState<string | null>(null);
+function partnerAddressKey(partner: PartnerMapMarkerRow): string {
+  return normalizeGeocodeAddress(partner.address ?? "");
+}
 
-  const loadPartners = useCallback(async () => {
-    setLoadingPartners(true);
-    const [dropoffResult, pickupResult] = await Promise.all([
-      fetchPartnersByFulfillmentMode("dropoff"),
-      fetchPartnersByFulfillmentMode("pickupDelivery"),
-    ]);
-    const merged = new Map<string, PartnerMapMarker>();
-    for (const partner of dropoffResult.data ?? []) {
-      merged.set(partner.id, { ...partner, fulfillmentMode: "dropoff" });
-    }
-    for (const partner of pickupResult.data ?? []) {
-      merged.set(partner.id, { ...partner, fulfillmentMode: "pickupDelivery" });
-    }
-    setPartners(Array.from(merged.values()));
-    setLoadingPartners(false);
-  }, []);
+function partnerHasCoordinates(partner: PartnerMapMarkerRow): boolean {
+  return Number.isFinite(partner.latitude) && Number.isFinite(partner.longitude);
+}
 
-  useEffect(() => {
-    void loadPartners();
-  }, [loadPartners]);
+function coordinatesFromPartner(partner: PartnerMapMarkerRow): Coordinates | null {
+  if (!partnerHasCoordinates(partner)) return null;
+  return {
+    latitude: Number(partner.latitude),
+    longitude: Number(partner.longitude),
+  };
+}
 
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      const coords = await getDeviceCoordinates();
-      if (cancelled) return;
-      setUserCoordinates(coords);
-      setLocationResolved(true);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+function buildMapShellHtml(dropOffLabel: string, pickupLabel: string): string {
+  const dropOffJson = JSON.stringify(dropOffLabel);
+  const pickupJson = JSON.stringify(pickupLabel);
+  const zoomControlBottomOffset = 58;
 
-  useEffect(() => {
-    let cancelled = false;
-    const unresolvedAddresses = Array.from(
-      new Set(
-        partners
-          .filter((partner) => !Number.isFinite(partner.latitude) || !Number.isFinite(partner.longitude))
-          .map((partner) => partner.address?.trim() ?? "")
-          .filter((address) => address.length > 0),
-      ),
-    ).filter((address) => !geocodeCacheRef.current.has(address));
-
-    if (unresolvedAddresses.length === 0) {
-      const next: Record<string, Coordinates | null> = {};
-      for (const partner of partners) {
-        if (Number.isFinite(partner.latitude) && Number.isFinite(partner.longitude)) {
-          next[partner.id] = {
-            latitude: Number(partner.latitude),
-            longitude: Number(partner.longitude),
-          };
-          continue;
-        }
-        const address = partner.address?.trim() ?? "";
-        next[partner.id] = address ? geocodeCacheRef.current.get(address) ?? null : null;
-      }
-      setPartnerCoordinates(next);
-      return;
-    }
-
-    void (async () => {
-      const resolved = await Promise.all(
-        unresolvedAddresses.map(async (address) => ({
-          address,
-          coords: await getCoordinatesWithFallback(address),
-        })),
-      );
-      if (cancelled) return;
-      for (const item of resolved) {
-        geocodeCacheRef.current.set(item.address, item.coords);
-      }
-      const next: Record<string, Coordinates | null> = {};
-      for (const partner of partners) {
-        if (Number.isFinite(partner.latitude) && Number.isFinite(partner.longitude)) {
-          next[partner.id] = {
-            latitude: Number(partner.latitude),
-            longitude: Number(partner.longitude),
-          };
-          continue;
-        }
-        const address = partner.address?.trim() ?? "";
-        next[partner.id] = address ? geocodeCacheRef.current.get(address) ?? null : null;
-      }
-      setPartnerCoordinates(next);
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [partners]);
-
-  const markers = useMemo(
-    () =>
-      partners
-        .map((partner) => ({ partner, coords: partnerCoordinates[partner.id] }))
-        .filter((item): item is { partner: PartnerMapMarker; coords: Coordinates } => Boolean(item.coords)),
-    [partnerCoordinates, partners],
-  );
-  const markerById = useMemo(() => {
-    const map = new Map<string, PartnerMapMarker>();
-    for (const partner of partners) {
-      map.set(partner.id, partner);
-    }
-    return map;
-  }, [partners]);
-  const selectedPartner = selectedPartnerId ? markerById.get(selectedPartnerId) ?? null : null;
-  const selectedPartnerUpdatedLabel = selectedPartner
-    ? formatPartnerUpdatedAt(selectedPartner.updated_at)
-    : null;
-  const selectedPartnerPrimaryImage = getPartnerPrimaryImage(selectedPartner);
-
-  const mapMarkers = useMemo<WebMapMarker[]>(
-    () => {
-      const groups = new Map<string, GroupedMarker[]>();
-      for (const item of markers) {
-        // Normalize keys so tiny float noise does not split same-location partners.
-        const key = `${item.coords.latitude.toFixed(6)},${item.coords.longitude.toFixed(6)}`;
-        const list = groups.get(key) ?? [];
-        list.push(item);
-        groups.set(key, list);
-      }
-
-      const out: WebMapMarker[] = [];
-      for (const grouped of groups.values()) {
-        const count = grouped.length;
-        for (let i = 0; i < count; i += 1) {
-          const { partner, coords } = grouped[i];
-          if (count === 1) {
-            out.push({
-              id: partner.id,
-              name: partner.business_name.trim(),
-              mode: partner.fulfillmentMode,
-              latitude: coords.latitude,
-              longitude: coords.longitude,
-              imageUrl: getPartnerPrimaryImage(partner),
-              initial: partner.business_name.trim().charAt(0).toUpperCase() || "P",
-            });
-            continue;
-          }
-
-          // Spread overlapping markers around the real coordinate for better tapability.
-          const angle = (2 * Math.PI * i) / count;
-          const radiusDegrees = 0.00018; // ~20m visual spread
-          out.push({
-            id: partner.id,
-            name: partner.business_name.trim(),
-            mode: partner.fulfillmentMode,
-            latitude: coords.latitude + Math.sin(angle) * radiusDegrees,
-            longitude: coords.longitude + Math.cos(angle) * radiusDegrees,
-            imageUrl: getPartnerPrimaryImage(partner),
-            initial: partner.business_name.trim().charAt(0).toUpperCase() || "P",
-          });
-        }
-      }
-      return out;
-    },
-    [markers],
-  );
-  const shouldRenderMap =
-    mapMarkers.length > 0 || Boolean(userCoordinates) || (locationResolved && !loadingPartners);
-
-  const mapHtml = useMemo(() => {
-    const markersJson = JSON.stringify(mapMarkers);
-    const userJson = JSON.stringify(userCoordinates);
-    const dropOffLabel = JSON.stringify(strings.dropOff);
-    const pickupLabel = JSON.stringify(strings.pickUpDelivery);
-    const zoomControlBottomOffset = 58;
-    return `<!DOCTYPE html>
+  return `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8" />
@@ -359,7 +199,6 @@ export function CustomerHomeMap({
   <div id="map"></div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
-    // Web Mercator practical latitude limits for OSM tiles.
     const worldBounds = L.latLngBounds([[-85.05112878, -180], [85.05112878, 180]]);
     const map = L.map('map', {
       zoomControl: false,
@@ -380,11 +219,13 @@ export function CustomerHomeMap({
       attribution: ''
     }).addTo(map);
 
-    const markers = ${markersJson};
-    const user = ${userJson};
+    const dropOffLabel = ${dropOffJson};
+    const pickupLabel = ${pickupJson};
+    const markerLayer = L.layerGroup().addTo(map);
+    let userMarker = null;
 
     function labelForMode(mode) {
-      return mode === 'pickupDelivery' ? ${pickupLabel} : ${dropOffLabel};
+      return mode === 'pickupDelivery' ? pickupLabel : dropOffLabel;
     }
 
     function escapeHtml(value) {
@@ -408,104 +249,334 @@ export function CustomerHomeMap({
         + '</div>';
     }
 
-    if (user && Number.isFinite(user.latitude) && Number.isFinite(user.longitude)) {
-      const userMarker = L.circleMarker([user.latitude, user.longitude], {
-        radius: 8,
-        color: '#0B84FF',
-        fillColor: '#0B84FF',
-        fillOpacity: 0.95,
-      }).addTo(map);
-      userMarker.bindPopup('Your location');
-    }
+    window.__updateMapState = function(markers, user) {
+      markerLayer.clearLayers();
+      (markers || []).forEach((item) => {
+        const icon = L.divIcon({
+          html: markerHtml(item),
+          className: 'partner-marker-icon',
+          iconSize: [48, 58],
+          iconAnchor: [24, 54],
+          popupAnchor: [0, -50],
+        });
+        const m = L.marker([item.latitude, item.longitude], { icon }).addTo(markerLayer);
+        m.bindPopup(item.name + ' (' + labelForMode(item.mode) + ')');
+        m.on('click', () => {
+          window.ReactNativeWebView?.postMessage(JSON.stringify({
+            type: 'partner-press',
+            partnerId: item.id,
+            mode: item.mode
+          }));
+        });
+      });
 
-    markers.forEach((item) => {
-      const icon = L.divIcon({
-        html: markerHtml(item),
-        className: 'partner-marker-icon',
-        iconSize: [48, 58],
-        iconAnchor: [24, 54],
-        popupAnchor: [0, -50],
-      });
-      const m = L.marker([item.latitude, item.longitude], { icon }).addTo(map);
-      m.bindPopup(item.name + ' (' + labelForMode(item.mode) + ')');
-      m.on('click', () => {
-        window.ReactNativeWebView?.postMessage(JSON.stringify({
-          type: 'partner-press',
-          partnerId: item.id,
-          mode: item.mode
-        }));
-      });
-    });
+      if (userMarker) {
+        map.removeLayer(userMarker);
+        userMarker = null;
+      }
+      if (user && Number.isFinite(user.latitude) && Number.isFinite(user.longitude)) {
+        userMarker = L.circleMarker([user.latitude, user.longitude], {
+          radius: 8,
+          color: '#0B84FF',
+          fillColor: '#0B84FF',
+          fillOpacity: 0.95,
+        }).addTo(map);
+        userMarker.bindPopup('Your location');
+      }
+    };
 
     function recenterToDefault() {
       map.setView(defaultCenter, ${DEFAULT_ZOOM});
     }
 
     window.__recenterToDefault = recenterToDefault;
+    window.__focusUser = function(user) {
+      if (user && Number.isFinite(user.latitude) && Number.isFinite(user.longitude)) {
+        map.setView([user.latitude, user.longitude], ${USER_FOCUS_ZOOM});
+        return;
+      }
+      recenterToDefault();
+    };
+
     recenterToDefault();
+    window.ReactNativeWebView?.postMessage(JSON.stringify({ type: 'map-ready' }));
   </script>
 </body>
 </html>`;
-  }, [mapMarkers, strings.dropOff, strings.pickUpDelivery, userCoordinates]);
+}
+
+export function CustomerHomeMap({
+  strings,
+  onMenuPress,
+  onPartnerPress,
+  recenterBottomOffset,
+  mapBottomInset = 0,
+}: Props) {
+  const mapRef = useRef<WebView | null>(null);
+  const geocodeCacheRef = useRef<Map<string, Coordinates | null>>(new Map());
+  const [geocodeCacheReady, setGeocodeCacheReady] = useState(false);
+  const [userCoordinates, setUserCoordinates] = useState<Coordinates | null>(null);
+  const [partners, setPartners] = useState<PartnerMapMarkerRow[]>([]);
+  const [partnerCoordinates, setPartnerCoordinates] = useState<Record<string, Coordinates | null>>(
+    {},
+  );
+  const [loadingPartners, setLoadingPartners] = useState(true);
+  const [geocodingPartners, setGeocodingPartners] = useState(false);
+  const [mapReady, setMapReady] = useState(false);
+  const [selectedPartnerId, setSelectedPartnerId] = useState<string | null>(null);
+
+  const mapShellHtml = useMemo(
+    () => buildMapShellHtml(strings.dropOff, strings.pickUpDelivery),
+    [strings.dropOff, strings.pickUpDelivery],
+  );
+
+  const loadPartners = useCallback(async () => {
+    setLoadingPartners(true);
+    const result = await fetchMapPartners();
+    setPartners(result.data ?? []);
+    setLoadingPartners(false);
+  }, []);
+
+  useEffect(() => {
+    void loadPartners();
+  }, [loadPartners]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const cache = await loadGeocodeCache();
+      if (cancelled) return;
+      geocodeCacheRef.current = cache;
+      setGeocodeCacheReady(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const coords = await getDeviceCoordinates();
+      if (cancelled) return;
+      setUserCoordinates(coords);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const applyPartnerCoordinates = useCallback((rows: PartnerMapMarkerRow[]) => {
+    const next: Record<string, Coordinates | null> = {};
+    for (const partner of rows) {
+      const fromDb = coordinatesFromPartner(partner);
+      if (fromDb) {
+        next[partner.id] = fromDb;
+        continue;
+      }
+      const address = partnerAddressKey(partner);
+      if (!address) {
+        next[partner.id] = null;
+        continue;
+      }
+      next[partner.id] = geocodeCacheRef.current.get(address) ?? null;
+    }
+    setPartnerCoordinates(next);
+    return next;
+  }, []);
+
+  useEffect(() => {
+    if (!geocodeCacheReady) return;
+
+    if (partners.length === 0) {
+      setPartnerCoordinates({});
+      setGeocodingPartners(false);
+      return;
+    }
+
+    applyPartnerCoordinates(partners);
+
+    const unresolvedAddresses = Array.from(
+      new Set(
+        partners
+          .filter((partner) => !partnerHasCoordinates(partner))
+          .map((partner) => partnerAddressKey(partner))
+          .filter((address) => address.length > 0 && !geocodeCacheRef.current.has(address)),
+      ),
+    );
+
+    if (unresolvedAddresses.length === 0) {
+      setGeocodingPartners(false);
+      return;
+    }
+
+    let cancelled = false;
+    setGeocodingPartners(true);
+
+    void (async () => {
+      for (const address of unresolvedAddresses) {
+        if (cancelled) return;
+        const coords = await getCoordinatesWithFallback(address);
+        await persistGeocodeEntry(address, coords, geocodeCacheRef.current);
+        if (cancelled) return;
+        setPartnerCoordinates((prev) => {
+          const next = { ...prev };
+          for (const partner of partners) {
+            if (partnerAddressKey(partner) === address) {
+              next[partner.id] = coords;
+            }
+          }
+          return next;
+        });
+        await sleep(NOMINATIM_GAP_MS);
+      }
+      if (!cancelled) setGeocodingPartners(false);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [applyPartnerCoordinates, geocodeCacheReady, partners]);
+
+  const markers = useMemo(
+    () =>
+      partners
+        .map((partner) => ({ partner, coords: partnerCoordinates[partner.id] }))
+        .filter((item): item is { partner: PartnerMapMarkerRow; coords: Coordinates } =>
+          Boolean(item.coords),
+        ),
+    [partnerCoordinates, partners],
+  );
+
+  const markerById = useMemo(() => {
+    const map = new Map<string, PartnerMapMarkerRow>();
+    for (const partner of partners) {
+      map.set(partner.id, partner);
+    }
+    return map;
+  }, [partners]);
+
+  const selectedPartner = selectedPartnerId ? markerById.get(selectedPartnerId) ?? null : null;
+  const selectedPartnerUpdatedLabel = selectedPartner
+    ? formatPartnerUpdatedAt(selectedPartner.updated_at)
+    : null;
+  const selectedPartnerPrimaryImage = getPartnerPrimaryImage(selectedPartner);
+
+  const mapMarkers = useMemo<WebMapMarker[]>(() => {
+    const groups = new Map<string, GroupedMarker[]>();
+    for (const item of markers) {
+      const key = `${item.coords.latitude.toFixed(6)},${item.coords.longitude.toFixed(6)}`;
+      const list = groups.get(key) ?? [];
+      list.push(item);
+      groups.set(key, list);
+    }
+
+    const out: WebMapMarker[] = [];
+    for (const grouped of groups.values()) {
+      const count = grouped.length;
+      for (let i = 0; i < count; i += 1) {
+        const { partner, coords } = grouped[i];
+        if (count === 1) {
+          out.push({
+            id: partner.id,
+            name: partner.business_name.trim(),
+            mode: partner.fulfillmentMode,
+            latitude: coords.latitude,
+            longitude: coords.longitude,
+            imageUrl: getPartnerPrimaryImage(partner),
+            initial: partner.business_name.trim().charAt(0).toUpperCase() || "P",
+          });
+          continue;
+        }
+
+        const angle = (2 * Math.PI * i) / count;
+        const radiusDegrees = 0.00018;
+        out.push({
+          id: partner.id,
+          name: partner.business_name.trim(),
+          mode: partner.fulfillmentMode,
+          latitude: coords.latitude + Math.sin(angle) * radiusDegrees,
+          longitude: coords.longitude + Math.cos(angle) * radiusDegrees,
+          imageUrl: getPartnerPrimaryImage(partner),
+          initial: partner.business_name.trim().charAt(0).toUpperCase() || "P",
+        });
+      }
+    }
+    return out;
+  }, [markers]);
+
+  const pushMapState = useCallback(() => {
+    if (!mapReady) return;
+    const script = `window.__updateMapState && window.__updateMapState(${JSON.stringify(mapMarkers)}, ${JSON.stringify(userCoordinates)}); true;`;
+    mapRef.current?.injectJavaScript(script);
+  }, [mapMarkers, mapReady, userCoordinates]);
+
+  useEffect(() => {
+    pushMapState();
+  }, [pushMapState]);
 
   const focusMap = useCallback(() => {
     void (async () => {
-      const latestCoords = await getDeviceCoordinates();
+      const latestCoords = userCoordinates ?? (await getDeviceCoordinates());
       if (
         latestCoords &&
         Number.isFinite(latestCoords.latitude) &&
         Number.isFinite(latestCoords.longitude)
       ) {
-        setUserCoordinates(latestCoords);
-        const script = `window.map && window.map.setView([${latestCoords.latitude}, ${latestCoords.longitude}], ${USER_FOCUS_ZOOM}); true;`;
-        mapRef.current?.injectJavaScript(script);
+        if (!userCoordinates) setUserCoordinates(latestCoords);
+        if (mapReady) {
+          const script = `window.__focusUser && window.__focusUser(${JSON.stringify(latestCoords)}); true;`;
+          mapRef.current?.injectJavaScript(script);
+        }
         return;
       }
       mapRef.current?.injectJavaScript(
         "window.__recenterToDefault && window.__recenterToDefault(); true;",
       );
     })();
-  }, []);
+  }, [mapReady, userCoordinates]);
 
   useEffect(() => {
-    focusMap();
-  }, [focusMap]);
+    if (!mapReady || !userCoordinates) return;
+    const script = `window.__focusUser && window.__focusUser(${JSON.stringify(userCoordinates)}); true;`;
+    mapRef.current?.injectJavaScript(script);
+  }, [mapReady, userCoordinates]);
 
   return (
     <>
-      {shouldRenderMap ? (
-        <WebView
-          ref={mapRef}
-          style={[styles.mapArea, mapBottomInset > 0 ? { bottom: mapBottomInset } : null]}
-          source={{ html: mapHtml }}
-          onMessage={(event) => {
-            try {
-              const payload = JSON.parse(event.nativeEvent.data) as {
-                type?: string;
-                partnerId?: string;
-                mode?: "dropoff" | "pickupDelivery";
-              };
-              if (
-                payload.type === "partner-press" &&
-                typeof payload.partnerId === "string" &&
-                (payload.mode === "dropoff" || payload.mode === "pickupDelivery")
-              ) {
-                setSelectedPartnerId(payload.partnerId);
-              }
-            } catch {
-              // Ignore malformed webview messages.
+      <WebView
+        ref={mapRef}
+        style={[styles.mapArea, mapBottomInset > 0 ? { bottom: mapBottomInset } : null]}
+        source={{ html: mapShellHtml }}
+        onMessage={(event) => {
+          try {
+            const payload = JSON.parse(event.nativeEvent.data) as {
+              type?: string;
+              partnerId?: string;
+              mode?: "dropoff" | "pickupDelivery";
+            };
+            if (payload.type === "map-ready") {
+              setMapReady(true);
+              return;
             }
-          }}
-        />
-      ) : null}
+            if (
+              payload.type === "partner-press" &&
+              typeof payload.partnerId === "string" &&
+              (payload.mode === "dropoff" || payload.mode === "pickupDelivery")
+            ) {
+              setSelectedPartnerId(payload.partnerId);
+            }
+          } catch {
+            // Ignore malformed webview messages.
+          }
+        }}
+      />
 
-      {loadingPartners ? (
+      {loadingPartners || (geocodingPartners && mapMarkers.length === 0) ? (
         <View style={styles.mapLoading}>
           <ActivityIndicator color={c.white} size="small" />
         </View>
       ) : null}
-
-     
 
       <Pressable
         onPress={focusMap}
@@ -538,11 +609,7 @@ export function CustomerHomeMap({
                   />
                 ) : (
                   <View style={[styles.partnerSheetImage, styles.partnerSheetImagePlaceholder]}>
-                    <MaterialCommunityIcons
-                      name="image-off-outline"
-                      size={22}
-                      color={c.gray50}
-                    />
+                    <MaterialCommunityIcons name="image-off-outline" size={22} color={c.gray50} />
                     <Text style={styles.partnerSheetImagePlaceholderText}>No Image</Text>
                   </View>
                 )}
@@ -582,7 +649,11 @@ export function CustomerHomeMap({
                     ) : null}
                     {selectedPartnerUpdatedLabel ? (
                       <View style={styles.partnerMetaRow}>
-                        <MaterialCommunityIcons name="calendar-refresh-outline" size={14} color={c.gray50} />
+                        <MaterialCommunityIcons
+                          name="calendar-refresh-outline"
+                          size={14}
+                          color={c.gray50}
+                        />
                         <Text style={styles.partnerSheetMeta} numberOfLines={1}>
                           Updated {selectedPartnerUpdatedLabel}
                         </Text>
@@ -680,7 +751,7 @@ const styles = StyleSheet.create({
     right: 12,
     zIndex: 120,
     elevation: 12,
-    marginBottom: -100
+    marginBottom: -100,
   },
   modalOverlay: {
     ...StyleSheet.absoluteFillObject,
@@ -707,8 +778,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   partnerSheetImage: {
-    width: '35%',
-    height: '100%',
+    width: "35%",
+    height: "100%",
     borderRadius: 12,
     backgroundColor: "#E5E7EB",
   },

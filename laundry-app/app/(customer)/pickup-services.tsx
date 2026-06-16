@@ -242,6 +242,11 @@ export default function PickupServicesScreen() {
         />
       </SafeAreaView>
 
+      {loading ? (
+        <View style={styles.fullScreenLoader}>
+          <ActivityIndicator color={c.white} size="large" />
+        </View>
+      ) : (
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={[
@@ -326,31 +331,33 @@ export default function PickupServicesScreen() {
               </View>
             );
           })}
-          {draft.partnerId && servicesToShow.length === 0 ? (
-            <Text style={styles.emptyText}>No services configured by this launderer yet.</Text>
-          ) : null}
-
-          {showPickupToggle ? (
-            <View style={styles.pickupRow}>
-              <View style={styles.pickupTextWrap}>
-                <Text style={styles.pickupTitle}>{s.includePickupDelivery}</Text>
-                <Text style={styles.pickupSub}>
-                  {pickupFeeLabel
-                    ? s.pickupDeliveryFee.replace("{amount}", pickupFeeLabel)
-                    : s.pickupDeliveryFeeUnknown}
+              {draft.partnerId && servicesToShow.length === 0 ? (
+                <Text style={styles.emptyText}>
+                  No services configured by this launderer yet.
                 </Text>
-              </View>
-              <Switch
-                value={draft.pickupDeliveryRequested}
-                onValueChange={setPickupDeliveryRequested}
-                trackColor={{
-                  false: "rgba(255,255,255,0.3)",
-                  true: c.blue500,
-                }}
-                thumbColor={c.white}
-              />
-            </View>
-          ) : null}
+              ) : null}
+
+              {showPickupToggle ? (
+                <View style={styles.pickupRow}>
+                  <View style={styles.pickupTextWrap}>
+                    <Text style={styles.pickupTitle}>{s.includePickupDelivery}</Text>
+                    <Text style={styles.pickupSub}>
+                      {pickupFeeLabel
+                        ? s.pickupDeliveryFee.replace("{amount}", pickupFeeLabel)
+                        : s.pickupDeliveryFeeUnknown}
+                    </Text>
+                  </View>
+                  <Switch
+                    value={draft.pickupDeliveryRequested}
+                    onValueChange={setPickupDeliveryRequested}
+                    trackColor={{
+                      false: "rgba(255,255,255,0.3)",
+                      true: c.blue500,
+                    }}
+                    thumbColor={c.white}
+                  />
+                </View>
+              ) : null}
         </View>
         <View style={styles.spacer} />
         <Pressable
@@ -360,6 +367,7 @@ export default function PickupServicesScreen() {
           <Text style={styles.confirmLabel}>{s.confirm}</Text>
         </Pressable>
       </ScrollView>
+      )}
     </View>
   );
 }
@@ -537,8 +545,8 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "rgba(255,255,255,0.75)",
   },
-  loadingContainer: {
-    paddingVertical: 40,
+  fullScreenLoader: {
+    flex: 1,
     alignItems: "center",
     justifyContent: "center",
   },

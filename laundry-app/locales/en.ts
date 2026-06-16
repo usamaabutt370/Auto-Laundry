@@ -128,7 +128,8 @@ export const en = {
         "No launderers are available for pickup yet. Complete partner onboarding with pickup enabled to appear here.",
       retry: "Retry",
       reassignSuccessTitle: "Order reassigned",
-      reassignSuccessMessage: "Your order is now pending with the new launderer.",
+      reassignSuccessMessage:
+        "Your order is now pending with the new launderer.",
       reassignErrorTitle: "Could not reassign order",
       reassignErrorMessage: "Please try again.",
     },
@@ -151,7 +152,8 @@ export const en = {
       confirm: "Confirm",
       editingBanner:
         "Editing order — changes apply after you save on the summary screen.",
-      months: "January,February,March,April,May,June,July,August,September,October,November,December",
+      months:
+        "January,February,March,April,May,June,July,August,September,October,November,December",
     },
     dryCleanItemize: {
       title: "Dry Cleaning",
@@ -177,8 +179,7 @@ export const en = {
     },
     washFoldOrder: {
       title: "Wash & fold",
-      lead:
-        "Select each item type and quantity. Your estimated total updates as you go.",
+      lead: "Select each item type and quantity. Your estimated total updates as you go.",
       estimateDisclaimer:
         "This is an estimate. Final amount may change after the launderer counts items at pickup.",
       itemsSection: "Items",
@@ -186,11 +187,11 @@ export const en = {
       packagesHint: "Tap a package to add it to your order (one per package).",
       noGarmentRates:
         "No per-item rates listed yet — your launderer may confirm price at pickup.",
-      noPackageRates:
-        "This launderer has not set bulk package prices yet.",
+      noPackageRates: "This launderer has not set bulk package prices yet.",
       noRates: "This launderer has not set wash & fold prices yet.",
       noPartner: "Choose a launderer from the map first.",
-      loadError: "Could not load this launderer's prices. Pull to refresh or try again.",
+      loadError:
+        "Could not load this launderer's prices. Pull to refresh or try again.",
       saveHint:
         "Partner: open Wash & Fold, enter prices, tap Continue (not only back), then Save on Merchant Services.",
       each: "each",
@@ -254,8 +255,10 @@ export const en = {
     },
     reportProblem: {
       title: "Report a problem",
-      subtitle: "Order #{{ref}} — this goes to our support team, not your launderer.",
-      adminNote: "A Super Admin will review your report. Your launderer will not see it directly.",
+      subtitle:
+        "Order #{{ref}} — this goes to our support team, not your launderer.",
+      adminNote:
+        "A Super Admin will review your report. Your launderer will not see it directly.",
       descriptionLabel: "Describe the issue",
       descriptionPlaceholder: "What went wrong? Include any helpful details.",
       photosLabel: "Photos (optional)",
@@ -286,7 +289,8 @@ export const en = {
       submitOrder: "Submit Order",
       saveChanges: "Save changes",
       orderUpdated: "Order updated",
-      orderUpdatedMessage: "Your changes have been saved. Your launderer will see the updated order.",
+      orderUpdatedMessage:
+        "Your changes have been saved. Your launderer will see the updated order.",
     },
     ordersTab: {
       title: "My orders",
@@ -317,6 +321,13 @@ export const en = {
       cancel: "Cancel",
       reorderAction: "Reorder with another launderer",
     },
+    chatTab: {
+      empty: "You don't have any chats yet.",
+      signIn: "Sign in to see your chats.",
+      loading: "Loading chats…",
+      error: "Couldn't load chats.",
+      retry: "Retry",
+    },
     explore: {
       title: "Explore",
       intro: "This app includes example code to help you get started.",
@@ -345,36 +356,44 @@ export const en = {
     },
     contactSupport: {
       title: "Contact Support",
-      question: "Any Issue? Suggestions?",
-      support: "Support",
-      feedback: "Feedback",
-      placeholder: "Describe your problem or suggestion.",
-      orEmailUs: "Or email us at :",
-      email: "info@getbubblesapp.com",
+      placeholder: "Describe your problem.",
+      whatsappHint: "Tap Send to open WhatsApp with your message ready to send.",
       send: "Send",
+      messageRequired: "Please describe your issue before sending.",
+      openError: "Could not open WhatsApp.",
     },
     faq: {
       title: "FAQ",
       items: [
         {
-          question: "How to Navigate in Bubble?",
+          question: "How do I place a new laundry order?",
           answer:
-            "Nulla porttitor accumsan tincidunt. Pellentesque in ipsum id orci porta dapibus. Curabitur non nulla sit amet nisl tempus convallis quis ac lectus. Mauris blandit aliquet elit, eget tincidunt nibh pulvinar a. Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia curae.",
+            "From Dashboard, choose a service (Wash & Fold, Dry Cleaning, or Tailoring), select a launderer, add your items, then confirm on Order Summary.",
         },
         {
-          question: "Can I add a new Courier to my team?",
+          question: "Can I choose pickup and delivery?",
           answer:
-            "Vestibulum ac diam sit amet quam vehicula elementum sed sit amet dui. Donec rutrum congue leo eget malesuada. Cras ultricies ligula sed magna dictum porta.",
+            "Yes. If your selected launderer offers pickup & delivery, enable it on Pickup Services and set your preferred pickup and delivery schedule before submitting.",
         },
         {
-          question: "Where to change the language?",
+          question: "Why can my final bill differ from the estimate?",
           answer:
-            "Go to Settings from the sidebar, then select your preferred language under the Language section.",
+            "The app shows an estimated total while ordering. Your launderer may confirm quantities or weight at pickup, and the confirmed total can change based on actual intake.",
         },
         {
-          question: "Can I add a new member to my team?",
+          question: "How do I track updates after placing an order?",
           answer:
-            "You can add new team members from your profile or settings. Contact support if you need assistance with team management.",
+            "Open Order or Chat tabs to follow status updates. You can see when an order is pending, accepted, rejected, or completed, and chat directly with your launderer.",
+        },
+        {
+          question: "How do I report an issue with my order?",
+          answer:
+            "Open your order details and tap Report a problem. Add a clear description and optional photos so the support team can review your case quickly.",
+        },
+        {
+          question: "Where can I contact support?",
+          answer:
+            "Go to Contact Support from the sidebar, write your message, or email us directly using the address shown on that screen.",
         },
       ],
     },
@@ -396,6 +415,13 @@ export const en = {
       dashboard: "Dashboard",
       support: "Support",
       faq: "FAQ",
+    },
+    chatTab: {
+      empty: "You don't have any chats yet.",
+      signIn: "Sign in to see your chats.",
+      loading: "Loading chats…",
+      error: "Couldn't load chats.",
+      retry: "Retry",
     },
     order: {
       title: "Orders",
@@ -453,9 +479,11 @@ export const en = {
       estimatedTotalLabel: "Estimated total",
       intakeNotesPlaceholder: "Notes for customer (optional)",
       intakeSuccessTitle: "Bill confirmed",
-      intakeSuccessMessage: "Final bill saved. Customer-facing total will be shown in a later release.",
+      intakeSuccessMessage:
+        "Final bill saved. Customer-facing total will be shown in a later release.",
       selectRiderTitle: "Assign a rider",
-      selectRiderSubtitle: "Choose who will pick up and deliver for this order.",
+      selectRiderSubtitle:
+        "Choose who will pick up and deliver for this order.",
       selectRiderConfirm: "Accept & assign",
       selectRiderCancel: "Cancel",
       selectRiderRequired: "Please select a rider.",
@@ -463,7 +491,8 @@ export const en = {
       noRidersTitle: "No riders registered",
       noRidersMessage:
         "Add riders in Rider detail before accepting pickup orders.",
-      acceptSuccess: "The order has been accepted and the rider details were sent in chat.",
+      acceptSuccess:
+        "The order has been accepted and the rider details were sent in chat.",
     },
     dashboard: {
       title: "Dashboard",
@@ -557,7 +586,8 @@ export const en = {
       includePickupDelivery: "Include pickup and delivery",
       pickupDeliveryAmountLabel: "Pickup and delivery amount",
       pickupDeliveryAmountPlaceholder: "Enter pickup and delivery amount",
-      pickupDeliveryAmountRequired: "Enter the pickup and delivery amount before continuing.",
+      pickupDeliveryAmountRequired:
+        "Enter the pickup and delivery amount before continuing.",
       confirm: "Confirm",
       next: "Next",
       complete: "Complete",
@@ -590,7 +620,8 @@ export const en = {
       washFoldPackageBoxPriceSet: "Price set",
       addPackage: "Add package",
       newPackageNamePlaceholder: "Package name (e.g. 75 pcs corporate)",
-      washFoldPkgSectionHint: "Optional bulk packages (e.g. corporate / monthly orders).",
+      washFoldPkgSectionHint:
+        "Optional bulk packages (e.g. corporate / monthly orders).",
       weightUnitKg: "kg",
       weightUnitGrams: "g",
       sectionNumberOfBags: "Number of bags",
@@ -670,13 +701,16 @@ export const en = {
       riderPhotoPlaceholder: "Tap to upload a clear face photo",
       riderPhotoRequired: "A clear face photo is required for each rider.",
       riderPhotoPermissionTitle: "Permission needed",
-      riderPhotoPermissionMessage: "Please allow photo access to upload rider photos.",
+      riderPhotoPermissionMessage:
+        "Please allow photo access to upload rider photos.",
       addRider: "Add another rider",
       removeRider: "Remove",
-      riderMinimumRequired: "Add at least one complete rider before continuing.",
+      riderMinimumRequired:
+        "Add at least one complete rider before continuing.",
       riderResponsibilityLabel:
         "I take full responsibility for my riders and any loss or damage. I understand claims will be deducted from my payouts.",
-      riderResponsibilityRequired: "Please accept rider responsibility to continue.",
+      riderResponsibilityRequired:
+        "Please accept rider responsibility to continue.",
       configureRiderDetails: "Rider detail",
       riderDetailsIncomplete:
         "Please complete rider detail (name, phone, photo, and responsibility) before submitting KYC.",
@@ -726,33 +760,24 @@ export const en = {
   onboarding: {
     skip: "Skip",
     slide1: {
-      title: "Find nearby laundries",
-      subtitle1:
-        "Discover trusted laundry services",
-      subtitle2:
-        "around you and choose what",
-      subtitle3:
-        "fits your needs.",
+      title: "Find nearby Laundromats",
+      subtitle1: "Discover trusted laundry services",
+      subtitle2: "around you and choose what",
+      subtitle3: "fits your needs.",
       next: "Next",
     },
     slide2: {
       title: "Book & track easily",
-      subtitle1:
-        "Place your order in seconds and",
-      subtitle2:
-        "stay updated throughout",
-      subtitle3:
-        "the process.",
+      subtitle1: "Place your order in seconds and",
+      subtitle2: "stay updated throughout",
+      subtitle3: "the process.",
       next: "Next",
     },
     slide3: {
-      title: "Grow with Laundri",
-      subtitle:
-        "Join as a laundry partner and",
-      subtitle2:
-        "start earning from home",
-      subtitle3:
-        "or your shop.",
+      title: "Grow with Tap2Laundry",
+      subtitle: "Join as a laundromat and start earning",
+      subtitle2: "",
+      subtitle3: "",
       next: "Get started",
     },
   },

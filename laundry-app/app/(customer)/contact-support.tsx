@@ -1,8 +1,8 @@
-import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import * as Linking from "expo-linking";
 import { useState } from "react";
 import {
+  Alert,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -14,56 +14,30 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { AppHeader } from "@/components/app-header";
 import { strings } from "@/constants/strings";
 import { theme } from "@/constants/theme";
-import { Spacer } from "@/components/spacer";
-import { ThemedView } from "@/components";
-import { AppHeader } from "@/components/app-header";
+import { openWhatsApp } from "@/lib/whatsapp";
 
 const c = theme.colors;
-
-type ContactType = "support" | "feedback";
-
-function RadioOption({
-  id,
-  label,
-  selected,
-  onSelect,
-}: {
-  id: ContactType;
-  label: string;
-  selected: boolean;
-  onSelect: () => void;
-}) {
-  return (
-    <Pressable
-      onPress={onSelect}
-      style={({ pressed }) => [styles.radioRow, pressed && styles.pressed]}
-    >
-      <Text style={styles.radioLabel}>{label}</Text>
-      <View style={[styles.radioOuter, selected && styles.radioOuterSelected]}>
-        {selected && <View style={styles.radioInner} />}
-      </View>
-    </Pressable>
-  );
-}
 
 export default function ContactSupportScreen() {
   const router = useRouter();
   const s = strings.customer.contactSupport;
 
-  const [contactType, setContactType] = useState<ContactType>("support");
   const [message, setMessage] = useState("");
 
   const handleSend = () => {
-    // TODO: submit to backend or open email
-    if (message.trim()) {
-      // placeholder
+    Keyboard.dismiss();
+    const trimmed = message.trim();
+    if (!trimmed) {
+      Alert.alert(s.messageRequired);
+      return;
     }
-  };
 
-  const openEmail = () => {
-    Linking.openURL(`mailto:${s.email}`);
+    openWhatsApp(trimmed).catch(() => {
+      Alert.alert(s.openError);
+    });
   };
 
   return (
@@ -88,23 +62,6 @@ export default function ContactSupportScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          <Text style={styles.question}>{s.question}</Text>
-          <Spacer.Column numberOfSpaces={5} />
-          <View style={styles.radioRowWrap}>
-            <RadioOption
-              id="support"
-              label={s.support}
-              selected={contactType === "support"}
-              onSelect={() => setContactType("support")}
-            />
-            <RadioOption
-              id="feedback"
-              label={s.feedback}
-              selected={contactType === "feedback"}
-              onSelect={() => setContactType("feedback")}
-            />
-          </View>
-
           <TextInput
             style={styles.input}
             placeholder={s.placeholder}
@@ -115,19 +72,8 @@ export default function ContactSupportScreen() {
             numberOfLines={6}
             textAlignVertical="top"
           />
-          <ThemedView style={styles.emailContainer}>
-            <Text style={styles.orEmail}>{s.orEmailUs}</Text>
-            <Pressable
-              onPress={openEmail}
-              style={({ pressed }) => [
-                styles.emailLink,
-                pressed && styles.pressed,
-              ]}
-            >
-              <Text style={styles.emailText}>{s.email}</Text>
-            </Pressable>
-          </ThemedView>
-          <Spacer.Column numberOfSpaces={80} />
+          <Text style={styles.whatsappHint}>{s.whatsappHint}</Text>
+
           <Pressable
             onPress={handleSend}
             style={({ pressed }) => [
@@ -138,18 +84,6 @@ export default function ContactSupportScreen() {
             <Text style={styles.sendBtnText}>{s.send}</Text>
           </Pressable>
         </ScrollView>
-
-        {/* <View style={styles.footer}>
-          <Pressable
-            onPress={handleSend}
-            style={({ pressed }) => [
-              styles.sendBtn,
-              pressed && styles.sendBtnPressed,
-            ]}
-          >
-            <Text style={styles.sendBtnText}>{s.send}</Text>
-          </Pressable>
-        </View> */}
       </KeyboardAvoidingView>
     </View>
   );
@@ -159,10 +93,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: c.background,
-  },
-
-  pressed: {
-    opacity: 0.8,
   },
   keyboardView: {
     flex: 1,
@@ -175,82 +105,25 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
     paddingHorizontal: 24,
   },
-  question: {
-    fontSize: 16,
-    color: c.white,
-    marginBottom: 16,
-    backgroundColor: "transparent",
-  },
-  radioRowWrap: {
-    gap: 24,
-    marginBottom: 20,
-    flexDirection: "row",
-    backgroundColor: "transparent",
-  },
-  radioRow: {
-    gap: 10,
-    alignItems: "center",
-    flexDirection: "row",
-  },
-  radioOuter: {
-    width: 15,
-    height: 15,
-    borderRadius: 11,
-    borderWidth: 1,
-    borderColor: c.white,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  radioOuterSelected: {
-    borderColor: c.white,
-  },
-  radioInner: {
-    width: 8,
-    height: 8,
-    borderRadius: 6,
-    backgroundColor: c.white,
-  },
-  radioLabel: {
-    fontSize: 16,
-    color: c.white,
-    fontWeight: "500",
-  },
   input: {
     fontSize: 16,
     minHeight: 200,
-    marginBottom: 20,
+    marginBottom: 16,
     borderRadius: 12,
     color: c.themeGray,
     paddingVertical: 14,
     paddingHorizontal: 16,
     backgroundColor: c.white,
   },
-  emailContainer: {
-    gap: 10,
-    borderRadius: 12,
-    marginBottom: 20,
-    flexDirection: "row",
-    backgroundColor: "transparent",
-  },
-  orEmail: {
-    fontSize: 16,
-    color: c.white,
-    marginBottom: 6,
-  },
-  emailLink: {
-    alignSelf: "flex-start",
-  },
-  emailText: {
-    fontSize: 16,
-    color: c.white,
-  },
-  footer: {
-    paddingTop: 12,
-    paddingBottom: 24,
-    paddingHorizontal: 24,
+  whatsappHint: {
+    fontSize: 14,
+    color: "rgba(255,255,255,0.75)",
+    marginBottom: 8,
+    lineHeight: 20,
   },
   sendBtn: {
     borderRadius: 25,
+    marginTop: 24,
     paddingVertical: 16,
     alignItems: "center",
     justifyContent: "center",

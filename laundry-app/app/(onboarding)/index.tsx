@@ -67,9 +67,13 @@ function Slide3GetStarted() {
     <ThemedView style={styles.slide}>
       <ThemedText style={styles.title}>{s.title}</ThemedText>
       <Spacer.Column numberOfSpaces={5} />
-      <ThemedText style={styles.subtitle}>{s.subtitle}</ThemedText>
-      <ThemedText style={styles.subtitle}>{s.subtitle2}</ThemedText>
-      <ThemedText style={styles.subtitle}>{s.subtitle3}</ThemedText>
+      {[s.subtitle, s.subtitle2, s.subtitle3]
+        .filter((line) => line.trim().length > 0)
+        .map((line) => (
+          <ThemedText key={line} style={styles.subtitle}>
+            {line}
+          </ThemedText>
+        ))}
       <Spacer.Column numberOfSpaces={5} />
       <ThemedView style={styles.imageContainer}>
         <Image source={assets.onboarding.slide3} style={styles.image} />

@@ -18,7 +18,13 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { KeyboardStickyView } from "react-native-keyboard-controller";
+import {
+  KeyboardChatScrollView,
+  KeyboardGestureArea,
+  KeyboardStickyView,
+  useKeyboardHandler,
+} from "react-native-keyboard-controller";
+import { runOnJS } from "react-native-reanimated";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AppHeader } from "@/components/app-header";
@@ -41,6 +47,7 @@ import { supabase } from "@/lib/supabase";
 
 const c = theme.colors;
 const fs = theme.fontSize;
+const CHAT_INPUT_NATIVE_ID = "order-chat-input";
 const PAD = 20;
 
 function formatClock(iso: string): string {
@@ -153,6 +160,7 @@ export function OrderChatScreen() {
   );
   const [uploadingMessages, setUploadingMessages] = useState<PendingUploadMessage[]>([]);
   const listRef = useRef<FlatList<DisplayChatItem>>(null);
+  const chatScrollViewRef = useRef<React.ElementRef<typeof KeyboardChatScrollView>>(null);
   const shouldSnapToLatestRef = useRef(true);
 
   const orderId = typeof params.orderId === "string" ? params.orderId : "";
@@ -418,14 +426,35 @@ export function OrderChatScreen() {
 
   const composerBottomPad = Math.max(insets.bottom, 10);
 
-  const scrollToLatest = useCallback(() => {
+  const scrollToLatest = useCallback((animated = true) => {
     requestAnimationFrame(() => {
-      listRef.current?.scrollToEnd({ animated: true });
+      chatScrollViewRef.current?.scrollToEnd({ animated });
     });
   }, []);
 
+  const focusComposer = useCallback(() => {
+    scrollToLatest(false);
+    scrollToLatest(true);
+    setTimeout(() => scrollToLatest(true), 80);
+    setTimeout(() => scrollToLatest(true), 250);
+  }, [scrollToLatest]);
+
+  useKeyboardHandler(
+    {
+      onEnd: (e) => {
+        "worklet";
+        if (e.height > 0) {
+          runOnJS(scrollToLatest)(true);
+        }
+      },
+    },
+    [scrollToLatest],
+  );
+
   const renderScrollComponent = useCallback(
-    (props: ScrollViewProps) => <ChatListScrollView {...props} />,
+    (props: ScrollViewProps) => (
+      <ChatListScrollView {...props} chatScrollViewRef={chatScrollViewRef} />
+    ),
     [],
   );
 
@@ -473,7 +502,7 @@ export function OrderChatScreen() {
 
       {loading ? (
         <View style={styles.center}>
-
+          <ActivityIndicator color={c.white} />
         </View>
       ) : error ? (
         <View style={styles.center}>
@@ -483,7 +512,11 @@ export function OrderChatScreen() {
           </Pressable>
         </View>
       ) : (
-        <View style={styles.body}>
+        <KeyboardGestureArea
+          style={styles.body}
+          interpolator="ios"
+          textInputNativeID={CHAT_INPUT_NATIVE_ID}
+        >
           <FlatList
             ref={listRef}
             style={styles.messageList}
@@ -491,10 +524,11 @@ export function OrderChatScreen() {
             renderScrollComponent={renderScrollComponent}
             keyExtractor={(row) => (row.kind === "sent" ? row.item.id : `uploading-${row.item.tempId}`)}
             contentContainerStyle={styles.listContent}
+            keyboardShouldPersistTaps="handled"
             onContentSizeChange={() => {
               if (!shouldSnapToLatestRef.current) return;
               requestAnimationFrame(() => {
-                listRef.current?.scrollToEnd({ animated: false });
+                chatScrollViewRef.current?.scrollToEnd({ animated: false });
                 shouldSnapToLatestRef.current = false;
               });
             }}
@@ -638,7 +672,7 @@ export function OrderChatScreen() {
           />
 
           <KeyboardStickyView
-            offset={{ closed: 0, opened: 0 }}
+            offset={{ closed: 0, opened: Math.max(insets.bottom - 10, 0) }}
             style={styles.composerSticky}
           >
             <View style={[styles.composer, { paddingBottom: composerBottomPad }]}>
@@ -674,9 +708,10 @@ export function OrderChatScreen() {
             <View style={styles.composerRow}>
               <View style={styles.inputShell}>
                 <TextInput
+                  nativeID={CHAT_INPUT_NATIVE_ID}
                   value={draft}
                   onChangeText={setDraft}
-                  onFocus={scrollToLatest}
+                  onFocus={focusComposer}
                   onSubmitEditing={() => {
                     void onSend();
                   }}
@@ -731,7 +766,7 @@ export function OrderChatScreen() {
             </View>
             </View>
           </KeyboardStickyView>
-        </View>
+        </KeyboardGestureArea>
       )}
       <Modal
         visible={Boolean(previewImageUrl)}
@@ -952,6 +987,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.6)",
   },
   composerSticky: {
+    flexShrink: 0,
     backgroundColor: c.background,
   },
   composer: {

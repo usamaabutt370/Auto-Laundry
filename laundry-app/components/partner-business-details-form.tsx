@@ -1,7 +1,9 @@
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { useFocusEffect } from "@react-navigation/native";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Alert,
+  BackHandler,
   Image,
   KeyboardAvoidingView,
   Modal,
@@ -45,6 +47,11 @@ type StagedBusinessImage = {
 
 type PartnerBusinessDetailsFormMode = "onboarding" | "profile";
 
+const ROLE_SWITCH_RETURN_ROUTES: Record<string, "/(customer)/(tabs)/profile" | "/(customer)/userinfo"> = {
+  customer_profile: "/(customer)/(tabs)/profile",
+  customer_userinfo: "/(customer)/userinfo",
+};
+
 type Props = {
   mode: PartnerBusinessDetailsFormMode;
 };
@@ -80,8 +87,9 @@ function parseTimeLabelToDate(value: string): Date | null {
 
 export function PartnerBusinessDetailsForm({ mode }: Props) {
   const router = useRouter();
+  const params = useLocalSearchParams<{ from?: string; returnTo?: string }>();
   const { locale } = useLocale();
-  const { user } = useAuth();
+  const { user, refreshRole } = useAuth();
   const s = getStrings(locale).partner.onboarding;
   const settings = getStrings(locale).partner.settings;
 
@@ -275,6 +283,53 @@ export function PartnerBusinessDetailsForm({ mode }: Props) {
     setBusinessImages((prev) => prev.filter((item) => item.id !== imageId));
   }, []);
 
+  const handleBack = useCallback(() => {
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+
+    if (mode === "onboarding" && params.from === "role_switch") {
+      void (async () => {
+        if (user?.id && isSupabaseConfigured() && supabase) {
+          try {
+            const { error } = await supabase
+              .from("profiles")
+              .update({ role: "customer", updated_at: new Date().toISOString() })
+              .eq("id", user.id);
+            if (error) throw error;
+            await refreshRole();
+          } catch {
+            // Still return to customer even if role revert fails.
+          }
+        }
+        const returnRoute =
+          ROLE_SWITCH_RETURN_ROUTES[
+            typeof params.returnTo === "string" ? params.returnTo : ""
+          ] ?? "/(customer)/(tabs)/profile";
+        router.replace(returnRoute);
+      })();
+      return;
+    }
+
+    if (mode === "profile") {
+      router.replace("/(partner)/(tabs)/profile");
+      return;
+    }
+
+    router.replace("/(partner)/(tabs)");
+  }, [mode, params.from, params.returnTo, refreshRole, router, user?.id]);
+
+  useFocusEffect(
+    useCallback(() => {
+      const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+        handleBack();
+        return true;
+      });
+      return () => subscription.remove();
+    }, [handleBack]),
+  );
+
   const handleSubmit = useCallback(async () => {
     if (isSaving) return;
     setSubmitAttempted(true);
@@ -428,7 +483,7 @@ export function PartnerBusinessDetailsForm({ mode }: Props) {
       <AppHeader
         title={mode === "onboarding" ? s.step1Title : "Business detail"}
         leftIcon="arrow-left"
-        onLeftPress={() => router.back()}
+        onLeftPress={handleBack}
         leftAccessibilityLabel={s.back}
       />
 
