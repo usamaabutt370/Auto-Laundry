@@ -1,6 +1,6 @@
 import "server-only";
 
-import { escapeIlike, paginatedRange } from "@/features/admin/server/admin-list-query";
+import { escapeIlike, isValidUuid, paginatedRange } from "@/features/admin/server/admin-list-query";
 import type { AdminListQuery, PaginatedResult } from "@/features/admin/server/admin-list-query";
 import type { AdminUser } from "@/features/admin/types/admin-user";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -24,10 +24,15 @@ export async function listCustomerProfilesForAdminPaginated(
     .order("created_at", { ascending: false, nullsFirst: false });
 
   if (input.query) {
-    const q = escapeIlike(input.query);
-    profilesQuery = profilesQuery.or(
-      `id.ilike.%${q}%,email.ilike.%${q}%,phone.ilike.%${q}%,full_name.ilike.%${q}%,first_name.ilike.%${q}%,last_name.ilike.%${q}%`,
-    );
+    const raw = input.query.trim();
+    if (isValidUuid(raw)) {
+      profilesQuery = profilesQuery.eq("id", raw);
+    } else {
+      const q = escapeIlike(raw);
+      profilesQuery = profilesQuery.or(
+        `email.ilike.%${q}%,phone.ilike.%${q}%,full_name.ilike.%${q}%,first_name.ilike.%${q}%,last_name.ilike.%${q}%`,
+      );
+    }
   }
 
   const profilesResult = await profilesQuery.range(from, to);

@@ -1,6 +1,6 @@
 import "server-only";
 
-import { escapeIlike, paginatedRange } from "@/features/admin/server/admin-list-query";
+import { escapeIlike, isValidUuid, paginatedRange } from "@/features/admin/server/admin-list-query";
 import type { AdminListQuery, PaginatedResult } from "@/features/admin/server/admin-list-query";
 import type {
   CreditRequest,
@@ -30,15 +30,24 @@ export async function listPartnerCreditBalancesForAdminPaginated(
 
   let matchingPartnerIds: string[] | null = null;
   if (input.query) {
-    const q = escapeIlike(input.query);
+    const raw = input.query.trim();
+    const q = escapeIlike(raw);
+    const ids = new Set<string>();
+    if (isValidUuid(raw)) ids.add(raw);
+
     const partnersResult = await supabase
       .from("partner_profiles")
       .select("id")
-      .or(`id.ilike.%${q}%,business_name.ilike.%${q}%,phone_number.ilike.%${q}%`);
+      .or(`business_name.ilike.%${q}%,phone_number.ilike.%${q}%`);
     if (partnersResult.error) {
       throw new Error(`partner_profiles search failed: ${partnersResult.error.message}`);
     }
-    matchingPartnerIds = (partnersResult.data ?? []).map((row) => asText(row.id)).filter(Boolean);
+    for (const row of partnersResult.data ?? []) {
+      const id = asText(row.id);
+      if (id) ids.add(id);
+    }
+
+    matchingPartnerIds = Array.from(ids);
     if (matchingPartnerIds.length === 0) {
       return { items: [], total: 0, page: input.page, pageSize: input.pageSize };
     }

@@ -1,6 +1,6 @@
 import "server-only";
 
-import { escapeIlike, paginatedRange } from "@/features/admin/server/admin-list-query";
+import { escapeIlike, isValidUuid, paginatedRange } from "@/features/admin/server/admin-list-query";
 import type { AdminListQuery, PaginatedResult } from "@/features/admin/server/admin-list-query";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { Database } from "@/lib/supabase/database.types";
@@ -31,33 +31,34 @@ export async function listPartnerKycRequestsForAdminPaginated(
   }
 
   if (input.query) {
-    const q = escapeIlike(input.query);
+    const raw = input.query.trim();
+    const q = escapeIlike(raw);
+    const matchingIds = new Set<string>();
+    if (isValidUuid(raw)) matchingIds.add(raw);
+
     const [profilesResult, partnerSearchResult] = await Promise.all([
       supabase
         .from("profiles")
         .select("id")
         .or(
-          `id.ilike.%${q}%,full_name.ilike.%${q}%,first_name.ilike.%${q}%,last_name.ilike.%${q}%,email.ilike.%${q}%,phone.ilike.%${q}%`,
+          `full_name.ilike.%${q}%,first_name.ilike.%${q}%,last_name.ilike.%${q}%,email.ilike.%${q}%,phone.ilike.%${q}%`,
         ),
       supabase
         .from("partner_profiles")
         .select("id")
-        .or(`id.ilike.%${q}%,business_name.ilike.%${q}%,phone_number.ilike.%${q}%`),
+        .or(`business_name.ilike.%${q}%,phone_number.ilike.%${q}%`),
     ]);
     if (profilesResult.error) throw new Error(`profiles search failed: ${profilesResult.error.message}`);
     if (partnerSearchResult.error) {
       throw new Error(`partner_profiles search failed: ${partnerSearchResult.error.message}`);
     }
-    const matchingIds = [
-      ...new Set([
-        ...(profilesResult.data ?? []).map((row) => row.id),
-        ...(partnerSearchResult.data ?? []).map((row) => row.id),
-      ]),
-    ];
-    if (matchingIds.length === 0) {
+    for (const row of profilesResult.data ?? []) matchingIds.add(row.id);
+    for (const row of partnerSearchResult.data ?? []) matchingIds.add(row.id);
+    const matchingIdList = Array.from(matchingIds);
+    if (matchingIdList.length === 0) {
       return { items: [], total: 0, page: input.page, pageSize: input.pageSize };
     }
-    partnersQuery = partnersQuery.in("id", matchingIds);
+    partnersQuery = partnersQuery.in("id", matchingIdList);
   }
 
   const partnersResult = await partnersQuery.range(from, to);

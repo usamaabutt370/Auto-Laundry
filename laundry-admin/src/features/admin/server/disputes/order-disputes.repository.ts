@@ -1,6 +1,6 @@
 import "server-only";
 
-import { escapeIlike, paginatedRange } from "@/features/admin/server/admin-list-query";
+import { escapeIlike, isValidUuid, paginatedRange } from "@/features/admin/server/admin-list-query";
 import type { AdminListQuery, PaginatedResult } from "@/features/admin/server/admin-list-query";
 import type {
   AdminDispute,
@@ -76,11 +76,34 @@ export async function listOrderDisputesForAdminPaginated(
   if (dbCategory) disputesQuery = disputesQuery.eq("category", dbCategory);
 
   if (input.query) {
-    const q = escapeIlike(input.query);
-    const clauses = [`id.ilike.%${q}%`, `order_id.ilike.%${q}%`, `description.ilike.%${q}%`];
-    if (customerIds.length > 0) clauses.push(`customer_id.in.(${customerIds.join(",")})`);
-    if (partnerIds.length > 0) clauses.push(`partner_id.in.(${partnerIds.join(",")})`);
-    disputesQuery = disputesQuery.or(clauses.join(","));
+    const raw = input.query.trim();
+    const q = escapeIlike(raw);
+    const disputeIds = new Set<string>();
+
+    const idSearches = [
+      supabase.from("order_disputes").select("id").ilike("description", `%${q}%`),
+    ];
+    if (isValidUuid(raw)) {
+      idSearches.push(supabase.from("order_disputes").select("id").eq("id", raw));
+      idSearches.push(supabase.from("order_disputes").select("id").eq("order_id", raw));
+    }
+    if (customerIds.length > 0) {
+      idSearches.push(supabase.from("order_disputes").select("id").in("customer_id", customerIds));
+    }
+    if (partnerIds.length > 0) {
+      idSearches.push(supabase.from("order_disputes").select("id").in("partner_id", partnerIds));
+    }
+
+    const idResults = await Promise.all(idSearches);
+    for (const result of idResults) {
+      if (result.error) throw new Error(`order_disputes search failed: ${result.error.message}`);
+      for (const row of result.data ?? []) disputeIds.add(row.id);
+    }
+
+    if (disputeIds.size === 0) {
+      return { items: [], total: 0, page: input.page, pageSize: input.pageSize };
+    }
+    disputesQuery = disputesQuery.in("id", Array.from(disputeIds));
   }
 
   const disputesResult = await disputesQuery.range(from, to);

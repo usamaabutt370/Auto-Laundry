@@ -1,6 +1,6 @@
 import "server-only";
 
-import { escapeIlike, paginatedRange } from "@/features/admin/server/admin-list-query";
+import { escapeIlike, isValidUuid, paginatedRange } from "@/features/admin/server/admin-list-query";
 import type { AdminListQuery, PaginatedResult } from "@/features/admin/server/admin-list-query";
 import type { AdminOrder, OrderStatus, ShippingService } from "@/features/admin/types/admin-order";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -51,11 +51,27 @@ export async function listCustomerOrdersForAdminPaginated(
   if (dbStatus) ordersQuery = ordersQuery.eq("status", dbStatus);
 
   if (input.query) {
-    const q = escapeIlike(input.query);
-    const clauses = [`id.ilike.%${q}%`];
-    if (customerIds.length > 0) clauses.push(`customer_id.in.(${customerIds.join(",")})`);
-    if (partnerIds.length > 0) clauses.push(`partner_id.in.(${partnerIds.join(",")})`);
-    ordersQuery = ordersQuery.or(clauses.join(","));
+    const raw = input.query.trim();
+    const orderIds = new Set<string>();
+    if (isValidUuid(raw)) orderIds.add(raw);
+
+    const idSearches = [];
+    if (customerIds.length > 0) {
+      idSearches.push(supabase.from("customer_orders").select("id").in("customer_id", customerIds));
+    }
+    if (partnerIds.length > 0) {
+      idSearches.push(supabase.from("customer_orders").select("id").in("partner_id", partnerIds));
+    }
+    const idResults = await Promise.all(idSearches);
+    for (const result of idResults) {
+      if (result.error) throw new Error(`customer_orders search failed: ${result.error.message}`);
+      for (const row of result.data ?? []) orderIds.add(row.id);
+    }
+
+    if (orderIds.size === 0) {
+      return { items: [], total: 0, page: input.page, pageSize: input.pageSize };
+    }
+    ordersQuery = ordersQuery.in("id", Array.from(orderIds));
   }
 
   const ordersResult = await ordersQuery.range(from, to);
