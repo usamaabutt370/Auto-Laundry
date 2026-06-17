@@ -1,5 +1,6 @@
 import * as FileSystem from "expo-file-system";
 
+import { fetchVerifiedPartnerIds } from "@/lib/partner-verification";
 import { supabase } from "@/lib/supabase";
 import type { UserRole } from "@/types/user";
 
@@ -29,12 +30,62 @@ type PartnerNameRow = {
   image_url?: string | null;
 };
 
+export type ChatMessageType = "text" | "rider_assignment";
+
+export type RiderAssignmentMetadata = {
+  riderName: string;
+  riderPhotoUrl: string;
+  partnerName: string;
+  partnerVerified: boolean;
+  orderId: string;
+  orderNumber: string;
+  servicesSummary: string;
+  estimatedTotal: string;
+  pickup: string;
+  delivery: string;
+  address: string;
+};
+
+const RIDER_ASSIGNMENT_BODY_PREFIX = "__RIDER_ASSIGNMENT__";
+
+export function embedRiderAssignmentBody(
+  body: string,
+  metadata: RiderAssignmentMetadata,
+): string {
+  return `${RIDER_ASSIGNMENT_BODY_PREFIX}${JSON.stringify(metadata)}\n${body}`;
+}
+
+export function parseRiderAssignmentMetadata(
+  body: string,
+  rowMetadata?: RiderAssignmentMetadata | null,
+): RiderAssignmentMetadata | null {
+  if (rowMetadata) return rowMetadata;
+  if (!body.startsWith(RIDER_ASSIGNMENT_BODY_PREFIX)) return null;
+  const jsonEnd = body.indexOf("\n", RIDER_ASSIGNMENT_BODY_PREFIX.length);
+  if (jsonEnd < 0) return null;
+  try {
+    return JSON.parse(
+      body.slice(RIDER_ASSIGNMENT_BODY_PREFIX.length, jsonEnd),
+    ) as RiderAssignmentMetadata;
+  } catch {
+    return null;
+  }
+}
+
+export function riderAssignmentDisplayBody(body: string): string {
+  if (!body.startsWith(RIDER_ASSIGNMENT_BODY_PREFIX)) return body;
+  const jsonEnd = body.indexOf("\n", RIDER_ASSIGNMENT_BODY_PREFIX.length);
+  return jsonEnd >= 0 ? body.slice(jsonEnd + 1).trim() : "";
+}
+
 type MessageRow = {
   id: string;
   conversation_id: string;
   sender_id: string;
   body: string | null;
   image_url: string | null;
+  message_type: ChatMessageType | null;
+  metadata: RiderAssignmentMetadata | null;
   created_at: string;
 };
 
@@ -55,11 +106,32 @@ export interface ChatMessage {
   senderId: string;
   body: string;
   imageUrl: string | null;
+  messageType: ChatMessageType;
+  metadata: RiderAssignmentMetadata | null;
   createdAt: string;
+}
+
+export function normalizeChatMessageRow(row: MessageRow): ChatMessage {
+  const rawBody = row.body ?? "";
+  const metadata = parseRiderAssignmentMetadata(rawBody, row.metadata);
+  const messageType =
+    row.message_type === "rider_assignment" || metadata ? "rider_assignment" : "text";
+
+  return {
+    id: row.id,
+    conversationId: row.conversation_id,
+    senderId: row.sender_id,
+    body: riderAssignmentDisplayBody(rawBody),
+    imageUrl: row.image_url,
+    messageType,
+    metadata,
+    createdAt: row.created_at,
+  };
 }
 
 export interface OrderChatHeaderData {
   title: string;
+  titleVerified?: boolean;
   subtitle: string;
 }
 
@@ -68,6 +140,7 @@ export interface ChatConversationListItem {
   orderId: string;
   orderRef: string;
   counterpartyName: string;
+  counterpartyVerified?: boolean;
   counterpartyAvatarUrl?: string | null;
   lastMessageBody: string;
   lastMessageAt: string;
@@ -240,13 +313,18 @@ export async function fetchOrderChatHeader(
   }
 
   let title = "Order chat";
+  let titleVerified = false;
   if (order.customer_id === userId) {
-    const { data: partnerData } = await supabase
-      .from("partner_profiles")
-      .select("business_name")
-      .eq("id", order.partner_id)
-      .maybeSingle<PartnerNameRow>();
+    const [{ data: partnerData }, verifiedPartnerIds] = await Promise.all([
+      supabase
+        .from("partner_profiles")
+        .select("business_name")
+        .eq("id", order.partner_id)
+        .maybeSingle<PartnerNameRow>(),
+      fetchVerifiedPartnerIds([order.partner_id]),
+    ]);
     title = partnerData?.business_name?.trim() || "Launderer";
+    titleVerified = verifiedPartnerIds.has(order.partner_id);
   } else {
     const { data: customerData } = await supabase
       .from("profiles")
@@ -258,8 +336,19 @@ export async function fetchOrderChatHeader(
 
   return {
     title,
+    titleVerified,
     subtitle: `Order #${formatOrderRef(order.id)} · ${humanizeStatus(order.status)}`,
   };
+}
+
+const CHAT_MESSAGE_SELECT_BASE =
+  "id,conversation_id,sender_id,body,image_url,created_at";
+
+const CHAT_MESSAGE_SELECT_EXTENDED = `${CHAT_MESSAGE_SELECT_BASE},message_type,metadata`;
+
+function isMissingStructuredChatColumnError(message: string): boolean {
+  const lower = message.toLowerCase();
+  return lower.includes("message_type") || lower.includes("metadata");
 }
 
 export async function fetchConversationMessages(
@@ -268,22 +357,26 @@ export async function fetchConversationMessages(
 ): Promise<ChatMessage[]> {
   if (!supabase) throw new Error("Supabase is not configured.");
 
-  const { data, error } = await supabase
+  const extended = await supabase
     .from("chat_messages")
-    .select("id,conversation_id,sender_id,body,image_url,created_at")
+    .select(CHAT_MESSAGE_SELECT_EXTENDED)
     .eq("conversation_id", conversationId)
     .order("created_at", { ascending: true })
     .limit(limit);
-  if (error) throw new Error(error.message);
 
-  return ((data ?? []) as MessageRow[]).map((row) => ({
-    id: row.id,
-    conversationId: row.conversation_id,
-    senderId: row.sender_id,
-    body: row.body ?? "",
-    imageUrl: row.image_url,
-    createdAt: row.created_at,
-  }));
+  const result =
+    extended.error && isMissingStructuredChatColumnError(extended.error.message)
+      ? await supabase
+          .from("chat_messages")
+          .select(CHAT_MESSAGE_SELECT_BASE)
+          .eq("conversation_id", conversationId)
+          .order("created_at", { ascending: true })
+          .limit(limit)
+      : extended;
+
+  if (result.error) throw new Error(result.error.message);
+
+  return ((result.data ?? []) as MessageRow[]).map(normalizeChatMessageRow);
 }
 
 export async function fetchMyConversations(
@@ -365,6 +458,11 @@ export async function fetchMyConversations(
       customerProfileMap.set(row.id, row);
     }
   }
+  const verifiedPartnerIds =
+    counterpartPartnerIds.size > 0
+      ? await fetchVerifiedPartnerIds(Array.from(counterpartPartnerIds))
+      : new Set<string>();
+
   if (counterpartPartnerIds.size > 0) {
     const { data } = await supabase
       .from("partner_profiles")
@@ -425,11 +523,13 @@ export async function fetchMyConversations(
     const latest = latestByConversation.get(conversation.id);
 
     let counterpartyName = "User";
+    let counterpartyVerified = false;
     let counterpartyAvatarUrl: string | null = null;
     if (order?.customer_id === userId) {
       const p = partnerNameMap.get(order.partner_id);
       const pProfile = partnerProfileMap.get(order.partner_id);
       counterpartyName = p?.business_name?.trim() || "Launderer";
+      counterpartyVerified = verifiedPartnerIds.has(order.partner_id);
       counterpartyAvatarUrl = p?.image_url ?? pProfile?.image_url ?? null;
     } else if (order?.partner_id === userId) {
       const c = customerProfileMap.get(order.customer_id);
@@ -447,6 +547,7 @@ export async function fetchMyConversations(
       orderId: conversation.order_id,
       orderRef: formatOrderRef(conversation.order_id),
       counterpartyName,
+      counterpartyVerified,
       counterpartyAvatarUrl,
       lastMessageBody: preview,
       lastMessageAt: latest?.created_at || conversation.updated_at,
@@ -525,28 +626,87 @@ export async function sendConversationMessage(
     throw new Error("Cannot send an empty message.");
   }
 
-  const { data, error } = await supabase
+  let response = await supabase
     .from("chat_messages")
     .insert({
       conversation_id: conversationId,
       sender_id: senderId,
       body: trimmedBody.length > 0 ? trimmedBody : null,
       image_url: trimmedImage.length > 0 ? trimmedImage : null,
+      message_type: "text",
     })
-    .select("id,conversation_id,sender_id,body,image_url,created_at")
+    .select(CHAT_MESSAGE_SELECT_EXTENDED)
     .maybeSingle<MessageRow>();
-  if (error || !data) {
-    throw new Error(error?.message ?? "Unable to send message.");
+
+  if (
+    response.error &&
+    isMissingStructuredChatColumnError(response.error.message)
+  ) {
+    response = await supabase
+      .from("chat_messages")
+      .insert({
+        conversation_id: conversationId,
+        sender_id: senderId,
+        body: trimmedBody.length > 0 ? trimmedBody : null,
+        image_url: trimmedImage.length > 0 ? trimmedImage : null,
+      })
+      .select(CHAT_MESSAGE_SELECT_BASE)
+      .maybeSingle<MessageRow>();
   }
 
-  return {
-    id: data.id,
-    conversationId: data.conversation_id,
-    senderId: data.sender_id,
-    body: data.body ?? "",
-    imageUrl: data.image_url,
-    createdAt: data.created_at,
-  };
+  if (response.error || !response.data) {
+    throw new Error(response.error?.message ?? "Unable to send message.");
+  }
+
+  return normalizeChatMessageRow(response.data);
+}
+
+export async function sendRiderAssignmentMessage(
+  conversationId: string,
+  senderId: string,
+  body: string,
+  metadata: RiderAssignmentMetadata,
+): Promise<ChatMessage> {
+  if (!supabase) throw new Error("Supabase is not configured.");
+
+  const trimmedBody = body.trim();
+  if (!trimmedBody) {
+    throw new Error("Cannot send an empty rider assignment message.");
+  }
+
+  let response = await supabase
+    .from("chat_messages")
+    .insert({
+      conversation_id: conversationId,
+      sender_id: senderId,
+      body: trimmedBody,
+      message_type: "rider_assignment",
+      metadata,
+    })
+    .select(CHAT_MESSAGE_SELECT_EXTENDED)
+    .maybeSingle<MessageRow>();
+
+  if (
+    response.error &&
+    isMissingStructuredChatColumnError(response.error.message)
+  ) {
+    response = await supabase
+      .from("chat_messages")
+      .insert({
+        conversation_id: conversationId,
+        sender_id: senderId,
+        body: embedRiderAssignmentBody(trimmedBody, metadata),
+        image_url: metadata.riderPhotoUrl || null,
+      })
+      .select(CHAT_MESSAGE_SELECT_BASE)
+      .maybeSingle<MessageRow>();
+  }
+
+  if (response.error || !response.data) {
+    throw new Error(response.error?.message ?? "Unable to send rider assignment message.");
+  }
+
+  return normalizeChatMessageRow(response.data);
 }
 
 export async function markConversationRead(

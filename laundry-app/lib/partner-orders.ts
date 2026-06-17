@@ -94,7 +94,47 @@ type CustomerOrderRow = {
   delivery_time_slot_label: string | null;
   rejection_reason_option: string | null;
   rejection_reason_details: string | null;
+  assigned_rider_id?: string | null;
+  assigned_rider_name?: string | null;
+  assigned_rider_phone?: string | null;
+  assigned_rider_photo_url?: string | null;
 };
+
+const PARTNER_ORDER_DETAIL_SELECT_BASE =
+  "id,customer_id,status,estimated_total,estimated_partial_total,confirmed_total,confirmed_at,intake_notes,pickup_fee,pickup_day_label,pickup_time_slot_label,delivery_day_label,delivery_time_slot_label,rejection_reason_option,rejection_reason_details";
+
+const PARTNER_ORDER_DETAIL_SELECT_WITH_RIDER = `${PARTNER_ORDER_DETAIL_SELECT_BASE},assigned_rider_id,assigned_rider_name,assigned_rider_phone,assigned_rider_photo_url`;
+
+function isMissingAssignedRiderColumnError(message: string): boolean {
+  return message.toLowerCase().includes("assigned_rider");
+}
+
+async function fetchPartnerOrderRow(orderId: string, partnerId: string) {
+  if (!supabase) {
+    throw new Error("Supabase is not configured.");
+  }
+
+  const extended = await supabase
+    .from("customer_orders")
+    .select(PARTNER_ORDER_DETAIL_SELECT_WITH_RIDER)
+    .eq("id", orderId)
+    .eq("partner_id", partnerId)
+    .maybeSingle();
+
+  if (
+    extended.error &&
+    isMissingAssignedRiderColumnError(extended.error.message)
+  ) {
+    return supabase
+      .from("customer_orders")
+      .select(PARTNER_ORDER_DETAIL_SELECT_BASE)
+      .eq("id", orderId)
+      .eq("partner_id", partnerId)
+      .maybeSingle();
+  }
+
+  return extended;
+}
 
 type OrderServiceRow = {
   id: string;
@@ -305,14 +345,7 @@ export async function fetchPartnerOrderDetail(
   }
   const partnerId = await requireCurrentPartnerId();
 
-  const { data, error } = await supabase
-    .from("customer_orders")
-    .select(
-      "id,customer_id,status,estimated_total,estimated_partial_total,confirmed_total,confirmed_at,intake_notes,pickup_fee,pickup_day_label,pickup_time_slot_label,delivery_day_label,delivery_time_slot_label,rejection_reason_option,rejection_reason_details",
-    )
-    .eq("id", orderId)
-    .eq("partner_id", partnerId)
-    .maybeSingle();
+  const { data, error } = await fetchPartnerOrderRow(orderId, partnerId);
   if (error) {
     throw new Error(error.message);
   }
@@ -453,7 +486,7 @@ export async function fetchPartnerOrderDetail(
       order.delivery_time_slot_label,
       "Not scheduled",
     ),
-    courier: "Not Yet Assigned",
+    courier: order.assigned_rider_name?.trim() || "Not Yet Assigned",
     estimatedTotal: String(order.estimated_total ?? order.estimated_partial_total ?? 0),
     confirmedTotal:
       order.confirmed_total != null ? String(order.confirmed_total) : null,

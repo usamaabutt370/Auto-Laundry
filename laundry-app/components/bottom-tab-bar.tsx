@@ -1,5 +1,7 @@
 import { BottomTabBarButtonProps } from "@react-navigation/bottom-tabs";
 import { PlatformPressable } from "@react-navigation/elements";
+import { Image, type ImageSource } from "expo-image";
+import { Tabs } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 import {
@@ -9,6 +11,7 @@ import {
   type TextStyle,
   type ViewStyle,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { TabBarColors } from "@/constants/theme";
 
@@ -194,6 +197,54 @@ export function getBottomTabScreenOptionsForPlatform(
   };
 }
 
+export type AppTabItem = {
+  name: string;
+  title: string;
+  icon: ImageSource;
+  /** Compensate for artwork padding inside the PNG (home icon needs a slight boost). */
+  iconScale?: number;
+};
+
+/** Home/dashboard asset has extra internal padding vs order/chat/profile icons. */
+export const HOME_TAB_ICON_SCALE = 1.34;
+
+function renderTabIcon(icon: ImageSource, color: string, iconScale = 1) {
+  return (
+    <View style={styles.tabIconSlot}>
+      <Image
+        source={icon}
+        style={[
+          bottomTabIconStyle,
+          iconScale !== 1 ? { transform: [{ scale: iconScale }] } : null,
+          { tintColor: color },
+        ]}
+        contentFit="contain"
+      />
+    </View>
+  );
+}
+
+/** Shared bottom tabs shell for customer and partner flows. */
+export function AppTabsLayout({ tabs, hideTabBar = false }: { tabs: AppTabItem[]; hideTabBar?: boolean }) {
+  const insets = useSafeAreaInsets();
+  const tabBarBottom = Math.max(insets.bottom, 8);
+
+  return (
+    <Tabs screenOptions={getBottomTabScreenOptionsForPlatform(tabBarBottom, hideTabBar)}>
+      {tabs.map((tab) => (
+        <Tabs.Screen
+          key={tab.name}
+          name={tab.name}
+          options={{
+            title: tab.title,
+            tabBarIcon: ({ color }) => renderTabIcon(tab.icon, color, tab.iconScale),
+          }}
+        />
+      ))}
+    </Tabs>
+  );
+}
+
 const styles = StyleSheet.create({
   backgroundShell: {
     overflow: "hidden",
@@ -273,6 +324,13 @@ const styles = StyleSheet.create({
   activeDotHidden: {
     opacity: 0,
     transform: [{ scale: 0.5 }],
+  },
+  tabIconSlot: {
+    width: TAB_ICON_SIZE,
+    height: TAB_ICON_SIZE,
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "visible",
   },
 });
 

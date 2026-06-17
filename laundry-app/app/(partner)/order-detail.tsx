@@ -14,12 +14,19 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AppHeader } from "@/components/app-header";
+import { PartnerRiderPickerModal } from "@/components/partner-rider-picker-modal";
 import { theme } from "@/constants/theme";
 import { getOrderDetail, type DemoOrderDetail } from "@/data/demo-order-details";
+import { useAuth } from "@/contexts/auth-context";
 import { useLocale } from "@/contexts/locale-context";
+import {
+  acceptOrderWithRider,
+  partnerOrderDetailNeedsRider,
+} from "@/lib/order-rider-assignment";
 import { confirmPartnerOrderBill } from "@/lib/partner-order-intake";
 import { fetchPartnerOrderDetail, type PartnerOrderDetailData } from "@/lib/partner-orders";
 import { partnerUpdateOrderStatus } from "@/lib/partner-order-status";
+import { fetchPartnerRiders, type PartnerRider } from "@/lib/partner-riders";
 import { getStrings } from "@/locales";
 import { parsePriceDisplay, currencyPrefixFromDisplay } from "@/utils/parse-price-display";
 
@@ -115,6 +122,7 @@ export default function PartnerOrderDetailScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ orderId?: string }>();
   const { locale } = useLocale();
+  const { user } = useAuth();
   const s = getStrings(locale).partner.order;
   const [isConfirming, setIsConfirming] = useState(false);
   const [isRejecting, setIsRejecting] = useState(false);
@@ -126,6 +134,10 @@ export default function PartnerOrderDetailScreen() {
   const [intakeQuantities, setIntakeQuantities] = useState<Record<string, number>>({});
   const [intakeNotes, setIntakeNotes] = useState("");
   const [isConfirmingBill, setIsConfirmingBill] = useState(false);
+  const [riderModalVisible, setRiderModalVisible] = useState(false);
+  const [partnerRiders, setPartnerRiders] = useState<PartnerRider[]>([]);
+  const [loadingRiders, setLoadingRiders] = useState(false);
+  const [selectedRiderId, setSelectedRiderId] = useState<string | null>(null);
 
   const detail = useMemo(
     () => (params.orderId ? getOrderDetail(params.orderId) : null),
@@ -189,6 +201,96 @@ export default function PartnerOrderDetailScreen() {
   }, [orderIdParam, shouldLoadLiveOrder]);
 
   const resolvedDetail = liveDetail ?? detail;
+
+  const beginAcceptOrder = async (pickup: string) => {
+    if (!orderIdParam || !isUuid(orderIdParam)) {
+      Alert.alert(
+        "Demo order",
+        "This order detail is using demo data. Live actions only work for real database orders.",
+      );
+      return;
+    }
+
+    if (!partnerOrderDetailNeedsRider(pickup)) {
+      void handleOrderAction("accepted");
+      return;
+    }
+
+    if (!user?.id) return;
+
+    setSelectedRiderId(null);
+    setLoadingRiders(true);
+    setRiderModalVisible(true);
+
+    try {
+      const riders = await fetchPartnerRiders(user.id);
+      setPartnerRiders(riders);
+      if (riders.length === 0) {
+        setRiderModalVisible(false);
+        Alert.alert(s.noRidersTitle, s.noRidersMessage);
+      }
+    } catch (error) {
+      setRiderModalVisible(false);
+      Alert.alert(
+        "Unable to load riders",
+        error instanceof Error ? error.message : "Please try again.",
+      );
+    } finally {
+      setLoadingRiders(false);
+    }
+  };
+
+  const confirmRiderAccept = async () => {
+    if (!orderIdParam || !user?.id) return;
+    if (!selectedRiderId) {
+      Alert.alert(s.selectRiderRequired);
+      return;
+    }
+
+    const rider = partnerRiders.find((item) => item.id === selectedRiderId);
+    if (!rider) {
+      Alert.alert(s.selectRiderRequired);
+      return;
+    }
+
+    try {
+      setIsConfirming(true);
+      await acceptOrderWithRider({
+        orderId: orderIdParam,
+        partnerId: user.id,
+        riderId: selectedRiderId,
+      });
+      setLiveDetail((prev) =>
+        prev
+          ? {
+              ...prev,
+              status: "accepted",
+              rawStatus: "accepted",
+              courier: rider.name,
+            }
+          : prev,
+      );
+      setRiderModalVisible(false);
+      setSelectedRiderId(null);
+      Alert.alert("Order accepted", s.acceptSuccess, [
+        {
+          text: "OK",
+          onPress: () =>
+            router.navigate({
+              pathname: "/(partner)/order",
+              params: { filter: "accepted" },
+            }),
+        },
+      ]);
+    } catch (error) {
+      Alert.alert(
+        "Unable to accept order",
+        error instanceof Error ? error.message : "Please try again.",
+      );
+    } finally {
+      setIsConfirming(false);
+    }
+  };
 
   const handleOrderAction = async (
     target: "accepted" | "rejected" | "ready" | "completed",
@@ -603,7 +705,7 @@ export default function PartnerOrderDetailScreen() {
         {isPending ? (
           <View style={styles.actionsRow}>
             <Pressable
-              onPress={() => handleOrderAction("accepted")}
+              onPress={() => void beginAcceptOrder(finalDetail.pickup)}
               disabled={isConfirming || isRejecting}
               style={({ pressed }) => [
                 styles.primaryAction,
@@ -669,6 +771,24 @@ export default function PartnerOrderDetailScreen() {
         
         <View style={styles.bottomSpacing} />
       </ScrollView>
+      <PartnerRiderPickerModal
+        visible={riderModalVisible}
+        riders={partnerRiders}
+        loading={loadingRiders}
+        selectedRiderId={selectedRiderId}
+        title={s.selectRiderTitle}
+        subtitle={s.selectRiderSubtitle}
+        confirmLabel={s.selectRiderConfirm}
+        cancelLabel={s.selectRiderCancel}
+        loadingLabel={s.loadingRiders}
+        emptyLabel={s.noRidersMessage}
+        onSelectRider={setSelectedRiderId}
+        onConfirm={() => void confirmRiderAccept()}
+        onClose={() => {
+          setRiderModalVisible(false);
+          setSelectedRiderId(null);
+        }}
+      />
       <Modal
         visible={rejectModalVisible}
         transparent

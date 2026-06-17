@@ -11,6 +11,7 @@ import { LEGACY_WASH_FOLD_PRICE_LABELS } from "@/constants/partner-wash-fold-ite
 import type { ServiceItem } from "@/types/merchant-services";
 import { generateServiceId } from "@/types/merchant-services";
 import { useAuth } from "@/contexts/auth-context";
+import { ensureActiveUserProfile } from "@/lib/ensure-user-profile";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
 /** Dynamic row (label + value) from the screen where user sets prices. Used for onboarding price cards. */
@@ -200,15 +201,25 @@ export function MerchantServicesProvider({ children }: { children: React.ReactNo
       return false;
     }
     setIsSavingPickupDeliveryPricing(true);
-    const { error } = await supabase.from("partner_profiles").upsert(
-      {
-        id: user.id,
-        pickup_delivery_enabled: pickupDeliveryPricing.enabled,
-        pickup_delivery_amount: pickupDeliveryPricing.amount.trim(),
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "id" }
-    );
+    const profilePayload: {
+      id: string;
+      pickup_delivery_enabled: boolean;
+      pickup_delivery_amount: string;
+      updated_at: string;
+      riders_responsibility_accepted_at?: string | null;
+    } = {
+      id: user.id,
+      pickup_delivery_enabled: pickupDeliveryPricing.enabled,
+      pickup_delivery_amount: pickupDeliveryPricing.amount.trim(),
+      updated_at: new Date().toISOString(),
+    };
+    if (!pickupDeliveryPricing.enabled) {
+      profilePayload.riders_responsibility_accepted_at = null;
+    }
+
+    const { error } = await supabase.from("partner_profiles").upsert(profilePayload, {
+      onConflict: "id",
+    });
     setIsSavingPickupDeliveryPricing(false);
     return !error;
   }, [user?.id, pickupDeliveryPricing.enabled, pickupDeliveryPricing.amount]);
@@ -293,6 +304,11 @@ export function MerchantServicesProvider({ children }: { children: React.ReactNo
       return { ok: false, error: "Supabase is not configured or user is not signed in." };
     }
 
+    const profileReady = await ensureActiveUserProfile(user);
+    if (!profileReady.ok) {
+      return { ok: false, error: profileReady.error };
+    }
+
     const wafPricing = snapshot?.washAndFold ?? washAndFoldPricing;
     const dcPricing = snapshot?.dryCleaning ?? dryCleaningPricing;
     const tailPricing = snapshot?.tailoring ?? tailoringPricing;
@@ -332,15 +348,25 @@ export function MerchantServicesProvider({ children }: { children: React.ReactNo
 
     setIsSubmittingOnboardingServices(true);
     try {
-      const { error: profileError } = await supabase.from("partner_profiles").upsert(
-        {
-          id: user.id,
-          pickup_delivery_enabled: pickupDeliveryPricing.enabled,
-          pickup_delivery_amount: pickupDeliveryPricing.amount.trim(),
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "id" }
-      );
+      const profilePayload: {
+        id: string;
+        pickup_delivery_enabled: boolean;
+        pickup_delivery_amount: string;
+        updated_at: string;
+        riders_responsibility_accepted_at?: string | null;
+      } = {
+        id: user.id,
+        pickup_delivery_enabled: pickupDeliveryPricing.enabled,
+        pickup_delivery_amount: pickupDeliveryPricing.amount.trim(),
+        updated_at: new Date().toISOString(),
+      };
+      if (!pickupDeliveryPricing.enabled) {
+        profilePayload.riders_responsibility_accepted_at = null;
+      }
+
+      const { error: profileError } = await supabase
+        .from("partner_profiles")
+        .upsert(profilePayload, { onConflict: "id" });
       if (profileError) {
         return { ok: false, error: profileError.message };
       }

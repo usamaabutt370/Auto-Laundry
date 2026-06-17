@@ -29,6 +29,73 @@ export type PartnerServiceLine = {
 
 export type PartnerFulfillmentMode = "dropoff" | "pickupDelivery";
 
+export type PartnerMapMarkerRow = PartnerPublicRow & {
+  fulfillmentMode: PartnerFulfillmentMode;
+};
+
+function isValidPartnerName(row: { business_name?: unknown }): boolean {
+  return typeof row.business_name === "string" && row.business_name.trim().length > 0;
+}
+
+function toMapMarker(
+  row: PartnerPublicRow & { pickup_delivery_amount?: string | null },
+): PartnerMapMarkerRow | null {
+  if (!isValidPartnerName(row)) return null;
+  const amount =
+    typeof row.pickup_delivery_amount === "string" ? row.pickup_delivery_amount.trim() : "";
+  return {
+    id: row.id,
+    business_name: row.business_name,
+    phone_number: row.phone_number,
+    available_time: row.available_time,
+    address: row.address,
+    latitude: row.latitude,
+    longitude: row.longitude,
+    image_url: row.image_url,
+    business_images: row.business_images,
+    updated_at: row.updated_at,
+    fulfillmentMode: amount.length > 0 ? "pickupDelivery" : "dropoff",
+  };
+}
+
+/** Single-query partner fetch for the customer home map. */
+export async function fetchMapPartners(): Promise<{
+  data: PartnerMapMarkerRow[] | null;
+  error: string | null;
+}> {
+  if (!isSupabaseConfigured() || !supabase) {
+    return { data: [], error: null };
+  }
+
+  const { data, error } = await supabase
+    .from("partner_profiles")
+    .select(
+      "id, business_name, phone_number, available_time, address, latitude, longitude, image_url, business_images, updated_at, pickup_delivery_amount",
+    )
+    .order("business_name", { ascending: true });
+
+  if (error) {
+    return { data: null, error: error.message };
+  }
+
+  const rows = (data ?? [])
+    .map((row) => toMapMarker(row as PartnerPublicRow & { pickup_delivery_amount?: string | null }))
+    .filter((row): row is PartnerMapMarkerRow => row != null);
+
+  return { data: rows, error: null };
+}
+
+export function partnerOffersPickupDelivery(
+  profile:
+    | Pick<PartnerDetailRow, "pickup_delivery_enabled" | "pickup_delivery_amount">
+    | null
+    | undefined,
+): boolean {
+  if (!profile) return false;
+  if (profile.pickup_delivery_enabled) return true;
+  return Boolean(profile.pickup_delivery_amount?.trim());
+}
+
 /** Partners who offer pickup & delivery (for customer Pick Up & Delivery list). */
 export async function fetchPickupPartners(): Promise<{
   data: PartnerPublicRow[] | null;

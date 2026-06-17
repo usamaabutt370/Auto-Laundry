@@ -18,11 +18,18 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { KeyboardStickyView } from "react-native-keyboard-controller";
+import {
+  KeyboardChatScrollView,
+  KeyboardGestureArea,
+  KeyboardStickyView,
+  useKeyboardHandler,
+} from "react-native-keyboard-controller";
+import { runOnJS } from "react-native-reanimated";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AppHeader } from "@/components/app-header";
 import { ChatListScrollView } from "@/components/chat/chat-list-scroll-view";
+import { RiderAssignmentMessage } from "@/components/chat/rider-assignment-message";
 import { theme } from "@/constants/theme";
 import { useAuth } from "@/contexts/auth-context";
 import {
@@ -31,6 +38,7 @@ import {
   deleteConversationMessages,
   fetchConversationMessages,
   markConversationRead,
+  normalizeChatMessageRow,
   sendConversationMessage,
   uploadChatImage,
   type ChatMessage,
@@ -39,6 +47,7 @@ import { supabase } from "@/lib/supabase";
 
 const c = theme.colors;
 const fs = theme.fontSize;
+const CHAT_INPUT_NATIVE_ID = "order-chat-input";
 const PAD = 20;
 
 function formatClock(iso: string): string {
@@ -142,6 +151,7 @@ export function OrderChatScreen() {
   const [sending, setSending] = useState(false);
   const initialMemberName = typeof params.memberName === "string" ? params.memberName.trim() : "";
   const [headerTitle, setHeaderTitle] = useState(initialMemberName);
+  const [headerTitleVerified, setHeaderTitleVerified] = useState(false);
   const [headerSubtitle, setHeaderSubtitle] = useState<string | null>(null);
   const [selectedMessageIds, setSelectedMessageIds] = useState<string[]>([]);
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
@@ -150,6 +160,7 @@ export function OrderChatScreen() {
   );
   const [uploadingMessages, setUploadingMessages] = useState<PendingUploadMessage[]>([]);
   const listRef = useRef<FlatList<DisplayChatItem>>(null);
+  const chatScrollViewRef = useRef<React.ElementRef<typeof KeyboardChatScrollView>>(null);
   const shouldSnapToLatestRef = useRef(true);
 
   const orderId = typeof params.orderId === "string" ? params.orderId : "";
@@ -196,6 +207,7 @@ export function OrderChatScreen() {
       setConversationId(convId);
       const header = await fetchOrderChatHeader(orderId, user.id);
       setHeaderTitle(header.title);
+      setHeaderTitleVerified(Boolean(header.titleVerified));
       setHeaderSubtitle(header.subtitle);
       const rows = await fetchConversationMessages(convId);
       // Ensure opening the chat lands on the latest message.
@@ -231,28 +243,11 @@ export function OrderChatScreen() {
         },
         (payload) => {
           if (payload.eventType === "INSERT") {
-            const row = payload.new as {
-              id: string;
-              conversation_id: string;
-              sender_id: string;
-              body: string | null;
-              image_url: string | null;
-              created_at: string;
-            };
+            const row = payload.new as Parameters<typeof normalizeChatMessageRow>[0];
 
             setMessages((prev) => {
               if (prev.some((m) => m.id === row.id)) return prev;
-              return [
-                ...prev,
-                {
-                  id: row.id,
-                  conversationId: row.conversation_id,
-                  senderId: row.sender_id,
-                  body: row.body ?? "",
-                  imageUrl: row.image_url,
-                  createdAt: row.created_at,
-                },
-              ];
+              return [...prev, normalizeChatMessageRow(row)];
             });
 
             if (row.sender_id !== user.id) {
@@ -431,14 +426,35 @@ export function OrderChatScreen() {
 
   const composerBottomPad = Math.max(insets.bottom, 10);
 
-  const scrollToLatest = useCallback(() => {
+  const scrollToLatest = useCallback((animated = true) => {
     requestAnimationFrame(() => {
-      listRef.current?.scrollToEnd({ animated: true });
+      chatScrollViewRef.current?.scrollToEnd({ animated });
     });
   }, []);
 
+  const focusComposer = useCallback(() => {
+    scrollToLatest(false);
+    scrollToLatest(true);
+    setTimeout(() => scrollToLatest(true), 80);
+    setTimeout(() => scrollToLatest(true), 250);
+  }, [scrollToLatest]);
+
+  useKeyboardHandler(
+    {
+      onEnd: (e) => {
+        "worklet";
+        if (e.height > 0) {
+          runOnJS(scrollToLatest)(true);
+        }
+      },
+    },
+    [scrollToLatest],
+  );
+
   const renderScrollComponent = useCallback(
-    (props: ScrollViewProps) => <ChatListScrollView {...props} />,
+    (props: ScrollViewProps) => (
+      <ChatListScrollView {...props} chatScrollViewRef={chatScrollViewRef} />
+    ),
     [],
   );
 
@@ -447,6 +463,7 @@ export function OrderChatScreen() {
       <SafeAreaView style={styles.safeTop} edges={["top"]}>
         <AppHeader
           title={selectionMode ? `${selectedMessageIds.length} selected` : headerTitle}
+          titleVerified={!selectionMode && headerTitleVerified}
           subtitle={selectionMode ? null : headerSubtitle}
           leftIcon="arrow-left"
           onLeftPress={() => {
@@ -485,7 +502,7 @@ export function OrderChatScreen() {
 
       {loading ? (
         <View style={styles.center}>
-
+          <ActivityIndicator color={c.white} />
         </View>
       ) : error ? (
         <View style={styles.center}>
@@ -495,7 +512,11 @@ export function OrderChatScreen() {
           </Pressable>
         </View>
       ) : (
-        <View style={styles.body}>
+        <KeyboardGestureArea
+          style={styles.body}
+          interpolator="ios"
+          textInputNativeID={CHAT_INPUT_NATIVE_ID}
+        >
           <FlatList
             ref={listRef}
             style={styles.messageList}
@@ -503,10 +524,11 @@ export function OrderChatScreen() {
             renderScrollComponent={renderScrollComponent}
             keyExtractor={(row) => (row.kind === "sent" ? row.item.id : `uploading-${row.item.tempId}`)}
             contentContainerStyle={styles.listContent}
+            keyboardShouldPersistTaps="handled"
             onContentSizeChange={() => {
               if (!shouldSnapToLatestRef.current) return;
               requestAnimationFrame(() => {
-                listRef.current?.scrollToEnd({ animated: false });
+                chatScrollViewRef.current?.scrollToEnd({ animated: false });
                 shouldSnapToLatestRef.current = false;
               });
             }}
@@ -516,6 +538,24 @@ export function OrderChatScreen() {
               const uploadItem = row.kind === "uploading" ? row.item : null;
               const mine = isUploading ? true : sentItem?.senderId === user?.id;
               const isSelected = sentItem ? selectedMessageIds.includes(sentItem.id) : false;
+              const isRiderAssignment =
+                sentItem?.messageType === "rider_assignment" && sentItem.metadata;
+
+              if (isRiderAssignment) {
+                return (
+                  <View style={styles.riderAssignmentWrap}>
+                    <RiderAssignmentMessage
+                      metadata={sentItem.metadata!}
+                      role={role}
+                      intro={sentItem.body.trim() || undefined}
+                    />
+                    <Text style={styles.riderAssignmentTime}>
+                      {formatClock(sentItem.createdAt)}
+                    </Text>
+                  </View>
+                );
+              }
+
               return (
                 <View
                   style={[
@@ -632,7 +672,7 @@ export function OrderChatScreen() {
           />
 
           <KeyboardStickyView
-            offset={{ closed: 0, opened: 0 }}
+            offset={{ closed: 0, opened: Math.max(insets.bottom - 10, 0) }}
             style={styles.composerSticky}
           >
             <View style={[styles.composer, { paddingBottom: composerBottomPad }]}>
@@ -668,9 +708,10 @@ export function OrderChatScreen() {
             <View style={styles.composerRow}>
               <View style={styles.inputShell}>
                 <TextInput
+                  nativeID={CHAT_INPUT_NATIVE_ID}
                   value={draft}
                   onChangeText={setDraft}
-                  onFocus={scrollToLatest}
+                  onFocus={focusComposer}
                   onSubmitEditing={() => {
                     void onSend();
                   }}
@@ -725,7 +766,7 @@ export function OrderChatScreen() {
             </View>
             </View>
           </KeyboardStickyView>
-        </View>
+        </KeyboardGestureArea>
       )}
       <Modal
         visible={Boolean(previewImageUrl)}
@@ -946,6 +987,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.6)",
   },
   composerSticky: {
+    flexShrink: 0,
     backgroundColor: c.background,
   },
   composer: {
@@ -1056,6 +1098,17 @@ const styles = StyleSheet.create({
     color: c.blue500,
     fontSize: fs.smallText,
     textAlign: "center",
+  },
+  riderAssignmentWrap: {
+    alignItems: "center",
+    paddingVertical: 10,
+    paddingHorizontal: 4,
+    gap: 6,
+    width: "100%",
+  },
+  riderAssignmentTime: {
+    fontSize: fs.xxSmallText,
+    color: c.blue500,
   },
   pressed: {
     opacity: 0.85,

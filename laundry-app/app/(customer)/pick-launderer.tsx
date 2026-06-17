@@ -18,6 +18,7 @@ import { Image } from "expo-image";
 
 import { LaundererDetailView } from "@/components/launderer-detail-view";
 import { WebCenteredPanel } from "@/components/web-layout";
+import { PartnerNameWithBadge } from "@/components/partner-name-with-badge";
 import { assets } from "@/assets/assets";
 import { strings } from "@/constants/strings";
 import { theme } from "@/constants/theme";
@@ -123,9 +124,11 @@ function LaundererCard({
           ))}
           <Text style={styles.ratingText}>({PLACEHOLDER_RATING})</Text>
         </View>
-        <Text style={styles.cardName} numberOfLines={1}>
-          {partner.business_name.trim()}
-        </Text>
+        <PartnerNameWithBadge
+          name={partner.business_name.trim()}
+          verified
+          nameStyle={styles.cardName}
+        />
         <View style={styles.infoRow}>
           <MaterialCommunityIcons
             name="phone"
@@ -361,7 +364,10 @@ export default function PickLaundererScreen() {
     async (partnerId: string, partnerName: string | null) => {
       if (!isReassignMode) {
         setPartner(partnerId, partnerName);
-        router.push("/(customer)/pickup-services");
+        router.push({
+          pathname: "/(customer)/pickup-services",
+          params: { mode: fulfillmentMode },
+        });
         return;
       }
 

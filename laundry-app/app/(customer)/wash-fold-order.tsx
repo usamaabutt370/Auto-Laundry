@@ -1,14 +1,11 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AppHeader } from "@/components/app-header";
-import {
-  CUSTOMER_ORDER_NOTES_MAX_HEIGHT,
-  CustomerItemizedOrderLayout,
-} from "@/components/customer-itemized-order-layout";
+import { CustomerItemizedOrderLayout } from "@/components/customer-itemized-order-layout";
 import { CustomerLiveEstimateFooter } from "@/components/customer-live-estimate-footer";
 import {
   WashFoldPackageBox,
@@ -18,11 +15,10 @@ import { theme } from "@/constants/theme";
 import type { CustomerOrderDraft } from "@/contexts/customer-order-draft-context";
 import { useCustomerOrderDraft } from "@/contexts/customer-order-draft-context";
 import { useLocale } from "@/contexts/locale-context";
-import { initialWashFoldQuantities } from "@/constants/wash-fold-items";
 import {
-  getWashFoldPackageDescription,
-  type WashFoldPackageCatalogKey,
-} from "@/constants/partner-wash-fold-items";
+  initialWashFoldQuantities,
+  WASH_FOLD_PACKAGE_DEFS,
+} from "@/constants/wash-fold-items";
 import { usePartnerOrderEstimate } from "@/hooks/use-partner-order-estimate";
 import {
   listPricedWashFoldDefs,
@@ -40,28 +36,17 @@ export default function WashFoldOrderScreen() {
   const sDet = getStrings(locale).customer.laundryBagDetail;
   const sLive = getStrings(locale).customer.liveEstimate;
 
-  const {
-    draft,
-    setWashFoldItemizedQuantities,
-    setWashFoldItemizedInstructions,
-  } = useCustomerOrderDraft();
+  const { draft, setWashFoldItemizedQuantities } = useCustomerOrderDraft();
 
   const [quantities, setQuantities] = useState<Record<string, number>>(() => ({
     ...initialWashFoldQuantities(),
     ...(draft.washFold?.itemizedQuantities ?? {}),
   }));
-  const [instructions, setInstructions] = useState(
-    () => draft.washFold?.itemizedInstructions ?? "",
-  );
   const [washFoldTab, setWashFoldTab] = useState<"items" | "packages">("items");
 
   useEffect(() => {
     setWashFoldItemizedQuantities(quantities);
   }, [quantities, setWashFoldItemizedQuantities]);
-
-  useEffect(() => {
-    setWashFoldItemizedInstructions(instructions.trim());
-  }, [instructions, setWashFoldItemizedInstructions]);
 
   const washOnlyDraft: CustomerOrderDraft = useMemo(
     () => ({
@@ -103,9 +88,36 @@ export default function WashFoldOrderScreen() {
   );
 
   const availablePackages = useMemo(
-    () => pricedDefs.filter((item) => item.kind === "package"),
-    [pricedDefs],
+    () =>
+      pricedDefs.filter(
+        (item) =>
+          item.kind === "package" &&
+          washFoldUnitForItem(services, item).amount != null,
+      ),
+    [pricedDefs, services],
   );
+
+  useEffect(() => {
+    const availableIds = new Set(availablePackages.map((def) => def.id));
+    setQuantities((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      for (const def of WASH_FOLD_PACKAGE_DEFS) {
+        if (!availableIds.has(def.id) && (next[def.id] ?? 0) > 0) {
+          next[def.id] = 0;
+          changed = true;
+        }
+      }
+      for (const def of pricedDefs) {
+        if (def.kind !== "package" || availableIds.has(def.id)) continue;
+        if ((next[def.id] ?? 0) > 0) {
+          next[def.id] = 0;
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [availablePackages, pricedDefs]);
 
   const hasSelectedItems = useMemo(
     () => Object.values(quantities).some((q) => q > 0),
@@ -156,16 +168,6 @@ export default function WashFoldOrderScreen() {
     return onboarding[def.id]?.trim() || def.name;
   };
 
-  const packageDescriptions = useMemo(
-    () => ({
-      washFoldPkg25: onboardingStrings.washFoldPkg25Desc,
-      washFoldPkg50: onboardingStrings.washFoldPkg50Desc,
-      washFoldPkg75: onboardingStrings.washFoldPkg75Desc,
-      washFoldPkg100: onboardingStrings.washFoldPkg100Desc,
-    }),
-    [onboardingStrings],
-  );
-
   const togglePackage = (id: string) => {
     setQuantities((prev) => ({
       ...prev,
@@ -175,7 +177,7 @@ export default function WashFoldOrderScreen() {
 
   const renderGarmentRow = (def: (typeof pricedDefs)[number]) => {
     const qty = quantities[def.id] ?? 0;
-    const { amount: unit, priceLabel } = washFoldUnitForItem(services, def);
+    const { amount: unit } = washFoldUnitForItem(services, def);
     const lineTotal =
       unit != null && qty > 0 ? Math.round(unit * qty * 100) / 100 : null;
 
@@ -183,14 +185,14 @@ export default function WashFoldOrderScreen() {
       <View key={def.id} style={styles.itemCard}>
         <View style={styles.itemLeft}>
           <Text style={styles.itemName}>{displayName(def)}</Text>
-          <Text style={styles.unitPrice}>
-            {unit != null
-              ? `${formatMoney(currencyPrefix || "", unit)} ${s.each} · ${priceLabel}`
-              : `Rate: ${priceLabel}`}
-          </Text>
+          {unit != null ? (
+            <Text style={styles.unitPrice}>
+              {formatMoney(currencyPrefix || "", unit)}
+            </Text>
+          ) : null}
           {qty > 0 && lineTotal != null ? (
             <Text style={styles.lineSubtotal}>
-              Subtotal: {formatMoney(currencyPrefix || "", lineTotal)}
+              {formatMoney(currencyPrefix || "", lineTotal)}
             </Text>
           ) : null}
         </View>
@@ -219,11 +221,6 @@ export default function WashFoldOrderScreen() {
     const selected = (quantities[def.id] ?? 0) > 0;
     const { amount: unit, priceLabel } = washFoldUnitForItem(services, def);
     const label = displayName(def);
-    const description = getWashFoldPackageDescription(
-      { id: def.id, label: def.name },
-      packageDescriptions as Record<WashFoldPackageCatalogKey, string>,
-      onboardingStrings.washFoldPackageBoxCustomDesc,
-    );
     const priceDisplay =
       unit != null ? formatMoney(currencyPrefix || "", unit) : priceLabel;
 
@@ -232,7 +229,7 @@ export default function WashFoldOrderScreen() {
         key={def.id}
         mode="customer"
         title={label}
-        description={description}
+        description=""
         priceDisplay={priceDisplay}
         selected={selected}
         onPress={() => togglePackage(def.id)}
@@ -259,6 +256,7 @@ export default function WashFoldOrderScreen() {
             {hasSelectedItems ? (
               <CustomerLiveEstimateFooter
                 strings={sLive}
+                partnerId={draft.partnerId}
                 partnerName={draft.partnerName}
                 loading={loading}
                 hasPartner={Boolean(draft.partnerId)}
@@ -274,9 +272,6 @@ export default function WashFoldOrderScreen() {
           </>
         }
       >
-          <Text style={styles.lead}>{s.lead}</Text>
-          <Text style={styles.disclaimer}>{s.estimateDisclaimer}</Text>
-
           {!draft.partnerId ? (
             <Text style={styles.emptyText}>{s.noPartner}</Text>
           ) : loading ? (
@@ -284,14 +279,11 @@ export default function WashFoldOrderScreen() {
           ) : error ? (
             <Text style={styles.emptyText}>{s.loadError}</Text>
           ) : !hasAnyRates ? (
-            <>
-              <Text style={styles.emptyText}>{s.noRates}</Text>
-              <Text style={styles.hintText}>{s.saveHint}</Text>
-            </>
+            <Text style={styles.emptyText}>{s.noRates}</Text>
           ) : null}
 
           {hasAnyRates ? (
-            <>
+            <View style={styles.listSection}>
               {showWashFoldTabs ? (
                 <View style={styles.tabRow}>
                   <Pressable
@@ -346,47 +338,20 @@ export default function WashFoldOrderScreen() {
               ) : null}
 
               {effectiveWashFoldTab === "items" ? (
-                <>
-                  <Text style={styles.tabLead}>
-                    {onboardingStrings.washFoldPricingLead}
-                  </Text>
-                  {availableGarments.length > 0 ? (
-                    availableGarments.map(renderGarmentRow)
-                  ) : (
-                    <Text style={styles.emptyText}>{s.noGarmentRates}</Text>
-                  )}
-                </>
+                availableGarments.length > 0 ? (
+                  availableGarments.map(renderGarmentRow)
+                ) : (
+                  <Text style={styles.emptyText}>{s.noGarmentRates}</Text>
+                )
+              ) : availablePackages.length > 0 ? (
+                <WashFoldPackageGrid>
+                  {availablePackages.map(renderPackageBox)}
+                </WashFoldPackageGrid>
               ) : (
-                <>
-                  <Text style={styles.tabLead}>
-                    {onboardingStrings.washFoldPackagesTabLead}
-                  </Text>
-                  <Text style={styles.sectionHint}>{s.packagesHint}</Text>
-                  {availablePackages.length > 0 ? (
-                    <WashFoldPackageGrid>
-                      {availablePackages.map(renderPackageBox)}
-                    </WashFoldPackageGrid>
-                  ) : (
-                    <Text style={styles.emptyText}>{s.noPackageRates}</Text>
-                  )}
-                </>
+                <Text style={styles.emptyText}>{s.noPackageRates}</Text>
               )}
-            </>
+            </View>
           ) : null}
-
-          <Text style={[styles.sectionLabel, styles.sectionLabelSpaced]}>
-            {sDet.instructions}
-          </Text>
-          <TextInput
-            style={styles.instructions}
-            value={instructions}
-            onChangeText={setInstructions}
-            placeholder={sDet.instructionsPlaceholder}
-            placeholderTextColor="rgba(0,0,0,0.4)"
-            multiline
-            numberOfLines={3}
-            textAlignVertical="top"
-          />
       </CustomerItemizedOrderLayout>
     </View>
   );
@@ -395,37 +360,18 @@ export default function WashFoldOrderScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: c.background },
   pressed: { opacity: 0.8 },
-  lead: {
-    fontSize: 15,
-    color: "rgba(255,255,255,0.8)",
-    lineHeight: 22,
-    marginBottom: 10,
-  },
-  disclaimer: {
-    fontSize: 13,
-    color: "rgba(255,255,255,0.65)",
-    lineHeight: 20,
-    marginBottom: 20,
-    fontStyle: "italic",
-  },
   scrollContent: {
-    paddingHorizontal: 24,
-    paddingTop: 8,
-    paddingBottom: 24,
+    paddingHorizontal: 20,
+    paddingTop: 4,
+    paddingBottom: 16,
   },
-  sectionLabel: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "rgba(255,255,255,0.55)",
-    textTransform: "uppercase",
-    letterSpacing: 0.6,
-    marginBottom: 8,
+  listSection: {
+    gap: 0,
   },
-  sectionLabelSpaced: { marginTop: 8 },
   tabRow: {
     flexDirection: "row",
     gap: 10,
-    marginBottom: 12,
+    marginBottom: 16,
   },
   tabBtn: {
     flex: 1,
@@ -466,29 +412,6 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: c.white,
   },
-  tabLead: {
-    fontSize: 14,
-    color: "rgba(255,255,255,0.75)",
-    lineHeight: 20,
-    marginBottom: 14,
-  },
-  sectionHint: {
-    fontSize: 13,
-    color: "rgba(255,255,255,0.6)",
-    marginBottom: 12,
-    lineHeight: 18,
-  },
-  instructions: {
-    backgroundColor: c.white,
-    borderRadius: 14,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 15,
-    color: c.themeBlack,
-    minHeight: 88,
-    maxHeight: CUSTOMER_ORDER_NOTES_MAX_HEIGHT,
-    marginBottom: 12,
-  },
   itemCard: {
     flexDirection: "row",
     alignItems: "center",
@@ -497,33 +420,29 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     paddingVertical: 14,
     paddingHorizontal: 14,
-    marginBottom: 12,
+    marginBottom: 10,
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.15)",
   },
   itemLeft: { flex: 1, paddingRight: 12 },
-  itemName: { fontSize: 17, fontWeight: "700", color: c.white },
+  itemName: { fontSize: 16, fontWeight: "700", color: c.white },
   unitPrice: {
     fontSize: 13,
     color: "rgba(255,255,255,0.65)",
-    marginTop: 4,
+    marginTop: 2,
   },
   lineSubtotal: {
     fontSize: 14,
     fontWeight: "700",
     color: c.lightBlue,
-    marginTop: 6,
+    marginTop: 4,
   },
   emptyText: {
     color: "rgba(255,255,255,0.75)",
     fontSize: 14,
     marginBottom: 12,
-  },
-  hintText: {
-    color: "rgba(255,255,255,0.55)",
-    fontSize: 13,
-    lineHeight: 19,
-    marginBottom: 12,
+    textAlign: "center",
+    paddingVertical: 24,
   },
   stepper: { flexDirection: "row", alignItems: "center", gap: 10 },
   stepperBtn: {

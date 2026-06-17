@@ -21,10 +21,17 @@ import { OrderCard } from "@/components/order-card";
 import { AppHeader } from "@/components/app-header";
 import { useConfirmDialog } from "@/components/confirm-dialog";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
+import { PartnerRiderPickerModal } from "@/components/partner-rider-picker-modal";
 import { theme } from "@/constants/theme";
+import { useAuth } from "@/contexts/auth-context";
 import { useLocale } from "@/contexts/locale-context";
+import {
+  acceptOrderWithRider,
+  partnerOrderNeedsRider,
+} from "@/lib/order-rider-assignment";
 import { partnerUpdateOrderStatus } from "@/lib/partner-order-status";
 import { fetchPartnerOrders, type PartnerOrderListItem } from "@/lib/partner-orders";
+import { fetchPartnerRiders, type PartnerRider } from "@/lib/partner-riders";
 import { getStrings } from "@/locales";
 
 const c = theme.colors;
@@ -47,6 +54,7 @@ export default function PartnerOrderScreen() {
   const canGoBack = navigation.canGoBack();
   const params = useLocalSearchParams<{ filter?: string }>();
   const { locale } = useLocale();
+  const { user } = useAuth();
   const s = getStrings(locale).partner.order;
 
   const initialFilter =
@@ -68,6 +76,11 @@ export default function PartnerOrderScreen() {
   const { confirm, dialog } = useConfirmDialog();
   const { isWeb } = useResponsiveLayout();
   const custStrings = getStrings(locale).customer.ordersTab;
+  const [riderModalVisible, setRiderModalVisible] = useState(false);
+  const [pendingAcceptOrderId, setPendingAcceptOrderId] = useState<string | null>(null);
+  const [partnerRiders, setPartnerRiders] = useState<PartnerRider[]>([]);
+  const [loadingRiders, setLoadingRiders] = useState(false);
+  const [selectedRiderId, setSelectedRiderId] = useState<string | null>(null);
 
   const filterLabels: Record<OrderFilter, string> = {
     pending: "Pending",
@@ -164,6 +177,86 @@ export default function PartnerOrderScreen() {
     },
     [],
   );
+
+  const openAcceptFlow = useCallback(
+    async (order: PartnerOrderListItem) => {
+      if (!partnerOrderNeedsRider(order)) {
+        void handleOrderAction(order.id, "accepted");
+        return;
+      }
+
+      if (!user?.id) return;
+
+      setPendingAcceptOrderId(order.id);
+      setSelectedRiderId(null);
+      setLoadingRiders(true);
+      setRiderModalVisible(true);
+
+      try {
+        const riders = await fetchPartnerRiders(user.id);
+        setPartnerRiders(riders);
+        if (riders.length === 0) {
+          setRiderModalVisible(false);
+          setPendingAcceptOrderId(null);
+          Alert.alert(s.noRidersTitle, s.noRidersMessage);
+        }
+      } catch (error) {
+        setRiderModalVisible(false);
+        setPendingAcceptOrderId(null);
+        Alert.alert(
+          "Unable to load riders",
+          error instanceof Error ? error.message : "Please try again.",
+        );
+      } finally {
+        setLoadingRiders(false);
+      }
+    },
+    [
+      handleOrderAction,
+      s.noRidersMessage,
+      s.noRidersTitle,
+      user?.id,
+    ],
+  );
+
+  const confirmRiderAccept = useCallback(async () => {
+    if (!pendingAcceptOrderId || !user?.id) return;
+    if (!selectedRiderId) {
+      Alert.alert(s.selectRiderRequired);
+      return;
+    }
+
+    try {
+      setActionOrderId(pendingAcceptOrderId);
+      await acceptOrderWithRider({
+        orderId: pendingAcceptOrderId,
+        partnerId: user.id,
+        riderId: selectedRiderId,
+      });
+      setOrders((prev) =>
+        prev.map((order) =>
+          order.id === pendingAcceptOrderId
+            ? {
+                ...order,
+                status: "accepted",
+                rawStatus: "accepted",
+              }
+            : order,
+        ),
+      );
+      setRiderModalVisible(false);
+      setPendingAcceptOrderId(null);
+      setSelectedRiderId(null);
+      Alert.alert("Order accepted", s.acceptSuccess);
+    } catch (error) {
+      Alert.alert(
+        "Unable to accept order",
+        error instanceof Error ? error.message : "Please try again.",
+      );
+    } finally {
+      setActionOrderId(null);
+    }
+  }, [pendingAcceptOrderId, s.acceptSuccess, s.selectRiderRequired, selectedRiderId, user?.id]);
 
   const openRejectModal = useCallback((orderId: string) => {
     setPendingRejectOrderId(orderId);
@@ -348,7 +441,7 @@ export default function PartnerOrderScreen() {
                 detailRows={detailRows}
                 onAccept={
                   order.status === "pending"
-                    ? () => handleOrderAction(order.id, "accepted")
+                    ? () => void openAcceptFlow(order)
                     : undefined
                 }
                 onReject={
@@ -426,6 +519,25 @@ export default function PartnerOrderScreen() {
           })
         )}
       </ScrollView>
+      <PartnerRiderPickerModal
+        visible={riderModalVisible}
+        riders={partnerRiders}
+        loading={loadingRiders}
+        selectedRiderId={selectedRiderId}
+        title={s.selectRiderTitle}
+        subtitle={s.selectRiderSubtitle}
+        confirmLabel={s.selectRiderConfirm}
+        cancelLabel={s.selectRiderCancel}
+        loadingLabel={s.loadingRiders}
+        emptyLabel={s.noRidersMessage}
+        onSelectRider={setSelectedRiderId}
+        onConfirm={() => void confirmRiderAccept()}
+        onClose={() => {
+          setRiderModalVisible(false);
+          setPendingAcceptOrderId(null);
+          setSelectedRiderId(null);
+        }}
+      />
       <Modal
         visible={rejectModalVisible}
         transparent

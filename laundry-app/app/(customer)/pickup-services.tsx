@@ -1,5 +1,5 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -21,7 +21,11 @@ import { strings } from "@/constants/strings";
 import type { LaundererServiceType } from "@/constants/launderers";
 import { theme } from "@/constants/theme";
 import { useCustomerOrderDraft } from "@/contexts/customer-order-draft-context";
-import { fetchPartnerDetail, serviceCategoriesToTypes } from "@/lib/partner-discovery";
+import {
+  fetchPartnerDetail,
+  partnerOffersPickupDelivery,
+  serviceCategoriesToTypes,
+} from "@/lib/partner-discovery";
 import {
   dryCleanUnitForItem,
   listPricedDryCleanDefs,
@@ -45,6 +49,8 @@ const SERVICE_KEYS: LaundererServiceType[] = [
 
 export default function PickupServicesScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ mode?: string }>();
+  const prefersPickupDelivery = params.mode === "pickupDelivery";
   const insets = useSafeAreaInsets();
   const { draft, editingOrderId, setPickupDeliveryRequested, setSelectedServiceIds } =
     useCustomerOrderDraft();
@@ -57,6 +63,7 @@ export default function PickupServicesScreen() {
   >([]);
   const [pickupDeliveryEnabled, setPickupDeliveryEnabled] = useState(false);
   const [pickupFeeLabel, setPickupFeeLabel] = useState<string | null>(null);
+  const showPickupToggle = pickupDeliveryEnabled && !prefersPickupDelivery;
 
   useEffect(() => {
     let cancelled = false;
@@ -79,13 +86,12 @@ export default function PickupServicesScreen() {
         .filter((id): id is ServiceId => SERVICE_KEYS.includes(id))
         .filter((id, idx, arr) => arr.indexOf(id) === idx);
       setPartnerServiceTypes(available);
-      const pickupEnabled = Boolean(profile?.pickup_delivery_amount?.trim());
-      const requested = draft.pickupDeliveryRequested;
-      setPickupDeliveryEnabled(pickupEnabled && requested);
+      const pickupEnabled = partnerOffersPickupDelivery(profile);
+      setPickupDeliveryEnabled(pickupEnabled);
       setPickupFeeLabel(profile?.pickup_delivery_amount?.trim() || null);
-      if (!pickupEnabled && !requested) {
+      if (!pickupEnabled) {
         setPickupDeliveryRequested(false);
-      } else if (requested) {
+      } else if (prefersPickupDelivery) {
         setPickupDeliveryRequested(true);
       }
       setLoading(false);
@@ -94,7 +100,7 @@ export default function PickupServicesScreen() {
     return () => {
       cancelled = true;
     };
-  }, [draft.partnerId, draft.pickupDeliveryRequested, setPickupDeliveryRequested]);
+  }, [draft.partnerId, prefersPickupDelivery, setPickupDeliveryRequested]);
 
   const servicesToShow = useMemo(() => {
     if (partnerServiceTypes.length > 0) return partnerServiceTypes;
@@ -236,6 +242,11 @@ export default function PickupServicesScreen() {
         />
       </SafeAreaView>
 
+      {loading ? (
+        <View style={styles.fullScreenLoader}>
+          <ActivityIndicator color={c.white} size="large" />
+        </View>
+      ) : (
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={[
@@ -320,31 +331,33 @@ export default function PickupServicesScreen() {
               </View>
             );
           })}
-          {draft.partnerId && servicesToShow.length === 0 ? (
-            <Text style={styles.emptyText}>No services configured by this launderer yet.</Text>
-          ) : null}
-
-          {pickupDeliveryEnabled ? (
-            <View style={styles.pickupRow}>
-              <View style={styles.pickupTextWrap}>
-                <Text style={styles.pickupTitle}>{s.includePickupDelivery}</Text>
-                <Text style={styles.pickupSub}>
-                  {pickupFeeLabel
-                    ? s.pickupDeliveryFee.replace("{amount}", pickupFeeLabel)
-                    : s.pickupDeliveryFeeUnknown}
+              {draft.partnerId && servicesToShow.length === 0 ? (
+                <Text style={styles.emptyText}>
+                  No services configured by this launderer yet.
                 </Text>
-              </View>
-              <Switch
-                value={draft.pickupDeliveryRequested}
-                onValueChange={setPickupDeliveryRequested}
-                trackColor={{
-                  false: "rgba(255,255,255,0.3)",
-                  true: c.blue500,
-                }}
-                thumbColor={c.white}
-              />
-            </View>
-          ) : null}
+              ) : null}
+
+              {showPickupToggle ? (
+                <View style={styles.pickupRow}>
+                  <View style={styles.pickupTextWrap}>
+                    <Text style={styles.pickupTitle}>{s.includePickupDelivery}</Text>
+                    <Text style={styles.pickupSub}>
+                      {pickupFeeLabel
+                        ? s.pickupDeliveryFee.replace("{amount}", pickupFeeLabel)
+                        : s.pickupDeliveryFeeUnknown}
+                    </Text>
+                  </View>
+                  <Switch
+                    value={draft.pickupDeliveryRequested}
+                    onValueChange={setPickupDeliveryRequested}
+                    trackColor={{
+                      false: "rgba(255,255,255,0.3)",
+                      true: c.blue500,
+                    }}
+                    thumbColor={c.white}
+                  />
+                </View>
+              ) : null}
         </View>
         <View style={styles.spacer} />
         <Pressable
@@ -354,6 +367,7 @@ export default function PickupServicesScreen() {
           <Text style={styles.confirmLabel}>{s.confirm}</Text>
         </Pressable>
       </ScrollView>
+      )}
     </View>
   );
 }
@@ -531,8 +545,8 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "rgba(255,255,255,0.75)",
   },
-  loadingContainer: {
-    paddingVertical: 40,
+  fullScreenLoader: {
+    flex: 1,
     alignItems: "center",
     justifyContent: "center",
   },

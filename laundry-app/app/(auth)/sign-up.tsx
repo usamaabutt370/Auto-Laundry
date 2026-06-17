@@ -114,23 +114,19 @@ export default function SignUpScreen() {
 
       const user = data.user;
 
-      // 2) Create/update profile row to map phone → email for phone-login later.
+      // 2) Create profile row so phone-login and RLS account checks work.
       if (user) {
-        try {
-          await supabase.from("profiles").upsert(
-            {
-              id: user.id,
-              email: generatedEmail,
-              phone: normalizedPhone,
-              full_name: fullName,
-              first_name: firstName,
-              last_name: lastName,
-              role: "customer",
-            },
-            { onConflict: "id" }
-          );
-        } catch {
-          // Ignore profile errors for now; auth account is still created.
+        const { error: profileError } = await supabase.rpc("bootstrap_user_profile", {
+          p_email: generatedEmail,
+          p_phone: normalizedPhone,
+          p_full_name: fullName,
+          p_first_name: firstName,
+          p_last_name: lastName,
+          p_role: "customer",
+        });
+        if (profileError) {
+          showAuthError("Profile setup failed", profileError.message);
+          return;
         }
       }
 

@@ -147,7 +147,10 @@ export default function UserInfo() {
           .eq("id", user.id);
         if (error) throw error;
         await refreshRole();
-        let destination: "/(partner)" | "/(partner)/onboarding?from=role_switch" | "/(customer)" = value
+        let destination:
+          | "/(partner)"
+          | "/(partner)/onboarding?from=role_switch&returnTo=customer_userinfo"
+          | "/(customer)" = value
           ? "/(partner)"
           : "/(customer)";
         if (value) {
@@ -162,7 +165,7 @@ export default function UserInfo() {
               .maybeSingle();
             if (partnerProfileError) throw partnerProfileError;
             if (!partnerProfile) {
-              destination = "/(partner)/onboarding?from=role_switch";
+              destination = "/(partner)/onboarding?from=role_switch&returnTo=customer_userinfo";
             }
           }
         }

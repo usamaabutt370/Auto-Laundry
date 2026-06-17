@@ -108,6 +108,7 @@ export default function TailoringItemizedByUserScreen() {
             {hasSelectedItems ? (
               <CustomerLiveEstimateFooter
                 strings={sLive}
+                partnerId={draft.partnerId}
                 partnerName={draft.partnerName}
                 loading={loading}
                 hasPartner={Boolean(draft.partnerId)}

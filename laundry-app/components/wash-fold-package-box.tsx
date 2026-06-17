@@ -89,7 +89,9 @@ export function WashFoldPackageBox(props: WashFoldPackageBoxProps) {
       <Text style={styles.title} numberOfLines={2}>
         {title}
       </Text>
-      <Text style={styles.subInfo}>{description}</Text>
+      {description.trim().length > 0 ? (
+        <Text style={styles.subInfo}>{description}</Text>
+      ) : null}
       <View style={styles.priceBlock}>
         {props.mode === "partner" ? (
           <TextInput

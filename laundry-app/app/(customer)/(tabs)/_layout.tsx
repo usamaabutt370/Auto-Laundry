@@ -1,80 +1,33 @@
-import { Image } from "expo-image";
-import { Tabs } from "expo-router";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-
-import {
-  bottomTabIconStyle,
-  getBottomTabScreenOptionsForPlatform,
-} from "@/components/bottom-tab-bar";
+import { AppTabsLayout, HOME_TAB_ICON_SCALE, type AppTabItem } from "@/components/bottom-tab-bar";
 import { strings } from "@/constants/strings";
 import { assets } from "@/assets/assets";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 
+const customerTabs: AppTabItem[] = [
+  {
+    name: "index",
+    title: strings.tabs.customer.home,
+    icon: assets.icons.home_icon,
+    iconScale: HOME_TAB_ICON_SCALE,
+  },
+  {
+    name: "order",
+    title: strings.tabs.customer.order,
+    icon: assets.icons.order_icon,
+  },
+  {
+    name: "chat",
+    title: strings.tabs.customer.chat,
+    icon: assets.icons.msg_icon,
+  },
+  {
+    name: "profile",
+    title: strings.tabs.customer.profile,
+    icon: assets.icons.profile_icon,
+  },
+];
+
 export default function CustomerTabsLayout() {
-  const insets = useSafeAreaInsets();
-  const tabBarBottom = Math.max(insets.bottom, 8);
   const { hideBottomTabBar } = useResponsiveLayout();
-
-  return (
-    <Tabs
-      screenOptions={{
-        ...getBottomTabScreenOptionsForPlatform(tabBarBottom, hideBottomTabBar),
-        sceneContainerStyle: { flex: 1, backgroundColor: "transparent" },
-      }}
-    >
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: strings.tabs.customer.home,
-          tabBarIcon: ({ color }) => (
-            <Image
-              source={assets.icons.home_icon}
-              style={[bottomTabIconStyle, { tintColor: color }]}
-              contentFit="contain"
-            />
-          ),
-        }}
-      />
-
-      <Tabs.Screen
-        name="order"
-        options={{
-          title: strings.tabs.customer.order,
-          tabBarIcon: ({ color }) => (
-            <Image
-              source={assets.icons.order_icon}
-              style={[bottomTabIconStyle, { tintColor: color }]}
-              contentFit="contain"
-            />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="chat"
-        options={{
-          title: strings.tabs.customer.chat,
-          tabBarIcon: ({ color }) => (
-            <Image
-              source={assets.icons.msg_icon}
-              style={[bottomTabIconStyle, { tintColor: color }]}
-              contentFit="contain"
-            />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: strings.tabs.customer.profile,
-          tabBarIcon: ({ color }) => (
-            <Image
-              source={assets.icons.profile_icon}
-              style={[bottomTabIconStyle, { tintColor: color }]}
-              contentFit="contain"
-            />
-          ),
-        }}
-      />
-    </Tabs>
-  );
+  return <AppTabsLayout tabs={customerTabs} hideTabBar={hideBottomTabBar} />;
 }

@@ -21,6 +21,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AppHeader } from "@/components/app-header";
 import { useConfirmDialog } from "@/components/confirm-dialog";
+import { PartnerNameWithBadge } from "@/components/partner-name-with-badge";
 import { useAuth } from "@/contexts/auth-context";
 import { useLocale } from "@/contexts/locale-context";
 import { useSidebar } from "@/contexts/sidebar-context";
@@ -376,7 +377,11 @@ export default function CustomerOrderScreen() {
                       ) : null}
                     </View>
                   </View>
-                  <Text style={styles.partnerName}>{order.partnerName}</Text>
+                  <PartnerNameWithBadge
+                    name={order.partnerName}
+                    verified={order.partnerVerified}
+                    nameStyle={styles.partnerName}
+                  />
                   {(order.scheduleLines.length > 0
                     ? order.scheduleLines
                     : [s.schedulePending]

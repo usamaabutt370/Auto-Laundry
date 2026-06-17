@@ -136,9 +136,10 @@ export default function CustomerProfileMenu() {
 				.eq("id", user.id);
 			if (error) throw error;
 			await refreshRole();
-			let destination: "/(partner)" | "/(partner)/onboarding?from=role_switch" | "/(customer)" = value
-				? "/(partner)"
-				: "/(customer)";
+			let destination:
+				| "/(partner)"
+				| "/(partner)/onboarding?from=role_switch&returnTo=customer_profile"
+				| "/(customer)" = value ? "/(partner)" : "/(customer)";
 			if (value) {
 				const { data: onboardingRequest, error: onboardingError } =
 					await fetchPartnerOnboardingRequest(user.id);
@@ -151,7 +152,7 @@ export default function CustomerProfileMenu() {
 						.maybeSingle();
 					if (partnerProfileError) throw partnerProfileError;
 					if (!partnerProfile) {
-						destination = "/(partner)/onboarding?from=role_switch";
+						destination = "/(partner)/onboarding?from=role_switch&returnTo=customer_profile";
 					}
 				}
 			}

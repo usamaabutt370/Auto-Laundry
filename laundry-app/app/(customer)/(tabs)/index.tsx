@@ -119,6 +119,8 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 24,
     paddingHorizontal: 24,
     paddingTop: 24,
+    paddingBottom: 24,
+    minHeight: 160,
   },
   serviceCardTitle: {
     fontSize: 18,
