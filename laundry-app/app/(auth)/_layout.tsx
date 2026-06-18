@@ -1,7 +1,10 @@
 import { Stack } from "expo-router";
 
+import { WebAuthShell } from "@/components/web-shells";
+
 export default function AuthLayout() {
   return (
+    <WebAuthShell>
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="index" />
       <Stack.Screen name="welcome" />
@@ -11,5 +14,6 @@ export default function AuthLayout() {
       <Stack.Screen name="role-select" />
       <Stack.Screen name="reset-password" />
     </Stack>
+    </WebAuthShell>
   );
 }

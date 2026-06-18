@@ -19,6 +19,8 @@ import { Swipeable } from "react-native-gesture-handler";
 
 import { OrderCard } from "@/components/order-card";
 import { AppHeader } from "@/components/app-header";
+import { useConfirmDialog } from "@/components/confirm-dialog";
+import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { PartnerRiderPickerModal } from "@/components/partner-rider-picker-modal";
 import { theme } from "@/constants/theme";
 import { useAuth } from "@/contexts/auth-context";
@@ -71,6 +73,9 @@ export default function PartnerOrderScreen() {
   const [pendingRejectOrderId, setPendingRejectOrderId] = useState<string | null>(null);
   const [selectedRejectionOption, setSelectedRejectionOption] = useState<RejectionOption | null>(null);
   const [otherRejectionReason, setOtherRejectionReason] = useState("");
+  const { confirm, dialog } = useConfirmDialog();
+  const { isWeb } = useResponsiveLayout();
+  const custStrings = getStrings(locale).customer.ordersTab;
   const [riderModalVisible, setRiderModalVisible] = useState(false);
   const [pendingAcceptOrderId, setPendingAcceptOrderId] = useState<string | null>(null);
   const [partnerRiders, setPartnerRiders] = useState<PartnerRider[]>([]);
@@ -313,8 +318,36 @@ export default function PartnerOrderScreen() {
     }
   }, []);
 
+  const confirmDelete = useCallback(
+    async (orderId: string) => {
+      const ok = await confirm({
+        title: custStrings.deleteTitle,
+        message: custStrings.deleteMessage,
+        confirmLabel: custStrings.deleteAction,
+        cancelLabel: custStrings.cancel,
+        destructive: true,
+      });
+      if (!ok) return;
+      try {
+        try {
+          await partnerUpdateOrderStatus(orderId, "cancelled");
+        } catch {
+          // ignore backend failure; still remove locally
+        }
+        setOrders((prev) => prev.filter((o) => o.id !== orderId));
+      } catch (e) {
+        Alert.alert(
+          custStrings.deleteError,
+          e instanceof Error ? e.message : String(e),
+        );
+      }
+    },
+    [confirm, custStrings.cancel, custStrings.deleteAction, custStrings.deleteError, custStrings.deleteMessage, custStrings.deleteTitle],
+  );
+
   return (
     <View style={styles.container}>
+      {dialog}
       <SafeAreaView edges={["top"]} style={styles.safeArea}>
         <AppHeader
           title={s.title}
@@ -398,32 +431,61 @@ export default function PartnerOrderScreen() {
               order.rawStatus === "in_progress" ||
               order.rawStatus === "ready";
 
-            const custStrings = getStrings(locale).customer.ordersTab;
+            const orderCard = (
+              <OrderCard
+                customerName={order.customerName}
+                initial={order.initial}
+                subtitle={order.subtitle}
+                rightIcon={order.rightIcon ?? "none"}
+                statusLabel={order.status}
+                detailRows={detailRows}
+                onAccept={
+                  order.status === "pending"
+                    ? () => void openAcceptFlow(order)
+                    : undefined
+                }
+                onReject={
+                  order.status === "pending"
+                    ? () => openRejectModal(order.id)
+                    : undefined
+                }
+                onComplete={
+                  canComplete ? () => handleCompleteOrder(order.id) : undefined
+                }
+                completeLabel={s.completeOrder}
+                actionsDisabled={actionOrderId === order.id}
+                onPress={() =>
+                  router.push({
+                    pathname: "/(partner)/order-detail",
+                    params: { orderId: order.id },
+                  })
+                }
+              />
+            );
 
-            const confirmDelete = (orderId: string) => {
-              Alert.alert(custStrings.deleteTitle, custStrings.deleteMessage, [
-                { text: custStrings.cancel, style: "cancel" },
-                {
-                  text: custStrings.deleteAction,
-                  style: "destructive",
-                  onPress: async () => {
-                    try {
-                      try {
-                        await partnerUpdateOrderStatus(orderId, "cancelled");
-                      } catch (e) {
-                        // ignore backend failure; still remove locally
-                      }
-                      setOrders((prev) => prev.filter((o) => o.id !== orderId));
-                    } catch (e) {
-                      Alert.alert(
-                        custStrings.deleteError,
-                        e instanceof Error ? e.message : String(e),
-                      );
-                    }
-                  },
-                },
-              ]);
-            };
+            if (isWeb) {
+              return (
+                <View key={order.id} style={styles.webOrderWrap}>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={custStrings.deleteAction}
+                    onPress={() => void confirmDelete(order.id)}
+                    style={({ pressed }) => [
+                      styles.webDeleteRowBtn,
+                      pressed && styles.pressed,
+                    ]}
+                  >
+                    <MaterialCommunityIcons
+                      name="trash-can-outline"
+                      size={18}
+                      color="#fecaca"
+                    />
+                    <Text style={styles.webDeleteRowText}>{custStrings.deleteAction}</Text>
+                  </Pressable>
+                  {orderCard}
+                </View>
+              );
+            }
 
             return (
               <Swipeable
@@ -435,7 +497,7 @@ export default function PartnerOrderScreen() {
                     <Pressable
                       accessibilityRole="button"
                       accessibilityLabel={custStrings.deleteAction}
-                      onPress={() => confirmDelete(order.id)}
+                      onPress={() => void confirmDelete(order.id)}
                       style={({ pressed }) => [
                         styles.swipeDeleteBtn,
                         pressed && styles.pressed,
@@ -451,35 +513,7 @@ export default function PartnerOrderScreen() {
                   </View>
                 )}
               >
-                <OrderCard
-                  customerName={order.customerName}
-                  initial={order.initial}
-                  subtitle={order.subtitle}
-                  rightIcon={order.rightIcon ?? "none"}
-                  statusLabel={order.status}
-                  detailRows={detailRows}
-                  onAccept={
-                    order.status === "pending"
-                      ? () => void openAcceptFlow(order)
-                      : undefined
-                  }
-                  onReject={
-                    order.status === "pending"
-                      ? () => openRejectModal(order.id)
-                      : undefined
-                  }
-                  onComplete={
-                    canComplete ? () => handleCompleteOrder(order.id) : undefined
-                  }
-                  completeLabel={s.completeOrder}
-                  actionsDisabled={actionOrderId === order.id}
-                  onPress={() =>
-                    router.push({
-                      pathname: "/(partner)/order-detail",
-                      params: { orderId: order.id },
-                    })
-                  }
-                />
+                {orderCard}
               </Swipeable>
             );
           })
@@ -742,6 +776,24 @@ const styles = StyleSheet.create({
   },
   swipeDeleteText: {
     color: c.white,
+    fontSize: fs.xxSmallText,
+    fontWeight: "700",
+  },
+  webOrderWrap: {
+    gap: 8,
+  },
+  webDeleteRowBtn: {
+    alignSelf: "flex-end",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    backgroundColor: "rgba(185, 28, 28, 0.2)",
+  },
+  webDeleteRowText: {
+    color: "#fecaca",
     fontSize: fs.xxSmallText,
     fontWeight: "700",
   },

@@ -172,8 +172,29 @@ export function getBottomTabScreenOptions(tabBarBottom: number) {
 }
 
 /** Total vertical space reserved above the home indicator / screen bottom. */
-export function getTabBarBottomInset(tabBarBottom: number) {
+export function getTabBarBottomInset(tabBarBottom: number, hideTabBar = false) {
+  if (hideTabBar) {
+    return Math.max(tabBarBottom, 20);
+  }
   return TAB_BAR_HEIGHT + tabBarBottom;
+}
+
+export function getBottomTabScreenOptionsForPlatform(
+  tabBarBottom: number,
+  hideTabBar: boolean,
+) {
+  const base = getBottomTabScreenOptions(tabBarBottom);
+  if (!hideTabBar) {
+    return base;
+  }
+  return {
+    ...base,
+    tabBarStyle: {
+      ...base.tabBarStyle,
+      display: "none" as const,
+      height: 0,
+    },
+  };
 }
 
 export type AppTabItem = {
@@ -204,12 +225,12 @@ function renderTabIcon(icon: ImageSource, color: string, iconScale = 1) {
 }
 
 /** Shared bottom tabs shell for customer and partner flows. */
-export function AppTabsLayout({ tabs }: { tabs: AppTabItem[] }) {
+export function AppTabsLayout({ tabs, hideTabBar = false }: { tabs: AppTabItem[]; hideTabBar?: boolean }) {
   const insets = useSafeAreaInsets();
   const tabBarBottom = Math.max(insets.bottom, 8);
 
   return (
-    <Tabs screenOptions={getBottomTabScreenOptions(tabBarBottom)}>
+    <Tabs screenOptions={getBottomTabScreenOptionsForPlatform(tabBarBottom, hideTabBar)}>
       {tabs.map((tab) => (
         <Tabs.Screen
           key={tab.name}

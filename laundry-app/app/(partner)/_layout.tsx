@@ -1,6 +1,7 @@
 import { Stack } from "expo-router";
 
 import { PartnerSidebar } from "@/components/partner-sidebar";
+import { WebAreaShell } from "@/components/web-layout";
 import { MerchantServicesProvider } from "@/contexts/merchant-services-context";
 import { SidebarProvider } from "@/contexts/sidebar-context";
 
@@ -19,6 +20,7 @@ export default function PartnerLayout() {
     <SidebarProvider>
       <MerchantServicesProvider>
         <PartnerSidebar />
+        <WebAreaShell area="partner">
         <Stack
           screenOptions={{ headerShown: false }}
           initialRouteName="(tabs)"
@@ -38,6 +40,7 @@ export default function PartnerLayout() {
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="onboarding" />
         </Stack>
+        </WebAreaShell>
       </MerchantServicesProvider>
     </SidebarProvider>
   );

@@ -24,10 +24,14 @@ import {
   serviceCategoriesToTypes,
 } from "@/lib/partner-discovery";
 import { AppHeader } from "@/components/app-header";
+import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { PartnerNameWithBadge } from "@/components/partner-name-with-badge";
 import { usePartnerVerified } from "@/hooks/use-partner-verified";
 
 const c = theme.colors;
+
+const HERO_IMAGE_HEIGHT_MOBILE = 200;
+const HERO_IMAGE_HEIGHT_WEB = 450;
 
 const PLACEHOLDER_RATING = 4.5;
 const DISTANCE_PLACEHOLDER = "—";
@@ -55,6 +59,8 @@ export function LaundererDetailView({
 }: LaundererDetailViewProps) {
   const s = strings.customer.laundererDetail;
   const sServices = strings.customer.pickupServices;
+  const { isWeb } = useResponsiveLayout();
+  const heroImageHeight = isWeb ? HERO_IMAGE_HEIGHT_WEB : HERO_IMAGE_HEIGHT_MOBILE;
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -209,7 +215,11 @@ export function LaundererDetailView({
                 <Image
                   key={`${uri}-${index}`}
                   source={{ uri }}
-                  style={[styles.heroImage, heroWidth ? { width: heroWidth } : null]}
+                  style={[
+                    styles.heroImage,
+                    { height: heroImageHeight },
+                    heroWidth ? { width: heroWidth } : null,
+                  ]}
                   contentFit="cover"
                 />
               ))}
@@ -249,7 +259,7 @@ export function LaundererDetailView({
         ) : (
           <Image
             source={assets.onboarding.slide2}
-            style={styles.heroImage}
+            style={[styles.heroImage, { height: heroImageHeight }]}
             contentFit="cover"
           />
         )}
@@ -363,7 +373,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   heroImage: {
-    height: 200,
     borderRadius: 16,
     resizeMode: "cover",
     backgroundColor: c.blue900,

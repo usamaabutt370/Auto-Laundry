@@ -15,7 +15,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
-import { type CountryCode } from "react-native-country-picker-modal";
+import type { CountryCode } from "libphonenumber-js";
 
 export default function LoginScreen() {
   const router = useRouter();

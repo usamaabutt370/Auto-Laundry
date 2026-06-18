@@ -1,6 +1,7 @@
 import { Stack } from "expo-router";
 
 import { Sidebar } from "@/components/sidebar";
+import { WebAreaShell } from "@/components/web-layout";
 import { CustomerOrderDraftProvider } from "@/contexts/customer-order-draft-context";
 import { SidebarProvider } from "@/contexts/sidebar-context";
 
@@ -9,6 +10,7 @@ export default function CustomerLayout() {
     <SidebarProvider>
       <CustomerOrderDraftProvider>
         <Sidebar />
+        <WebAreaShell area="customer">
         <Stack
           screenOptions={{
             headerShown: false,
@@ -38,6 +40,7 @@ export default function CustomerLayout() {
           />
           <Stack.Screen name="launderer-detail" />
         </Stack>
+        </WebAreaShell>
       </CustomerOrderDraftProvider>
     </SidebarProvider>
   );

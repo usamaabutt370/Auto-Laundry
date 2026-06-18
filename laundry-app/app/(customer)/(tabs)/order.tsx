@@ -20,11 +20,13 @@ import { Swipeable } from "react-native-gesture-handler";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AppHeader } from "@/components/app-header";
+import { useConfirmDialog } from "@/components/confirm-dialog";
 import { PartnerNameWithBadge } from "@/components/partner-name-with-badge";
 import { useAuth } from "@/contexts/auth-context";
 import { useLocale } from "@/contexts/locale-context";
 import { useSidebar } from "@/contexts/sidebar-context";
 import { useCustomerOrders } from "@/hooks/use-customer-orders";
+import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import {
   findOrdersMissingFeedback,
   submitCustomerOrderFeedback,
@@ -67,6 +69,8 @@ export default function CustomerOrderScreen() {
   const { open: openSidebar } = useSidebar();
   const s = getStrings(locale).customer.ordersTab;
   const { orders, loading, error, refresh, deleteOrder } = useCustomerOrders(user?.id);
+  const { confirm, dialog } = useConfirmDialog();
+  const { isWeb } = useResponsiveLayout();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [feedbackVisible, setFeedbackVisible] = useState(false);
   const [feedbackOrderId, setFeedbackOrderId] = useState<string | null>(null);
@@ -88,28 +92,22 @@ export default function CustomerOrderScreen() {
   }, [refresh]);
 
   const confirmDelete = useCallback(
-    (orderId: string) => {
-      Alert.alert(s.deleteTitle, s.deleteMessage, [
-        { text: s.cancel, style: "cancel" },
-        {
-          text: s.deleteAction,
-          style: "destructive",
-          onPress: () => {
-            void (async () => {
-              try {
-                await deleteOrder(orderId);
-              } catch (e) {
-                Alert.alert(
-                  s.deleteError,
-                  e instanceof Error ? e.message : String(e),
-                );
-              }
-            })();
-          },
-        },
-      ]);
+    async (orderId: string) => {
+      const ok = await confirm({
+        title: s.deleteTitle,
+        message: s.deleteMessage,
+        confirmLabel: s.deleteAction,
+        cancelLabel: s.cancel,
+        destructive: true,
+      });
+      if (!ok) return;
+      try {
+        await deleteOrder(orderId);
+      } catch (e) {
+        Alert.alert(s.deleteError, e instanceof Error ? e.message : String(e));
+      }
     },
-    [s, deleteOrder],
+    [confirm, deleteOrder, s.cancel, s.deleteAction, s.deleteError, s.deleteMessage, s.deleteTitle],
   );
 
   const statusStyles = useMemo(
@@ -234,6 +232,7 @@ export default function CustomerOrderScreen() {
 
   return (
     <View style={styles.container}>
+      {dialog}
       <SafeAreaView style={styles.safeTop} edges={["top"]}>
         <AppHeader
           title={s.title}
@@ -337,32 +336,7 @@ export default function CustomerOrderScreen() {
                 valueLines: 3,
               });
             }
-            return (
-              <Swipeable
-                key={order.id}
-                friction={2}
-                overshootRight={false}
-                renderRightActions={() => (
-                  <View style={styles.swipeActions}>
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel={s.deleteAction}
-                      onPress={() => confirmDelete(order.id)}
-                      style={({ pressed }) => [
-                        styles.swipeDeleteBtn,
-                        pressed && styles.pressed,
-                      ]}
-                    >
-                      <MaterialCommunityIcons
-                        name="trash-can-outline"
-                        size={26}
-                        color={c.white}
-                      />
-                      <Text style={styles.swipeDeleteText}>{s.deleteAction}</Text>
-                    </Pressable>
-                  </View>
-                )}
-              >
+            const orderCard = (
                 <Pressable
                   onPress={() =>
                     router.push({
@@ -376,8 +350,31 @@ export default function CustomerOrderScreen() {
                     <Text style={styles.orderRef}>
                       {s.orderRef.replace("{{ref}}", order.orderRef)}
                     </Text>
-                    <View style={[styles.statusPill, st]}>
-                      <Text style={[styles.statusText, { color: st.color }]}>{label}</Text>
+                    <View style={styles.cardTopActions}>
+                      <View style={[styles.statusPill, st]}>
+                        <Text style={[styles.statusText, { color: st.color }]}>{label}</Text>
+                      </View>
+                      {isWeb ? (
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityLabel={s.deleteAction}
+                          onPress={(e) => {
+                            e.stopPropagation();
+                            void confirmDelete(order.id);
+                          }}
+                          hitSlop={8}
+                          style={({ pressed }) => [
+                            styles.webDeleteBtn,
+                            pressed && styles.pressed,
+                          ]}
+                        >
+                          <MaterialCommunityIcons
+                            name="trash-can-outline"
+                            size={22}
+                            color="#fecaca"
+                          />
+                        </Pressable>
+                      ) : null}
                     </View>
                   </View>
                   <PartnerNameWithBadge
@@ -439,6 +436,41 @@ export default function CustomerOrderScreen() {
                     </Pressable>
                   ) : null}
                 </Pressable>
+            );
+
+            if (isWeb) {
+              return (
+                <View key={order.id}>{orderCard}</View>
+              );
+            }
+
+            return (
+              <Swipeable
+                key={order.id}
+                friction={2}
+                overshootRight={false}
+                renderRightActions={() => (
+                  <View style={styles.swipeActions}>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={s.deleteAction}
+                      onPress={() => void confirmDelete(order.id)}
+                      style={({ pressed }) => [
+                        styles.swipeDeleteBtn,
+                        pressed && styles.pressed,
+                      ]}
+                    >
+                      <MaterialCommunityIcons
+                        name="trash-can-outline"
+                        size={26}
+                        color={c.white}
+                      />
+                      <Text style={styles.swipeDeleteText}>{s.deleteAction}</Text>
+                    </Pressable>
+                  </View>
+                )}
+              >
+                {orderCard}
               </Swipeable>
             );
           })}
@@ -626,6 +658,17 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     gap: 8,
     marginBottom: 6,
+  },
+  cardTopActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    flexShrink: 0,
+  },
+  webDeleteBtn: {
+    padding: 6,
+    borderRadius: 8,
+    backgroundColor: "rgba(185, 28, 28, 0.25)",
   },
   orderRef: {
     fontSize: fs.smallText,

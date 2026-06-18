@@ -1,6 +1,7 @@
 import { AppTabsLayout, HOME_TAB_ICON_SCALE, type AppTabItem } from "@/components/bottom-tab-bar";
-import { assets } from "@/assets/assets";
 import { strings } from "@/constants/strings";
+import { assets } from "@/assets/assets";
+import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 
 const customerTabs: AppTabItem[] = [
   {
@@ -27,5 +28,6 @@ const customerTabs: AppTabItem[] = [
 ];
 
 export default function CustomerTabsLayout() {
-  return <AppTabsLayout tabs={customerTabs} />;
+  const { hideBottomTabBar } = useResponsiveLayout();
+  return <AppTabsLayout tabs={customerTabs} hideTabBar={hideBottomTabBar} />;
 }
