@@ -1,0 +1,48 @@
+/**
+ * Laundri design tokens — aligned with brand logo (teal, orange, navy).
+ */
+
+:root {
+  --background: #ffffff;
+  --foreground: #212529;
+  --muted: #f8f9fa;
+  --muted-foreground: #6c757d;
+  --border: #dee2e6;
+
+  /* Logo teal */
+  --primary: #00bcd4;
+  --primary-hover: #00a3b8;
+  /* Orange bubbles from logo */
+  --accent: #ff9800;
+  --accent-hover: #f57c00;
+  /* Deep navy from logo */
+  --navy: #1a237e;
+  --navy-foreground: #f8f9fa;
+
+  --section: #f8f9fa;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-navy: var(--navy);
+  --color-navy-foreground: var(--navy-foreground);
+  --color-section: var(--section);
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --radius-2xl: 1.25rem;
+  --radius-3xl: 1.5rem;
+}
