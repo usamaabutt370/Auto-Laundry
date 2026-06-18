@@ -152,7 +152,7 @@ export function PartnerCreditsList({
       setPartnerBalances((prev) =>
         prev.map((item) => (item.userId === result.balance.userId ? { ...item, ...result.balance } : item)),
       );
-      setSelectedPartner((prev) =>
+      setSelectedPartner((prev: UserCreditBalance | null) =>
         prev && prev.userId === result.balance.userId ? { ...prev, ...result.balance } : prev,
       );
       setConfirmInlineOpen(false);
@@ -199,7 +199,7 @@ export function PartnerCreditsList({
       setPartnerBalances((prev) =>
         prev.map((item) => (item.userId === result.balance.userId ? { ...item, ...result.balance } : item)),
       );
-      setSelectedPartner((prev) =>
+      setSelectedPartner((prev: UserCreditBalance | null) =>
         prev && prev.userId === result.balance.userId ? { ...prev, ...result.balance } : prev,
       );
       setEditBalanceByPartner((prev) => ({ ...prev, [result.balance.userId]: String(result.balance.balance) }));
