@@ -1,5 +1,5 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -17,17 +17,22 @@ import { Image } from "expo-image";
 import { Spacer } from "@/components";
 import { AppHeader } from "@/components/app-header";
 import { assets } from "@/assets/assets";
-import { DRY_CLEAN_ITEM_DEFS } from "@/constants/dry-clean-items";
 import { strings } from "@/constants/strings";
-import { TAILORING_ITEM_DEFS } from "@/constants/tailoring-items";
 import type { LaundererServiceType } from "@/constants/launderers";
 import { theme } from "@/constants/theme";
 import { useCustomerOrderDraft } from "@/contexts/customer-order-draft-context";
-import { fetchPartnerDetail, serviceCategoriesToTypes } from "@/lib/partner-discovery";
+import {
+  fetchPartnerDetail,
+  partnerOffersPickupDelivery,
+  serviceCategoriesToTypes,
+} from "@/lib/partner-discovery";
 import {
   dryCleanUnitForItem,
+  listPricedDryCleanDefs,
+  listPricedTailoringDefs,
+  listPricedWashFoldDefs,
   tailoringUnitForItem,
-  washFoldUnitForMode,
+  washFoldUnitForItem,
 } from "@/lib/customer-order-estimate";
 import { formatMoney } from "@/utils/format-money";
 import { parsePriceDisplay } from "@/utils/parse-price-display";
@@ -44,8 +49,10 @@ const SERVICE_KEYS: LaundererServiceType[] = [
 
 export default function PickupServicesScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ mode?: string }>();
+  const prefersPickupDelivery = params.mode === "pickupDelivery";
   const insets = useSafeAreaInsets();
-  const { draft, setPickupDeliveryRequested, setSelectedServiceIds } =
+  const { draft, editingOrderId, setPickupDeliveryRequested, setSelectedServiceIds } =
     useCustomerOrderDraft();
   const s = strings.customer.pickupServices;
   const selectedIds = draft.selectedServiceIds;
@@ -56,6 +63,7 @@ export default function PickupServicesScreen() {
   >([]);
   const [pickupDeliveryEnabled, setPickupDeliveryEnabled] = useState(false);
   const [pickupFeeLabel, setPickupFeeLabel] = useState<string | null>(null);
+  const showPickupToggle = pickupDeliveryEnabled && !prefersPickupDelivery;
 
   useEffect(() => {
     let cancelled = false;
@@ -78,11 +86,13 @@ export default function PickupServicesScreen() {
         .filter((id): id is ServiceId => SERVICE_KEYS.includes(id))
         .filter((id, idx, arr) => arr.indexOf(id) === idx);
       setPartnerServiceTypes(available);
-      const pickupEnabled = Boolean(profile?.pickup_delivery_amount?.trim());
+      const pickupEnabled = partnerOffersPickupDelivery(profile);
       setPickupDeliveryEnabled(pickupEnabled);
       setPickupFeeLabel(profile?.pickup_delivery_amount?.trim() || null);
       if (!pickupEnabled) {
         setPickupDeliveryRequested(false);
+      } else if (prefersPickupDelivery) {
+        setPickupDeliveryRequested(true);
       }
       setLoading(false);
     };
@@ -90,7 +100,7 @@ export default function PickupServicesScreen() {
     return () => {
       cancelled = true;
     };
-  }, [draft.partnerId, setPickupDeliveryRequested]);
+  }, [draft.partnerId, prefersPickupDelivery, setPickupDeliveryRequested]);
 
   const servicesToShow = useMemo(() => {
     if (partnerServiceTypes.length > 0) return partnerServiceTypes;
@@ -114,50 +124,46 @@ export default function PickupServicesScreen() {
       tailoring: [],
     };
 
-    const washBagCount = Math.max(0, draft.washFold?.bagCount ?? 0);
-    const washItemCount = Math.max(0, draft.washFold?.bagDetailsByIndex[1]?.itemCount ?? 0);
-    const perBagUnit = washFoldUnitForMode(partnerServiceRows, "per_bag");
-    const perItemUnit = washFoldUnitForMode(partnerServiceRows, "per_item");
-    if (washBagCount > 0) {
-      byService.washAndFold.push({
-        name: "Wash & Fold (Per Bag)",
-        qtyLabel: `${washBagCount} bag(s)`,
-        priceLabel: formatLinePrice(perBagUnit.amount, washBagCount, perBagUnit.priceLabel),
+    byService.washAndFold = listPricedWashFoldDefs(partnerServiceRows).map((def) => ({
+      def,
+      qty: Math.max(0, draft.washFold?.itemizedQuantities?.[def.id] ?? 0),
+    }))
+      .filter((item) => item.qty > 0)
+      .map((item) => {
+        const unit = washFoldUnitForItem(partnerServiceRows, item.def);
+        return {
+          name: item.def.name,
+          qtyLabel:
+            item.def.kind === "package" ? `${item.qty} pkg` : `${item.qty} item(s)`,
+          priceLabel: formatLinePrice(unit.amount, item.qty, unit.priceLabel),
+        };
       });
-    }
-    if (washItemCount > 0) {
-      byService.washAndFold.push({
-        name: "Wash & Fold (Per Item)",
-        qtyLabel: `${washItemCount} item(s)`,
-        priceLabel: formatLinePrice(perItemUnit.amount, washItemCount, perItemUnit.priceLabel),
-      });
-    }
 
-    byService.dryCleaning = DRY_CLEAN_ITEM_DEFS
+    byService.dryCleaning = listPricedDryCleanDefs(partnerServiceRows)
       .map((def) => ({
-        name: def.name,
+        def,
         qty: Math.max(0, draft.dryClean?.itemizedQuantities?.[def.id] ?? 0),
       }))
       .filter((item) => item.qty > 0)
       .map((item) => {
-        const unit = dryCleanUnitForItem(partnerServiceRows, item.name);
+        const unit = dryCleanUnitForItem(partnerServiceRows, item.def);
         return {
-          name: item.name,
+          name: item.def.name,
           qtyLabel: `${item.qty} item(s)`,
           priceLabel: formatLinePrice(unit.amount, item.qty, unit.priceLabel),
         };
       });
 
-    byService.tailoring = TAILORING_ITEM_DEFS
+    byService.tailoring = listPricedTailoringDefs(partnerServiceRows)
       .map((def) => ({
-        name: def.name,
+        def,
         qty: Math.max(0, draft.tailoring?.itemizedQuantities?.[def.id] ?? 0),
       }))
       .filter((item) => item.qty > 0)
       .map((item) => {
-        const unit = tailoringUnitForItem(partnerServiceRows, item.name);
+        const unit = tailoringUnitForItem(partnerServiceRows, item.def);
         return {
-          name: item.name,
+          name: item.def.name,
           qtyLabel: `${item.qty} item(s)`,
           priceLabel: formatLinePrice(unit.amount, item.qty, unit.priceLabel),
         };
@@ -167,9 +173,7 @@ export default function PickupServicesScreen() {
   }, [
     draft.dryClean?.itemizedQuantities,
     draft.tailoring?.itemizedQuantities,
-    draft.washFold?.bagCount,
-    draft.washFold?.bagDetailsByIndex,
-    draft.washFold?.pricingMode,
+    draft.washFold?.itemizedQuantities,
     partnerServiceRows,
   ]);
 
@@ -238,6 +242,11 @@ export default function PickupServicesScreen() {
         />
       </SafeAreaView>
 
+      {loading ? (
+        <View style={styles.fullScreenLoader}>
+          <ActivityIndicator color={c.white} size="large" />
+        </View>
+      ) : (
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={[
@@ -247,6 +256,12 @@ export default function PickupServicesScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.spacer} />
+        {editingOrderId ? (
+          <View style={styles.editingBanner}>
+            <MaterialCommunityIcons name="information-outline" size={18} color={c.lightBlue} />
+            <Text style={styles.editingBannerText}>{s.editingBanner}</Text>
+          </View>
+        ) : null}
         <View style={styles.servicesBlock}>
           <Text style={styles.chooseHeading}>{s.chooseServices}</Text>
           <Spacer.Column numberOfSpaces={10} />
@@ -254,14 +269,18 @@ export default function PickupServicesScreen() {
             const selectedItems = selectedItemsByService[id];
             const isSelected = selectedItems.length > 0;
             return (
-              <View key={id} style={styles.serviceBlock}>
+              <View
+                key={id}
+                style={[
+                  styles.serviceCard,
+                  isSelected ? styles.serviceCardSelected : styles.serviceCardUnselected,
+                ]}
+              >
                 <Pressable
                   onPress={() => toggle(id)}
                   style={({ pressed }) => [
-                    styles.servicePill,
-                    isSelected
-                      ? styles.servicePillSelected
-                      : styles.servicePillUnselected,
+                    styles.serviceCardHeader,
+                    isSelected && styles.serviceCardHeaderActive,
                     pressed && styles.pressed,
                   ]}
                 >
@@ -275,7 +294,7 @@ export default function PickupServicesScreen() {
                       <MaterialCommunityIcons
                         name="check"
                         size={18}
-                        color={c.white}
+                        color={c.backgroundLight}
                       />
                     )}
                   </View>
@@ -291,9 +310,15 @@ export default function PickupServicesScreen() {
                   </Text>
                 </Pressable>
                 {isSelected && selectedItems.length > 0 ? (
-                  <View style={styles.selectedItemsCard}>
+                  <View style={styles.selectedItemsContainer}>
                     {selectedItems.map((item, idx) => (
-                      <View key={`${id}-${item.name}-${idx}`} style={styles.selectedItemRow}>
+                      <View
+                        key={`${id}-${item.name}-${idx}`}
+                        style={[
+                          styles.selectedItemRow,
+                          idx === selectedItems.length - 1 && { borderBottomWidth: 0 },
+                        ]}
+                      >
                         <Text style={styles.selectedItemName}>{item.name}</Text>
                         <View style={styles.selectedItemRight}>
                           <Text style={styles.selectedItemQty}>{item.qtyLabel}</Text>
@@ -306,31 +331,33 @@ export default function PickupServicesScreen() {
               </View>
             );
           })}
-          {draft.partnerId && servicesToShow.length === 0 ? (
-            <Text style={styles.emptyText}>No services configured by this launderer yet.</Text>
-          ) : null}
-
-          {pickupDeliveryEnabled ? (
-            <View style={styles.pickupRow}>
-              <View style={styles.pickupTextWrap}>
-                <Text style={styles.pickupTitle}>{s.includePickupDelivery}</Text>
-                <Text style={styles.pickupSub}>
-                  {pickupFeeLabel
-                    ? s.pickupDeliveryFee.replace("{amount}", pickupFeeLabel)
-                    : s.pickupDeliveryFeeUnknown}
+              {draft.partnerId && servicesToShow.length === 0 ? (
+                <Text style={styles.emptyText}>
+                  No services configured by this launderer yet.
                 </Text>
-              </View>
-              <Switch
-                value={draft.pickupDeliveryRequested}
-                onValueChange={setPickupDeliveryRequested}
-                trackColor={{
-                  false: "rgba(255,255,255,0.3)",
-                  true: c.blue500,
-                }}
-                thumbColor={c.white}
-              />
-            </View>
-          ) : null}
+              ) : null}
+
+              {showPickupToggle ? (
+                <View style={styles.pickupRow}>
+                  <View style={styles.pickupTextWrap}>
+                    <Text style={styles.pickupTitle}>{s.includePickupDelivery}</Text>
+                    <Text style={styles.pickupSub}>
+                      {pickupFeeLabel
+                        ? s.pickupDeliveryFee.replace("{amount}", pickupFeeLabel)
+                        : s.pickupDeliveryFeeUnknown}
+                    </Text>
+                  </View>
+                  <Switch
+                    value={draft.pickupDeliveryRequested}
+                    onValueChange={setPickupDeliveryRequested}
+                    trackColor={{
+                      false: "rgba(255,255,255,0.3)",
+                      true: c.blue500,
+                    }}
+                    thumbColor={c.white}
+                  />
+                </View>
+              ) : null}
         </View>
         <View style={styles.spacer} />
         <Pressable
@@ -340,6 +367,7 @@ export default function PickupServicesScreen() {
           <Text style={styles.confirmLabel}>{s.confirm}</Text>
         </Pressable>
       </ScrollView>
+      )}
     </View>
   );
 }
@@ -385,41 +413,49 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     backgroundColor: "transparent",
   },
-  servicePill: {
+  serviceCard: {
+    borderRadius: 16,
+    borderWidth: 1.5,
+    marginBottom: 16,
+    overflow: "hidden",
+  },
+  serviceCardSelected: {
+    borderColor: c.backgroundLight,
+  },
+  serviceCardUnselected: {
+    backgroundColor: c.blue900,
+    borderColor: "rgba(255, 255, 255, 0.15)",
+  },
+  serviceCardHeader: {
     gap: 14,
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 16,
+    paddingVertical: 18,
     paddingHorizontal: 20,
-    borderRadius: 999,
-    marginBottom: 0,
-    backgroundColor: "transparent",
   },
-  servicePillSelected: {
+  serviceCardHeaderActive: {
     backgroundColor: c.backgroundLight,
-    borderWidth: 0,
   },
-  servicePillUnselected: {
-    backgroundColor: c.blue900,
-    borderWidth: 1,
-    borderColor: c.backgroundLight,
+  selectedItemsContainer: {
+    backgroundColor: "rgba(0, 0, 0, 0.18)",
+    paddingVertical: 4,
   },
   radioOuter: {
     width: 24,
     height: 24,
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: c.backgroundLight,
+    borderColor: c.white,
     alignItems: "center",
     justifyContent: "center",
   },
   radioOuterSelected: {
-    backgroundColor: c.blue500,
-    borderColor: c.blue500,
+    backgroundColor: c.white,
+    borderColor: c.white,
   },
   serviceLabel: {
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "700",
   },
   serviceLabelSelected: {
     color: c.white,
@@ -447,23 +483,15 @@ const styles = StyleSheet.create({
     color: "rgba(255,255,255,0.75)",
     marginTop: 4,
   },
-  selectedItemsCard: {
-    marginTop: 8,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.22)",
-    backgroundColor: "rgba(0,0,0,0.14)",
-    overflow: "hidden",
-  },
   selectedItemRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     gap: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(255,255,255,0.08)",
+    borderBottomColor: "rgba(255, 255, 255, 0.08)",
   },
   selectedItemName: {
     flex: 1,
@@ -473,18 +501,18 @@ const styles = StyleSheet.create({
   },
   selectedItemQty: {
     color: c.white,
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: "700",
     textAlign: "right",
   },
   selectedItemRight: {
     alignItems: "flex-end",
-    gap: 2,
+    gap: 4,
   },
   selectedItemPrice: {
-    color: c.lightBlue,
+    color: "rgba(255, 255, 255, 0.8)",
     fontSize: 12,
-    fontWeight: "700",
+    fontWeight: "500",
     textAlign: "right",
   },
   selectedItemsEmpty: {
@@ -517,9 +545,26 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "rgba(255,255,255,0.75)",
   },
-  loadingContainer: {
-    paddingVertical: 40,
+  fullScreenLoader: {
+    flex: 1,
     alignItems: "center",
     justifyContent: "center",
+  },
+  editingBanner: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+    marginBottom: 16,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(31, 200, 255, 0.35)",
+    backgroundColor: "rgba(31, 200, 255, 0.08)",
+  },
+  editingBannerText: {
+    flex: 1,
+    color: c.white,
+    fontSize: 13,
+    lineHeight: 18,
   },
 });

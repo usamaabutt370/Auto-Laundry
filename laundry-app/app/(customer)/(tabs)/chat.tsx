@@ -1,16 +1,28 @@
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AppHeader } from "@/components/app-header";
+import { PartnerNameWithBadge } from "@/components/partner-name-with-badge";
 import { theme } from "@/constants/theme";
-import { strings } from "@/constants/strings";
 import { useAuth } from "@/contexts/auth-context";
+import { useLocale } from "@/contexts/locale-context";
 import { fetchMyConversations, type ChatConversationListItem } from "@/lib/chat";
+import { getStrings } from "@/locales";
 import { supabase } from "@/lib/supabase";
 
 const c = theme.colors;
 const fs = theme.fontSize;
+const PAD = 24;
 
 function formatShortDate(valueIso: string): string {
   const d = new Date(valueIso);
@@ -26,10 +38,11 @@ function formatShortDate(valueIso: string): string {
 export default function CustomerChatScreen() {
   const router = useRouter();
   const { user } = useAuth();
-  const s = strings.tabs.customer;
+  const { locale } = useLocale();
+  const tabStrings = getStrings(locale).tabs.customer;
+  const s = getStrings(locale).customer.chatTab;
   const [items, setItems] = useState<ChatConversationListItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [hasLoaded, setHasLoaded] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -47,12 +60,11 @@ export default function CustomerChatScreen() {
       setItems(data);
     } catch (e) {
       setItems([]);
-      setError(e instanceof Error ? e.message : "Unable to load chats.");
+      setError(e instanceof Error ? e.message : s.error);
     } finally {
       setLoading(false);
-      setHasLoaded(true);
     }
-  }, [user?.id]);
+  }, [s.error, user?.id]);
 
   useFocusEffect(
     useCallback(() => {
@@ -98,30 +110,51 @@ export default function CustomerChatScreen() {
   return (
     <View style={styles.container}>
       <SafeAreaView edges={["top"]} style={styles.safeArea}>
-        <AppHeader title={s.chat} />
+        <AppHeader title={tabStrings.chat} />
       </SafeAreaView>
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor="#FFFFFF"
-            colors={["#FFFFFF"]}
-            progressBackgroundColor={c.background}
-            title=""
-            titleColor="#FFFFFF"
-          />
-        }
-      >
-        {error ? (
-          <Text style={styles.placeholderText}>{error}</Text>
-        ) : !loading && hasLoaded && items.length === 0 ? (
-          <Text style={styles.placeholderText}>No chats yet.</Text>
-        ) : (
-          items.map((item) => (
+      {!user?.id ? (
+        <View style={styles.center}>
+          <MaterialCommunityIcons name="account-outline" size={48} color={c.blue500} />
+          <Text style={styles.muted}>{s.signIn}</Text>
+        </View>
+      ) : loading && items.length === 0 ? (
+        <View style={styles.center}>
+          <ActivityIndicator color={c.white} />
+          <Text style={styles.muted}>{s.loading}</Text>
+        </View>
+      ) : error ? (
+        <View style={styles.center}>
+          <Text style={styles.errorText}>{error}</Text>
+          <Pressable
+            onPress={onRefresh}
+            style={({ pressed }) => [styles.retryBtn, pressed && styles.pressed]}
+          >
+            <Text style={styles.retryLabel}>{s.retry}</Text>
+          </Pressable>
+        </View>
+      ) : items.length === 0 ? (
+        <View style={styles.center}>
+          <MaterialCommunityIcons name="message-text-outline" size={48} color={c.blue500} />
+          <Text style={styles.muted}>{s.empty}</Text>
+        </View>
+      ) : (
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor="#FFFFFF"
+              colors={["#FFFFFF"]}
+              progressBackgroundColor={c.background}
+              title=""
+              titleColor="#FFFFFF"
+            />
+          }
+        >
+          {items.map((item) => (
             <Pressable
               key={item.conversationId}
               onPress={() =>
@@ -134,9 +167,12 @@ export default function CustomerChatScreen() {
             >
               <View style={styles.mainContent}>
                 <View style={styles.rowTop}>
-                  <Text style={styles.nameText} numberOfLines={1}>
-                    {item.counterpartyName}
-                  </Text>
+                  <PartnerNameWithBadge
+                    name={item.counterpartyName}
+                    verified={item.counterpartyVerified}
+                    nameStyle={styles.nameText}
+                    containerStyle={styles.nameRow}
+                  />
                   <Text style={styles.timeText}>{formatShortDate(item.lastMessageAt)}</Text>
                 </View>
 
@@ -163,9 +199,9 @@ export default function CustomerChatScreen() {
                 </View>
               </View>
             </Pressable>
-          ))
-        )}
-      </ScrollView>
+          ))}
+        </ScrollView>
+      )}
     </View>
   );
 }
@@ -176,20 +212,44 @@ const styles = StyleSheet.create({
     backgroundColor: c.background,
   },
   safeArea: {
+    paddingHorizontal: PAD,
     paddingBottom: 12,
+  },
+  center: {
+    flex: 1,
+    paddingHorizontal: PAD,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 12,
+  },
+  muted: {
+    fontSize: fs.smallText,
+    color: c.blue500,
+    textAlign: "center",
+  },
+  errorText: {
+    fontSize: fs.smallText,
+    color: "#fecaca",
+    textAlign: "center",
+  },
+  retryBtn: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: c.outline,
+  },
+  retryLabel: {
+    color: c.white,
+    fontWeight: "600",
   },
   scroll: {
     flex: 1,
   },
   content: {
-    padding: 24,
+    paddingHorizontal: PAD,
+    paddingBottom: 100,
     gap: 10,
-  },
-  placeholderText: {
-    fontSize: fs.descText,
-    color: c.white,
-    textAlign: "center",
-    marginTop: 24,
   },
   row: {
     backgroundColor: c.blue900,
@@ -211,8 +271,11 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 2,
   },
-  nameText: {
+  nameRow: {
     flex: 1,
+    flexShrink: 1,
+  },
+  nameText: {
     color: c.white,
     fontSize: fs.smallText,
     fontWeight: "700",

@@ -1,12 +1,12 @@
 {
   "expo": {
-    "name": "Laundri",
+    "name": "Tap2Laundry",
     "slug": "laundry-app",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icons/appstore.png",
     "splash": {
-      "image": "./assets/icons/splash-icon.jpg",
+      "image": "./assets/icons/splash-icon-padded.png",
       "resizeMode": "contain",
       "backgroundColor": "#36768a"
     },
@@ -22,11 +22,11 @@
       }
     },
     "android": {
-      "icon": "./assets/icons/playstore.png",
+      "icon": "./assets/icons/playstore-foreground-padded.png",
       "package": "com.autolaundry.app",
       "adaptiveIcon": {
-        "backgroundColor": "#0E1C2E",
-        "foregroundImage": "./assets/icons/playstore.png"
+        "backgroundColor": "#FFFFFF",
+        "foregroundImage": "./assets/icons/playstore-foreground-padded.png"
       },
       "edgeToEdgeEnabled": true,
       "softwareKeyboardLayoutMode": "resize",
@@ -41,8 +41,8 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/icons/splash-icon.jpg",
-          "imageWidth": 220,
+          "image": "./assets/icons/splash-icon-padded.png",
+          "imageWidth": 350,
           "resizeMode": "contain",
           "backgroundColor": "#36768a",
           "dark": {

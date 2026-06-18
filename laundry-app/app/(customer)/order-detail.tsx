@@ -15,9 +15,15 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-
+import { CustomerTrustBanner } from "@/components/customer-trust-banner";
+import { PartnerNameWithBadge } from "@/components/partner-name-with-badge";
+import { ReportOrderProblemModal } from "@/components/report-order-problem-modal";
 import { theme } from "@/constants/theme";
 import { useAuth } from "@/contexts/auth-context";
+import { useLocale } from "@/contexts/locale-context";
+import { getStrings } from "@/locales";
+import { useCustomerOrderDraft } from "@/contexts/customer-order-draft-context";
+import { fetchCustomerOrderForEdit } from "@/lib/customer-order-edit";
 import {
   fetchCustomerOrderDetail,
   hasCustomerOrderFeedback,
@@ -26,6 +32,7 @@ import {
   type CustomerOrderDetailData,
   type CustomerOrderDisplayStatus,
 } from "@/lib/customer-orders";
+import { hasCustomerOrderDispute } from "@/lib/order-disputes";
 
 const c = theme.colors;
 const fs = theme.fontSize;
@@ -49,6 +56,9 @@ function statusColor(status: CustomerOrderDisplayStatus): string {
 export default function CustomerOrderDetailScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  const { locale } = useLocale();
+  const sDetail = getStrings(locale).customer.orderDetail;
+  const sReport = getStrings(locale).customer.reportProblem;
   const params = useLocalSearchParams<{ orderId?: string }>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -59,6 +69,10 @@ export default function CustomerOrderDetailScreen() {
   const [feedbackType, setFeedbackType] = useState<CustomerOrderFeedbackType>("feedback");
   const [feedbackMessage, setFeedbackMessage] = useState("");
   const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
+  const [isLoadingEdit, setIsLoadingEdit] = useState(false);
+  const [reportVisible, setReportVisible] = useState(false);
+  const [hasReportedProblem, setHasReportedProblem] = useState(false);
+  const { loadDraftForEdit } = useCustomerOrderDraft();
 
   const orderId = typeof params.orderId === "string" ? params.orderId : "";
 
@@ -89,6 +103,22 @@ export default function CustomerOrderDetailScreen() {
   }, [orderId, user?.id]);
 
   useEffect(() => {
+    if (!user?.id || !orderId || !order || order.displayStatus === "rejected") {
+      setHasReportedProblem(false);
+      return;
+    }
+
+    let cancelled = false;
+    void hasCustomerOrderDispute(user.id, orderId).then((reported) => {
+      if (!cancelled) setHasReportedProblem(reported);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [order, orderId, user?.id]);
+
+  useEffect(() => {
     if (!user?.id || !order || order.displayStatus !== "completed") {
       setFeedbackChecked(false);
       return;
@@ -114,6 +144,27 @@ export default function CustomerOrderDetailScreen() {
       cancelled = true;
     };
   }, [order, user?.id]);
+
+  const handleEditOrder = async () => {
+    if (!user?.id || !order) return;
+    setIsLoadingEdit(true);
+    try {
+      const loaded = await fetchCustomerOrderForEdit(user.id, order.id);
+      if (!loaded) {
+        Alert.alert("Order not found", "This order could not be loaded for editing.");
+        return;
+      }
+      loadDraftForEdit(loaded.draft, order.id);
+      router.push("/(customer)/pickup-services");
+    } catch (e) {
+      Alert.alert(
+        "Cannot edit order",
+        e instanceof Error ? e.message : sDetail.editOrderUnavailable,
+      );
+    } finally {
+      setIsLoadingEdit(false);
+    }
+  };
 
   const handleSubmitFeedback = async () => {
     if (!user?.id || !order) return;
@@ -176,7 +227,17 @@ export default function CustomerOrderDetailScreen() {
           <Text style={styles.mutedText}>Order not found.</Text>
         </View>
       ) : (
-        <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <>
+          <ScrollView
+            style={styles.scroll}
+            contentContainerStyle={[
+              styles.content,
+              order.displayStatus === "pending" &&
+                order.rawStatus === "submitted" &&
+                styles.contentWithStickyFooter,
+            ]}
+            showsVerticalScrollIndicator={false}
+          >
           <View style={styles.heroCard}>
             <View style={styles.topRow}>
               <Text style={styles.orderRef}>Order #{order.orderRef}</Text>
@@ -194,28 +255,54 @@ export default function CustomerOrderDetailScreen() {
                 </Text>
               </View>
             </View>
-            <Text style={styles.partner}>{order.partnerName}</Text>
+            <PartnerNameWithBadge
+              name={order.partnerName}
+              verified={order.partnerVerified}
+              nameStyle={styles.partner}
+            />
             <View style={styles.metricsRow}>
               <View style={styles.metricCard}>
-                <Text style={styles.metricLabel}>Estimated total</Text>
+                <Text style={styles.metricLabel}>{sDetail.estimatedTotal}</Text>
                 <Text style={styles.metricValue}>{order.estimatedTotalLabel}</Text>
               </View>
+              {order.confirmedTotalLabel ? (
+                <View style={styles.metricCard}>
+                  <Text style={styles.metricLabel}>{sDetail.confirmedTotal}</Text>
+                  <Text style={[styles.metricValue, styles.confirmedValue]}>
+                    {order.confirmedTotalLabel}
+                  </Text>
+                  <Text style={styles.metricHint}>{sDetail.confirmedAtPickup}</Text>
+                </View>
+              ) : null}
               <View style={styles.metricCard}>
                 <Text style={styles.metricLabel}>Items</Text>
                 <Text style={styles.metricValue}>{order.totalItems}</Text>
               </View>
-              <View style={styles.metricCard}>
-                <Text style={styles.metricLabel}>Services</Text>
-                <Text style={styles.metricValue}>{order.serviceGroups.length}</Text>
-              </View>
             </View>
           </View>
+
+          {order.displayStatus !== "rejected" ? (
+            <CustomerTrustBanner
+              verified={order.partnerVerified}
+              onPressChat={() =>
+                router.push({
+                  pathname: "/(customer)/chat/[orderId]",
+                  params: { orderId: order.id, memberName: order.partnerName },
+                })
+              }
+            />
+          ) : null}
 
           <View style={styles.sectionCard}>
             <Text style={styles.sectionTitle}>Partner</Text>
             <View style={styles.infoRow}>
               <MaterialCommunityIcons name="storefront-outline" size={18} color={c.outline} />
-              <Text style={styles.sectionValue}>{order.partnerName}</Text>
+              <PartnerNameWithBadge
+                name={order.partnerName}
+                verified={order.partnerVerified}
+                nameStyle={styles.sectionValue}
+                containerStyle={styles.partnerNameRow}
+              />
             </View>
             <View style={styles.infoRow}>
               <MaterialCommunityIcons name="phone-outline" size={18} color={c.outline} />
@@ -240,6 +327,24 @@ export default function CustomerOrderDetailScreen() {
               <MaterialCommunityIcons name="chat-processing-outline" size={16} color={c.white} />
               <Text style={styles.chatButtonText}>Chat with partner</Text>
             </Pressable>
+            {order.displayStatus !== "rejected" ? (
+              <Pressable
+                onPress={() => setReportVisible(true)}
+                style={({ pressed }) => [
+                  styles.reportButton,
+                  pressed && styles.pressed,
+                ]}
+              >
+                <MaterialCommunityIcons
+                  name={hasReportedProblem ? "check-circle-outline" : "alert-circle-outline"}
+                  size={16}
+                  color={hasReportedProblem ? c.outline : "#F6D36B"}
+                />
+                <Text style={styles.reportButtonText}>
+                  {hasReportedProblem ? sReport.reportedButton : sReport.reportButton}
+                </Text>
+              </Pressable>
+            ) : null}
           </View>
 
           <View style={styles.sectionCard}>
@@ -272,10 +377,21 @@ export default function CustomerOrderDetailScreen() {
                   <View key={item.id} style={styles.itemRow}>
                     <View style={styles.itemTextWrap}>
                       <Text style={styles.itemLabel}>{item.name}</Text>
-                      <Text style={styles.itemMeta}>Qty: {item.quantity}</Text>
+                      <Text style={styles.itemMeta}>
+                        {item.confirmedQuantity != null
+                          ? `${sDetail.qtyConfirmed}: ${item.confirmedQuantity} (est. ${item.quantity})`
+                          : `Qty: ${item.quantity}`}
+                      </Text>
                       <Text style={styles.itemMeta}>Preferences: {item.preferences}</Text>
                     </View>
-                    <Text style={styles.itemPrice}>{item.estimatedPriceLabel}</Text>
+                    <View style={styles.itemPriceCol}>
+                      <Text style={styles.itemPrice}>{item.estimatedPriceLabel}</Text>
+                      {item.confirmedPriceLabel ? (
+                        <Text style={styles.itemPriceConfirmed}>
+                          {item.confirmedPriceLabel}
+                        </Text>
+                      ) : null}
+                    </View>
                   </View>
                 ))}
               </View>
@@ -297,8 +413,32 @@ export default function CustomerOrderDetailScreen() {
               </Text>
             </View>
           ) : null}
-          <View style={styles.bottomSpace} />
-        </ScrollView>
+          </ScrollView>
+
+          {order.displayStatus === "pending" && order.rawStatus === "submitted" ? (
+            <SafeAreaView edges={["bottom"]} style={styles.editFooter}>
+              <Text style={styles.editFooterHint}>{sDetail.editOrderHint}</Text>
+              <Pressable
+                onPress={() => void handleEditOrder()}
+                disabled={isLoadingEdit}
+                style={({ pressed }) => [
+                  styles.editOrderBtn,
+                  pressed && !isLoadingEdit && styles.pressed,
+                  isLoadingEdit && styles.editOrderBtnDisabled,
+                ]}
+              >
+                {isLoadingEdit ? (
+                  <ActivityIndicator color={c.white} size="small" />
+                ) : (
+                  <>
+                    <MaterialCommunityIcons name="pencil-outline" size={18} color={c.white} />
+                    <Text style={styles.editOrderBtnText}>{sDetail.editOrder}</Text>
+                  </>
+                )}
+              </Pressable>
+            </SafeAreaView>
+          ) : null}
+        </>
       )}
       {order?.displayStatus === "completed" && feedbackChecked ? (
         <Modal
@@ -394,6 +534,17 @@ export default function CustomerOrderDetailScreen() {
           </KeyboardAvoidingView>
         </Modal>
       ) : null}
+      {order && user?.id && order.displayStatus !== "rejected" ? (
+        <ReportOrderProblemModal
+          visible={reportVisible}
+          orderId={order.id}
+          orderRef={order.orderRef}
+          customerId={user.id}
+          partnerId={order.partnerId}
+          onClose={() => setReportVisible(false)}
+          onSubmitted={() => setHasReportedProblem(true)}
+        />
+      ) : null}
     </View>
   );
 }
@@ -430,6 +581,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: PAD,
     paddingBottom: 24,
     gap: 16,
+  },
+  contentWithStickyFooter: {
+    paddingBottom: 120,
   },
   heroCard: {
     borderRadius: CARD_RADIUS,
@@ -488,6 +642,15 @@ const styles = StyleSheet.create({
     fontSize: fs.smallText,
     fontWeight: "700",
   },
+  confirmedValue: {
+    color: c.lightBlue,
+  },
+  metricHint: {
+    color: "rgba(255,255,255,0.55)",
+    fontSize: 11,
+    marginTop: 4,
+    lineHeight: 14,
+  },
   sectionCard: {
     borderRadius: CARD_RADIUS,
     borderWidth: 1,
@@ -514,6 +677,9 @@ const styles = StyleSheet.create({
     gap: 10,
     marginBottom: 12,
   },
+  partnerNameRow: {
+    flex: 1,
+  },
   infoTextBlock: {
     flex: 1,
   },
@@ -539,6 +705,60 @@ const styles = StyleSheet.create({
     color: c.white,
     fontSize: fs.descText,
     fontWeight: "600",
+  },
+  reportButton: {
+    marginTop: 10,
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    borderWidth: 1,
+    borderColor: "rgba(246, 211, 107, 0.45)",
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: "rgba(246, 211, 107, 0.12)",
+  },
+  reportButtonText: {
+    color: c.white,
+    fontSize: fs.descText,
+    fontWeight: "600",
+  },
+  editFooter: {
+    paddingHorizontal: PAD,
+    paddingTop: 12,
+    paddingBottom: 12,
+    borderTopWidth: 1,
+    borderTopColor: c.outline,
+    backgroundColor: c.blue900,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.18,
+    shadowRadius: 8,
+    elevation: 10,
+  },
+  editFooterHint: {
+    color: c.blue500,
+    fontSize: fs.xxSmallText,
+    lineHeight: 16,
+    marginBottom: 10,
+  },
+  editOrderBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: c.backgroundLight,
+    borderRadius: 12,
+    paddingVertical: 14,
+  },
+  editOrderBtnDisabled: {
+    opacity: 0.6,
+  },
+  editOrderBtnText: {
+    color: c.white,
+    fontSize: fs.descText,
+    fontWeight: "700",
   },
   serviceCard: {
     paddingTop: 14,
@@ -584,8 +804,17 @@ const styles = StyleSheet.create({
     fontSize: fs.descText,
     lineHeight: 18,
   },
+  itemPriceCol: {
+    alignItems: "flex-end",
+    gap: 4,
+  },
   itemPrice: {
     color: c.white,
+    fontSize: fs.smallText,
+    fontWeight: "700",
+  },
+  itemPriceConfirmed: {
+    color: c.lightBlue,
     fontSize: fs.smallText,
     fontWeight: "700",
   },
@@ -607,9 +836,6 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.8,
-  },
-  bottomSpace: {
-    height: 12,
   },
   modalOverlay: {
     flex: 1,

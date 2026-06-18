@@ -6,6 +6,7 @@ import React, {
   useMemo,
   useState,
 } from "react";
+import { Platform } from "react-native";
 import type { Session } from "@supabase/supabase-js";
 
 import { registerForChatPush, unregisterChatPush } from "@/lib/push-notifications";
@@ -77,7 +78,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const loadPartnerApproval = useCallback(async (userId: string) => {
     const { data } = await fetchPartnerOnboardingRequest(userId);
-    setPartnerApprovalStatus(data?.status ?? null);
+    setPartnerApprovalStatus((data?.status ?? null) as PartnerOnboardingRequestStatus | null);
     setPartnerRejectionReason(data?.rejection_reason ?? null);
   }, []);
 
@@ -106,6 +107,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!mounted) return;
       setSession(newSession);
       if (newSession?.user?.id) {
+        // Keep role + approval in sync when token refreshes or user updates.
+        // isLoading is NOT touched here — the cold-start case is owned by
+        // getSession() above, and login navigates directly by role.
         loadRole(newSession.user.id);
         loadPartnerApproval(newSession.user.id);
       } else {
@@ -137,6 +141,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const uid = session?.user?.id;
     if (uid) {
       await unregisterChatPush(uid);
+    }
+    if (Platform.OS !== "web") {
+      try {
+        const Notifications = await import("expo-notifications");
+        await Notifications.clearLastNotificationResponseAsync();
+      } catch {
+        // Ignore if notifications module is unavailable.
+      }
     }
     if (supabase) {
       await supabase.auth.signOut();

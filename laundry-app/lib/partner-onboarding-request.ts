@@ -79,11 +79,11 @@ export async function fetchPartnerOnboardingRequest(userId: string) {
     if (hasCoreProfile && hasServices) {
       return {
         data: {
-          status: "submitted",
+          status: "submitted" as PartnerOnboardingRequestStatus,
           rejection_reason: null,
           submitted_at: null,
           reviewed_at: null,
-        },
+        } satisfies PartnerOnboardingRequestRow,
         error: null as Error | null,
       };
     }

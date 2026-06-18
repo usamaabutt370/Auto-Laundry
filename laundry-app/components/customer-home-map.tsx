@@ -2,22 +2,23 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { WebView } from "react-native-webview";
-import { SafeAreaView } from "react-native-safe-area-context";
 
+import { PartnerNameWithBadge } from "@/components/partner-name-with-badge";
 import { theme } from "@/constants/theme";
-import { fetchPartnersByFulfillmentMode, type PartnerPublicRow } from "@/lib/partner-discovery";
+import { fetchMapPartners, type PartnerMapMarkerRow } from "@/lib/partner-discovery";
+import { getDeviceCoordinates } from "@/utils/device-location";
+import {
+  loadGeocodeCache,
+  normalizeGeocodeAddress,
+  persistGeocodeEntry,
+} from "@/utils/geocode-cache";
 import { getCoordinatesWithFallback, type Coordinates } from "@/utils/geocoding";
 
 const c = theme.colors;
-const DEFAULT_USER_COORDINATES: Coordinates = {
-  latitude: 31.365,
-  longitude: 74.2143,
-};
-const DEFAULT_ZOOM = 11;
-
-type PartnerMapMarker = PartnerPublicRow & {
-  fulfillmentMode: "dropoff" | "pickupDelivery";
-};
+const DEFAULT_ZOOM = 5;
+const DEFAULT_CENTER = [30.3753, 69.3451] as const;
+const USER_FOCUS_ZOOM = 14;
+const NOMINATIM_GAP_MS = 1100;
 
 type WebMapMarker = {
   id: string;
@@ -25,6 +26,13 @@ type WebMapMarker = {
   mode: "dropoff" | "pickupDelivery";
   latitude: number;
   longitude: number;
+  imageUrl: string | null;
+  initial: string;
+};
+
+type GroupedMarker = {
+  partner: PartnerMapMarkerRow;
+  coords: Coordinates;
 };
 
 type HomeStrings = {
@@ -37,7 +45,12 @@ type Props = {
   onMenuPress: () => void;
   onPartnerPress: (partnerId: string, mode: "dropoff" | "pickupDelivery") => void;
   recenterBottomOffset: number;
+  mapBottomInset?: number;
 };
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 function formatPartnerUpdatedAt(updatedAt: string | null): string | null {
   if (!updatedAt) return null;
@@ -50,7 +63,7 @@ function formatPartnerUpdatedAt(updatedAt: string | null): string | null {
   });
 }
 
-function getPartnerPrimaryImage(partner: PartnerMapMarker | null): string | null {
+function getPartnerPrimaryImage(partner: PartnerMapMarkerRow | null): string | null {
   if (!partner) return null;
   const firstBusinessImage = partner.business_images?.[0]?.trim() ?? "";
   if (firstBusinessImage.length > 0) return firstBusinessImage;
@@ -58,36 +71,269 @@ function getPartnerPrimaryImage(partner: PartnerMapMarker | null): string | null
   return fallbackImage.length > 0 ? fallbackImage : null;
 }
 
+function partnerAddressKey(partner: PartnerMapMarkerRow): string {
+  return normalizeGeocodeAddress(partner.address ?? "");
+}
+
+function partnerHasCoordinates(partner: PartnerMapMarkerRow): boolean {
+  return Number.isFinite(partner.latitude) && Number.isFinite(partner.longitude);
+}
+
+function coordinatesFromPartner(partner: PartnerMapMarkerRow): Coordinates | null {
+  if (!partnerHasCoordinates(partner)) return null;
+  return {
+    latitude: Number(partner.latitude),
+    longitude: Number(partner.longitude),
+  };
+}
+
+function buildMapShellHtml(dropOffLabel: string, pickupLabel: string): string {
+  const dropOffJson = JSON.stringify(dropOffLabel);
+  const pickupJson = JSON.stringify(pickupLabel);
+  const zoomControlBottomOffset = 58;
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    html, body, #map { height: 100%; width: 100%; margin: 0; padding: 0; }
+    .leaflet-div-icon.partner-marker-icon {
+      background: transparent !important;
+      border: none !important;
+      box-shadow: none !important;
+    }
+    .partner-marker {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 48px;
+      line-height: 0;
+    }
+    .partner-marker-frame {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      border: 3px solid #A0D0E9;
+      background: #3b7f95;
+      overflow: hidden;
+      box-sizing: border-box;
+      box-shadow: 0 2px 8px rgba(18, 129, 151, 0.35);
+      position: relative;
+      flex-shrink: 0;
+    }
+    .partner-marker-frame.pickupDelivery {
+      border-color: #64B5D9;
+      background: #128197;
+    }
+    .partner-marker-media {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+    }
+    .partner-marker-media img {
+      width: 100%;
+      height: 100%;
+      min-width: 100%;
+      min-height: 100%;
+      object-fit: cover;
+      object-position: center center;
+      display: block;
+      border: 0;
+      margin: 0;
+      padding: 0;
+    }
+    .partner-marker-fallback {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #3b7f95;
+      color: #F9FAFB;
+      font-size: 18px;
+      font-weight: 700;
+      line-height: 1;
+    }
+    .partner-marker-frame.pickupDelivery .partner-marker-fallback {
+      background: #128197;
+    }
+    .partner-marker-pointer {
+      width: 0;
+      height: 0;
+      margin-top: -1px;
+      border-left: 7px solid transparent;
+      border-right: 7px solid transparent;
+      border-top: 9px solid #A0D0E9;
+    }
+    .partner-marker-pointer.pickupDelivery {
+      border-top-color: #64B5D9;
+    }
+    .leaflet-right { right: 8px; }
+    .leaflet-bottom.leaflet-right { bottom: ${zoomControlBottomOffset}px; }
+    .leaflet-bottom.leaflet-left { bottom: 8px; left: 8px; }
+    .leaflet-control-attribution {
+      margin: 0 !important;
+      padding: 2px 6px !important;
+      font-size: 9px !important;
+      line-height: 1.25 !important;
+      border-radius: 6px !important;
+      background: rgba(3, 15, 27, 0.62) !important;
+      color: rgba(255, 255, 255, 0.82) !important;
+      box-shadow: none !important;
+      max-width: calc(100vw - 24px);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .leaflet-control-attribution a {
+      color: #A0D0E9 !important;
+      text-decoration: none !important;
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    const worldBounds = L.latLngBounds([[-85.05112878, -180], [85.05112878, 180]]);
+    const map = L.map('map', {
+      zoomControl: false,
+      attributionControl: false,
+      minZoom: 2,
+      maxZoom: 19,
+      maxBounds: worldBounds,
+      maxBoundsViscosity: 1.0,
+    });
+    window.map = map;
+    L.control.zoom({ position: 'bottomright' }).addTo(map);
+    const defaultCenter = [${DEFAULT_CENTER[0]}, ${DEFAULT_CENTER[1]}];
+    map.setView(defaultCenter, ${DEFAULT_ZOOM});
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      minZoom: 2,
+      maxZoom: 19,
+      noWrap: true,
+      attribution: ''
+    }).addTo(map);
+
+    const dropOffLabel = ${dropOffJson};
+    const pickupLabel = ${pickupJson};
+    const markerLayer = L.layerGroup().addTo(map);
+    let userMarker = null;
+
+    function labelForMode(mode) {
+      return mode === 'pickupDelivery' ? pickupLabel : dropOffLabel;
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function markerHtml(item) {
+      const modeClass = item.mode === 'pickupDelivery' ? 'pickupDelivery' : 'dropoff';
+      const imageHtml = item.imageUrl
+        ? '<div class="partner-marker-media"><img src="' + escapeHtml(item.imageUrl) + '" alt="" /></div>'
+        : '<span class="partner-marker-fallback">' + escapeHtml(item.initial || 'P') + '</span>';
+      return ''
+        + '<div class="partner-marker">'
+        +   '<div class="partner-marker-frame ' + modeClass + '">' + imageHtml + '</div>'
+        +   '<div class="partner-marker-pointer ' + modeClass + '"></div>'
+        + '</div>';
+    }
+
+    window.__updateMapState = function(markers, user) {
+      markerLayer.clearLayers();
+      (markers || []).forEach((item) => {
+        const icon = L.divIcon({
+          html: markerHtml(item),
+          className: 'partner-marker-icon',
+          iconSize: [48, 58],
+          iconAnchor: [24, 54],
+          popupAnchor: [0, -50],
+        });
+        const m = L.marker([item.latitude, item.longitude], { icon }).addTo(markerLayer);
+        m.bindPopup(item.name + ' (' + labelForMode(item.mode) + ')');
+        m.on('click', () => {
+          window.ReactNativeWebView?.postMessage(JSON.stringify({
+            type: 'partner-press',
+            partnerId: item.id,
+            mode: item.mode
+          }));
+        });
+      });
+
+      if (userMarker) {
+        map.removeLayer(userMarker);
+        userMarker = null;
+      }
+      if (user && Number.isFinite(user.latitude) && Number.isFinite(user.longitude)) {
+        userMarker = L.circleMarker([user.latitude, user.longitude], {
+          radius: 8,
+          color: '#0B84FF',
+          fillColor: '#0B84FF',
+          fillOpacity: 0.95,
+        }).addTo(map);
+        userMarker.bindPopup('Your location');
+      }
+    };
+
+    function recenterToDefault() {
+      map.setView(defaultCenter, ${DEFAULT_ZOOM});
+    }
+
+    window.__recenterToDefault = recenterToDefault;
+    window.__focusUser = function(user) {
+      if (user && Number.isFinite(user.latitude) && Number.isFinite(user.longitude)) {
+        map.setView([user.latitude, user.longitude], ${USER_FOCUS_ZOOM});
+        return;
+      }
+      recenterToDefault();
+    };
+
+    recenterToDefault();
+    window.ReactNativeWebView?.postMessage(JSON.stringify({ type: 'map-ready' }));
+  </script>
+</body>
+</html>`;
+}
+
 export function CustomerHomeMap({
   strings,
   onMenuPress,
   onPartnerPress,
   recenterBottomOffset,
+  mapBottomInset = 0,
 }: Props) {
   const mapRef = useRef<WebView | null>(null);
   const geocodeCacheRef = useRef<Map<string, Coordinates | null>>(new Map());
-  const [userCoordinates] = useState<Coordinates | null>(DEFAULT_USER_COORDINATES);
-  const [partners, setPartners] = useState<PartnerMapMarker[]>([]);
+  const [geocodeCacheReady, setGeocodeCacheReady] = useState(false);
+  const [userCoordinates, setUserCoordinates] = useState<Coordinates | null>(null);
+  const [partners, setPartners] = useState<PartnerMapMarkerRow[]>([]);
   const [partnerCoordinates, setPartnerCoordinates] = useState<Record<string, Coordinates | null>>(
     {},
   );
   const [loadingPartners, setLoadingPartners] = useState(true);
+  const [geocodingPartners, setGeocodingPartners] = useState(false);
+  const [mapReady, setMapReady] = useState(false);
   const [selectedPartnerId, setSelectedPartnerId] = useState<string | null>(null);
+
+  const mapShellHtml = useMemo(
+    () => buildMapShellHtml(strings.dropOff, strings.pickUpDelivery),
+    [strings.dropOff, strings.pickUpDelivery],
+  );
 
   const loadPartners = useCallback(async () => {
     setLoadingPartners(true);
-    const [dropoffResult, pickupResult] = await Promise.all([
-      fetchPartnersByFulfillmentMode("dropoff"),
-      fetchPartnersByFulfillmentMode("pickupDelivery"),
-    ]);
-    const merged = new Map<string, PartnerMapMarker>();
-    for (const partner of dropoffResult.data ?? []) {
-      merged.set(partner.id, { ...partner, fulfillmentMode: "dropoff" });
-    }
-    for (const partner of pickupResult.data ?? []) {
-      merged.set(partner.id, { ...partner, fulfillmentMode: "pickupDelivery" });
-    }
-    setPartners(Array.from(merged.values()));
+    const result = await fetchMapPartners();
+    setPartners(result.data ?? []);
     setLoadingPartners(false);
   }, []);
 
@@ -97,203 +343,211 @@ export function CustomerHomeMap({
 
   useEffect(() => {
     let cancelled = false;
-    const unresolvedAddresses = Array.from(
-      new Set(
-        partners
-          .filter((partner) => !Number.isFinite(partner.latitude) || !Number.isFinite(partner.longitude))
-          .map((partner) => partner.address?.trim() ?? "")
-          .filter((address) => address.length > 0),
-      ),
-    ).filter((address) => !geocodeCacheRef.current.has(address));
+    void (async () => {
+      const cache = await loadGeocodeCache();
+      if (cancelled) return;
+      geocodeCacheRef.current = cache;
+      setGeocodeCacheReady(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
-    if (unresolvedAddresses.length === 0) {
-      const next: Record<string, Coordinates | null> = {};
-      for (const partner of partners) {
-        if (Number.isFinite(partner.latitude) && Number.isFinite(partner.longitude)) {
-          next[partner.id] = {
-            latitude: Number(partner.latitude),
-            longitude: Number(partner.longitude),
-          };
-          continue;
-        }
-        const address = partner.address?.trim() ?? "";
-        next[partner.id] = address ? geocodeCacheRef.current.get(address) ?? null : null;
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const coords = await getDeviceCoordinates();
+      if (cancelled) return;
+      setUserCoordinates(coords);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const applyPartnerCoordinates = useCallback((rows: PartnerMapMarkerRow[]) => {
+    const next: Record<string, Coordinates | null> = {};
+    for (const partner of rows) {
+      const fromDb = coordinatesFromPartner(partner);
+      if (fromDb) {
+        next[partner.id] = fromDb;
+        continue;
       }
-      setPartnerCoordinates(next);
+      const address = partnerAddressKey(partner);
+      if (!address) {
+        next[partner.id] = null;
+        continue;
+      }
+      next[partner.id] = geocodeCacheRef.current.get(address) ?? null;
+    }
+    setPartnerCoordinates(next);
+    return next;
+  }, []);
+
+  useEffect(() => {
+    if (!geocodeCacheReady) return;
+
+    if (partners.length === 0) {
+      setPartnerCoordinates({});
+      setGeocodingPartners(false);
       return;
     }
 
+    applyPartnerCoordinates(partners);
+
+    const unresolvedAddresses = Array.from(
+      new Set(
+        partners
+          .filter((partner) => !partnerHasCoordinates(partner))
+          .map((partner) => partnerAddressKey(partner))
+          .filter((address) => address.length > 0 && !geocodeCacheRef.current.has(address)),
+      ),
+    );
+
+    if (unresolvedAddresses.length === 0) {
+      setGeocodingPartners(false);
+      return;
+    }
+
+    let cancelled = false;
+    setGeocodingPartners(true);
+
     void (async () => {
-      const resolved = await Promise.all(
-        unresolvedAddresses.map(async (address) => ({
-          address,
-          coords: await getCoordinatesWithFallback(address),
-        })),
-      );
-      if (cancelled) return;
-      for (const item of resolved) {
-        geocodeCacheRef.current.set(item.address, item.coords);
+      for (const address of unresolvedAddresses) {
+        if (cancelled) return;
+        const coords = await getCoordinatesWithFallback(address);
+        await persistGeocodeEntry(address, coords, geocodeCacheRef.current);
+        if (cancelled) return;
+        setPartnerCoordinates((prev) => {
+          const next = { ...prev };
+          for (const partner of partners) {
+            if (partnerAddressKey(partner) === address) {
+              next[partner.id] = coords;
+            }
+          }
+          return next;
+        });
+        await sleep(NOMINATIM_GAP_MS);
       }
-      const next: Record<string, Coordinates | null> = {};
-      for (const partner of partners) {
-        if (Number.isFinite(partner.latitude) && Number.isFinite(partner.longitude)) {
-          next[partner.id] = {
-            latitude: Number(partner.latitude),
-            longitude: Number(partner.longitude),
-          };
-          continue;
-        }
-        const address = partner.address?.trim() ?? "";
-        next[partner.id] = address ? geocodeCacheRef.current.get(address) ?? null : null;
-      }
-      setPartnerCoordinates(next);
+      if (!cancelled) setGeocodingPartners(false);
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [partners]);
+  }, [applyPartnerCoordinates, geocodeCacheReady, partners]);
 
   const markers = useMemo(
     () =>
       partners
         .map((partner) => ({ partner, coords: partnerCoordinates[partner.id] }))
-        .filter((item): item is { partner: PartnerMapMarker; coords: Coordinates } => Boolean(item.coords)),
+        .filter((item): item is { partner: PartnerMapMarkerRow; coords: Coordinates } =>
+          Boolean(item.coords),
+        ),
     [partnerCoordinates, partners],
   );
+
   const markerById = useMemo(() => {
-    const map = new Map<string, PartnerMapMarker>();
+    const map = new Map<string, PartnerMapMarkerRow>();
     for (const partner of partners) {
       map.set(partner.id, partner);
     }
     return map;
   }, [partners]);
+
   const selectedPartner = selectedPartnerId ? markerById.get(selectedPartnerId) ?? null : null;
   const selectedPartnerUpdatedLabel = selectedPartner
     ? formatPartnerUpdatedAt(selectedPartner.updated_at)
     : null;
   const selectedPartnerPrimaryImage = getPartnerPrimaryImage(selectedPartner);
 
-  const mapMarkers = useMemo<WebMapMarker[]>(
-    () =>
-      markers.map(({ partner, coords }) => ({
-        id: partner.id,
-        name: partner.business_name.trim(),
-        mode: partner.fulfillmentMode,
-        latitude: coords.latitude,
-        longitude: coords.longitude,
-      })),
-    [markers],
-  );
-
-  const mapHtml = useMemo(() => {
-    const markersJson = JSON.stringify(mapMarkers);
-    const userJson = JSON.stringify(userCoordinates);
-    const dropOffLabel = JSON.stringify(strings.dropOff);
-    const pickupLabel = JSON.stringify(strings.pickUpDelivery);
-    const zoomControlBottomOffset = Math.max(16, recenterBottomOffset + 52);
-    return `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <style>
-    html, body, #map { height: 100%; width: 100%; margin: 0; padding: 0; }
-    .marker-pin { width: 12px; height: 12px; border-radius: 6px; border: 2px solid #fff; box-shadow: 0 0 0 1px rgba(0,0,0,0.2); }
-    .leaflet-right { right: 8px; }
-    .leaflet-bottom { bottom: ${zoomControlBottomOffset}px; }
-  </style>
-</head>
-<body>
-  <div id="map"></div>
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script>
-    const map = L.map('map', { zoomControl: false });
-    L.control.zoom({ position: 'bottomright' }).addTo(map);
-    const defaultCenter = [31.365, 74.2143];
-    map.setView(defaultCenter, ${DEFAULT_ZOOM});
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      attribution: '&copy; OpenStreetMap contributors'
-    }).addTo(map);
-
-    const markers = ${markersJson};
-    const user = ${userJson};
-    const allPoints = [];
-    const bounds = [];
-
-    function colorForMode(mode) {
-      return mode === 'pickupDelivery' ? '#14B8A6' : '#F97316';
+  const mapMarkers = useMemo<WebMapMarker[]>(() => {
+    const groups = new Map<string, GroupedMarker[]>();
+    for (const item of markers) {
+      const key = `${item.coords.latitude.toFixed(6)},${item.coords.longitude.toFixed(6)}`;
+      const list = groups.get(key) ?? [];
+      list.push(item);
+      groups.set(key, list);
     }
 
-    function labelForMode(mode) {
-      return mode === 'pickupDelivery' ? ${pickupLabel} : ${dropOffLabel};
-    }
+    const out: WebMapMarker[] = [];
+    for (const grouped of groups.values()) {
+      const count = grouped.length;
+      for (let i = 0; i < count; i += 1) {
+        const { partner, coords } = grouped[i];
+        if (count === 1) {
+          out.push({
+            id: partner.id,
+            name: partner.business_name.trim(),
+            mode: partner.fulfillmentMode,
+            latitude: coords.latitude,
+            longitude: coords.longitude,
+            imageUrl: getPartnerPrimaryImage(partner),
+            initial: partner.business_name.trim().charAt(0).toUpperCase() || "P",
+          });
+          continue;
+        }
 
-    if (user && Number.isFinite(user.latitude) && Number.isFinite(user.longitude)) {
-      const userMarker = L.circleMarker([user.latitude, user.longitude], {
-        radius: 8,
-        color: '#0B84FF',
-        fillColor: '#0B84FF',
-        fillOpacity: 0.95,
-      }).addTo(map);
-      userMarker.bindPopup('Your location');
-      bounds.push([user.latitude, user.longitude]);
-      allPoints.push([user.latitude, user.longitude]);
-    }
-
-    markers.forEach((item) => {
-      const div = document.createElement('div');
-      div.className = 'marker-pin';
-      div.style.background = colorForMode(item.mode);
-      const icon = L.divIcon({ html: div.outerHTML, className: '', iconSize: [16, 16], iconAnchor: [8, 8] });
-      const m = L.marker([item.latitude, item.longitude], { icon }).addTo(map);
-      m.bindPopup(item.name + ' (' + labelForMode(item.mode) + ')');
-      m.on('click', () => {
-        window.ReactNativeWebView?.postMessage(JSON.stringify({
-          type: 'partner-press',
-          partnerId: item.id,
-          mode: item.mode
-        }));
-      });
-      bounds.push([item.latitude, item.longitude]);
-      allPoints.push([item.latitude, item.longitude]);
-    });
-
-    function fitAll() {
-      if (bounds.length === 0) {
-        map.setView(defaultCenter, ${DEFAULT_ZOOM});
-        return;
+        const angle = (2 * Math.PI * i) / count;
+        const radiusDegrees = 0.00018;
+        out.push({
+          id: partner.id,
+          name: partner.business_name.trim(),
+          mode: partner.fulfillmentMode,
+          latitude: coords.latitude + Math.sin(angle) * radiusDegrees,
+          longitude: coords.longitude + Math.cos(angle) * radiusDegrees,
+          imageUrl: getPartnerPrimaryImage(partner),
+          initial: partner.business_name.trim().charAt(0).toUpperCase() || "P",
+        });
       }
-      if (bounds.length === 1) {
-        map.setView(bounds[0], 14);
-        return;
-      }
-      map.fitBounds(bounds, { padding: [50, 50] });
     }
+    return out;
+  }, [markers]);
 
-    window.__fitAll = fitAll;
-    fitAll();
-  </script>
-</body>
-</html>`;
-  }, [mapMarkers, recenterBottomOffset, strings.dropOff, strings.pickUpDelivery, userCoordinates]);
-
-  const focusMap = useCallback(() => {
-    mapRef.current?.injectJavaScript("window.__fitAll && window.__fitAll(); true;");
-  }, []);
+  const pushMapState = useCallback(() => {
+    if (!mapReady) return;
+    const script = `window.__updateMapState && window.__updateMapState(${JSON.stringify(mapMarkers)}, ${JSON.stringify(userCoordinates)}); true;`;
+    mapRef.current?.injectJavaScript(script);
+  }, [mapMarkers, mapReady, userCoordinates]);
 
   useEffect(() => {
-    focusMap();
-  }, [focusMap]);
+    pushMapState();
+  }, [pushMapState]);
+
+  const focusMap = useCallback(() => {
+    void (async () => {
+      const latestCoords = userCoordinates ?? (await getDeviceCoordinates());
+      if (
+        latestCoords &&
+        Number.isFinite(latestCoords.latitude) &&
+        Number.isFinite(latestCoords.longitude)
+      ) {
+        if (!userCoordinates) setUserCoordinates(latestCoords);
+        if (mapReady) {
+          const script = `window.__focusUser && window.__focusUser(${JSON.stringify(latestCoords)}); true;`;
+          mapRef.current?.injectJavaScript(script);
+        }
+        return;
+      }
+      mapRef.current?.injectJavaScript(
+        "window.__recenterToDefault && window.__recenterToDefault(); true;",
+      );
+    })();
+  }, [mapReady, userCoordinates]);
+
+  useEffect(() => {
+    if (!mapReady || !userCoordinates) return;
+    const script = `window.__focusUser && window.__focusUser(${JSON.stringify(userCoordinates)}); true;`;
+    mapRef.current?.injectJavaScript(script);
+  }, [mapReady, userCoordinates]);
 
   return (
     <>
       <WebView
         ref={mapRef}
-        style={styles.mapArea}
-        source={{ html: mapHtml }}
+        style={[styles.mapArea, mapBottomInset > 0 ? { bottom: mapBottomInset } : null]}
+        source={{ html: mapShellHtml }}
         onMessage={(event) => {
           try {
             const payload = JSON.parse(event.nativeEvent.data) as {
@@ -301,6 +555,10 @@ export function CustomerHomeMap({
               partnerId?: string;
               mode?: "dropoff" | "pickupDelivery";
             };
+            if (payload.type === "map-ready") {
+              setMapReady(true);
+              return;
+            }
             if (
               payload.type === "partner-press" &&
               typeof payload.partnerId === "string" &&
@@ -314,13 +572,11 @@ export function CustomerHomeMap({
         }}
       />
 
-      {loadingPartners ? (
+      {loadingPartners || (geocodingPartners && mapMarkers.length === 0) ? (
         <View style={styles.mapLoading}>
           <ActivityIndicator color={c.white} size="small" />
         </View>
       ) : null}
-
-     
 
       <Pressable
         onPress={focusMap}
@@ -353,16 +609,16 @@ export function CustomerHomeMap({
                   />
                 ) : (
                   <View style={[styles.partnerSheetImage, styles.partnerSheetImagePlaceholder]}>
-                    <MaterialCommunityIcons
-                      name="image-off-outline"
-                      size={22}
-                      color={c.gray50}
-                    />
+                    <MaterialCommunityIcons name="image-off-outline" size={22} color={c.gray50} />
                     <Text style={styles.partnerSheetImagePlaceholderText}>No Image</Text>
                   </View>
                 )}
                 <View style={styles.partnerInfoWrap}>
-                  <Text style={styles.partnerSheetTitle}>{selectedPartner.business_name.trim()}</Text>
+                  <PartnerNameWithBadge
+                    name={selectedPartner.business_name.trim()}
+                    verified
+                    nameStyle={styles.partnerSheetTitle}
+                  />
                   <Text style={styles.partnerSheetSubtitle}>
                     {selectedPartner.fulfillmentMode === "pickupDelivery"
                       ? strings.pickUpDelivery
@@ -393,7 +649,11 @@ export function CustomerHomeMap({
                     ) : null}
                     {selectedPartnerUpdatedLabel ? (
                       <View style={styles.partnerMetaRow}>
-                        <MaterialCommunityIcons name="calendar-refresh-outline" size={14} color={c.gray50} />
+                        <MaterialCommunityIcons
+                          name="calendar-refresh-outline"
+                          size={14}
+                          color={c.gray50}
+                        />
                         <Text style={styles.partnerSheetMeta} numberOfLines={1}>
                           Updated {selectedPartnerUpdatedLabel}
                         </Text>
@@ -491,7 +751,7 @@ const styles = StyleSheet.create({
     right: 12,
     zIndex: 120,
     elevation: 12,
-    marginBottom: -100
+    marginBottom: -100,
   },
   modalOverlay: {
     ...StyleSheet.absoluteFillObject,
@@ -518,8 +778,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   partnerSheetImage: {
-    width: '35%',
-    height: '100%',
+    width: "35%",
+    height: "100%",
     borderRadius: 12,
     backgroundColor: "#E5E7EB",
   },

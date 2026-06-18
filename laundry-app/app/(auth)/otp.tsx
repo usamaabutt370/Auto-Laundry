@@ -49,7 +49,7 @@ export default function OtpScreen() {
         return;
       }
 
-      router.replace("/(customer)");
+      router.replace("/");
     } finally {
       setIsVerifying(false);
     }

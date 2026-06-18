@@ -17,6 +17,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 
 import { LaundererDetailView } from "@/components/launderer-detail-view";
+import { PartnerNameWithBadge } from "@/components/partner-name-with-badge";
 import { assets } from "@/assets/assets";
 import { strings } from "@/constants/strings";
 import { theme } from "@/constants/theme";
@@ -32,6 +33,7 @@ import {
   getCoordinatesWithFallback,
   type Coordinates,
 } from "@/utils/geocoding";
+import { getDeviceCoordinatesWithStatus } from "@/utils/device-location";
 
 const c = theme.colors;
 
@@ -104,9 +106,11 @@ function LaundererCard({
           ))}
           <Text style={styles.ratingText}>({PLACEHOLDER_RATING})</Text>
         </View>
-        <Text style={styles.cardName} numberOfLines={1}>
-          {partner.business_name.trim()}
-        </Text>
+        <PartnerNameWithBadge
+          name={partner.business_name.trim()}
+          verified
+          nameStyle={styles.cardName}
+        />
         <View style={styles.infoRow}>
           <MaterialCommunityIcons
             name="phone"
@@ -166,6 +170,9 @@ export default function PickLaundererScreen() {
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [userCoordinates, setUserCoordinates] = useState<Coordinates | null>(null);
+  const [locationState, setLocationState] = useState<
+    "idle" | "loading" | "granted" | "denied" | "unavailable"
+  >("idle");
   const [partnerCoordinates, setPartnerCoordinates] = useState<Record<string, Coordinates | null>>(
     {}
   );
@@ -189,6 +196,26 @@ export default function PickLaundererScreen() {
   useEffect(() => {
     load();
   }, [load]);
+
+  const resolveUserLocation = useCallback(async () => {
+    setLocationState("loading");
+    const result = await getDeviceCoordinatesWithStatus();
+    setUserCoordinates(result.coords);
+    setLocationState(result.status);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const result = await getDeviceCoordinatesWithStatus();
+      if (cancelled) return;
+      setUserCoordinates(result.coords);
+      setLocationState(result.status);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -308,7 +335,10 @@ export default function PickLaundererScreen() {
     async (partnerId: string, partnerName: string | null) => {
       if (!isReassignMode) {
         setPartner(partnerId, partnerName);
-        router.push("/(customer)/pickup-services");
+        router.push({
+          pathname: "/(customer)/pickup-services",
+          params: { mode: fulfillmentMode },
+        });
         return;
       }
 
@@ -367,6 +397,29 @@ export default function PickLaundererScreen() {
             editable
             returnKeyType="done"
           />
+        </View>
+        <View style={styles.locationInfoRow}>
+          <View style={styles.locationInfoTextWrap}>
+            <Text style={styles.locationInfoText}>
+              {locationState === "loading"
+                ? "Detecting your location..."
+                : locationState === "granted"
+                  ? "Showing distance from your current location."
+                  : locationState === "denied"
+                    ? "Location permission is off. Distance may show as — km."
+                    : locationState === "unavailable"
+                      ? "Unable to detect location right now. Distance may show as — km."
+                      : "Use your location to see accurate distance."}
+            </Text>
+          </View>
+          <Pressable
+            onPress={() => void resolveUserLocation()}
+            style={({ pressed }) => [styles.locationCtaBtn, pressed && styles.pressed]}
+          >
+            <Text style={styles.locationCtaText}>
+              {locationState === "granted" ? "Refresh" : "Use my location"}
+            </Text>
+          </Pressable>
         </View>
       </SafeAreaView>
 
@@ -493,6 +546,33 @@ const styles = StyleSheet.create({
     color: c.lightBlue,
     fontSize: 15,
     fontWeight: "600",
+  },
+  locationInfoRow: {
+    marginTop: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  locationInfoTextWrap: {
+    flex: 1,
+  },
+  locationInfoText: {
+    color: c.blue500,
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  locationCtaBtn: {
+    borderWidth: 1,
+    borderColor: c.outline,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    backgroundColor: c.blue900,
+  },
+  locationCtaText: {
+    color: c.white,
+    fontSize: 12,
+    fontWeight: "700",
   },
   card: {
     flexDirection: "row",

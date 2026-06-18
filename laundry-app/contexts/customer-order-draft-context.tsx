@@ -3,20 +3,11 @@ import React, {
   useCallback,
   useContext,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
 export type CustomerServiceId = "washAndFold" | "dryCleaning" | "tailoring";
-
-export type WashFoldBagDetail = {
-  weightLabel: string;
-  weightLb: number;
-  itemCount: number;
-  instructions: string;
-};
-
-/** Customer chooses whether wash & fold estimate uses bag count or item count × partner rate. */
-export type WashFoldPricingMode = "per_bag" | "per_item";
 
 export type CustomerOrderDraft = {
   partnerId: string | null;
@@ -24,13 +15,8 @@ export type CustomerOrderDraft = {
   pickupDeliveryRequested: boolean;
   selectedServiceIds: CustomerServiceId[];
   washFold: {
-    bagCount: number;
-    pricingMode: WashFoldPricingMode;
-    /** True after the user has used per-bag mode; bag line is included in estimates when set. */
-    estimateIncludeBag: boolean;
-    /** True after the user has used per-item mode; item line is included when set and item count is positive. */
-    estimateIncludeItem: boolean;
-    bagDetailsByIndex: Record<number, WashFoldBagDetail>;
+    itemizedQuantities: Record<string, number>;
+    itemizedInstructions: string;
   } | null;
   dryClean: {
     itemizedQuantities: Record<string, number>;
@@ -68,18 +54,21 @@ const emptyDraft = (): CustomerOrderDraft => ({
 
 type Value = {
   draft: CustomerOrderDraft;
+  /** Set while customer is editing a submitted order (before partner accepts). */
+  editingOrderId: string | null;
   setPartner: (partnerId: string, partnerName: string | null) => void;
   setPickupDeliveryRequested: (enabled: boolean) => void;
   setSelectedServiceIds: (ids: CustomerServiceId[]) => void;
-  setWashFoldBagCount: (bagCount: number) => void;
-  setWashFoldPricingMode: (mode: WashFoldPricingMode) => void;
-  setWashFoldBagDetail: (bagIndex: number, detail: WashFoldBagDetail) => void;
+  setWashFoldItemizedQuantities: (quantities: Record<string, number>) => void;
+  setWashFoldItemizedInstructions: (instructions: string) => void;
   setDryCleanItemizedQuantities: (quantities: Record<string, number>) => void;
   setDryCleanItemizedInstructions: (instructions: string) => void;
   setTailoringItemizedQuantities: (quantities: Record<string, number>) => void;
   setTailoringItemizedInstructions: (instructions: string) => void;
   setPickupSchedule: (slot: CustomerOrderDraft["pickup"]) => void;
   setDeliverySchedule: (slot: CustomerOrderDraft["delivery"]) => void;
+  loadDraftForEdit: (draft: CustomerOrderDraft, orderId: string) => void;
+  clearEditingOrder: () => void;
   resetDraft: () => void;
 };
 
@@ -91,14 +80,18 @@ export function CustomerOrderDraftProvider({
   children: React.ReactNode;
 }) {
   const [draft, setDraft] = useState<CustomerOrderDraft>(emptyDraft);
+  const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
+  const draftRef = useRef(draft);
+  draftRef.current = draft;
 
   const setPartner = useCallback((partnerId: string, partnerName: string | null) => {
+    if (draftRef.current.partnerId && draftRef.current.partnerId !== partnerId) {
+      setEditingOrderId(null);
+    }
     setDraft((p) => {
-      // Keep current draft when re-selecting the same partner.
       if (p.partnerId === partnerId) {
         return { ...p, partnerName };
       }
-      // Switching partner must start a fresh order draft for that partner.
       return {
         ...p,
         partnerId,
@@ -133,63 +126,28 @@ export function CustomerOrderDraftProvider({
     });
   }, []);
 
-  const setWashFoldBagCount = useCallback((bagCount: number) => {
-    setDraft((p) => ({
-      ...p,
-      washFold: {
-        bagCount,
-        pricingMode: p.washFold?.pricingMode ?? "per_bag",
-        estimateIncludeBag: p.washFold?.estimateIncludeBag ?? true,
-        estimateIncludeItem: p.washFold?.estimateIncludeItem ?? false,
-        bagDetailsByIndex: p.washFold?.bagDetailsByIndex ?? {},
-      },
-    }));
-  }, []);
-
-  const setWashFoldPricingMode = useCallback((pricingMode: WashFoldPricingMode) => {
-    setDraft((p) => {
-      const wf = p.washFold ?? {
-        bagCount: 0,
-        pricingMode,
-        estimateIncludeBag: pricingMode === "per_bag",
-        estimateIncludeItem: pricingMode === "per_item",
-        bagDetailsByIndex: {},
-      };
-      return {
+  const setWashFoldItemizedQuantities = useCallback(
+    (quantities: Record<string, number>) => {
+      setDraft((p) => ({
         ...p,
         washFold: {
-          ...wf,
-          pricingMode,
-          estimateIncludeBag:
-            pricingMode === "per_bag" ? true : wf.estimateIncludeBag,
-          estimateIncludeItem:
-            pricingMode === "per_item" ? true : wf.estimateIncludeItem,
+          itemizedQuantities: quantities,
+          itemizedInstructions: p.washFold?.itemizedInstructions ?? "",
         },
-      };
-    });
-  }, []);
-
-  const setWashFoldBagDetail = useCallback(
-    (bagIndex: number, detail: WashFoldBagDetail) => {
-      setDraft((p) => {
-        const wf = p.washFold ?? {
-          bagCount: 0,
-          pricingMode: "per_bag" as WashFoldPricingMode,
-          estimateIncludeBag: true,
-          estimateIncludeItem: false,
-          bagDetailsByIndex: {},
-        };
-        return {
-          ...p,
-          washFold: {
-            ...wf,
-            bagDetailsByIndex: { ...wf.bagDetailsByIndex, [bagIndex]: detail },
-          },
-        };
-      });
+      }));
     },
     [],
   );
+
+  const setWashFoldItemizedInstructions = useCallback((instructions: string) => {
+    setDraft((p) => {
+      const wf = p.washFold ?? {
+        itemizedQuantities: {},
+        itemizedInstructions: "",
+      };
+      return { ...p, washFold: { ...wf, itemizedInstructions: instructions } };
+    });
+  }, []);
 
   const setDryCleanItemizedQuantities = useCallback(
     (quantities: Record<string, number>) => {
@@ -245,39 +203,55 @@ export function CustomerOrderDraftProvider({
     setDraft((p) => ({ ...p, delivery: slot }));
   }, []);
 
-  const resetDraft = useCallback(() => setDraft(emptyDraft()), []);
+  const loadDraftForEdit = useCallback((nextDraft: CustomerOrderDraft, orderId: string) => {
+    setDraft(nextDraft);
+    setEditingOrderId(orderId);
+  }, []);
+
+  const clearEditingOrder = useCallback(() => {
+    setEditingOrderId(null);
+  }, []);
+
+  const resetDraft = useCallback(() => {
+    setDraft(emptyDraft());
+    setEditingOrderId(null);
+  }, []);
 
   const value = useMemo<Value>(
     () => ({
       draft,
+      editingOrderId,
       setPartner,
       setPickupDeliveryRequested,
       setSelectedServiceIds,
-      setWashFoldBagCount,
-      setWashFoldPricingMode,
-      setWashFoldBagDetail,
+      setWashFoldItemizedQuantities,
+      setWashFoldItemizedInstructions,
       setDryCleanItemizedQuantities,
       setDryCleanItemizedInstructions,
       setTailoringItemizedQuantities,
       setTailoringItemizedInstructions,
       setPickupSchedule,
       setDeliverySchedule,
+      loadDraftForEdit,
+      clearEditingOrder,
       resetDraft,
     }),
     [
       draft,
+      editingOrderId,
       setPartner,
       setPickupDeliveryRequested,
       setSelectedServiceIds,
-      setWashFoldBagCount,
-      setWashFoldPricingMode,
-      setWashFoldBagDetail,
+      setWashFoldItemizedQuantities,
+      setWashFoldItemizedInstructions,
       setDryCleanItemizedQuantities,
       setDryCleanItemizedInstructions,
       setTailoringItemizedQuantities,
       setTailoringItemizedInstructions,
       setPickupSchedule,
       setDeliverySchedule,
+      loadDraftForEdit,
+      clearEditingOrder,
       resetDraft,
     ],
   );

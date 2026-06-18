@@ -18,6 +18,23 @@ const colors = {
   modalOverlay: "rgba(59, 127, 149, 0.88)",
   /** Modal card border (subtle light border) */
   modalBorder: "rgba(255, 255, 255, 0.2)",
+  /** Dark dim behind bottom sheets / small modals (e.g. period picker). */
+  sheetBackdrop: "rgba(0, 0, 0, 0.45)",
+  /** Highlight row on teal surfaces (e.g. selected period option). */
+  selectionWash: "rgba(59, 127, 149, 0.35)",
+  /** Soft shadow under large white type on teal cards. */
+  textShadowSoft: "rgba(0, 0, 0, 0.22)",
+  /**
+   * Translucent primary (light blue) for small icon wells on navy/teal cards.
+   * Reads softer than solid blue600 on compact tiles.
+   */
+  primaryTintSoft: "rgba(100, 181, 217, 0.32)",
+  /** Ghost fill on teal/navy surfaces (e.g. “View all” on a panel). */
+  onTealFrost6: "rgba(255, 255, 255, 0.06)",
+  /** Slightly stronger frost for chips and inset rows on teal cards. */
+  onTealFrost10: "rgba(255, 255, 255, 0.1)",
+  /** Service mix bar track / empty state (subtle contrast on blue900). */
+  onTealTrack: "rgba(255, 255, 255, 0.12)",
   black: "#000000",
   white: "#ffffff",
   themeWhite: "#F9FAFB",
@@ -120,7 +137,7 @@ const animations = {
 
 const shadow = Platform.select({
   ios: {
-    shadowColor: "#000",
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
@@ -176,12 +193,25 @@ export const Colors = {
   },
 };
 
-// Tab bar (dark bar with light icons - matches provided design)
+// Bottom tab bar — teal gradient aligned with app brand
 export const TabBarColors = {
-  background: "#1A1A1A",
-  activeTint: "#E5DCC8",
-  inactiveTint: "#9CA3AF",
-  addButtonBg: "#1A1A1A",
+  gradientStart: colors.blue900,
+  gradientMid: colors.backgroundDark,
+  gradientEnd: colors.background,
+  gradientAccent: colors.backgroundLight,
+  activeTint: colors.white,
+  inactiveTint: colors.white,
+  activePillStart: "rgba(255, 255, 255, 0.28)",
+  activePillEnd: "rgba(255, 255, 255, 0.08)",
+  activePillBorder: "rgba(255, 255, 255, 0.35)",
+  activeGlow: "rgba(171, 233, 254, 0.35)",
+  frostOverlay: "rgba(255, 255, 255, 0.06)",
+  shineOverlay: "rgba(255, 255, 255, 0.12)",
+  topHighlight: "rgba(255, 255, 255, 0.4)",
+  activeDot: colors.outline,
+  shadow: "rgba(18, 129, 151, 0.55)",
+  floatMarginH: 0,
+  floatMarginBottom: 0,
 };
 
 export const Fonts = Platform.select({

@@ -1,3 +1,4 @@
+import { fetchVerifiedPartnerIds } from "@/lib/partner-verification";
 import { supabase } from "@/lib/supabase";
 
 /** DB values on customer_orders.status */
@@ -20,6 +21,7 @@ export interface CustomerOrderListItem {
   orderRef: string;
   partnerId: string;
   partnerName: string;
+  partnerVerified: boolean;
   /** @deprecated Prefer scheduleLines — kept for any legacy use */
   subtitle: string;
   /** One line per schedule: pickup and/or delivery when set */
@@ -44,7 +46,9 @@ export interface CustomerOrderDetailLineItem {
   id: string;
   name: string;
   quantity: number;
+  confirmedQuantity: number | null;
   estimatedPriceLabel: string;
+  confirmedPriceLabel: string | null;
   preferences: string;
 }
 
@@ -61,6 +65,7 @@ export interface CustomerOrderDetailData {
   orderRef: string;
   partnerId: string;
   partnerName: string;
+  partnerVerified: boolean;
   partnerPhone: string;
   partnerAddress: string;
   displayStatus: CustomerOrderDisplayStatus;
@@ -68,6 +73,8 @@ export interface CustomerOrderDetailData {
   pickupSchedule: string;
   deliverySchedule: string;
   estimatedTotalLabel: string;
+  confirmedTotalLabel: string | null;
+  confirmedAt: string | null;
   totalItems: number;
   notes: string;
   rejectionReasonOption: string | null;
@@ -93,6 +100,8 @@ type OrderRow = {
   status: CustomerOrderDbStatus;
   estimated_total: number | null;
   estimated_partial_total: number;
+  confirmed_total: number | null;
+  confirmed_at: string | null;
   pickup_fee: number | null;
   pickup_day_label: string | null;
   pickup_time_slot_label: string | null;
@@ -132,7 +141,9 @@ type OrderServiceItemDetailRow = {
   order_service_id: string;
   item_name: string;
   quantity: number;
+  confirmed_quantity: number | null;
   line_total_amount: number | null;
+  confirmed_line_total_amount: number | null;
 };
 
 function formatUsd(amount: number): string {
@@ -282,7 +293,11 @@ export async function fetchCustomerOrders(customerId: string): Promise<CustomerO
   }
 
   const rows = (data ?? []) as OrderRow[];
-  const partners = await fetchPartnerNames(rows.map((r) => r.partner_id));
+  const partnerIds = rows.map((r) => r.partner_id);
+  const [partners, verifiedPartnerIds] = await Promise.all([
+    fetchPartnerNames(partnerIds),
+    fetchVerifiedPartnerIds(partnerIds),
+  ]);
 
   const orderIds = rows.map((r) => r.id);
   const servicesByOrderId = new Map<string, OrderServiceRow["service_type"][]>();
@@ -351,6 +366,7 @@ export async function fetchCustomerOrders(customerId: string): Promise<CustomerO
       orderRef: order.id.replace(/-/g, "").slice(0, 8).toUpperCase(),
       partnerId: order.partner_id,
       partnerName: partners.get(order.partner_id) ?? "Launderer",
+      partnerVerified: verifiedPartnerIds.has(order.partner_id),
       subtitle,
       scheduleLines,
       servicesSummary,
@@ -405,7 +421,7 @@ export async function fetchCustomerOrderDetail(
   const { data, error } = await supabase
     .from("customer_orders")
     .select(
-      "id,partner_id,status,estimated_total,estimated_partial_total,pickup_day_label,pickup_time_slot_label,pickup_instructions,delivery_day_label,delivery_time_slot_label,delivery_instructions,rejection_reason_option,rejection_reason_details,submitted_at,created_at",
+      "id,partner_id,status,estimated_total,estimated_partial_total,confirmed_total,confirmed_at,pickup_day_label,pickup_time_slot_label,pickup_instructions,delivery_day_label,delivery_time_slot_label,delivery_instructions,rejection_reason_option,rejection_reason_details,submitted_at,created_at",
     )
     .eq("id", orderId)
     .eq("customer_id", customerId)
@@ -417,11 +433,14 @@ export async function fetchCustomerOrderDetail(
 
   const order = data as OrderRow & { customer_id?: string };
 
-  const { data: partnerData } = await supabase
-    .from("partner_profiles")
-    .select("id,business_name,phone_number,address")
-    .eq("id", order.partner_id)
-    .maybeSingle();
+  const [{ data: partnerData }, verifiedPartnerIds] = await Promise.all([
+    supabase
+      .from("partner_profiles")
+      .select("id,business_name,phone_number,address")
+      .eq("id", order.partner_id)
+      .maybeSingle(),
+    fetchVerifiedPartnerIds([order.partner_id]),
+  ]);
   const partner = (partnerData as PartnerRow | null) ?? null;
 
   const { data: serviceData, error: serviceError } = await supabase
@@ -441,7 +460,9 @@ export async function fetchCustomerOrderDetail(
   if (serviceIds.length > 0) {
     const { data: itemData, error: itemError } = await supabase
       .from("order_service_items")
-      .select("id,order_service_id,item_name,quantity,line_total_amount")
+      .select(
+        "id,order_service_id,item_name,quantity,confirmed_quantity,line_total_amount,confirmed_line_total_amount",
+      )
       .in("order_service_id", serviceIds);
     if (itemError) {
       throw new Error(itemError.message);
@@ -462,7 +483,12 @@ export async function fetchCustomerOrderDetail(
           id: item.id,
           name: item.item_name,
           quantity: item.quantity,
+          confirmedQuantity: item.confirmed_quantity,
           estimatedPriceLabel: formatUsd(item.line_total_amount ?? 0),
+          confirmedPriceLabel:
+            item.confirmed_line_total_amount != null
+              ? formatUsd(item.confirmed_line_total_amount)
+              : null,
           preferences: service.instructions?.trim() || "None",
         }))
         : [
@@ -470,7 +496,9 @@ export async function fetchCustomerOrderDetail(
             id: service.id,
             name: serviceTypeLabel(service.service_type),
             quantity: 0,
+            confirmedQuantity: null,
             estimatedPriceLabel: formatUsd(fallbackAmount),
+            confirmedPriceLabel: null,
             preferences: service.instructions?.trim() || "None",
           },
         ];
@@ -489,16 +517,23 @@ export async function fetchCustomerOrderDetail(
   ).join("\n");
   const totalItems = serviceGroups.reduce(
     (sum, group) =>
-      sum + group.items.reduce((innerSum, item) => innerSum + (item.quantity > 0 ? item.quantity : 0), 0),
+      sum +
+      group.items.reduce(
+        (innerSum, item) => innerSum + Math.max(0, item.confirmedQuantity ?? item.quantity),
+        0,
+      ),
     0,
   );
   const totalAmount = order.estimated_total ?? order.estimated_partial_total ?? 0;
+  const confirmedTotal =
+    order.confirmed_total != null ? formatUsd(order.confirmed_total) : null;
 
   return {
     id: order.id,
     orderRef: order.id.replace(/-/g, "").slice(0, 8).toUpperCase(),
     partnerId: order.partner_id,
     partnerName: partner?.business_name?.trim() || "Launderer",
+    partnerVerified: verifiedPartnerIds.has(order.partner_id),
     partnerPhone: partner?.phone_number?.trim() || "Not provided",
     partnerAddress: partner?.address?.trim() || "Address not available",
     displayStatus: mapDbStatusForCustomer(order.status),
@@ -514,6 +549,8 @@ export async function fetchCustomerOrderDetail(
       "Not scheduled",
     ),
     estimatedTotalLabel: formatUsd(totalAmount),
+    confirmedTotalLabel: confirmedTotal,
+    confirmedAt: order.confirmed_at,
     totalItems,
     notes: notes || "No special instructions",
     rejectionReasonOption: order.rejection_reason_option?.trim() || null,

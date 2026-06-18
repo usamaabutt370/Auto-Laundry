@@ -1,7 +1,20 @@
 import { DRY_CLEAN_ITEM_DEFS } from "@/constants/dry-clean-items";
 import { TAILORING_ITEM_DEFS } from "@/constants/tailoring-items";
+import {
+  WASH_FOLD_ITEM_DEFS,
+  type WashFoldItemDef,
+} from "@/constants/wash-fold-items";
+import {
+  isWashFoldPackageLabel,
+  LEGACY_WASH_FOLD_PRICE_LABELS,
+} from "@/constants/partner-wash-fold-items";
 import type { CustomerOrderDraft } from "@/contexts/customer-order-draft-context";
-import type { PartnerDetailRow, PartnerServiceLine } from "@/lib/partner-discovery";
+import {
+  partnerOffersPickupDelivery,
+  type PartnerDetailRow,
+  type PartnerServiceLine,
+} from "@/lib/partner-discovery";
+import { getStrings, type LocaleCode } from "@/locales";
 import {
   currencyPrefixFromDisplay,
   parsePriceDisplay,
@@ -10,6 +23,10 @@ import {
 const CAT_WASH = "Wash & Fold";
 const CAT_DRY = "Dry Cleaning";
 const CAT_TAILORING = "Tailoring";
+
+export type CatalogItemDef = { id: string; name: string };
+
+const MATCH_LOCALES: LocaleCode[] = ["en", "ur"];
 
 export type OrderEstimateLine = {
   key: string;
@@ -26,48 +43,59 @@ export type OrderEstimateResult = {
   disclaimer: string | null;
 };
 
+/** Match by category or by `Wash & Fold - …` name prefix (some rows may have null category). */
 function washFoldRows(services: PartnerServiceLine[]) {
-  return services.filter((s) => s.category === CAT_WASH);
+  return services.filter((s) => {
+    const cat = (s.category ?? "").trim();
+    if (cat === CAT_WASH) return true;
+    return /^wash\s*&\s*fold\s*-/i.test(s.name.trim());
+  });
 }
 
 function dryCleanRows(services: PartnerServiceLine[]) {
-  return services.filter((s) => s.category === CAT_DRY);
+  return services.filter((s) => {
+    const cat = (s.category ?? "").trim();
+    if (cat === CAT_DRY) return true;
+    return /^dry\s*cleaning\s*-/i.test(s.name.trim());
+  });
 }
 
 function tailoringRows(services: PartnerServiceLine[]) {
-  return services.filter((s) => s.category === CAT_TAILORING);
+  return services.filter((s) => {
+    const cat = (s.category ?? "").trim();
+    if (cat === CAT_TAILORING) return true;
+    return /^tailoring\s*-/i.test(s.name.trim());
+  });
 }
 
-function isLikelyPerLbName(name: string): boolean {
-  return /\b(lb|lbs|pound|pounds|kg|kilo|kilogram)\b/i.test(name);
+function stripWashFoldPrefix(name: string): string {
+  return name.replace(/^wash\s*&\s*fold\s*-\s*/i, "").trim();
 }
 
-/** Prefer explicit per-bag rows; avoid weight-based rows so totals match the toggle. */
-function pickWashFoldRowForBag(
-  rows: PartnerServiceLine[],
-): PartnerServiceLine | null {
-  if (rows.length === 0) return null;
-  const named = rows.find(
-    (r) => /\b(bag|sack|load)\b/i.test(r.name) && !isLikelyPerLbName(r.name),
-  );
-  if (named) return named;
-  const nonLb = rows.filter((r) => !isLikelyPerLbName(r.name));
-  return nonLb[0] ?? null;
+function stripDryCleanPrefix(name: string): string {
+  return name.replace(/^dry\s*cleaning\s*-\s*/i, "").trim();
 }
 
-/** Prefer explicit per-item rows; avoid weight-based rows. */
-function pickWashFoldRowForItem(
-  rows: PartnerServiceLine[],
-): PartnerServiceLine | null {
-  if (rows.length === 0) return null;
-  const named = rows.find(
-    (r) =>
-      /\b(item|piece|garment|shirt|cloth|unit)\b/i.test(r.name) &&
-      !isLikelyPerLbName(r.name),
-  );
-  if (named) return named;
-  const nonLb = rows.filter((r) => !isLikelyPerLbName(r.name));
-  return nonLb[0] ?? null;
+function stripTailoringPrefix(name: string): string {
+  return name.replace(/^tailoring\s*-\s*/i, "").trim();
+}
+
+function washFoldLabelCandidates(def: WashFoldItemDef): string[] {
+  const set = new Set<string>([def.name.trim()]);
+  for (const lc of MATCH_LOCALES) {
+    const onboarding = getStrings(lc).partner.onboarding as Record<string, string>;
+    const label = onboarding[def.id]?.trim();
+    if (label) set.add(label);
+  }
+  return [...set];
+}
+
+function normalizeGarmentLabel(label: string): string {
+  return label.trim().toLowerCase();
+}
+
+function washFoldLabelsMatch(left: string, right: string): boolean {
+  return normalizeGarmentLabel(left) === normalizeGarmentLabel(right);
 }
 
 function matchDryCleanService(
@@ -98,23 +126,25 @@ function matchTailoringService(
   );
 }
 
+function matchWashFoldService(
+  rows: PartnerServiceLine[],
+  def: WashFoldItemDef,
+): PartnerServiceLine | null {
+  const candidates = washFoldLabelCandidates(def);
+  for (const row of rows) {
+    const label = stripWashFoldPrefix(row.name);
+    if (LEGACY_WASH_FOLD_PRICE_LABELS.has(label)) continue;
+    if (candidates.some((candidate) => washFoldLabelsMatch(label, candidate))) return row;
+  }
+  return null;
+}
+
 function inferCurrencyPrefix(services: PartnerServiceLine[]): string {
   for (const s of services) {
     const p = currencyPrefixFromDisplay(s.price_display);
     if (p) return p;
   }
   return "";
-}
-
-function cleanWashFoldLineTitle(rawName: string): string {
-  const stripped = rawName
-    .replace(/\bprice\s*per\s*bag\b/gi, "")
-    .replace(/\bprice\s*per\s*item\b/gi, "")
-    .replace(/\(\s*\)/g, "")
-    .replace(/\s{2,}/g, " ")
-    .replace(/\s*-\s*$/g, "")
-    .trim();
-  return stripped || "Wash & fold";
 }
 
 export function buildCustomerOrderEstimate(
@@ -125,42 +155,28 @@ export function buildCustomerOrderEstimate(
   const washFold =
     draft.washFold ??
     (draft.selectedServiceIds.includes("washAndFold")
-      ? {
-          bagCount: 0,
-          pricingMode: "per_bag" as const,
-          estimateIncludeBag: true,
-          estimateIncludeItem: false,
-          bagDetailsByIndex: {},
-        }
+      ? { itemizedQuantities: {}, itemizedInstructions: "" }
       : null);
   const dryClean =
     draft.dryClean ??
     (draft.selectedServiceIds.includes("dryCleaning")
-      ? {
-          itemizedQuantities: {} as Record<string, number>,
-          itemizedInstructions: "",
-        }
+      ? { itemizedQuantities: {}, itemizedInstructions: "" }
       : null);
   const tailoring =
     draft.tailoring ??
     (draft.selectedServiceIds.includes("tailoring")
-      ? {
-          itemizedQuantities: {} as Record<string, number>,
-          itemizedInstructions: "",
-        }
+      ? { itemizedQuantities: {}, itemizedInstructions: "" }
       : null);
 
   const lines: OrderEstimateLine[] = [];
   let currencyPrefix = inferCurrencyPrefix(services);
   const disclaimer =
-    "Final price may change when the launderer weighs or inspects your items.";
+    "This is an estimate. Final amount may change after the launderer counts items at pickup.";
 
   const addPickupFee = () => {
     if (!draft.pickupDeliveryRequested) return;
-    if (!profile?.pickup_delivery_enabled) return;
-    /** Only after pickup and delivery are both on the draft (e.g. order summary), not mid-flow. */
-    if (draft.pickup == null || draft.delivery == null) return;
-    const raw = profile.pickup_delivery_amount?.trim() ?? "";
+    if (!partnerOffersPickupDelivery(profile)) return;
+    const raw = profile?.pickup_delivery_amount?.trim() ?? "";
     const fee = parsePriceDisplay(raw);
     if (fee == null || fee <= 0) return;
     if (!currencyPrefix) currencyPrefix = currencyPrefixFromDisplay(raw);
@@ -173,117 +189,43 @@ export function buildCustomerOrderEstimate(
   };
 
   if (draft.selectedServiceIds.includes("washAndFold") && washFold) {
-    const wf = washFold;
     const rows = washFoldRows(services);
-    const bagN = Math.max(0, wf.bagCount);
-    const itemQty = Math.max(0, wf.bagDetailsByIndex[1]?.itemCount ?? 0);
-    const inclBag = wf.estimateIncludeBag;
-    const inclItem = wf.estimateIncludeItem;
 
-    const pushBagLineResolved = () => {
-      if (bagN <= 0) return;
-      const row = pickWashFoldRowForBag(rows);
-      if (!row) {
-        lines.push({
-          key: "wash_fold_bag_no_rate",
-          title: "Wash & fold (per bag)",
-          qtyLabel: `${bagN} bag(s)`,
-          amount: null,
-        });
-        return;
-      }
-      const unit = parsePriceDisplay(row.price_display);
-      if (!currencyPrefix)
+    for (const def of listPricedWashFoldDefs(services)) {
+      const qty = washFold.itemizedQuantities[def.id] ?? 0;
+      if (qty <= 0) continue;
+      const row =
+        def.id.startsWith("partner_") || !WASH_FOLD_ITEM_DEFS.some((d) => d.id === def.id)
+          ? washFoldRowByLabel(rows, def.name)
+          : matchWashFoldService(rows, def);
+      const unit = row ? parsePriceDisplay(row.price_display) : null;
+      if (row && !currencyPrefix) {
         currencyPrefix = currencyPrefixFromDisplay(row.price_display);
+      }
+      const title = row?.name.trim() ?? `Wash & Fold - ${def.name}`;
       lines.push({
-        key: "wash_fold_bag",
-        title: cleanWashFoldLineTitle(row.name),
-        qtyLabel: `${bagN} bag(s)`,
-        amount: unit != null ? Math.round(unit * bagN * 100) / 100 : null,
+        key: `wash_fold_${def.id}`,
+        title,
+        qtyLabel: def.kind === "package" ? `${qty} pkg` : `${qty}×`,
+        amount: unit != null ? Math.round(unit * qty * 100) / 100 : null,
       });
-    };
-
-    const pushItemLineResolved = () => {
-      if (itemQty <= 0) return;
-      const row = pickWashFoldRowForItem(rows);
-      if (!row) {
-        lines.push({
-          key: "wash_fold_item_no_rate",
-          title: "Wash & fold (per item)",
-          qtyLabel: `${itemQty} item(s)`,
-          amount: null,
-        });
-        return;
-      }
-      const unit = parsePriceDisplay(row.price_display);
-      if (!currencyPrefix)
-        currencyPrefix = currencyPrefixFromDisplay(row.price_display);
-      lines.push({
-        key: "wash_fold_item",
-        title: cleanWashFoldLineTitle(row.name),
-        qtyLabel: `${itemQty} item(s)`,
-        amount:
-          unit != null ? Math.round(unit * itemQty * 100) / 100 : null,
-      });
-    };
-
-    if (rows.length === 0) {
-      if (inclBag && bagN > 0) {
-        lines.push({
-          key: "wash_fold_missing_bag",
-          title: "Wash & fold (per bag)",
-          qtyLabel: `${bagN} bag(s)`,
-          amount: null,
-        });
-      }
-      if (inclItem && itemQty > 0) {
-        lines.push({
-          key: "wash_fold_missing_item",
-          title: "Wash & fold (per item)",
-          qtyLabel: `${itemQty} item(s)`,
-          amount: null,
-        });
-      }
-      if (!inclBag && (!inclItem || itemQty === 0)) {
-        lines.push({
-          key: "wash_fold_missing",
-          title: "Wash & fold",
-          qtyLabel: "—",
-          amount: null,
-        });
-      }
-    } else {
-      if (inclBag && bagN > 0) {
-        pushBagLineResolved();
-      }
-      if (inclItem && itemQty > 0) {
-        pushItemLineResolved();
-      }
-      if (!inclBag && (!inclItem || itemQty === 0)) {
-        lines.push({
-          key: "wash_fold_missing",
-          title: "Wash & fold",
-          qtyLabel: "—",
-          amount: null,
-        });
-      }
     }
   }
 
   if (draft.selectedServiceIds.includes("dryCleaning") && dryClean) {
-    const dc = dryClean;
     const rows = dryCleanRows(services);
 
-    for (const def of DRY_CLEAN_ITEM_DEFS) {
-      const qty = dc.itemizedQuantities[def.id] ?? 0;
+    for (const def of listPricedDryCleanDefs(services)) {
+      const qty = dryClean.itemizedQuantities[def.id] ?? 0;
       if (qty <= 0) continue;
-      const row = matchDryCleanService(rows, def.name);
+      const row = dryCleanRowForDef(rows, def);
       const unit = row ? parsePriceDisplay(row.price_display) : null;
-      if (row && !currencyPrefix)
+      if (row && !currencyPrefix) {
         currencyPrefix = currencyPrefixFromDisplay(row.price_display);
+      }
       lines.push({
         key: `dry_${def.id}`,
-        title: row?.name.trim() ?? def.name,
+        title: row?.name.trim() ?? `Dry Cleaning - ${def.name}`,
         qtyLabel: `${qty}×`,
         amount: unit != null ? Math.round(unit * qty * 100) / 100 : null,
       });
@@ -291,16 +233,16 @@ export function buildCustomerOrderEstimate(
   }
 
   if (draft.selectedServiceIds.includes("tailoring") && tailoring) {
-    const t = tailoring;
     const rows = tailoringRows(services);
 
-    for (const def of TAILORING_ITEM_DEFS) {
-      const qty = t.itemizedQuantities[def.id] ?? 0;
+    for (const def of listPricedTailoringDefs(services)) {
+      const qty = tailoring.itemizedQuantities[def.id] ?? 0;
       if (qty <= 0) continue;
-      const row = matchTailoringService(rows, def.name);
+      const row = tailoringRowForDef(rows, def);
       const unit = row ? parsePriceDisplay(row.price_display) : null;
-      if (row && !currencyPrefix)
+      if (row && !currencyPrefix) {
         currencyPrefix = currencyPrefixFromDisplay(row.price_display);
+      }
       lines.push({
         key: `tailoring_${def.id}`,
         title: row?.name.trim() ?? `Tailoring - ${def.name}`,
@@ -331,39 +273,224 @@ export function buildCustomerOrderEstimate(
   };
 }
 
-/** Unit price for one dry-clean item name (partner list). */
+function dryCleanRowByLabel(
+  rows: PartnerServiceLine[],
+  label: string,
+): PartnerServiceLine | null {
+  const target = label.trim().toLowerCase();
+  if (!target) return null;
+  for (const row of rows) {
+    const stripped = stripDryCleanPrefix(row.name);
+    if (stripped.toLowerCase() === target) return row;
+  }
+  for (const row of rows) {
+    const stripped = stripDryCleanPrefix(row.name);
+    const norm = stripped.toLowerCase();
+    if (norm.includes(target) || target.includes(norm)) return row;
+  }
+  return null;
+}
+
+function tailoringRowByLabel(
+  rows: PartnerServiceLine[],
+  label: string,
+): PartnerServiceLine | null {
+  const target = label.trim().toLowerCase();
+  if (!target) return null;
+  for (const row of rows) {
+    const stripped = stripTailoringPrefix(row.name);
+    if (stripped.toLowerCase() === target) return row;
+  }
+  for (const row of rows) {
+    const stripped = stripTailoringPrefix(row.name);
+    const norm = stripped.toLowerCase();
+    if (norm.includes(target) || target.includes(norm)) return row;
+  }
+  return null;
+}
+
+function dryCleanRowForDef(
+  rows: PartnerServiceLine[],
+  def: CatalogItemDef,
+): PartnerServiceLine | null {
+  return def.id.startsWith("partner_") ||
+    !DRY_CLEAN_ITEM_DEFS.some((d) => d.id === def.id)
+    ? dryCleanRowByLabel(rows, def.name)
+    : matchDryCleanService(rows, def.name);
+}
+
+function tailoringRowForDef(
+  rows: PartnerServiceLine[],
+  def: CatalogItemDef,
+): PartnerServiceLine | null {
+  return def.id.startsWith("partner_") ||
+    !TAILORING_ITEM_DEFS.some((d) => d.id === def.id)
+    ? tailoringRowByLabel(rows, def.name)
+    : matchTailoringService(rows, def.name);
+}
+
 export function dryCleanUnitForItem(
   services: PartnerServiceLine[],
-  itemName: string,
+  def: CatalogItemDef,
 ): { amount: number | null; priceLabel: string } {
   const rows = dryCleanRows(services);
-  const row = matchDryCleanService(rows, itemName);
+  const row = dryCleanRowForDef(rows, def);
   if (!row) return { amount: null, priceLabel: "—" };
   const amount = parsePriceDisplay(row.price_display);
   return { amount, priceLabel: row.price_display.trim() || "—" };
 }
 
-/** Unit price for one tailoring item name (partner list). */
 export function tailoringUnitForItem(
   services: PartnerServiceLine[],
-  itemName: string,
+  def: CatalogItemDef,
 ): { amount: number | null; priceLabel: string } {
   const rows = tailoringRows(services);
-  const row = matchTailoringService(rows, itemName);
+  const row = tailoringRowForDef(rows, def);
   if (!row) return { amount: null, priceLabel: "—" };
   const amount = parsePriceDisplay(row.price_display);
   return { amount, priceLabel: row.price_display.trim() || "—" };
 }
 
-/** Unit price for wash & fold mode (per bag / per item) from partner list. */
-export function washFoldUnitForMode(
+function washFoldRowByLabel(
+  rows: PartnerServiceLine[],
+  label: string,
+): PartnerServiceLine | null {
+  const target = label.trim();
+  if (!target) return null;
+  for (const row of rows) {
+    const stripped = stripWashFoldPrefix(row.name);
+    if (LEGACY_WASH_FOLD_PRICE_LABELS.has(stripped)) continue;
+    if (washFoldLabelsMatch(stripped, target)) return row;
+  }
+  return null;
+}
+
+function washFoldMatchedRow(
   services: PartnerServiceLine[],
-  mode: "per_bag" | "per_item",
-): { amount: number | null; priceLabel: string } {
+  def: WashFoldItemDef,
+): PartnerServiceLine | null {
   const rows = washFoldRows(services);
-  const row =
-    mode === "per_bag" ? pickWashFoldRowForBag(rows) : pickWashFoldRowForItem(rows);
+  if (
+    def.id.startsWith("partner_") ||
+    !WASH_FOLD_ITEM_DEFS.some((d) => d.id === def.id)
+  ) {
+    return washFoldRowByLabel(rows, def.name);
+  }
+  return matchWashFoldService(rows, def);
+}
+
+function isPositivePrice(amount: number | null): amount is number {
+  return amount != null && amount > 0;
+}
+
+/** Partner row counts as a customer-facing wash & fold rate (positive price + label kind). */
+function isPricedWashFoldDef(
+  services: PartnerServiceLine[],
+  def: WashFoldItemDef,
+): boolean {
+  const row = washFoldMatchedRow(services, def);
+  if (!row) return false;
+  const label = stripWashFoldPrefix(row.name);
+  if (!label || LEGACY_WASH_FOLD_PRICE_LABELS.has(label)) return false;
+  const amount = parsePriceDisplay(row.price_display);
+  if (!isPositivePrice(amount)) return false;
+  const rowIsPackage = isWashFoldPackageLabel(label);
+  if (def.kind === "package") return rowIsPackage;
+  return !rowIsPackage;
+}
+
+export function washFoldUnitForItem(
+  services: PartnerServiceLine[],
+  def: WashFoldItemDef,
+): { amount: number | null; priceLabel: string } {
+  const row = washFoldMatchedRow(services, def);
   if (!row) return { amount: null, priceLabel: "—" };
   const amount = parsePriceDisplay(row.price_display);
+  if (!isPositivePrice(amount)) return { amount: null, priceLabel: "—" };
   return { amount, priceLabel: row.price_display.trim() || "—" };
+}
+
+/** Priced wash & fold lines for customer UI (catalog + partner-specific items with rates). */
+export function listPricedWashFoldDefs(
+  services: PartnerServiceLine[],
+): WashFoldItemDef[] {
+  const result: WashFoldItemDef[] = [];
+  const seen = new Set<string>();
+
+  for (const def of WASH_FOLD_ITEM_DEFS) {
+    if (!isPricedWashFoldDef(services, def)) continue;
+    result.push(def);
+    seen.add(def.name.trim().toLowerCase());
+  }
+
+  for (const row of washFoldRows(services)) {
+    const label = stripWashFoldPrefix(row.name);
+    if (!label || LEGACY_WASH_FOLD_PRICE_LABELS.has(label)) continue;
+    if (!isPositivePrice(parsePriceDisplay(row.price_display))) continue;
+    const key = label.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push({
+      id: `partner_${key.replace(/[^a-z0-9]+/gi, "_")}`,
+      name: label,
+      kind: isWashFoldPackageLabel(label) ? "package" : "garment",
+    });
+  }
+  return result;
+}
+
+/** Priced dry cleaning lines for customer UI (catalog + partner-added items). */
+export function listPricedDryCleanDefs(
+  services: PartnerServiceLine[],
+): CatalogItemDef[] {
+  const result: CatalogItemDef[] = [];
+  const seen = new Set<string>();
+
+  for (const def of DRY_CLEAN_ITEM_DEFS) {
+    if (dryCleanUnitForItem(services, def).amount == null) continue;
+    result.push(def);
+    seen.add(def.name.trim().toLowerCase());
+  }
+
+  for (const row of dryCleanRows(services)) {
+    const label = stripDryCleanPrefix(row.name);
+    if (!label) continue;
+    if (parsePriceDisplay(row.price_display) == null) continue;
+    const key = label.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push({
+      id: `partner_${key.replace(/[^a-z0-9]+/gi, "_")}`,
+      name: label,
+    });
+  }
+  return result;
+}
+
+/** Priced tailoring lines for customer UI (catalog + partner-added items). */
+export function listPricedTailoringDefs(
+  services: PartnerServiceLine[],
+): CatalogItemDef[] {
+  const result: CatalogItemDef[] = [];
+  const seen = new Set<string>();
+
+  for (const def of TAILORING_ITEM_DEFS) {
+    if (tailoringUnitForItem(services, def).amount == null) continue;
+    result.push(def);
+    seen.add(def.name.trim().toLowerCase());
+  }
+
+  for (const row of tailoringRows(services)) {
+    const label = stripTailoringPrefix(row.name);
+    if (!label) continue;
+    if (parsePriceDisplay(row.price_display) == null) continue;
+    const key = label.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push({
+      id: `partner_${key.replace(/[^a-z0-9]+/gi, "_")}`,
+      name: label,
+    });
+  }
+  return result;
 }

@@ -20,6 +20,7 @@ import { Swipeable } from "react-native-gesture-handler";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AppHeader } from "@/components/app-header";
+import { PartnerNameWithBadge } from "@/components/partner-name-with-badge";
 import { useAuth } from "@/contexts/auth-context";
 import { useLocale } from "@/contexts/locale-context";
 import { useSidebar } from "@/contexts/sidebar-context";
@@ -379,7 +380,11 @@ export default function CustomerOrderScreen() {
                       <Text style={[styles.statusText, { color: st.color }]}>{label}</Text>
                     </View>
                   </View>
-                  <Text style={styles.partnerName}>{order.partnerName}</Text>
+                  <PartnerNameWithBadge
+                    name={order.partnerName}
+                    verified={order.partnerVerified}
+                    nameStyle={styles.partnerName}
+                  />
                   {(order.scheduleLines.length > 0
                     ? order.scheduleLines
                     : [s.schedulePending]

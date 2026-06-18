@@ -24,6 +24,8 @@ import {
   serviceCategoriesToTypes,
 } from "@/lib/partner-discovery";
 import { AppHeader } from "@/components/app-header";
+import { PartnerNameWithBadge } from "@/components/partner-name-with-badge";
+import { usePartnerVerified } from "@/hooks/use-partner-verified";
 
 const c = theme.colors;
 
@@ -62,6 +64,7 @@ export function LaundererDetailView({
   const [services, setServices] = useState<
     Awaited<ReturnType<typeof fetchPartnerDetail>>["services"]
   >([]);
+  const partnerVerified = usePartnerVerified(partnerId);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [heroWidth, setHeroWidth] = useState(0);
   const heroScrollRef = useRef<ScrollView | null>(null);
@@ -146,6 +149,7 @@ export function LaundererDetailView({
     <SafeAreaView edges={["top"]}>
       <AppHeader
         title={profile?.business_name?.trim() || initialName || s.title}
+        titleVerified={partnerVerified}
         leftIcon="arrow-left"
         onLeftPress={onBack}
         leftAccessibilityLabel="Go back"
@@ -270,7 +274,12 @@ export function LaundererDetailView({
             />
             <Text style={styles.distanceText}>{DISTANCE_PLACEHOLDER}</Text>
           </View>
-          <Text style={styles.name}>{profile.business_name.trim()}</Text>
+          <PartnerNameWithBadge
+            name={profile.business_name.trim()}
+            verified={partnerVerified}
+            nameStyle={styles.name}
+            containerStyle={styles.nameRow}
+          />
           {profile.business_description?.trim() ? (
             <Text style={styles.description}>{profile.business_description.trim()}</Text>
           ) : null}
@@ -425,10 +434,12 @@ const styles = StyleSheet.create({
     color: c.white,
     opacity: 0.5,
   },
+  nameRow: {
+    marginBottom: 8,
+  },
   name: {
     fontSize: 22,
     color: c.white,
-    marginBottom: 8,
     fontWeight: "700",
   },
   description: {

@@ -1,7 +1,9 @@
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { useFocusEffect } from "@react-navigation/native";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Alert,
+  BackHandler,
   Image,
   KeyboardAvoidingView,
   Modal,
@@ -24,8 +26,9 @@ import { theme } from "@/constants/theme";
 import { useLocale } from "@/contexts/locale-context";
 import { useAuth } from "@/contexts/auth-context";
 import { getStrings } from "@/locales";
+import { ensureActiveUserProfile } from "@/lib/ensure-user-profile";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
-import { getCoordinatesWithFallback } from "@/utils/geocoding";
+import { getDeviceCoordinatesWithStatus } from "@/utils/device-location";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
 import { type CountryCode } from "react-native-country-picker-modal";
 
@@ -43,6 +46,11 @@ type StagedBusinessImage = {
 };
 
 type PartnerBusinessDetailsFormMode = "onboarding" | "profile";
+
+const ROLE_SWITCH_RETURN_ROUTES: Record<string, "/(customer)/(tabs)/profile" | "/(customer)/userinfo"> = {
+  customer_profile: "/(customer)/(tabs)/profile",
+  customer_userinfo: "/(customer)/userinfo",
+};
 
 type Props = {
   mode: PartnerBusinessDetailsFormMode;
@@ -79,8 +87,9 @@ function parseTimeLabelToDate(value: string): Date | null {
 
 export function PartnerBusinessDetailsForm({ mode }: Props) {
   const router = useRouter();
+  const params = useLocalSearchParams<{ from?: string; returnTo?: string }>();
   const { locale } = useLocale();
-  const { user } = useAuth();
+  const { user, refreshRole } = useAuth();
   const s = getStrings(locale).partner.onboarding;
   const settings = getStrings(locale).partner.settings;
 
@@ -274,6 +283,53 @@ export function PartnerBusinessDetailsForm({ mode }: Props) {
     setBusinessImages((prev) => prev.filter((item) => item.id !== imageId));
   }, []);
 
+  const handleBack = useCallback(() => {
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+
+    if (mode === "onboarding" && params.from === "role_switch") {
+      void (async () => {
+        if (user?.id && isSupabaseConfigured() && supabase) {
+          try {
+            const { error } = await supabase
+              .from("profiles")
+              .update({ role: "customer", updated_at: new Date().toISOString() })
+              .eq("id", user.id);
+            if (error) throw error;
+            await refreshRole();
+          } catch {
+            // Still return to customer even if role revert fails.
+          }
+        }
+        const returnRoute =
+          ROLE_SWITCH_RETURN_ROUTES[
+            typeof params.returnTo === "string" ? params.returnTo : ""
+          ] ?? "/(customer)/(tabs)/profile";
+        router.replace(returnRoute);
+      })();
+      return;
+    }
+
+    if (mode === "profile") {
+      router.replace("/(partner)/(tabs)/profile");
+      return;
+    }
+
+    router.replace("/(partner)/(tabs)");
+  }, [mode, params.from, params.returnTo, refreshRole, router, user?.id]);
+
+  useFocusEffect(
+    useCallback(() => {
+      const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+        handleBack();
+        return true;
+      });
+      return () => subscription.remove();
+    }, [handleBack]),
+  );
+
   const handleSubmit = useCallback(async () => {
     if (isSaving) return;
     setSubmitAttempted(true);
@@ -287,9 +343,44 @@ export function PartnerBusinessDetailsForm({ mode }: Props) {
       return;
     }
 
+    const profileReady = await ensureActiveUserProfile(user);
+    if (!profileReady.ok) {
+      Alert.alert("Account error", profileReady.error);
+      return;
+    }
+
     setIsSaving(true);
     try {
-      const coords = await getCoordinatesWithFallback(address.trim());
+      const locationResult = await getDeviceCoordinatesWithStatus();
+      console.log("[partner-location] location status:", locationResult.status);
+      console.log("[partner-location] coordinates:", locationResult.coords);
+      if (!locationResult.coords) {
+        if (locationResult.status === "denied") {
+          Alert.alert(
+            "Location permission required",
+            "Please allow location permission so we can place your business marker on the map.",
+          );
+        } else {
+          Alert.alert(
+            "Location unavailable",
+            "We could not detect your current location. Please try again in an open area with GPS enabled.",
+          );
+        }
+        return;
+      }
+      const coords = locationResult.coords;
+      console.log("[partner-location] using coords for profile:", {
+        latitude: coords.latitude,
+        longitude: coords.longitude,
+      });
+
+      if (!coords) {
+        Alert.alert(
+          "Location unavailable",
+          "Unable to detect your current location. Please try again.",
+        );
+        return;
+      }
       const fullPhone = `+${callingCode}${phoneNumber}`;
       const parsedPhoneObj = parsePhoneNumberFromString(fullPhone);
       const normalizedPhone = parsedPhoneObj ? parsedPhoneObj.number : fullPhone;
@@ -338,10 +429,12 @@ export function PartnerBusinessDetailsForm({ mode }: Props) {
         business_images: uploadedImageUrls,
         updated_at: new Date().toISOString(),
       };
-      if (coords) {
-        payload.latitude = coords.latitude;
-        payload.longitude = coords.longitude;
-      }
+      payload.latitude = coords.latitude;
+      payload.longitude = coords.longitude;
+      console.log("[partner-location] payload coordinates:", {
+        latitude: payload.latitude,
+        longitude: payload.longitude,
+      });
 
       const { error } = await supabase.from("partner_profiles").upsert(payload, {
         onConflict: "id",
@@ -390,7 +483,7 @@ export function PartnerBusinessDetailsForm({ mode }: Props) {
       <AppHeader
         title={mode === "onboarding" ? s.step1Title : "Business detail"}
         leftIcon="arrow-left"
-        onLeftPress={() => router.back()}
+        onLeftPress={handleBack}
         leftAccessibilityLabel={s.back}
       />
 

@@ -14,11 +14,19 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AppHeader } from "@/components/app-header";
+import { PartnerRiderPickerModal } from "@/components/partner-rider-picker-modal";
 import { theme } from "@/constants/theme";
 import { getOrderDetail, type DemoOrderDetail } from "@/data/demo-order-details";
+import { useAuth } from "@/contexts/auth-context";
 import { useLocale } from "@/contexts/locale-context";
+import {
+  acceptOrderWithRider,
+  partnerOrderDetailNeedsRider,
+} from "@/lib/order-rider-assignment";
+import { confirmPartnerOrderBill } from "@/lib/partner-order-intake";
 import { fetchPartnerOrderDetail, type PartnerOrderDetailData } from "@/lib/partner-orders";
 import { partnerUpdateOrderStatus } from "@/lib/partner-order-status";
+import { fetchPartnerRiders, type PartnerRider } from "@/lib/partner-riders";
 import { getStrings } from "@/locales";
 import { parsePriceDisplay, currencyPrefixFromDisplay } from "@/utils/parse-price-display";
 
@@ -55,6 +63,10 @@ function mapDemoDetail(detail: DemoOrderDetail): PartnerOrderDetailData {
     numItems: bag.numItems,
     preferences: bag.preferences,
     estimatedPrice: bag.estimatedPrice,
+    estimatedQuantity: Number.parseInt(bag.numItems, 10) || 0,
+    confirmedQuantity: null,
+    unitPriceAmount: null,
+    confirmedPrice: null,
   }));
   return {
     orderId: detail.orderId,
@@ -81,6 +93,9 @@ function mapDemoDetail(detail: DemoOrderDetail): PartnerOrderDetailData {
     delivery: detail.delivery,
     courier: detail.courier,
     estimatedTotal: bags[0]?.estimatedPrice ?? "0",
+    confirmedTotal: null,
+    confirmedAt: null,
+    intakeNotes: null,
     totalItems: String(
       bags.reduce((sum, bag) => sum + (Number.parseInt(bag.numItems, 10) || 0), 0),
     ),
@@ -107,6 +122,7 @@ export default function PartnerOrderDetailScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ orderId?: string }>();
   const { locale } = useLocale();
+  const { user } = useAuth();
   const s = getStrings(locale).partner.order;
   const [isConfirming, setIsConfirming] = useState(false);
   const [isRejecting, setIsRejecting] = useState(false);
@@ -115,6 +131,13 @@ export default function PartnerOrderDetailScreen() {
   const [rejectModalVisible, setRejectModalVisible] = useState(false);
   const [selectedRejectionOption, setSelectedRejectionOption] = useState<RejectionOption | null>(null);
   const [otherRejectionReason, setOtherRejectionReason] = useState("");
+  const [intakeQuantities, setIntakeQuantities] = useState<Record<string, number>>({});
+  const [intakeNotes, setIntakeNotes] = useState("");
+  const [isConfirmingBill, setIsConfirmingBill] = useState(false);
+  const [riderModalVisible, setRiderModalVisible] = useState(false);
+  const [partnerRiders, setPartnerRiders] = useState<PartnerRider[]>([]);
+  const [loadingRiders, setLoadingRiders] = useState(false);
+  const [selectedRiderId, setSelectedRiderId] = useState<string | null>(null);
 
   const detail = useMemo(
     () => (params.orderId ? getOrderDetail(params.orderId) : null),
@@ -141,7 +164,23 @@ export default function PartnerOrderDetailScreen() {
     setIsLoadingLiveDetail(true);
     fetchPartnerOrderDetail(orderIdParam)
       .then((data) => {
-        if (!cancelled) setLiveDetail(data);
+        if (!cancelled) {
+          setLiveDetail(data);
+          if (data) {
+            const initial: Record<string, number> = {};
+            for (const bag of data.bags) {
+              if (bag.estimatedQuantity > 0 || Number.parseInt(bag.numItems, 10) > 0) {
+                initial[bag.id] =
+                  bag.confirmedQuantity ??
+                  bag.estimatedQuantity ??
+                  Number.parseInt(bag.numItems, 10) ??
+                  0;
+              }
+            }
+            setIntakeQuantities(initial);
+            setIntakeNotes(data.intakeNotes ?? "");
+          }
+        }
       })
       .catch((error) => {
         if (!cancelled) {
@@ -162,6 +201,96 @@ export default function PartnerOrderDetailScreen() {
   }, [orderIdParam, shouldLoadLiveOrder]);
 
   const resolvedDetail = liveDetail ?? detail;
+
+  const beginAcceptOrder = async (pickup: string) => {
+    if (!orderIdParam || !isUuid(orderIdParam)) {
+      Alert.alert(
+        "Demo order",
+        "This order detail is using demo data. Live actions only work for real database orders.",
+      );
+      return;
+    }
+
+    if (!partnerOrderDetailNeedsRider(pickup)) {
+      void handleOrderAction("accepted");
+      return;
+    }
+
+    if (!user?.id) return;
+
+    setSelectedRiderId(null);
+    setLoadingRiders(true);
+    setRiderModalVisible(true);
+
+    try {
+      const riders = await fetchPartnerRiders(user.id);
+      setPartnerRiders(riders);
+      if (riders.length === 0) {
+        setRiderModalVisible(false);
+        Alert.alert(s.noRidersTitle, s.noRidersMessage);
+      }
+    } catch (error) {
+      setRiderModalVisible(false);
+      Alert.alert(
+        "Unable to load riders",
+        error instanceof Error ? error.message : "Please try again.",
+      );
+    } finally {
+      setLoadingRiders(false);
+    }
+  };
+
+  const confirmRiderAccept = async () => {
+    if (!orderIdParam || !user?.id) return;
+    if (!selectedRiderId) {
+      Alert.alert(s.selectRiderRequired);
+      return;
+    }
+
+    const rider = partnerRiders.find((item) => item.id === selectedRiderId);
+    if (!rider) {
+      Alert.alert(s.selectRiderRequired);
+      return;
+    }
+
+    try {
+      setIsConfirming(true);
+      await acceptOrderWithRider({
+        orderId: orderIdParam,
+        partnerId: user.id,
+        riderId: selectedRiderId,
+      });
+      setLiveDetail((prev) =>
+        prev
+          ? {
+              ...prev,
+              status: "accepted",
+              rawStatus: "accepted",
+              courier: rider.name,
+            }
+          : prev,
+      );
+      setRiderModalVisible(false);
+      setSelectedRiderId(null);
+      Alert.alert("Order accepted", s.acceptSuccess, [
+        {
+          text: "OK",
+          onPress: () =>
+            router.navigate({
+              pathname: "/(partner)/order",
+              params: { filter: "accepted" },
+            }),
+        },
+      ]);
+    } catch (error) {
+      Alert.alert(
+        "Unable to accept order",
+        error instanceof Error ? error.message : "Please try again.",
+      );
+    } finally {
+      setIsConfirming(false);
+    }
+  };
 
   const handleOrderAction = async (
     target: "accepted" | "rejected" | "ready" | "completed",
@@ -346,8 +475,12 @@ export default function PartnerOrderDetailScreen() {
           </View>
           <View style={styles.metricsRow}>
             <View style={styles.metricCard}>
-              <Text style={styles.metricLabel}>Estimated total</Text>
-              <Text style={styles.metricValue}>{formatMoney(finalDetail.estimatedTotal)}</Text>
+              <Text style={styles.metricLabel}>
+                {finalDetail.confirmedTotal ? s.confirmedTotalLabel : s.estimatedTotalLabel}
+              </Text>
+              <Text style={styles.metricValue}>
+                {formatMoney(finalDetail.confirmedTotal ?? finalDetail.estimatedTotal)}
+              </Text>
             </View>
             <View style={styles.metricCard}>
               <Text style={styles.metricLabel}>Items</Text>
@@ -450,6 +583,109 @@ export default function PartnerOrderDetailScreen() {
           ))}
         </View>
 
+        {finalDetail.confirmedTotal == null &&
+        finalDetail.rawStatus !== "rejected" &&
+        finalDetail.rawStatus !== "cancelled" &&
+        finalDetail.bags.some((b) => b.estimatedQuantity > 0) ? (
+          <View style={styles.sectionCard}>
+            <Text style={styles.sectionTitle}>{s.intakeTitle}</Text>
+            <Text style={styles.intakeHint}>{s.intakeHint}</Text>
+            {finalDetail.bags
+              .filter((b) => b.estimatedQuantity > 0)
+              .map((item) => {
+                const qty = intakeQuantities[item.id] ?? item.estimatedQuantity;
+                const unit = item.unitPriceAmount;
+                const lineTotal =
+                  unit != null ? Math.round(unit * qty * 100) / 100 : null;
+                return (
+                  <View key={item.id} style={styles.intakeRow}>
+                    <View style={styles.intakeRowLeft}>
+                      <Text style={styles.itemLabel}>{item.label}</Text>
+                      <Text style={styles.itemMeta}>
+                        Est. {item.estimatedQuantity}×
+                        {lineTotal != null ? ` · ${formatMoney(String(lineTotal))}` : ""}
+                      </Text>
+                    </View>
+                    <View style={styles.intakeStepper}>
+                      <Pressable
+                        onPress={() =>
+                          setIntakeQuantities((prev) => ({
+                            ...prev,
+                            [item.id]: Math.max(0, (prev[item.id] ?? qty) - 1),
+                          }))
+                        }
+                        style={styles.intakeStepBtn}
+                      >
+                        <MaterialCommunityIcons name="minus" size={18} color={c.white} />
+                      </Pressable>
+                      <Text style={styles.intakeQty}>{qty}</Text>
+                      <Pressable
+                        onPress={() =>
+                          setIntakeQuantities((prev) => ({
+                            ...prev,
+                            [item.id]: (prev[item.id] ?? qty) + 1,
+                          }))
+                        }
+                        style={styles.intakeStepBtn}
+                      >
+                        <MaterialCommunityIcons name="plus" size={18} color={c.white} />
+                      </Pressable>
+                    </View>
+                  </View>
+                );
+              })}
+            <TextInput
+              style={styles.intakeNotesInput}
+              value={intakeNotes}
+              onChangeText={setIntakeNotes}
+              placeholder={s.intakeNotesPlaceholder}
+              placeholderTextColor="rgba(255,255,255,0.45)"
+              multiline
+            />
+            <Pressable
+              onPress={async () => {
+                const lines = finalDetail.bags
+                  .filter((b) => b.estimatedQuantity > 0)
+                  .map((b) => ({
+                    id: b.id,
+                    confirmedQuantity: intakeQuantities[b.id] ?? b.estimatedQuantity,
+                  }));
+                setIsConfirmingBill(true);
+                const result = await confirmPartnerOrderBill(
+                  finalDetail.orderId,
+                  lines,
+                  intakeNotes,
+                );
+                setIsConfirmingBill(false);
+                if (!result.ok) {
+                  Alert.alert("Could not confirm bill", result.error);
+                  return;
+                }
+                Alert.alert(s.intakeSuccessTitle, s.intakeSuccessMessage);
+                const refreshed = await fetchPartnerOrderDetail(finalDetail.orderId);
+                if (refreshed) setLiveDetail(refreshed);
+              }}
+              disabled={isConfirmingBill}
+              style={({ pressed }) => [
+                styles.intakeConfirmBtn,
+                pressed && !isConfirmingBill && styles.pressed,
+                isConfirmingBill && styles.disabled,
+              ]}
+            >
+              <Text style={styles.intakeConfirmText}>
+                {isConfirmingBill ? s.intakeConfirming : s.intakeConfirm}
+              </Text>
+            </Pressable>
+          </View>
+        ) : null}
+
+        {finalDetail.intakeNotes ? (
+          <View style={styles.sectionCard}>
+            <Text style={styles.sectionTitle}>Intake notes</Text>
+            <Text style={styles.notesText}>{finalDetail.intakeNotes}</Text>
+          </View>
+        ) : null}
+
         <View style={styles.sectionCard}>
           <Text style={styles.sectionTitle}>Order notes</Text>
           <Text style={styles.notesText}>{finalDetail.notes}</Text>
@@ -469,7 +705,7 @@ export default function PartnerOrderDetailScreen() {
         {isPending ? (
           <View style={styles.actionsRow}>
             <Pressable
-              onPress={() => handleOrderAction("accepted")}
+              onPress={() => void beginAcceptOrder(finalDetail.pickup)}
               disabled={isConfirming || isRejecting}
               style={({ pressed }) => [
                 styles.primaryAction,
@@ -535,6 +771,24 @@ export default function PartnerOrderDetailScreen() {
         
         <View style={styles.bottomSpacing} />
       </ScrollView>
+      <PartnerRiderPickerModal
+        visible={riderModalVisible}
+        riders={partnerRiders}
+        loading={loadingRiders}
+        selectedRiderId={selectedRiderId}
+        title={s.selectRiderTitle}
+        subtitle={s.selectRiderSubtitle}
+        confirmLabel={s.selectRiderConfirm}
+        cancelLabel={s.selectRiderCancel}
+        loadingLabel={s.loadingRiders}
+        emptyLabel={s.noRidersMessage}
+        onSelectRider={setSelectedRiderId}
+        onConfirm={() => void confirmRiderAccept()}
+        onClose={() => {
+          setRiderModalVisible(false);
+          setSelectedRiderId(null);
+        }}
+      />
       <Modal
         visible={rejectModalVisible}
         transparent
@@ -823,6 +1077,59 @@ const styles = StyleSheet.create({
     color: c.white,
     fontSize: fs.smallText,
     lineHeight: 22,
+  },
+  intakeHint: {
+    color: c.blue500,
+    fontSize: fs.descText,
+    lineHeight: 20,
+    marginBottom: 14,
+  },
+  intakeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 12,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255,255,255,0.08)",
+  },
+  intakeRowLeft: { flex: 1, paddingRight: 12 },
+  intakeStepper: { flexDirection: "row", alignItems: "center", gap: 8 },
+  intakeStepBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  intakeQty: {
+    color: c.white,
+    fontSize: fs.smallText,
+    fontWeight: "700",
+    minWidth: 24,
+    textAlign: "center",
+  },
+  intakeNotesInput: {
+    backgroundColor: "rgba(255,255,255,0.08)",
+    borderRadius: 12,
+    padding: 12,
+    color: c.white,
+    fontSize: fs.descText,
+    minHeight: 72,
+    marginBottom: 12,
+    marginTop: 4,
+  },
+  intakeConfirmBtn: {
+    backgroundColor: c.lightBlue,
+    borderRadius: 999,
+    paddingVertical: 14,
+    alignItems: "center",
+  },
+  intakeConfirmText: {
+    color: c.white,
+    fontSize: fs.smallText,
+    fontWeight: "700",
   },
   rejectionDetailText: {
     color: c.blue500,

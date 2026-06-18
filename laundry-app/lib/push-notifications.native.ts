@@ -77,7 +77,20 @@ export async function registerForChatPush(_userId: string): Promise<void> {
     }
   }
 
-  const token = await messaging().getToken();
+  let token: string | undefined;
+  try {
+    token = await messaging().getToken();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    // iOS can throw this in simulator/dev states before APNS token becomes available.
+    if (message.includes("No APNS token specified before fetching FCM Token")) {
+      console.warn(
+        "[fcm] APNS token unavailable; skipping FCM token registration for now.",
+      );
+      return;
+    }
+    throw error;
+  }
   if (!token) return;
 
   await persistToken(token);

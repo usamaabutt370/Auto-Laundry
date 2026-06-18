@@ -105,6 +105,7 @@ export const ur = {
     settings: "ترتیبات",
     contactSupport: "سپورٹ سے رابطہ کریں",
     faq: "عمومی سوالات",
+    privacyPolicy: "رازداری کی پالیسی",
     signOut: "سائن آؤٹ",
   },
 
@@ -147,6 +148,8 @@ export const ur = {
       pickupDeliveryFee: "پک اپ اور ڈیلیوری فیس: {amount}",
       pickupDeliveryFeeUnknown: "پک اپ اور ڈیلیوری فیس لاگو ہوگی",
       confirm: "تصدیق",
+      editingBanner:
+        "آرڈر میں ترمیم — خلاصے پر محفوظ کرنے کے بعد تبدیلیاں لاگو ہوں گی۔",
       months:
         "جنوری,فروری,مارچ,اپریل,مئی,جون,جولائی,اگست,ستمبر,اکتوبر,نومبر,دسمبر",
     },
@@ -173,15 +176,35 @@ export const ur = {
       save: "حفظ",
     },
     washFoldOrder: {
-      title: "واش اینڈ فولڈ لوڈ",
-      lead:
-        "قیمت کیسے لگے گی منتخب کریں، کل کی تعداد درج کریں، نیچے لانڈرر کے لیے نوٹس شامل کریں۔",
-      howPriced: "اس لوڈ کی قیمت",
-      perBag: "فی بیگ",
-      perItem: "فی آئٹم",
-      chargedTitle: "جس کے لیے آپ ادائی کریں گے",
-      calcLine: "{qty}: {amount}",
-      calcNoRate: "{qty} — شرح فہرست میں نہیں",
+      title: "واش اینڈ فولڈ",
+      lead: "ہر آئٹم کی قسم اور تعداد منتخب کریں۔ تخمینی کل خود بخود اپ ڈیٹ ہوتی ہے۔",
+      estimateDisclaimer:
+        "یہ تخمینہ ہے۔ پک اپ پر گنتی کے بعد حتمی رقم بدل سکتی ہے۔",
+      itemsSection: "آئٹمز",
+      packagesSection: "بلک پیکجز",
+      packagesHint: "پیکج پر ٹیپ کریں — ہر پیکج آرڈر میں ایک لائن بنے گی۔",
+      noGarmentRates:
+        "فی آئٹم شرح ابھی نہیں — لانڈرر پک اپ پر قیمت طے کر سکتا ہے۔",
+      noPackageRates: "اس لانڈرر نے بلک پیکج کی قیمتیں سیٹ نہیں کیں۔",
+      noRates: "اس لانڈرر نے واش اینڈ فولڈ کی قیمتیں سیٹ نہیں کیں۔",
+      noPartner: "پہلے نقشے سے لانڈرر منتخب کریں۔",
+      loadError: "اس لانڈرر کی قیمتیں لوڈ نہیں ہوئیں۔ دوبارہ کوشش کریں۔",
+      saveHint:
+        "پارٹنر: واش اینڈ فولڈ کھولیں، قیمتیں درج کریں، Continue دبائیں، پھر Merchant Services پر Save۔",
+      each: "فی عدد",
+      packageUnit: "فی پیکج",
+    },
+    orderDetail: {
+      estimatedTotal: "تخمینی کل",
+      confirmedTotal: "حتمی کل",
+      confirmedAtPickup: "پک اپ پر گنتی کے بعد طے شدہ",
+      qtyConfirmed: "تعداد (طے شدہ)",
+      editOrder: "آرڈر میں ترمیم",
+      editOrderHint:
+        "جب تک لانڈرر آرڈر قبول نہیں کرتا آپ اس میں تبدیلی کر سکتے ہیں۔",
+      editOrderLoading: "آرڈر لوڈ ہو رہا ہے…",
+      editOrderUnavailable:
+        "لانڈرر آرڈر قبول کر چکا ہے — اب ترمیم ممکن نہیں۔",
     },
     liveEstimate: {
       estimatedLabel: "تخمینی کل",
@@ -190,6 +213,16 @@ export const ur = {
       loading: "پارٹنر کی قیمتیں لوڈ ہو رہی ہیں…",
       noPartner: "لائیو قیمتوں کے لیے پہلے نقشے سے لانڈر منتخب کریں۔",
       partialNote: "* کچھ لائنوں کی قیمت فہرست میں نہیں — کل جزوی ہے۔",
+    },
+    schedulePickupDelivery: {
+      title: "پک اپ اور ڈیلیوری شیڈول",
+      pickupSection: "پک اپ",
+      deliverySection: "ڈیلیوری",
+      confirm: "تصدیق",
+      incompleteSchedule: "براہ کرم پک اپ اور ڈیلیوری کی تاریخ اور وقت منتخب کریں۔",
+      deliveryBeforePickup: "ڈیلیوری پک اپ سے پہلے نہیں ہو سکتی۔",
+      deliveryTimeBeforePickup:
+        "اسی دن ڈیلیوری کا وقت پک اپ کے وقت کے بعد یا برابر ہونا چاہیے۔",
     },
     schedulePickup: {
       title: "پک اپ شیڈول",
@@ -211,12 +244,46 @@ export const ur = {
       instructionsPlaceholder: "اپنی اشیاء کی تفصیلات شامل کریں",
       confirm: "تصدیق",
     },
+    trustBanner: {
+      message:
+        "آپ کے کپڑے محفوظ ہیں۔ تصدیق شدہ لانڈرر۔ کوئی مسئلہ ہو تو چیٹ میں بتائیں۔",
+    },
+    reportProblem: {
+      title: "مسئلہ رپورٹ کریں",
+      subtitle: "آرڈر #{{ref}} — یہ سپورٹ ٹیم کو جائے گا، لانڈرر کو نہیں۔",
+      adminNote: "سپر ایڈمن آپ کی رپورٹ دیکھے گا۔ لانڈرر کو براہ راست نہیں دکھائی جائے گی۔",
+      descriptionLabel: "مسئلے کی تفصیل",
+      descriptionPlaceholder: "کیا ہوا؟ کوئی بھی مفید تفصیل لکھیں۔",
+      photosLabel: "تصاویر (اختیاری)",
+      addPhoto: "تصویر شامل کریں",
+      cancel: "منسوخ",
+      submit: "رپورٹ بھیجیں",
+      reportButton: "مسئلہ رپورٹ کریں",
+      reportedButton: "رپورٹ جمع ہو گئی",
+      requiredTitle: "تفصیل ضروری ہے",
+      requiredMessage: "براہ کرم بتائیں کیا ہوا۔",
+      photoLimitTitle: "تصویر کی حد",
+      photoLimitMessage: "آپ زیادہ سے زیادہ {{max}} تصاویر شامل کر سکتے ہیں۔",
+      permissionTitle: "تصاویر کی اجازت",
+      permissionMessage: "ثبوت شامل کرنے کے لیے تصاویر کی اجازت دیں۔",
+      submitErrorTitle: "جمع نہیں ہو سکی",
+      submitSuccessTitle: "رپورٹ جمع ہو گئی",
+      submitSuccessMessage:
+        "ہماری ٹیم آپ کی رپورٹ دیکھے گی۔ فوری اپ ڈیٹ کے لیے آپ لانڈرر سے چیٹ کر سکتے ہیں۔",
+    },
     orderSummary: {
       title: "آرڈر خلاصہ",
+      editTitle: "آرڈر اپ ڈیٹ",
       service: "سروس",
       orderNumber: "آرڈر نمبر",
+      pickupDelivery: "پک اپ اور ڈیلیوری",
+      pickupDeliveryFee: "پک اپ اور ڈیلیوری فیس",
       estimatedTotal: "تخمینی کل",
       submitOrder: "آرڈر جمع کرائیں",
+      saveChanges: "تبدیلیاں محفوظ کریں",
+      orderUpdated: "آرڈر اپ ڈیٹ ہو گیا",
+      orderUpdatedMessage:
+        "آپ کی تبدیلیاں محفوظ ہو گئیں۔ لانڈرر کو اپ ڈیٹ شدہ آرڈر نظر آئے گا۔",
     },
     ordersTab: {
       title: "میرے آرڈرز",
@@ -246,6 +313,13 @@ export const ur = {
       cancel: "منسوخ",
       reorderAction: "کسی اور لانڈرر کے ساتھ دوبارہ آرڈر کریں",
     },
+    chatTab: {
+      empty: "ابھی آپ کی کوئی چیٹ نہیں۔",
+      signIn: "چیٹس دیکھنے کے لیے سائن ان کریں۔",
+      loading: "چیٹس لوڈ ہو رہی ہیں…",
+      error: "چیٹس لوڈ نہیں ہو سکیں۔",
+      retry: "دوبارہ کوشش",
+    },
     explore: {
       title: "دریافت",
       intro: "شروع کرنے کے لیے اس ایپ میں مثال کوڈ شامل ہے۔",
@@ -274,38 +348,50 @@ export const ur = {
     },
     contactSupport: {
       title: "سپورٹ سے رابطہ کریں",
-      question: "کوئی مسئلہ؟ تجاویز؟",
-      support: "سپورٹ",
-      feedback: "رائے",
-      placeholder: "اپنا مسئلہ یا تجویز بیان کریں۔",
-      orEmailUs: "یا ہمیں ای میل کریں :",
-      email: "info@getbubblesapp.com",
+      placeholder: "اپنا مسئلہ بیان کریں۔",
+      whatsappHint: "بھیجیں پر ٹیپ کریں — WhatsApp کھلے گا اور آپ کا پیغام تیار ہوگا۔",
       send: "بھیجیں",
+      messageRequired: "بھیجنے سے پہلے اپنا مسئلہ لکھیں۔",
+      openError: "WhatsApp نہیں کھل سکا۔",
     },
     faq: {
       title: "عمومی سوالات",
       items: [
         {
-          question: "Bubble میں کیسے نیویگیٹ کریں؟",
+          question: "میں نیا لانڈری آرڈر کیسے دوں؟",
           answer:
-            "Nulla porttitor accumsan tincidunt. Pellentesque in ipsum id orci porta dapibus. Curabitur non nulla sit amet nisl tempus convallis quis ac lectus.",
+            "ڈیش بورڈ سے سروس منتخب کریں (واش اینڈ فولڈ، ڈرائی کلیننگ یا ٹیلرنگ)، لانڈرر منتخب کریں، آئٹمز شامل کریں، پھر آرڈر سمری پر تصدیق کریں۔",
         },
         {
-          question: "کیا میں اپنی ٹیم میں نیا کورئیر شامل کر سکتا ہوں؟",
+          question: "کیا میں پک اپ اور ڈیلیوری منتخب کر سکتا ہوں؟",
           answer:
-            "Vestibulum ac diam sit amet quam vehicula elementum sed sit amet dui. Donec rutrum congue leo eget malesuada.",
+            "جی ہاں۔ اگر منتخب لانڈرر یہ سروس دیتا ہے تو پک اپ سروسز میں اسے آن کریں اور آرڈر جمع کروانے سے پہلے پک اپ اور ڈیلیوری کا وقت منتخب کریں۔",
         },
         {
-          question: "زبان کہاں تبدیل کریں؟",
+          question: "حتمی بل تخمینے سے مختلف کیوں ہو سکتا ہے؟",
           answer:
-            "سائیڈبار سے ترتیبات پر جائیں، پھر زبان کے سیکشن میں اپنی پسندیدہ زبان منتخب کریں۔",
+            "آرڈر بناتے وقت ایپ تخمینی کل دکھاتی ہے۔ پک اپ پر آئٹمز کی گنتی یا وزن کے بعد لانڈرر حتمی بل کنفرم کرتا ہے، اس لیے رقم بدل سکتی ہے۔",
         },
         {
-          question: "کیا میں اپنی ٹیم میں نیا ممبر شامل کر سکتا ہوں؟",
+          question: "آرڈر دینے کے بعد اپڈیٹس کیسے ٹریک کروں؟",
           answer:
-            "آپ اپنے پروفائل یا ترتیبات سے نئے ٹیم ممبرز شامل کر سکتے ہیں۔ ٹیم مینجمنٹ میں مدد کے لیے سپورٹ سے رابطہ کریں۔",
+            "Order اور Chat ٹیبز میں اسٹیٹس دیکھیں۔ آپ کو Pending، Accepted، Rejected اور Completed جیسی اپڈیٹس ملتی رہیں گی اور آپ لانڈرر سے چیٹ بھی کر سکتے ہیں۔",
+        },
+        {
+          question: "اگر آرڈر میں مسئلہ ہو تو رپورٹ کیسے کروں؟",
+          answer:
+            "آرڈر ڈیٹیل کھولیں اور Report a problem پر ٹیپ کریں۔ واضح تفصیل لکھیں اور چاہیں تو تصاویر شامل کریں تاکہ سپورٹ ٹیم جلدی جائزہ لے سکے۔",
+        },
+        {
+          question: "سپورٹ سے رابطہ کہاں سے کروں؟",
+          answer:
+            "سائیڈبار سے Contact Support کھولیں، اپنا مسئلہ لکھیں، یا اسی اسکرین پر دی گئی ای میل پر براہ راست رابطہ کریں۔",
         },
       ],
+    },
+    privacyPolicy: {
+      title: "رازداری کی پالیسی",
+      lastUpdated: "آخری تازہ کاری",
     },
   },
 
@@ -321,6 +407,13 @@ export const ur = {
       dashboard: "ڈیش بورڈ",
       support: "سپورٹ",
       faq: "FAQ",
+    },
+    chatTab: {
+      empty: "ابھی آپ کی کوئی چیٹ نہیں۔",
+      signIn: "چیٹس دیکھنے کے لیے سائن ان کریں۔",
+      loading: "چیٹس لوڈ ہو رہی ہیں…",
+      error: "چیٹس لوڈ نہیں ہو سکیں۔",
+      retry: "دوبارہ کوشش",
     },
     order: {
       title: "آرڈرز",
@@ -369,6 +462,27 @@ export const ur = {
       estimatedPrice: "تخمینی قیمت",
       specialInstructionsPlaceholder: "خصوصی ہدایات شامل کریں",
       confirmAssignment: "آرڈر کی تصدیق کریں",
+      intakeTitle: "انٹیک کے بعد بل کی تصدیق",
+      intakeHint:
+        "پک اپ پر گنتی/وزن کریں، مقدار درست کریں، پھر اس آرڈر کا حتمی بل تصدیق کریں۔",
+      intakeConfirm: "حتمی بل کی تصدیق",
+      intakeConfirming: "تصدیق ہو رہی ہے…",
+      confirmedTotalLabel: "تصدیق شدہ کل",
+      estimatedTotalLabel: "تخمینی کل",
+      intakeNotesPlaceholder: "گاہک کے لیے نوٹ (اختیاری)",
+      intakeSuccessTitle: "بل کی تصدیق ہو گئی",
+      intakeSuccessMessage:
+        "حتمی بل محفوظ ہو گیا۔ گاہک کو کل بعد میں دکھائی جائے گی۔",
+      selectRiderTitle: "رائیڈر تفویض کریں",
+      selectRiderSubtitle: "اس آرڈر کے لیے پک اپ اور ڈیلیوری کون کرے گا منتخب کریں۔",
+      selectRiderConfirm: "قبول کریں اور تفویض کریں",
+      selectRiderCancel: "منسوخ",
+      selectRiderRequired: "براہ کرم ایک رائیڈر منتخب کریں۔",
+      loadingRiders: "رائیڈرز لوڈ ہو رہے ہیں…",
+      noRidersTitle: "کوئی رائیڈر رجسٹرڈ نہیں",
+      noRidersMessage:
+        "پک اپ آرڈرز قبول کرنے سے پہلے رائیڈر کی تفصیل میں رائیڈرز شامل کریں۔",
+      acceptSuccess: "آرڈر قبول ہو گیا اور رائیڈر کی تفصیل چیٹ میں بھیج دی گئی۔",
     },
     dashboard: {
       title: "ڈیش بورڈ",
@@ -383,7 +497,12 @@ export const ur = {
       dryCleaning: "ڈرائی کلیننگ",
       tailoring: "ٹیلرنگ",
       summary: "خلاصہ",
-      totalIncome: "کل آمدنی",
+      pipelineSectionTitle: "آرڈر کی قطاریں",
+      activeOrdersCaption: "فعال آرڈرز",
+      serviceMixCaption: "سروس کے مطابق",
+      totalIncome: "آمدنی",
+      heroCompletedOrders: "مکمل آرڈرز",
+      heroAvgPerOrder: "فی آرڈر اوسط",
       dropOffIncome: "ڈراپ آف",
       deliveryIncome: "ڈیلیوری",
       balance: "بقیہ",
@@ -455,6 +574,7 @@ export const ur = {
       includePickupDelivery: "پک اپ اور ڈیلیوری شامل کریں",
       pickupDeliveryAmountLabel: "پک اپ اور ڈیلیوری کی رقم",
       pickupDeliveryAmountPlaceholder: "پک اپ اور ڈیلیوری کی رقم درج کریں",
+      pickupDeliveryAmountRequired: "جاری رکھنے سے پہلے پک اپ اور ڈیلیوری کی رقم درج کریں۔",
       confirm: "تصدیق کریں",
       next: "اگلا",
       complete: "مکمل کریں",
@@ -469,6 +589,25 @@ export const ur = {
       pricePerBagLabel: "فی بستہ قیمت",
       pricePerKgLabel: "فی KG قیمت",
       pricePerItemLabel: "فی آئٹم قیمت",
+      washFoldPricingLead:
+        "ہر آئٹم کی قسم کی قیمت مقرر کریں۔ گاہک آئٹم اور تعداد منتخب کریں گے — بیگ یا وزن نہیں۔",
+      washFoldTabItems: "آئٹمز",
+      washFoldTabPackages: "پیکجز",
+      washFoldPackagesTabLead:
+        "بڑے یا ماہانہ آرڈرز کے لیے بلک پیکج۔ اختیاری — صرف فی آئٹم قیمت ہو تو چھوڑ دیں۔",
+      washFoldPackagesEmpty:
+        "ابھی کوئی پیکج نہیں۔ + دبائیں یا نیچے ڈیفالٹ پیکجز کی قیمت درج کریں۔",
+      washFoldPackageBoxUse: "بڑے، کارپوریٹ یا ماہانہ آرڈرز کے لیے",
+      washFoldPkg25Desc: "چھوٹا بلک پیکج",
+      washFoldPkg50Desc: "معیاری بلک پیکج",
+      washFoldPkg75Desc: "وسیع بلک پیکج",
+      washFoldPkg100Desc: "زیادہ سے زیادہ بلک پیکج",
+      washFoldPackageBoxCustomDesc: "بلک پیکج — اپنی قیمت مقرر کریں",
+      washFoldPackageBoxPriceLabel: "پیکج کی قیمت",
+      washFoldPackageBoxPriceSet: "قیمت مقرر",
+      addPackage: "پیکج شامل کریں",
+      newPackageNamePlaceholder: "پیکج کا نام (مثلاً 75 عدد کارپوریٹ)",
+      washFoldPkgSectionHint: "اختیاری بلک پیکج (مثلاً ماہانہ / کارپوریٹ آرڈر)۔",
       weightUnitKg: "kg",
       weightUnitGrams: "گرام",
       sectionNumberOfBags: "بستوں کی تعداد",
@@ -491,7 +630,22 @@ export const ur = {
       tailoringItemShirt: "قمیض",
       tailoringItemSuit: "سوٹ",
       tailoringItemDress: "ڈریس",
+      washFoldItemShirt: "شرٹ",
+      washFoldItemTshirt: "ٹی شرٹ",
+      washFoldItemTrouser: "ٹراؤزر",
+      washFoldItemShalwar: "شلوار",
+      washFoldItemKameez: "قمیض",
+      washFoldItemDupatta: "دوپٹہ",
+      washFoldItemBedsheet: "بستر کی چادر",
+      washFoldItemTowel: "تولیہ",
+      washFoldItemSocks: "موزے",
+      washFoldItemUndergarment: "زیر جامہ",
+      washFoldPkg25: "25 عدد پیکج",
+      washFoldPkg50: "50 عدد پیکج",
+      washFoldPkg75: "75 عدد پیکج",
+      washFoldPkg100: "100 عدد پیکج",
       itemizePricePlaceholder: "قیمت درج کریں",
+      enterPricePerItemPlaceholder: "فی آئٹم قیمت درج کریں",
       addItem: "آئٹم شامل کریں",
       editItem: "آئٹم میں ترمیم کریں",
       newItemNamePlaceholder: "آئٹم کا نام",
@@ -515,6 +669,38 @@ export const ur = {
       creditsRuleTopup:
         "جب کریڈٹس کم ہوں تو نئے آرڈرز جاری رکھنے کے لیے والٹ ٹاپ اپ کریں۔",
       creditsContinueToDashboard: "ڈیش بورڈ پر جائیں",
+      riderRegistrationTitle: "رائیڈر کی تفصیل",
+      riderRegistrationHeading: "اپنے رائیڈرز رجسٹر کریں",
+      riderRegistrationSubtitle:
+        "پک اپ اور ڈیلیوری کے لیے کم از کم ایک رائیڈر نام، فون اور واضح چہرے کی تصویر کے ساتھ شامل کریں۔",
+      riderDetailsSectionTitle: "رائیڈر کی تفصیلات",
+      riderDetailsSectionHint:
+        "کم از کم ایک رائیڈر واضح چہرے کی تصویر کے ساتھ شامل کریں۔ ضرورت ہو تو مزید رائیڈرز شامل کر سکتے ہیں۔",
+      riderCardTitle: "رائیڈر {index}",
+      riderNameLabel: "رائیڈر کا نام",
+      riderNamePlaceholder: "مکمل نام",
+      riderPhoneLabel: "رائیڈر کا فون",
+      riderPhonePlaceholder: "موبائل نمبر",
+      riderPhoneInvalid: "اس رائیڈر کے لیے درست موبائل نمبر درج کریں۔",
+      riderPhotoLabel: "واضح چہرے کی تصویر",
+      riderPhotoPlaceholder: "واضح چہرے کی تصویر اپ لوڈ کرنے کے لیے ٹیپ کریں",
+      riderPhotoRequired: "ہر رائیڈر کے لیے واضح چہرے کی تصویر لازمی ہے۔",
+      riderPhotoPermissionTitle: "اجازت درکار",
+      riderPhotoPermissionMessage: "رائیڈر کی تصاویر اپ لوڈ کرنے کے لیے فوٹو کی اجازت دیں۔",
+      addRider: "ایک اور رائیڈر شامل کریں",
+      removeRider: "ہٹائیں",
+      riderMinimumRequired: "جاری رکھنے سے پہلے کم از کم ایک مکمل رائیڈر شامل کریں۔",
+      riderResponsibilityLabel:
+        "میں اپنے رائیڈرز اور کسی بھی نقصان یا نقصان کی مکمل ذمہ داری لیتا/لیتی ہوں۔ میں سمجھتا/سمجھتی ہوں کہ دعوے میری ادائیگیوں سے کٹے جائیں گے۔",
+      riderResponsibilityRequired: "جاری رکھنے کے لیے رائیڈر کی ذمہ داری قبول کریں۔",
+      configureRiderDetails: "رائیڈر کی تفصیل",
+      riderDetailsIncomplete:
+        "KYC جمع کروانے سے پہلے رائیڈر کی تفصیل (نام، فون، تصویر اور ذمہ داری) مکمل کریں۔",
+      pickupRidersRequiredHint:
+        "صرف پک اپ اور ڈیلیوری: کم از کم ایک رائیڈر (واضح چہرے کی تصویر) اور ذمہ داری کی قبولیت ضروری ہے۔",
+      pickupRidersOnlyTitle: "صرف پک اپ اور ڈیلیوری",
+      pickupRidersOnlyMessage:
+        "رائیڈر رجسٹریشن صرف جب پک اپ اور ڈیلیوری آن ہو تب ضروری ہے۔",
     },
     settings: {
       merchantServices: "مرچنٹ سروسز",
@@ -576,5 +762,23 @@ export const ur = {
   },
   onboardingLast: {
     getStarted: "شروع کریں",
+  },
+
+  chat: {
+    riderAssignment: {
+      title: "رائیڈر تفویض ہو گیا",
+      riderLabel: "آپ کا رائیڈر",
+      laundromat: "لانڈرومیٹ",
+      orderDetails: "آرڈر کی تفصیل",
+      orderNumber: "آرڈر #{{number}}",
+      orderNumberLabel: "آرڈر",
+      services: "سروسز",
+      estimatedTotal: "تخمینی کل",
+      pickup: "پک اپ",
+      delivery: "ڈیلیوری",
+      address: "پتہ",
+      verified: "تصدیق شدہ",
+      trackOrder: "آرڈر ٹریک کریں",
+    },
   },
 } as const;
