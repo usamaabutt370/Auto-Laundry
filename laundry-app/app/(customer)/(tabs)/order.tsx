@@ -16,7 +16,6 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { Swipeable } from "react-native-gesture-handler";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AppHeader } from "@/components/app-header";
@@ -438,40 +437,8 @@ export default function CustomerOrderScreen() {
                 </Pressable>
             );
 
-            if (isWeb) {
-              return (
-                <View key={order.id}>{orderCard}</View>
-              );
-            }
-
             return (
-              <Swipeable
-                key={order.id}
-                friction={2}
-                overshootRight={false}
-                renderRightActions={() => (
-                  <View style={styles.swipeActions}>
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel={s.deleteAction}
-                      onPress={() => void confirmDelete(order.id)}
-                      style={({ pressed }) => [
-                        styles.swipeDeleteBtn,
-                        pressed && styles.pressed,
-                      ]}
-                    >
-                      <MaterialCommunityIcons
-                        name="trash-can-outline"
-                        size={26}
-                        color={c.white}
-                      />
-                      <Text style={styles.swipeDeleteText}>{s.deleteAction}</Text>
-                    </Pressable>
-                  </View>
-                )}
-              >
-                {orderCard}
-              </Swipeable>
+              <View key={order.id}>{orderCard}</View>
             );
           })}
         </ScrollView>
@@ -593,25 +560,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: PAD,
     paddingBottom: 100,
     gap: 12,
-  },
-  swipeActions: {
-    justifyContent: "center",
-    marginVertical: 2,
-  },
-  swipeDeleteBtn: {
-    flex: 1,
-    backgroundColor: "#b91c1c",
-    borderRadius: 16,
-    justifyContent: "center",
-    alignItems: "center",
-    width: 92,
-    paddingVertical: 12,
-    gap: 4,
-  },
-  swipeDeleteText: {
-    color: c.white,
-    fontSize: fs.xxSmallText,
-    fontWeight: "700",
   },
   center: {
     flex: 1,

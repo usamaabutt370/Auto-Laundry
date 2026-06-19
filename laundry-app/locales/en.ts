@@ -104,8 +104,8 @@ export const en = {
     recurringOptions: "Recurring options",
     preferences: "Preferences",
     settings: "Settings",
-    contactSupport: "Contact support",
-    faq: "FAQ",
+    contactSupport: "Contact & Support",
+    faq: "FAQs",
     privacyPolicy: "Privacy Policy",
     signOut: "Sign Out",
   },
@@ -363,7 +363,7 @@ export const en = {
       openError: "Could not open WhatsApp.",
     },
     faq: {
-      title: "FAQ",
+      title: "FAQs",
       items: [
         {
           question: "How do I place a new laundry order?",
@@ -414,7 +414,7 @@ export const en = {
       profile: "Profile",
       dashboard: "Dashboard",
       support: "Support",
-      faq: "FAQ",
+      faq: "FAQs",
     },
     chatTab: {
       empty: "You don't have any chats yet.",

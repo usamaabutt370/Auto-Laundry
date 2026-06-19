@@ -474,7 +474,13 @@ export async function fetchCustomerOrderDetail(
     }
   }
 
-  const serviceGroups: CustomerOrderDetailServiceGroup[] = serviceRows.map((service) => {
+  const serviceGroups: CustomerOrderDetailServiceGroup[] = serviceRows
+    .filter((service) => {
+      const hasItems = (itemsByServiceId.get(service.id) ?? []).length > 0;
+      const hasAmount = (service.estimated_amount ?? 0) > 0;
+      return hasItems || hasAmount;
+    })
+    .map((service) => {
     const serviceItems = itemsByServiceId.get(service.id) ?? [];
     const fallbackAmount = service.estimated_amount ?? 0;
     const items: CustomerOrderDetailLineItem[] =
@@ -506,7 +512,7 @@ export async function fetchCustomerOrderDetail(
     return {
       id: service.id,
       title: serviceTypeLabel(service.service_type),
-      instructions: service.instructions?.trim() || "No special instructions",
+      instructions: service.instructions?.trim() || "",
       estimatedPriceLabel: formatUsd(fallbackAmount),
       items,
     };

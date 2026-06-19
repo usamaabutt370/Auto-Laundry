@@ -45,7 +45,6 @@ function FAQAccordionItem({
             styles.faqQuestion,
             expanded ? styles.faqQuestionExpanded : styles.faqQuestionCollapsed,
           ]}
-          numberOfLines={expanded ? undefined : 1}
         >
           {item.question}
         </Text>

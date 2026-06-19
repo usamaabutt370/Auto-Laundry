@@ -28,6 +28,7 @@ import {
   fetchCustomerOrderDetail,
   hasCustomerOrderFeedback,
   submitCustomerOrderFeedback,
+  deleteCustomerOrder,
   type CustomerOrderFeedbackType,
   type CustomerOrderDetailData,
   type CustomerOrderDisplayStatus,
@@ -70,6 +71,7 @@ export default function CustomerOrderDetailScreen() {
   const [feedbackMessage, setFeedbackMessage] = useState("");
   const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
   const [isLoadingEdit, setIsLoadingEdit] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [reportVisible, setReportVisible] = useState(false);
   const [hasReportedProblem, setHasReportedProblem] = useState(false);
   const { loadDraftForEdit } = useCustomerOrderDraft();
@@ -144,6 +146,32 @@ export default function CustomerOrderDetailScreen() {
       cancelled = true;
     };
   }, [order, user?.id]);
+
+  const handleDeleteOrder = () => {
+    if (!order) return;
+    Alert.alert(
+      "Delete order",
+      "Are you sure you want to delete this order? This cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            setIsDeleting(true);
+            try {
+              await deleteCustomerOrder(order.id);
+              router.back();
+            } catch (e) {
+              Alert.alert("Error", e instanceof Error ? e.message : "Could not delete order.");
+            } finally {
+              setIsDeleting(false);
+            }
+          },
+        },
+      ],
+    );
+  };
 
   const handleEditOrder = async () => {
     if (!user?.id || !order) return;
@@ -282,15 +310,7 @@ export default function CustomerOrderDetailScreen() {
           </View>
 
           {order.displayStatus !== "rejected" ? (
-            <CustomerTrustBanner
-              verified={order.partnerVerified}
-              onPressChat={() =>
-                router.push({
-                  pathname: "/(customer)/chat/[orderId]",
-                  params: { orderId: order.id, memberName: order.partnerName },
-                })
-              }
-            />
+            <CustomerTrustBanner verified={order.partnerVerified} />
           ) : null}
 
           <View style={styles.sectionCard}>
@@ -398,10 +418,12 @@ export default function CustomerOrderDetailScreen() {
             ))}
           </View>
 
-          <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>Order notes</Text>
-            <Text style={styles.sectionValue}>{order.notes}</Text>
-          </View>
+          {order.notes ? (
+            <View style={styles.sectionCard}>
+              <Text style={styles.sectionTitle}>Order notes</Text>
+              <Text style={styles.sectionValue}>{order.notes}</Text>
+            </View>
+          ) : null}
 
           {order.displayStatus === "rejected" && order.rejectionReasonOption ? (
             <View style={styles.sectionCard}>
@@ -417,22 +439,21 @@ export default function CustomerOrderDetailScreen() {
 
           {order.displayStatus === "pending" && order.rawStatus === "submitted" ? (
             <SafeAreaView edges={["bottom"]} style={styles.editFooter}>
-              <Text style={styles.editFooterHint}>{sDetail.editOrderHint}</Text>
               <Pressable
-                onPress={() => void handleEditOrder()}
-                disabled={isLoadingEdit}
+                onPress={handleDeleteOrder}
+                disabled={isDeleting}
                 style={({ pressed }) => [
-                  styles.editOrderBtn,
-                  pressed && !isLoadingEdit && styles.pressed,
-                  isLoadingEdit && styles.editOrderBtnDisabled,
+                  styles.deleteOrderBtn,
+                  pressed && !isDeleting && styles.pressed,
+                  isDeleting && styles.editOrderBtnDisabled,
                 ]}
               >
-                {isLoadingEdit ? (
+                {isDeleting ? (
                   <ActivityIndicator color={c.white} size="small" />
                 ) : (
                   <>
-                    <MaterialCommunityIcons name="pencil-outline" size={18} color={c.white} />
-                    <Text style={styles.editOrderBtnText}>{sDetail.editOrder}</Text>
+                    <MaterialCommunityIcons name="trash-can-outline" size={18} color="#f87171" />
+                    <Text style={[styles.editOrderBtnText, styles.deleteOrderBtnText]}>Delete order</Text>
                   </>
                 )}
               </Pressable>
@@ -743,6 +764,23 @@ const styles = StyleSheet.create({
     lineHeight: 16,
     marginBottom: 10,
   },
+  footerRow: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  deleteOrderBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    alignSelf: "center",
+    gap: 8,
+    backgroundColor: "transparent",
+    borderWidth: 1,
+    borderColor: "#f87171",
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+  },
   editOrderBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -752,6 +790,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingVertical: 14,
   },
+  editOrderBtnFlex: {
+    flex: 1,
+  },
   editOrderBtnDisabled: {
     opacity: 0.6,
   },
@@ -759,6 +800,9 @@ const styles = StyleSheet.create({
     color: c.white,
     fontSize: fs.descText,
     fontWeight: "700",
+  },
+  deleteOrderBtnText: {
+    color: "#f87171",
   },
   serviceCard: {
     paddingTop: 14,

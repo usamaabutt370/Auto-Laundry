@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View, Switch, ActivityIndicator } from "react-native";
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View, Switch, ActivityIndicator } from "react-native";
 import { Linking } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -10,7 +10,7 @@ import { strings } from "@/constants/strings";
 import { useAuth } from "@/contexts/auth-context";
 import { avatarUrlWithCacheBuster } from "@/lib/avatar";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
-import { assets } from "@/assets/assets";
+import { AvatarImage } from "@/components/avatar-image";
 import { AppButton } from "@/components/ui/button";
 import { AppHeader } from "@/components/app-header";
 
@@ -120,16 +120,17 @@ export default function PartnerProfileMenu() {
 				<AppHeader title={strings.tabs.partner.profile} />
 			</SafeAreaView>
 			<ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-				<Pressable style={styles.topRow} onPress={() => router.push("/(partner)/laundrerinfo")}>
+				<Pressable style={styles.profileCard} onPress={() => router.push("/(partner)/laundrerinfo")}>
 					<View style={styles.avatarWrap}>
-						<Image
-							source={avatarUri ? { uri: avatarUri } : assets.images.profile_placeholder}
-							style={styles.avatar}
-						/>
+						<AvatarImage uri={avatarUri} name={displayName} size={80} style={styles.avatar} />
+						<View style={styles.editBadge}>
+							<MaterialCommunityIcons name="pencil" size={12} color={c.white} />
+						</View>
 					</View>
-					<View style={styles.userInfo}>
-						<Text style={styles.name}>{displayName}</Text>
-						{!!displayPhone && <Text style={styles.phone}>{displayPhone}</Text>}
+					<Text style={styles.name}>{displayName}</Text>
+					<View style={styles.editPill}>
+						<MaterialCommunityIcons name="pencil-outline" size={13} color={c.blue500} />
+						<Text style={styles.editPillText}>Edit profile</Text>
 					</View>
 				</Pressable>
 
@@ -137,28 +138,8 @@ export default function PartnerProfileMenu() {
 				<View style={styles.menuGroup}>
 					<MenuItem icon="storefront-outline" label="Business detail" onPress={() => router.push("/(partner)/business-detail")} />
 					<MenuItem icon="cog-outline" label="Services prices" onPress={() => router.push("/(partner)/settings")} />
-					<MenuItem icon="help-circle-outline" label="FAQ" onPress={() => router.push("/(customer)/faq")} />
-					<MenuItem icon="headphones" label="Contact support" onPress={() => router.push("/(customer)/contact-support")} />
-					<MenuItem
-						icon="logout"
-						label="Sign out"
-						onPress={() => {
-							Alert.alert("Sign out", "Are you sure you want to sign out?", [
-								{ text: "Cancel", style: "cancel" },
-								{
-									text: "Sign out",
-									style: "destructive",
-									onPress: async () => {
-										await signOut();
-										if (router.canDismiss && router.canDismiss()) {
-											router.dismissAll && router.dismissAll();
-										}
-										router.replace("/(auth)/login");
-									},
-								},
-							]);
-						}}
-					/>
+					<MenuItem icon="help-circle-outline" label="FAQs" onPress={() => router.push("/(customer)/faq")} />
+					<MenuItem icon="headphones" label="Contact & Support" onPress={() => router.push("/(customer)/contact-support")} />
 				</View>
 
 				<AppButton
@@ -196,6 +177,29 @@ export default function PartnerProfileMenu() {
 				</View>
 				<View style={styles.divider} />
 
+				<Pressable
+					style={({ pressed }) => [styles.signOutBtn, pressed && styles.pressed]}
+					onPress={() => {
+						Alert.alert("Sign out", "Are you sure you want to sign out?", [
+							{ text: "Cancel", style: "cancel" },
+							{
+								text: "Sign out",
+								style: "destructive",
+								onPress: async () => {
+									await signOut();
+									if (router.canDismiss && router.canDismiss()) {
+										router.dismissAll && router.dismissAll();
+									}
+									router.replace("/(auth)/login");
+								},
+							},
+						]);
+					}}
+				>
+					<MaterialCommunityIcons name="logout" size={18} color={c.white} />
+					<Text style={styles.signOutLabel}>Sign out</Text>
+				</Pressable>
+
 			</ScrollView>
 		</View>
 	);
@@ -204,12 +208,14 @@ export default function PartnerProfileMenu() {
 const styles = StyleSheet.create({
 	container: { flex: 1, backgroundColor: c.background },
 	content: { padding: 20 },
-	topRow: { flexDirection: "row", alignItems: "center", gap: 16, marginBottom: 12 },
-	avatarWrap: { width: 64, height: 64, borderRadius: 32, overflow: "hidden", backgroundColor: c.backgroundLight, borderWidth: 1, borderColor: c.blue600 },
-	avatar: { width: "100%", height: "100%" },
-	userInfo: { flex: 1 },
-	name: { fontSize: 18, fontWeight: "700", color: c.white },
-	phone: { fontSize: 13, color: c.blue500, marginTop: 2 },
+	profileCard: { alignItems: "center", paddingVertical: 20, marginBottom: 8 },
+	avatarWrap: { width: 80, height: 80, borderRadius: 40, overflow: "visible", marginBottom: 12 },
+	avatar: { width: 80, height: 80, borderRadius: 40, borderWidth: 2, borderColor: c.blue600 },
+	editBadge: { position: "absolute", bottom: 0, right: 0, width: 24, height: 24, borderRadius: 12, backgroundColor: c.backgroundLight, borderWidth: 1.5, borderColor: c.background, alignItems: "center", justifyContent: "center" },
+	name: { fontSize: 20, fontWeight: "700", color: c.white, textAlign: "center" },
+	phone: { fontSize: 14, color: c.blue500, marginTop: 4, textAlign: "center" },
+	editPill: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 10, paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.07)", borderWidth: 1, borderColor: "rgba(255,255,255,0.1)" },
+	editPillText: { fontSize: 13, color: c.blue500, fontWeight: "500" },
 	divider: { height: 1, backgroundColor: "rgba(255,255,255,0.06)", marginVertical: 16 },
 	menuGroup: { backgroundColor: "transparent", gap: 8 },
 	menuItem: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 14 },
@@ -220,6 +226,8 @@ const styles = StyleSheet.create({
 	roleLabel: { fontSize: 17, color: c.white, fontWeight: "700", flex: 1 },
 	switchWrap: { transform: [{ scale: 1.02 }] },
 	roleHint: { fontSize: 13, color: c.blue500, lineHeight: 18, marginTop: 8 },
+	signOutBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: c.backgroundDark, borderRadius: 12, paddingVertical: 14, marginTop: 4, marginBottom: 8, borderWidth: 1, borderColor: "rgba(255,255,255,0.12)" },
+	signOutLabel: { fontSize: 16, fontWeight: "700", color: c.white },
 	buyCreditsBtn: {
 		marginTop: 20,
 		marginBottom: 8,

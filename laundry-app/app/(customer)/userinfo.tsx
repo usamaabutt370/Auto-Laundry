@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -21,7 +20,7 @@ import { avatarUrlWithCacheBuster } from "@/lib/avatar";
 import { fetchPartnerOnboardingRequest } from "@/lib/partner-onboarding-request";
 import { getSession, isSupabaseConfigured, supabase } from "@/lib/supabase";
 import type { UserRole } from "@/types/user";
-import { assets } from "@/assets/assets";
+import { AvatarImage } from "@/components/avatar-image";
 
 const c = theme.colors;
 
@@ -274,17 +273,12 @@ export default function UserInfo() {
         
         <View style={styles.headerSection}>
           <View style={styles.avatarWrap}>
-            <Image
-              key={
-                avatarUrlWithCacheBuster(profile?.image_url, profile?.updated_at) ?? "placeholder"
-              }
-              source={
-                profile?.image_url
-                  ? { uri: avatarUrlWithCacheBuster(profile.image_url, profile.updated_at) as string }
-                  : assets.images.profile_placeholder
-              }
+            <AvatarImage
+              key={avatarUrlWithCacheBuster(profile?.image_url, profile?.updated_at) ?? "initials"}
+              uri={profile?.image_url ? avatarUrlWithCacheBuster(profile.image_url, profile.updated_at) : null}
+              name={profile?.full_name ?? [profile?.first_name, profile?.last_name].filter(Boolean).join(" ")}
+              size={80}
               style={styles.avatar}
-              resizeMode="cover"
             />
           </View>
         </View>
