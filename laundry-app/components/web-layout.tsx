@@ -120,7 +120,7 @@ export function WebConstrainedMain({ children }: PanelProps) {
   return <WebCenteredPanel>{children}</WebCenteredPanel>;
 }
 
-export function WebSidebarNav({ brandLabel = "Laundri", items, footerItems = [] }: SidebarProps) {
+export function WebSidebarNav({ brandLabel = "Tap2Laundry", items, footerItems = [] }: SidebarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
@@ -188,7 +188,7 @@ export function WebSidebarNav({ brandLabel = "Laundri", items, footerItems = [] 
           source={assets.icons.app_icon}
           style={styles.brandLogo}
           contentFit="contain"
-          accessibilityLabel="Laundri logo"
+          accessibilityLabel="Tap2Laundry logo"
         />
         <Text style={styles.brandText}>{brandLabel}</Text>
       </Pressable>

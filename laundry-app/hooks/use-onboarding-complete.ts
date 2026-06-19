@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const ONBOARDING_COMPLETE_KEY = '@laundry_app_onboarding_complete';
 
-const onboardingEnabled = Platform.OS === 'ios';
+const onboardingEnabled = Platform.OS !== 'web';
 
 export function useOnboardingComplete(): {
   hasCompleted: boolean | null;

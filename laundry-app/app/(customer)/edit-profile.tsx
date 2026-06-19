@@ -315,10 +315,10 @@ export default function EditProfileScreen() {
       const rawPhone = phone.trim();
       const phoneNumberObj = parsePhoneNumberFromString(`+${callingCode}${rawPhone}`);
 
-      if (!emailVal || !rawPhone) {
+      if (!rawPhone) {
         Alert.alert(
           "Missing required fields",
-          "Email and phone are required to save your profile.",
+          "Phone is required to save your profile.",
         );
         setSaving(false);
         return;
@@ -817,19 +817,6 @@ export default function EditProfileScreen() {
                 </Text>
                 <MaterialCommunityIcons name="calendar-month-outline" size={20} color={c.blue500} />
               </Pressable>
-            </View>
-
-            <View style={styles.field}>
-              <Text style={styles.label}>Email</Text>
-              <TextInput
-                style={styles.input}
-                value={email}
-                onChangeText={setEmail}
-                placeholder="Email"
-                placeholderTextColor={c.blue500}
-                keyboardType="email-address"
-                autoCapitalize="none"
-              />
             </View>
 
             <View style={styles.field}>

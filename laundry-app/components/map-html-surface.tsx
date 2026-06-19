@@ -48,7 +48,7 @@ export const MapHtmlSurface = forwardRef<MapHtmlSurfaceHandle, Props>(function M
     <View style={styles.mapArea}>
       {createElement("iframe", {
         ref: iframeRef,
-        title: "Laundri map",
+        title: "Tap2Laundry map",
         srcDoc: html,
         style: {
           position: "absolute",

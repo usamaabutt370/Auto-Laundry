@@ -20,7 +20,7 @@ export default function IndexScreen() {
     );
   }
 
-  if (Platform.OS === "ios" && !onboardingComplete) {
+  if (Platform.OS !== "web" && !onboardingComplete) {
     return <Redirect href="/(onboarding)" />;
   }
 

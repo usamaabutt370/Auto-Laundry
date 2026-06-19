@@ -172,8 +172,6 @@ export default function SignUpScreen() {
             </ThemedText>
           </ThemedView>
           <Spacer.Column numberOfSpaces={10} />
-          <ThemedText style={styles.subtitle}>{s.subtitle}</ThemedText>
-          <Spacer.Column numberOfSpaces={4} />
           <Input
             placeholder={s.firstName}
             value={firstName}

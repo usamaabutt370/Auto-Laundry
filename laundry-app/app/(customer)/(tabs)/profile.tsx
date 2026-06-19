@@ -22,7 +22,7 @@ export default function CustomerProfileMenu() {
 
 	const [avatarUri, setAvatarUri] = useState<string | undefined>(undefined);
 	const [displayName, setDisplayName] = useState<string>("User");
-	const [displayEmail, setDisplayEmail] = useState<string>("");
+	const [displayPhone, setDisplayPhone] = useState<string>("");
 
 	const fetchProfile = useCallback(async () => {
 		if (!isSupabaseConfigured()) return;
@@ -34,13 +34,13 @@ export default function CustomerProfileMenu() {
 			if (!currentUser?.id) return;
 			const { data, error } = await supabase
 				.from("profiles")
-				.select("full_name,first_name,last_name,email,image_url,updated_at")
+				.select("full_name,first_name,last_name,phone,image_url,updated_at")
 				.eq("id", currentUser.id)
 				.maybeSingle<{
 					full_name: string | null;
 					first_name: string | null;
 					last_name: string | null;
-					email: string | null;
+					phone: string | null;
 					image_url: string | null;
 					updated_at: string | null;
 				}>();
@@ -55,10 +55,9 @@ export default function CustomerProfileMenu() {
 				[data.first_name ?? "", data.last_name ?? ""].join(" ").trim() ||
 				user?.user_metadata?.full_name ||
 				user?.user_metadata?.first_name ||
-				user?.email ||
 				"User";
 			setDisplayName(resolvedName);
-			setDisplayEmail(data.email ?? user?.email ?? "");
+			setDisplayPhone(data.phone ?? (currentUser.user_metadata as any)?.phone ?? "");
 			setAvatarUri(avatarUrlWithCacheBuster(data.image_url, data.updated_at));
 		} catch {
 			// ignore and leave placeholder
@@ -190,7 +189,7 @@ export default function CustomerProfileMenu() {
 					</View>
 					<View style={styles.userInfo}>
 						<Text style={styles.name}>{displayName}</Text>
-						<Text style={styles.email}>{displayEmail}</Text>
+						{!!displayPhone && <Text style={styles.phone}>{displayPhone}</Text>}
 					</View>
 				</Pressable>
 
@@ -263,7 +262,7 @@ const styles = StyleSheet.create({
 	avatar: { width: "100%", height: "100%" },
 	userInfo: { flex: 1 },
 	name: { fontSize: 18, fontWeight: "700", color: c.white },
-	email: { fontSize: 13, color: c.blue500, marginTop: 2 },
+	phone: { fontSize: 13, color: c.blue500, marginTop: 2 },
 	divider: { height: 1, backgroundColor: "rgba(255,255,255,0.06)", marginVertical: 16 },
 	menuGroup: { backgroundColor: "transparent", gap: 8 },
 	menuItem: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 14 },
