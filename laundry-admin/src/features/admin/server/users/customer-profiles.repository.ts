@@ -207,3 +207,103 @@ function normalizeDate(value: string | null): string {
   if (Number.isNaN(date.getTime())) return value;
   return date.toISOString().slice(0, 10);
 }
+
+export type UpdateCustomerProfileInput = {
+  userId: string;
+  name: string;
+  email: string;
+  phone: string;
+};
+
+export async function updateCustomerProfileForAdmin(
+  input: UpdateCustomerProfileInput,
+): Promise<void> {
+  const userId = input.userId.trim();
+  const name = input.name.trim();
+  const email = input.email.trim();
+  const phone = input.phone.trim();
+
+  if (!userId) throw new Error("User ID is required.");
+  if (!name) throw new Error("Name is required.");
+  if (!email) throw new Error("Email is required.");
+  if (!phone) throw new Error("Phone is required.");
+
+  const supabase = createSupabaseAdminClient();
+
+  const existing = await supabase
+    .from("profiles")
+    .select("id, role")
+    .eq("id", userId)
+    .eq("role", "customer")
+    .maybeSingle();
+
+  if (existing.error) {
+    throw new Error(`Failed to load user: ${existing.error.message}`);
+  }
+  if (!existing.data) {
+    throw new Error("Customer not found.");
+  }
+
+  const nameParts = name.split(/\s+/);
+  const firstName = nameParts[0] ?? "";
+  const lastName = nameParts.slice(1).join(" ");
+  const now = new Date().toISOString();
+
+  const profileUpdate = await supabase
+    .from("profiles")
+    .update({
+      full_name: name,
+      first_name: firstName || null,
+      last_name: lastName || null,
+      email,
+      phone,
+      updated_at: now,
+    })
+    .eq("id", userId)
+    .eq("role", "customer");
+
+  if (profileUpdate.error) {
+    throw new Error(`Failed to update profile: ${profileUpdate.error.message}`);
+  }
+
+  const authUpdate = await supabase.auth.admin.updateUserById(userId, {
+    email,
+    phone,
+    user_metadata: {
+      full_name: name,
+      first_name: firstName,
+      last_name: lastName,
+      phone,
+    },
+  });
+
+  if (authUpdate.error) {
+    throw new Error(`Failed to update auth user: ${authUpdate.error.message}`);
+  }
+}
+
+export async function deleteCustomerProfileForAdmin(userId: string): Promise<void> {
+  const id = userId.trim();
+  if (!id) throw new Error("User ID is required.");
+
+  const supabase = createSupabaseAdminClient();
+
+  const existing = await supabase
+    .from("profiles")
+    .select("id, role")
+    .eq("id", id)
+    .eq("role", "customer")
+    .maybeSingle();
+
+  if (existing.error) {
+    throw new Error(`Failed to load user: ${existing.error.message}`);
+  }
+  if (!existing.data) {
+    throw new Error("Customer not found.");
+  }
+
+  const authDelete = await supabase.auth.admin.deleteUser(id);
+  if (authDelete.error) {
+    throw new Error(`Failed to delete user: ${authDelete.error.message}`);
+  }
+}
