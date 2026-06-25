@@ -1,4 +1,5 @@
 import { fetchVerifiedPartnerIds } from "@/lib/partner-verification";
+import type { PartnerFulfillmentMode } from "@/lib/partner-discovery";
 import { supabase } from "@/lib/supabase";
 
 /** DB values on customer_orders.status */
@@ -37,6 +38,7 @@ export interface CustomerOrderListItem {
   notesPreview: string | null;
   rejectionReasonOption: string | null;
   rejectionReasonDetails: string | null;
+  fulfillmentMode: PartnerFulfillmentMode;
   displayStatus: CustomerOrderDisplayStatus;
   rawStatus: CustomerOrderDbStatus;
   updatedAt: string;
@@ -79,6 +81,7 @@ export interface CustomerOrderDetailData {
   notes: string;
   rejectionReasonOption: string | null;
   rejectionReasonDetails: string | null;
+  fulfillmentMode: PartnerFulfillmentMode;
   serviceGroups: CustomerOrderDetailServiceGroup[];
   placedAtIso: string | null;
 }
@@ -145,6 +148,22 @@ type OrderServiceItemDetailRow = {
   line_total_amount: number | null;
   confirmed_line_total_amount: number | null;
 };
+
+function inferOrderFulfillmentMode(order: {
+  pickup_fee?: number | null;
+  pickup_day_label?: string | null;
+  pickup_time_slot_label?: string | null;
+  delivery_day_label?: string | null;
+  delivery_time_slot_label?: string | null;
+}): PartnerFulfillmentMode {
+  const hasPickupDelivery =
+    (order.pickup_fee != null && order.pickup_fee > 0) ||
+    Boolean(order.pickup_day_label?.trim()) ||
+    Boolean(order.pickup_time_slot_label?.trim()) ||
+    Boolean(order.delivery_day_label?.trim()) ||
+    Boolean(order.delivery_time_slot_label?.trim());
+  return hasPickupDelivery ? "pickupDelivery" : "dropoff";
+}
 
 function formatUsd(amount: number): string {
   // Display amounts with `Rs` prefix instead of dollar sign
@@ -252,25 +271,13 @@ export async function reassignRejectedCustomerOrder(
     throw new Error("Supabase is not configured.");
   }
 
-  const { data, error } = await supabase
-    .from("customer_orders")
-    .update({
-      partner_id: newPartnerId,
-      status: "submitted",
-      rejection_reason_option: null,
-      rejection_reason_details: null,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", orderId)
-    .eq("status", "rejected")
-    .select("id")
-    .maybeSingle();
+  const { error } = await supabase.rpc("customer_reassign_rejected_order", {
+    p_order_id: orderId,
+    p_new_partner_id: newPartnerId,
+  });
 
   if (error) {
     throw new Error(error.message);
-  }
-  if (!data) {
-    throw new Error("Only rejected orders can be reassigned.");
   }
 }
 
@@ -376,6 +383,7 @@ export async function fetchCustomerOrders(customerId: string): Promise<CustomerO
       notesPreview: notesPreview(order.pickup_instructions, order.delivery_instructions),
       rejectionReasonOption: order.rejection_reason_option?.trim() || null,
       rejectionReasonDetails: order.rejection_reason_details?.trim() || null,
+      fulfillmentMode: inferOrderFulfillmentMode(order),
       displayStatus: mapDbStatusForCustomer(order.status),
       rawStatus: order.status,
       updatedAt: order.updated_at,
@@ -421,7 +429,7 @@ export async function fetchCustomerOrderDetail(
   const { data, error } = await supabase
     .from("customer_orders")
     .select(
-      "id,partner_id,status,estimated_total,estimated_partial_total,confirmed_total,confirmed_at,pickup_day_label,pickup_time_slot_label,pickup_instructions,delivery_day_label,delivery_time_slot_label,delivery_instructions,rejection_reason_option,rejection_reason_details,submitted_at,created_at",
+      "id,partner_id,status,estimated_total,estimated_partial_total,confirmed_total,confirmed_at,pickup_fee,pickup_day_label,pickup_time_slot_label,pickup_instructions,delivery_day_label,delivery_time_slot_label,delivery_instructions,rejection_reason_option,rejection_reason_details,submitted_at,created_at",
     )
     .eq("id", orderId)
     .eq("customer_id", customerId)
@@ -561,6 +569,7 @@ export async function fetchCustomerOrderDetail(
     notes: notes || "No special instructions",
     rejectionReasonOption: order.rejection_reason_option?.trim() || null,
     rejectionReasonDetails: order.rejection_reason_details?.trim() || null,
+    fulfillmentMode: inferOrderFulfillmentMode(order),
     serviceGroups,
     placedAtIso: order.submitted_at ?? order.created_at,
   };

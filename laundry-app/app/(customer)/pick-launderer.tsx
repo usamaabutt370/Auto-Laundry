@@ -174,7 +174,7 @@ function LaundererCard({
 
 export default function PickLaundererScreen() {
   const router = useRouter();
-  const { setPartner } = useCustomerOrderDraft();
+  const { setPartner, editingOrderId } = useCustomerOrderDraft();
   const params = useLocalSearchParams<{ reorderOrderId?: string; mode?: string }>();
   const s = strings.customer.pickLaunderer;
   const sHome = strings.customer.home;
@@ -183,7 +183,11 @@ export default function PickLaundererScreen() {
   const fulfillmentMode: PartnerFulfillmentMode =
     params.mode === "pickupDelivery" ? "pickupDelivery" : "dropoff";
   const isReassignMode = reorderOrderId.length > 0;
-  const defaultTitle = fulfillmentMode === "dropoff" ? sHome.dropOff : sHome.pickUpDelivery;
+  const defaultTitle = isReassignMode
+    ? s.reassignTitle
+    : fulfillmentMode === "dropoff"
+      ? sHome.dropOff
+      : sHome.pickUpDelivery;
   const [partners, setPartners] = useState<PartnerPublicRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -215,6 +219,12 @@ export default function PickLaundererScreen() {
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    if (editingOrderId && !isReassignMode) {
+      router.replace("/(customer)/pickup-services");
+    }
+  }, [editingOrderId, isReassignMode, router]);
 
   const resolveUserLocation = useCallback(async () => {
     setLocationState("loading");

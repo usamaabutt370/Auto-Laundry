@@ -16,11 +16,13 @@ import { Image } from "expo-image";
 
 import { Spacer } from "@/components";
 import { AppHeader } from "@/components/app-header";
+import { PartnerNameWithBadge } from "@/components/partner-name-with-badge";
 import { assets } from "@/assets/assets";
 import { strings } from "@/constants/strings";
 import type { LaundererServiceType } from "@/constants/launderers";
 import { theme } from "@/constants/theme";
 import { useCustomerOrderDraft } from "@/contexts/customer-order-draft-context";
+import { usePartnerVerified } from "@/hooks/use-partner-verified";
 import {
   fetchPartnerDetail,
   partnerOffersPickupDelivery,
@@ -54,6 +56,8 @@ export default function PickupServicesScreen() {
   const insets = useSafeAreaInsets();
   const { draft, editingOrderId, setPickupDeliveryRequested, setSelectedServiceIds } =
     useCustomerOrderDraft();
+  const isEditing = Boolean(editingOrderId);
+  const partnerVerified = usePartnerVerified(draft.partnerId);
   const s = strings.customer.pickupServices;
   const selectedIds = draft.selectedServiceIds;
   const [loading, setLoading] = useState(true);
@@ -104,8 +108,9 @@ export default function PickupServicesScreen() {
 
   const servicesToShow = useMemo(() => {
     if (partnerServiceTypes.length > 0) return partnerServiceTypes;
-    return draft.partnerId ? [] : (["washAndFold", "dryCleaning"] as ServiceId[]);
-  }, [draft.partnerId, partnerServiceTypes]);
+    if (draft.partnerId || isEditing) return [];
+    return ["washAndFold", "dryCleaning"] as ServiceId[];
+  }, [draft.partnerId, isEditing, partnerServiceTypes]);
 
   const selectedItemsByService = useMemo(() => {
     const currencyPrefix = "Rs ";
@@ -219,8 +224,8 @@ export default function PickupServicesScreen() {
   const handleConfirm = () => {
     if (!draft.partnerId) {
       Alert.alert(
-        "Choose a launderer",
-        "Go back and select a laundry partner before scheduling pickup.",
+        isEditing ? s.editMissingPartnerTitle : s.missingLaundererTitle,
+        isEditing ? s.editMissingPartner : s.missingLaundererMessage,
       );
       return;
     }
@@ -235,7 +240,7 @@ export default function PickupServicesScreen() {
     <View style={styles.container}>
       <SafeAreaView edges={["top"]}>
         <AppHeader
-          title={s.title}
+          title={isEditing ? s.editTitle : s.title}
           leftIcon="arrow-left"
           onLeftPress={() => router.back()}
           leftAccessibilityLabel="Go back"
@@ -256,6 +261,19 @@ export default function PickupServicesScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.spacer} />
+        {isEditing && draft.partnerId ? (
+          <View style={styles.lockedPartnerCard}>
+            <Text style={styles.lockedPartnerLabel}>{s.lockedLaundererLabel}</Text>
+            {draft.partnerName ? (
+              <PartnerNameWithBadge
+                name={draft.partnerName}
+                verified={partnerVerified}
+                nameStyle={styles.lockedPartnerName}
+              />
+            ) : null}
+            <Text style={styles.lockedPartnerNote}>{s.lockedLaundererNote}</Text>
+          </View>
+        ) : null}
         {editingOrderId ? (
           <View style={styles.editingBanner}>
             <MaterialCommunityIcons name="information-outline" size={18} color={c.lightBlue} />
@@ -549,6 +567,32 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
+  },
+  lockedPartnerCard: {
+    marginBottom: 16,
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
+    backgroundColor: c.blue900,
+  },
+  lockedPartnerLabel: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "rgba(255,255,255,0.55)",
+    textTransform: "uppercase",
+    marginBottom: 6,
+  },
+  lockedPartnerName: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: c.white,
+    marginBottom: 6,
+  },
+  lockedPartnerNote: {
+    fontSize: 13,
+    color: "rgba(255,255,255,0.65)",
+    lineHeight: 18,
   },
   editingBanner: {
     flexDirection: "row",

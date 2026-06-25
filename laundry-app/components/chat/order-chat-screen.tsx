@@ -30,6 +30,7 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import { AppHeader } from "@/components/app-header";
 import { ChatListScrollView } from "@/components/chat/chat-list-scroll-view";
 import { RiderAssignmentMessage } from "@/components/chat/rider-assignment-message";
+import { WebCameraCaptureModal } from "@/components/chat/web-camera-capture-modal";
 import { theme } from "@/constants/theme";
 import { useAuth } from "@/contexts/auth-context";
 import {
@@ -44,6 +45,7 @@ import {
   type ChatMessage,
 } from "@/lib/chat";
 import { supabase } from "@/lib/supabase";
+import { pickImagesFromDocument } from "@/utils/pick-images";
 
 const c = theme.colors;
 const fs = theme.fontSize;
@@ -159,6 +161,7 @@ export function OrderChatScreen() {
     [],
   );
   const [uploadingMessages, setUploadingMessages] = useState<PendingUploadMessage[]>([]);
+  const [webCameraOpen, setWebCameraOpen] = useState(false);
   const listRef = useRef<FlatList<DisplayChatItem>>(null);
   const chatScrollViewRef = useRef<React.ElementRef<typeof KeyboardChatScrollView>>(null);
   const shouldSnapToLatestRef = useRef(true);
@@ -348,6 +351,19 @@ export function OrderChatScreen() {
     async (source: "camera" | "library") => {
       if (!conversationId || !user?.id || sending) return;
 
+      if (Platform.OS === "web") {
+        if (source === "camera") {
+          setWebCameraOpen(true);
+          return;
+        }
+
+        const picked = await pickImagesFromDocument({ multiple: true });
+        if (picked.length === 0) return;
+        setError(null);
+        setPendingImages((prev) => [...prev, ...picked]);
+        return;
+      }
+
       const perm =
         source === "camera"
           ? await ImagePicker.requestCameraPermissionsAsync()
@@ -362,13 +378,19 @@ export function OrderChatScreen() {
         return;
       }
 
-      const launch =
-        source === "camera" ? ImagePicker.launchCameraAsync : ImagePicker.launchImageLibraryAsync;
-      const result = await launch({
-        mediaTypes: ["images"],
-        quality: 0.72,
-        ...(source === "library" ? { allowsMultipleSelection: true, selectionLimit: 10 } : {}),
-      });
+      const result =
+        source === "camera"
+          ? await ImagePicker.launchCameraAsync({
+              mediaTypes: ["images"],
+              quality: 0.72,
+              allowsEditing: false,
+            })
+          : await ImagePicker.launchImageLibraryAsync({
+              mediaTypes: ["images"],
+              quality: 0.72,
+              allowsMultipleSelection: true,
+              selectionLimit: 10,
+            });
 
       if (result.canceled || !result.assets?.[0]?.uri) return;
       setError(null);
@@ -723,34 +745,30 @@ export function OrderChatScreen() {
                   submitBehavior="submit"
                   maxLength={1000}
                 />
-                {Platform.OS !== "web" ? (
-                  <>
-                    <Pressable
-                      onPress={onOpenGallery}
-                      disabled={sending}
-                      style={({ pressed }) => [
-                        styles.cameraInInputBtn,
-                        sending && styles.attachBtnDisabled,
-                        pressed && styles.pressed,
-                      ]}
-                      accessibilityLabel="Open gallery"
-                    >
-                      <MaterialCommunityIcons name="paperclip" size={20} color={c.white} />
-                    </Pressable>
-                    <Pressable
-                      onPress={onOpenCamera}
-                      disabled={sending}
-                      style={({ pressed }) => [
-                        styles.cameraInInputBtn,
-                        sending && styles.attachBtnDisabled,
-                        pressed && styles.pressed,
-                      ]}
-                      accessibilityLabel="Open camera"
-                    >
-                      <MaterialCommunityIcons name="camera-outline" size={22} color={c.white} />
-                    </Pressable>
-                  </>
-                ) : null}
+                <Pressable
+                  onPress={onOpenGallery}
+                  disabled={sending}
+                  style={({ pressed }) => [
+                    styles.cameraInInputBtn,
+                    sending && styles.attachBtnDisabled,
+                    pressed && styles.pressed,
+                  ]}
+                  accessibilityLabel="Open gallery"
+                >
+                  <MaterialCommunityIcons name="paperclip" size={20} color={c.white} />
+                </Pressable>
+                <Pressable
+                  onPress={onOpenCamera}
+                  disabled={sending}
+                  style={({ pressed }) => [
+                    styles.cameraInInputBtn,
+                    sending && styles.attachBtnDisabled,
+                    pressed && styles.pressed,
+                  ]}
+                  accessibilityLabel="Open camera"
+                >
+                  <MaterialCommunityIcons name="camera-outline" size={22} color={c.white} />
+                </Pressable>
               </View>
               <Pressable
                 onPress={onSend}
@@ -794,6 +812,16 @@ export function OrderChatScreen() {
           </Pressable>
         </View>
       </Modal>
+      {Platform.OS === "web" ? (
+        <WebCameraCaptureModal
+          visible={webCameraOpen}
+          onClose={() => setWebCameraOpen(false)}
+          onCapture={(image) => {
+            setError(null);
+            setPendingImages((prev) => [...prev, image]);
+          }}
+        />
+      ) : null}
     </View>
   );
 }

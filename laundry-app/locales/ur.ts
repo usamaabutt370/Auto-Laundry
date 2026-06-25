@@ -117,6 +117,10 @@ export const ur = {
       chooseService: "اپنی سروس منتخب کریں",
       dropOff: "ڈراپ آف",
       pickUpDelivery: "پک اپ / ڈیلیوری",
+      viewPartnerDetails: "پارٹنر کی تفصیل دیکھیں",
+      closePartnerDetails: "پارٹنر کی تفصیل بند کریں",
+      noImage: "کوئی تصویر نہیں",
+      updatedPrefix: "اپ ڈیٹ",
     },
     pickLaunderer: {
       title: "پک اپ اور ڈیلیوری",
@@ -139,6 +143,7 @@ export const ur = {
     },
     pickupServices: {
       title: "پک اپ سروسز",
+      editTitle: "آرڈر میں ترمیم",
       today: "آج",
       chooseServices: "اپنی سروس(ز) منتخب کریں:",
       washAndFold: "دھونا اور تہہ کرنا",
@@ -150,6 +155,14 @@ export const ur = {
       confirm: "تصدیق",
       editingBanner:
         "آرڈر میں ترمیم — خلاصے پر محفوظ کرنے کے بعد تبدیلیاں لاگو ہوں گی۔",
+      lockedLaundererLabel: "لانڈرر",
+      lockedLaundererNote: "اس آرڈر میں ترمیم کے دوران آپ کا لانڈرر وہی رہے گا۔",
+      missingLaundererTitle: "لانڈرر منتخب کریں",
+      missingLaundererMessage:
+        "پک اپ شیڈول کرنے سے پہلے واپس جا کر لانڈری پارٹنر منتخب کریں۔",
+      editMissingPartnerTitle: "لانڈرر دستیاب نہیں",
+      editMissingPartner:
+        "اس آرڈر کے لیے لانڈرر لوڈ نہیں ہو سکا۔ واپس جا کر دوبارہ کوشش کریں۔",
       months:
         "جنوری,فروری,مارچ,اپریل,مئی,جون,جولائی,اگست,ستمبر,اکتوبر,نومبر,دسمبر",
     },
@@ -205,6 +218,7 @@ export const ur = {
       editOrderLoading: "آرڈر لوڈ ہو رہا ہے…",
       editOrderUnavailable:
         "لانڈرر آرڈر قبول کر چکا ہے — اب ترمیم ممکن نہیں۔",
+      reorderAction: "کسی اور لانڈرر کے ساتھ دوبارہ آرڈر کریں",
     },
     liveEstimate: {
       estimatedLabel: "تخمینی کل",
@@ -284,6 +298,19 @@ export const ur = {
       orderUpdated: "آرڈر اپ ڈیٹ ہو گیا",
       orderUpdatedMessage:
         "آپ کی تبدیلیاں محفوظ ہو گئیں۔ لانڈرر کو اپ ڈیٹ شدہ آرڈر نظر آئے گا۔",
+      orderSubmitted: "آرڈر جمع ہو گیا",
+      orderSubmittedMessage:
+        "آپ کا آرڈر لانڈرر کو بھیج دیا گیا ہے۔ حوالہ: {{ref}}۔",
+      orderSubmittedOk: "آرڈر دیکھیں",
+      selectLaundererFirst: "پہلے لانڈرر منتخب کریں۔",
+      pickLaunderer: "لانڈرر منتخب کریں",
+      lockedLaundererNote: "اس آرڈر کے لیے آپ کا لانڈرر وہی رہے گا۔",
+      missingLaundererTitle: "لانڈرر موجود نہیں",
+      missingLaundererMessage: "براہِ کرم پہلے لانڈرر منتخب کریں۔",
+      editMissingPartnerTitle: "لانڈرر دستیاب نہیں",
+      editMissingPartner:
+        "اس آرڈر کے لیے لانڈرر لوڈ نہیں ہو سکا۔ واپس جا کر دوبارہ کوشش کریں۔",
+      goBack: "واپس جائیں",
     },
     ordersTab: {
       title: "میرے آرڈرز",

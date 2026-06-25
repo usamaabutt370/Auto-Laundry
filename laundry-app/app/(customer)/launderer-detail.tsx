@@ -8,7 +8,7 @@ const c = theme.colors;
 
 export default function LaundererDetailScreen() {
   const router = useRouter();
-  const { setPartner } = useCustomerOrderDraft();
+  const { setPartner, editingOrderId } = useCustomerOrderDraft();
   const params = useLocalSearchParams<{
     id: string | string[];
     name?: string;
@@ -26,6 +26,10 @@ export default function LaundererDetailScreen() {
   }
 
   const handleSelect = (id: string, name: string | null) => {
+    if (editingOrderId) {
+      router.replace("/(customer)/pickup-services");
+      return;
+    }
     setPartner(id, name);
     router.push({
       pathname: "/(customer)/pickup-services",

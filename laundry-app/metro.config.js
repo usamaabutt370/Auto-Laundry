@@ -9,6 +9,8 @@ const config = getDefaultConfig(__dirname);
  * `module` field pointing outside /dist. Native uses the country picker; web uses
  * country-code-picker.web.tsx, but keep this alias for safety.
  */
+const defaultResolveRequest = config.resolver.resolveRequest;
+
 config.resolver.resolveRequest = (context, moduleName, platform) => {
   if (moduleName === "react-async-hook") {
     return {
@@ -20,7 +22,9 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
     };
   }
 
-  return context.resolveRequest(context, moduleName, platform);
+  return defaultResolveRequest
+    ? defaultResolveRequest(context, moduleName, platform)
+    : context.resolveRequest(context, moduleName, platform);
 };
 
 module.exports = config;

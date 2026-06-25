@@ -82,11 +82,17 @@ export function CustomerOrderDraftProvider({
   const [draft, setDraft] = useState<CustomerOrderDraft>(emptyDraft);
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
   const draftRef = useRef(draft);
+  const editingOrderIdRef = useRef<string | null>(null);
   draftRef.current = draft;
+  editingOrderIdRef.current = editingOrderId;
 
   const setPartner = useCallback((partnerId: string, partnerName: string | null) => {
-    if (draftRef.current.partnerId && draftRef.current.partnerId !== partnerId) {
-      setEditingOrderId(null);
+    if (editingOrderIdRef.current) {
+      if (draftRef.current.partnerId && draftRef.current.partnerId !== partnerId) {
+        return;
+      }
+      setDraft((p) => ({ ...p, partnerId, partnerName }));
+      return;
     }
     setDraft((p) => {
       if (p.partnerId === partnerId) {

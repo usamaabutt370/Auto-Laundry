@@ -109,6 +109,19 @@ export default function CustomerOrderScreen() {
     [confirm, deleteOrder, s.cancel, s.deleteAction, s.deleteError, s.deleteMessage, s.deleteTitle],
   );
 
+  const handleReorder = useCallback(
+    (orderId: string, fulfillmentMode: "dropoff" | "pickupDelivery") => {
+      router.push({
+        pathname: "/(customer)/pick-launderer",
+        params: {
+          reorderOrderId: orderId,
+          mode: fulfillmentMode,
+        },
+      });
+    },
+    [router],
+  );
+
   const statusStyles = useMemo(
     () => ({
       pending: {
@@ -413,19 +426,10 @@ export default function CustomerOrderScreen() {
                   </View>
                   {order.displayStatus === "rejected" ? (
                     <Pressable
-                      onPress={() =>
-                        Alert.alert(
-                          "Order rejected",
-                          "This order was rejected by the launderer. Please place a new order.",
-                          [
-                            { text: s.cancel, style: "cancel" },
-                            {
-                              text: "Reorder now",
-                              onPress: () => router.push("/(customer)/(tabs)"),
-                            },
-                          ],
-                        )
-                      }
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        handleReorder(order.id, order.fulfillmentMode);
+                      }}
                       style={({ pressed }) => [
                         styles.reorderButton,
                         pressed && styles.pressed,

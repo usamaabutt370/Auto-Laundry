@@ -1,4 +1,5 @@
 import * as FileSystem from "expo-file-system";
+import { Platform } from "react-native";
 
 import { fetchVerifiedPartnerIds } from "@/lib/partner-verification";
 import { supabase } from "@/lib/supabase";
@@ -568,12 +569,33 @@ function extAndContentType(uri: string, mimeType?: string | null): { ext: string
   const m = (mimeType ?? "").toLowerCase();
   if (m.includes("jpeg") || m.includes("jpg")) return { ext: "jpg", contentType: "image/jpeg" };
   if (m.includes("png")) return { ext: "png", contentType: "image/png" };
+  if (m.includes("webp")) return { ext: "webp", contentType: "image/webp" };
   if (m.includes("heic")) return { ext: "heic", contentType: "image/heic" };
   const lower = uri.toLowerCase();
   if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) return { ext: "jpg", contentType: "image/jpeg" };
   if (lower.endsWith(".png")) return { ext: "png", contentType: "image/png" };
+  if (lower.endsWith(".webp")) return { ext: "webp", contentType: "image/webp" };
   if (lower.endsWith(".heic")) return { ext: "heic", contentType: "image/heic" };
   return { ext: "jpg", contentType: "image/jpeg" };
+}
+
+async function readLocalImageBytes(localUri: string): Promise<ArrayBuffer> {
+  if (
+    Platform.OS === "web" &&
+    (localUri.startsWith("blob:") ||
+      localUri.startsWith("data:") ||
+      localUri.startsWith("http://") ||
+      localUri.startsWith("https://"))
+  ) {
+    const response = await fetch(localUri);
+    if (!response.ok) {
+      throw new Error("Could not read the selected image.");
+    }
+    return response.arrayBuffer();
+  }
+
+  const file = new FileSystem.File(localUri);
+  return file.arrayBuffer();
 }
 
 export async function uploadChatImage(
@@ -592,8 +614,7 @@ export async function uploadChatImage(
       : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
   const path = `${userId}/${conversationId}/${objectId}.${ext}`;
 
-  const file = new FileSystem.File(localUri);
-  const arrayBuffer = await file.arrayBuffer();
+  const arrayBuffer = await readLocalImageBytes(localUri);
 
   const { error: uploadError } = await supabase.storage
     .from(CHAT_IMAGES_BUCKET)

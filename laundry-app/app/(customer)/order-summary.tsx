@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -10,9 +11,11 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { AppHeader } from "@/components/app-header";
 import { CustomerTrustBanner } from "@/components/customer-trust-banner";
 import { PartnerNameWithBadge } from "@/components/partner-name-with-badge";
+import { AppButton } from "@/components/ui/button";
 import { usePartnerVerified } from "@/hooks/use-partner-verified";
 import { strings } from "@/constants/strings";
 import { theme } from "@/constants/theme";
@@ -25,11 +28,16 @@ import { formatMoney } from "@/utils/format-money";
 
 const c = theme.colors;
 
+function formatOrderReference(orderId: string): string {
+  return orderId.replace(/-/g, "").slice(0, 8).toUpperCase();
+}
+
 export default function OrderSummaryScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const { draft, editingOrderId, resetDraft } = useCustomerOrderDraft();
   const [submitting, setSubmitting] = useState(false);
+  const [submittedOrderId, setSubmittedOrderId] = useState<string | null>(null);
   const isEditing = Boolean(editingOrderId);
   const s = strings.customer.orderSummary;
   const sServices = strings.customer.pickupServices;
@@ -46,7 +54,10 @@ export default function OrderSummaryScreen() {
       return;
     }
     if (!draft.partnerId) {
-      Alert.alert("Missing launderer", "Please choose a launderer first.");
+      Alert.alert(
+        isEditing ? s.editMissingPartnerTitle : s.missingLaundererTitle,
+        isEditing ? s.editMissingPartner : s.missingLaundererMessage,
+      );
       return;
     }
     if (draft.selectedServiceIds.length === 0) {
@@ -95,8 +106,17 @@ export default function OrderSummaryScreen() {
       return;
     }
     resetDraft();
-    Alert.alert("Order submitted", `Your order reference is ${result.orderId.slice(0, 8)}.`);
-    router.replace("/(customer)/(tabs)");
+    setSubmittedOrderId(result.orderId);
+  };
+
+  const handleSubmittedOrderContinue = () => {
+    if (!submittedOrderId) return;
+    const orderId = submittedOrderId;
+    setSubmittedOrderId(null);
+    router.replace({
+      pathname: "/(customer)/order-detail",
+      params: { orderId },
+    });
   };
 
   const orderRef = useMemo(() => {
@@ -142,13 +162,21 @@ export default function OrderSummaryScreen() {
       >
         {!draft.partnerId ? (
           <View style={styles.centerBlock}>
-            <Text style={styles.muted}>Select a launderer first.</Text>
-            <Pressable
-              onPress={() => router.replace("/(customer)/pick-launderer")}
-              style={styles.linkBtn}
-            >
-              <Text style={styles.linkText}>Pick a launderer</Text>
-            </Pressable>
+            <Text style={styles.muted}>
+              {isEditing ? s.editMissingPartner : s.selectLaundererFirst}
+            </Text>
+            {isEditing ? (
+              <Pressable onPress={() => router.back()} style={styles.linkBtn}>
+                <Text style={styles.linkText}>{s.goBack}</Text>
+              </Pressable>
+            ) : (
+              <Pressable
+                onPress={() => router.replace("/(customer)/pick-launderer")}
+                style={styles.linkBtn}
+              >
+                <Text style={styles.linkText}>{s.pickLaunderer}</Text>
+              </Pressable>
+            )}
           </View>
         ) : loading ? (
           <View style={styles.centerBlock}>
@@ -163,6 +191,9 @@ export default function OrderSummaryScreen() {
           </View>
         ) : (
           <>
+            {isEditing ? (
+              <Text style={styles.lockedPartnerNote}>{s.lockedLaundererNote}</Text>
+            ) : null}
             {draft.partnerName ? (
               <PartnerNameWithBadge
                 name={draft.partnerName}
@@ -263,6 +294,36 @@ export default function OrderSummaryScreen() {
           </Text>
         </Pressable>
       </SafeAreaView>
+
+      <Modal
+        visible={submittedOrderId != null}
+        transparent
+        animationType="fade"
+        onRequestClose={handleSubmittedOrderContinue}
+      >
+        <Pressable style={styles.successOverlay} onPress={handleSubmittedOrderContinue}>
+          <Pressable style={styles.successCard} onPress={(event) => event.stopPropagation()}>
+            <View style={styles.successIconWrap}>
+              <MaterialCommunityIcons name="check-circle-outline" size={28} color={c.background} />
+            </View>
+            <Text style={styles.successTitle}>{s.orderSubmitted}</Text>
+            <Text style={styles.successMessage}>
+              {s.orderSubmittedMessage.replace(
+                "{{ref}}",
+                submittedOrderId ? formatOrderReference(submittedOrderId) : "",
+              )}
+            </Text>
+            <AppButton
+              label={s.orderSubmittedOk}
+              onPress={handleSubmittedOrderContinue}
+              variant="filled"
+              fullWidth
+              style={styles.successButton}
+              accessibilityLabel={s.orderSubmittedOk}
+            />
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -278,6 +339,12 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: c.white,
     marginBottom: 12,
+  },
+  lockedPartnerNote: {
+    fontSize: 13,
+    color: "rgba(255,255,255,0.65)",
+    marginBottom: 8,
+    lineHeight: 18,
   },
   card: {
     backgroundColor: c.blue900,
@@ -347,4 +414,46 @@ const styles = StyleSheet.create({
   },
   submitDisabled: { opacity: 0.45 },
   submitLabel: { fontSize: 17, fontWeight: "700", color: c.white },
+  successOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(3, 15, 27, 0.72)",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 24,
+  },
+  successCard: {
+    width: "100%",
+    maxWidth: 360,
+    backgroundColor: c.white,
+    borderRadius: 18,
+    paddingHorizontal: 22,
+    paddingVertical: 24,
+    alignItems: "center",
+  },
+  successIconWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "#DDF4EA",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 14,
+  },
+  successTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: c.background,
+    textAlign: "center",
+    marginBottom: 8,
+  },
+  successMessage: {
+    fontSize: 15,
+    lineHeight: 22,
+    color: c.gray50,
+    textAlign: "center",
+    marginBottom: 20,
+  },
+  successButton: {
+    alignSelf: "stretch",
+  },
 });

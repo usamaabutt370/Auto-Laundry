@@ -260,8 +260,8 @@ export default function CustomerOrderDetailScreen() {
             style={styles.scroll}
             contentContainerStyle={[
               styles.content,
-              order.displayStatus === "pending" &&
-                order.rawStatus === "submitted" &&
+              ((order.displayStatus === "pending" && order.rawStatus === "submitted") ||
+                order.displayStatus === "rejected") &&
                 styles.contentWithStickyFooter,
             ]}
             showsVerticalScrollIndicator={false}
@@ -456,6 +456,25 @@ export default function CustomerOrderDetailScreen() {
                     <Text style={[styles.editOrderBtnText, styles.deleteOrderBtnText]}>Delete order</Text>
                   </>
                 )}
+              </Pressable>
+            </SafeAreaView>
+          ) : null}
+          {order.displayStatus === "rejected" ? (
+            <SafeAreaView edges={["bottom"]} style={styles.editFooter}>
+              <Pressable
+                onPress={() =>
+                  router.push({
+                    pathname: "/(customer)/pick-launderer",
+                    params: {
+                      reorderOrderId: order.id,
+                      mode: order.fulfillmentMode,
+                    },
+                  })
+                }
+                style={({ pressed }) => [styles.reorderBtn, pressed && styles.pressed]}
+              >
+                <MaterialCommunityIcons name="storefront-outline" size={18} color={c.white} />
+                <Text style={styles.editOrderBtnText}>{sDetail.reorderAction}</Text>
               </Pressable>
             </SafeAreaView>
           ) : null}
@@ -792,6 +811,15 @@ const styles = StyleSheet.create({
   },
   editOrderBtnFlex: {
     flex: 1,
+  },
+  reorderBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: c.backgroundLight,
+    borderRadius: 12,
+    paddingVertical: 14,
   },
   editOrderBtnDisabled: {
     opacity: 0.6,

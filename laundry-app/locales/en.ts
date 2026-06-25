@@ -118,6 +118,10 @@ export const en = {
       chooseService: "Choose your service",
       dropOff: "Drop off",
       pickUpDelivery: "Pick up / Delivery",
+      viewPartnerDetails: "View partner details",
+      closePartnerDetails: "Close partner details",
+      noImage: "No image",
+      updatedPrefix: "Updated",
     },
     pickLaunderer: {
       title: "Pick Up & Delivery",
@@ -141,6 +145,7 @@ export const en = {
     },
     pickupServices: {
       title: "Pickup Services",
+      editTitle: "Edit order",
       today: "Today",
       chooseServices: "Choose your Service(s):",
       washAndFold: "Wash & Fold",
@@ -152,6 +157,14 @@ export const en = {
       confirm: "Confirm",
       editingBanner:
         "Editing order — changes apply after you save on the summary screen.",
+      lockedLaundererLabel: "Launderer",
+      lockedLaundererNote: "Your launderer stays the same while you edit this order.",
+      missingLaundererTitle: "Choose a launderer",
+      missingLaundererMessage:
+        "Go back and select a laundry partner before scheduling pickup.",
+      editMissingPartnerTitle: "Launderer unavailable",
+      editMissingPartner:
+        "We could not load your launderer for this order. Go back and try again.",
       months:
         "January,February,March,April,May,June,July,August,September,October,November,December",
     },
@@ -208,6 +221,7 @@ export const en = {
       editOrderLoading: "Loading order…",
       editOrderUnavailable:
         "This order can no longer be edited because your launderer has already accepted it.",
+      reorderAction: "Reorder with another launderer",
     },
     liveEstimate: {
       estimatedLabel: "Estimated total",
@@ -291,6 +305,19 @@ export const en = {
       orderUpdated: "Order updated",
       orderUpdatedMessage:
         "Your changes have been saved. Your launderer will see the updated order.",
+      orderSubmitted: "Order submitted",
+      orderSubmittedMessage:
+        "Your order has been sent to your launderer. Reference: {{ref}}.",
+      orderSubmittedOk: "View order",
+      selectLaundererFirst: "Select a launderer first.",
+      pickLaunderer: "Pick a launderer",
+      lockedLaundererNote: "Your launderer stays the same for this order.",
+      missingLaundererTitle: "Missing launderer",
+      missingLaundererMessage: "Please choose a launderer first.",
+      editMissingPartnerTitle: "Launderer unavailable",
+      editMissingPartner:
+        "We could not load your launderer for this order. Go back and try again.",
+      goBack: "Go back",
     },
     ordersTab: {
       title: "My orders",
