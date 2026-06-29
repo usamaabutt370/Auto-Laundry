@@ -224,8 +224,8 @@ export default function PickupServicesScreen() {
   const handleConfirm = () => {
     if (!draft.partnerId) {
       Alert.alert(
-        isEditing ? s.editMissingPartnerTitle : s.missingLaundererTitle,
-        isEditing ? s.editMissingPartner : s.missingLaundererMessage,
+        "Choose a Laundry Captain",
+        "Go back and select a Laundry Captain before scheduling pickup.",
       );
       return;
     }

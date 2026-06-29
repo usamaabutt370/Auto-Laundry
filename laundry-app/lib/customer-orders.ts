@@ -78,7 +78,7 @@ export interface CustomerOrderDetailData {
   confirmedTotalLabel: string | null;
   confirmedAt: string | null;
   totalItems: number;
-  notes: string;
+  notes: string | null;
   rejectionReasonOption: string | null;
   rejectionReasonDetails: string | null;
   fulfillmentMode: PartnerFulfillmentMode;
@@ -240,7 +240,7 @@ async function fetchPartnerNames(partnerIds: string[]): Promise<Map<string, stri
   return new Map(
     (data as PartnerRow[]).map((row) => [
       row.id,
-      row.business_name?.trim() || "Launderer",
+      row.business_name?.trim() || "Laundry Captain",
     ]),
   );
 }
@@ -546,7 +546,7 @@ export async function fetchCustomerOrderDetail(
     id: order.id,
     orderRef: order.id.replace(/-/g, "").slice(0, 8).toUpperCase(),
     partnerId: order.partner_id,
-    partnerName: partner?.business_name?.trim() || "Launderer",
+    partnerName: partner?.business_name?.trim() || "Laundry Captain",
     partnerVerified: verifiedPartnerIds.has(order.partner_id),
     partnerPhone: partner?.phone_number?.trim() || "Not provided",
     partnerAddress: partner?.address?.trim() || "Address not available",
@@ -566,7 +566,7 @@ export async function fetchCustomerOrderDetail(
     confirmedTotalLabel: confirmedTotal,
     confirmedAt: order.confirmed_at,
     totalItems,
-    notes: notes || "No special instructions",
+    notes: notes || null,
     rejectionReasonOption: order.rejection_reason_option?.trim() || null,
     rejectionReasonDetails: order.rejection_reason_details?.trim() || null,
     fulfillmentMode: inferOrderFulfillmentMode(order),

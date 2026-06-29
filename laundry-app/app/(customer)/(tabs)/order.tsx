@@ -426,10 +426,19 @@ export default function CustomerOrderScreen() {
                   </View>
                   {order.displayStatus === "rejected" ? (
                     <Pressable
-                      onPress={(e) => {
-                        e.stopPropagation();
-                        handleReorder(order.id, order.fulfillmentMode);
-                      }}
+                      onPress={() =>
+                        Alert.alert(
+                          "Order rejected",
+                          "This order was rejected by your Laundry Captain. Please place a new order.",
+                          [
+                            { text: s.cancel, style: "cancel" },
+                            {
+                              text: "Reorder now",
+                              onPress: () => router.push("/(customer)/(tabs)"),
+                            },
+                          ],
+                        )
+                      }
                       style={({ pressed }) => [
                         styles.reorderButton,
                         pressed && styles.pressed,

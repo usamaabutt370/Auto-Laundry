@@ -98,7 +98,7 @@ export default function CustomerProfileMenu() {
 			if (isFirstTimeBecomingLaunderer) {
 				setRoleSwitchValue(true);
 				Alert.alert(
-					"Become a Laundry Partner",
+					"Become a Laundry Captain",
 					"Are you sure you want to become a Laundry Partner? You will be asked to provide your business details.",
 					[
 						{
@@ -205,7 +205,7 @@ export default function CustomerProfileMenu() {
 				</View>
 				<View style={styles.roleCard}>
 					<View style={styles.roleRow}>
-						<Text style={styles.roleLabel}>Become a Laundry Partner</Text>
+						<Text style={styles.roleLabel}>Become a Laundry Captain</Text>
 						<View style={styles.switchWrap}>
 							{isUpdatingRole ? (
 								<ActivityIndicator color={c.white} size="small" />
@@ -222,7 +222,7 @@ export default function CustomerProfileMenu() {
 							}
 						</View>
 					</View>
-					<Text style={styles.roleHint}>Offer laundry services and manage orders as a Laundry Partner.</Text>
+					<Text style={styles.roleHint}>Offer laundry services and manage orders as a Laundry Captain.</Text>
 				</View>
 				<View style={styles.divider} />
 

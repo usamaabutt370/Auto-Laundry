@@ -164,7 +164,7 @@ export function PartnerSidebar() {
     partnerProfile?.business_name?.trim() ||
     (profile?.first_name || profile?.last_name
       ? [profile.first_name, profile.last_name].filter(Boolean).join(" ")
-      : "Launderer");
+      : "Laundry Captain");
   const displayEmail = profile?.email || user?.email || "—";
   const avatarUrl = partnerProfile?.image_url
     ? avatarUrlWithCacheBuster(partnerProfile.image_url, partnerProfile.updated_at)

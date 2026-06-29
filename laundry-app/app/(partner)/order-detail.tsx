@@ -583,7 +583,7 @@ export default function PartnerOrderDetailScreen() {
           ))}
         </View>
 
-        {finalDetail.confirmedTotal == null &&
+        {false && finalDetail.confirmedTotal == null &&
         finalDetail.rawStatus !== "rejected" &&
         finalDetail.rawStatus !== "cancelled" &&
         finalDetail.bags.some((b) => b.estimatedQuantity > 0) ? (

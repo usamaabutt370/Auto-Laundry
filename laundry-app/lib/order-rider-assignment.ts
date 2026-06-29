@@ -115,7 +115,7 @@ async function fetchOrderAssignmentContext(orderId: string, partnerId: string) {
   return {
     order,
     servicesSummary,
-    partnerName: partnerProfile?.business_name?.trim() || "Launderer",
+    partnerName: partnerProfile?.business_name?.trim() || "Laundry Captain",
     partnerVerified,
     address: customerProfile?.address?.trim() || "Address not available",
     estimatedTotal: formatMoney(total),

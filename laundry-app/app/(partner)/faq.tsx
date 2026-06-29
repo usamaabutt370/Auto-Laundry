@@ -24,7 +24,7 @@ export default function PartnerFaqScreen() {
         />
       </SafeAreaView>
       <View style={styles.content}>
-        <Text style={styles.placeholder}>FAQs for launderers will appear here.</Text>
+        <Text style={styles.placeholder}>FAQs for Laundry Captains will appear here.</Text>
       </View>
     </View>
   );

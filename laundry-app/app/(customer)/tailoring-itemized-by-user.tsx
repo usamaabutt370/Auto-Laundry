@@ -174,7 +174,7 @@ export default function TailoringItemizedByUserScreen() {
           );
         })}
         {availableItems.length === 0 ? (
-          <Text style={styles.emptyText}>No tailoring item prices have been configured by this launderer.</Text>
+          <Text style={styles.emptyText}>No tailoring item prices have been configured by this Laundry Captain.</Text>
         ) : null}
 
         <Text style={styles.sectionLabel}>{sDet.instructions}</Text>

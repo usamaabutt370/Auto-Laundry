@@ -209,6 +209,66 @@ export async function approvePartnerKycRequest(input: {
   if (profileStatusResult.error && !isMissingPartnerStatusColumnError(profileStatusResult.error)) {
     throw new Error(`approve partner_profiles status failed: ${profileStatusResult.error.message}`);
   }
+
+  // Award welcome credits — non-fatal so approval is never blocked by a credit error
+  await awardWelcomeCreditsForPartner(input.userId, now).catch((err) => {
+    console.error(`[KYC approve] Failed to award welcome credits for partner ${input.userId}:`, err);
+  });
+}
+
+const WELCOME_CREDITS = 2000;
+
+async function awardWelcomeCreditsForPartner(partnerId: string, nowIso: string): Promise<void> {
+  const supabase = createSupabaseAdminClient();
+
+  // Idempotent: skip if already awarded
+  const { data: existingBonus } = await supabase
+    .from("partner_credit_ledger")
+    .select("id")
+    .eq("partner_id", partnerId)
+    .eq("event_type", "welcome_bonus")
+    .limit(1)
+    .maybeSingle();
+
+  if (existingBonus) return;
+
+  // Ensure account row exists (no-op if already present)
+  await supabase
+    .from("partner_credit_accounts")
+    .upsert({ partner_id: partnerId }, { onConflict: "partner_id", ignoreDuplicates: true });
+
+  // Read current balance
+  const { data: account, error: accountErr } = await supabase
+    .from("partner_credit_accounts")
+    .select("balance, total_earned")
+    .eq("partner_id", partnerId)
+    .single();
+
+  if (accountErr) throw new Error(`partner_credit_accounts read failed: ${accountErr.message}`);
+
+  const newBalance = ((account.balance as number) ?? 0) + WELCOME_CREDITS;
+  const newEarned = ((account.total_earned as number) ?? 0) + WELCOME_CREDITS;
+
+  const { error: updateErr } = await supabase
+    .from("partner_credit_accounts")
+    .update({ balance: newBalance, total_earned: newEarned, updated_at: nowIso })
+    .eq("partner_id", partnerId);
+
+  if (updateErr) throw new Error(`partner_credit_accounts update failed: ${updateErr.message}`);
+
+  const { error: ledgerErr } = await supabase
+    .from("partner_credit_ledger")
+    .insert({
+      partner_id: partnerId,
+      event_type: "welcome_bonus",
+      delta: WELCOME_CREDITS,
+      balance_after: newBalance,
+      note: "Welcome onboarding credits",
+      metadata: { source: "kyc_approval" },
+      created_at: nowIso,
+    });
+
+  if (ledgerErr) throw new Error(`partner_credit_ledger insert failed: ${ledgerErr.message}`);
 }
 
 export async function rejectPartnerKycRequest(input: {

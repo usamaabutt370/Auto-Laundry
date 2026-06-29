@@ -25,7 +25,7 @@ export async function listPartnerCreditsForAdmin(): Promise<{
   const [accountsResult, ledgerResult, partnersResult, requestsResult] = await Promise.all([
     supabase
       .from("partner_credit_accounts")
-      .select("id, partner_id, balance, total_earned, total_spent, created_at, updated_at")
+      .select("partner_id, balance, total_earned, total_spent, created_at, updated_at")
       .order("updated_at", { ascending: false, nullsFirst: false }),
     supabase
       .from("partner_credit_ledger")
@@ -57,8 +57,23 @@ export async function listPartnerCreditsForAdmin(): Promise<{
         : (requestsResult.data ?? []);
 
   const partnerMetaById = buildPartnerMetaByIdMap(partnersResult.data ?? []);
+  const accountByPartnerId = new Map(
+    (accountsResult.data ?? []).map((row) => [asText(row.partner_id), row]),
+  );
 
-  const balances = (accountsResult.data ?? []).map((row) => mapBalanceRow(row, partnerMetaById));
+  // Show all partners, with credit data joined in where available
+  const balances = (partnersResult.data ?? []).map((partner) => {
+    const partnerId = asText(partner.id);
+    const account = accountByPartnerId.get(partnerId);
+    return {
+      userId: partnerId,
+      userName: asText(partner.business_name) || "Unknown partner",
+      userPhone: asText(partner.phone_number) || "N/A",
+      balance: toNumber(account?.balance) ?? 0,
+      lastTopupAt: account ? normalizeDateOrNull(account.updated_at) : null,
+    } satisfies UserCreditBalance;
+  });
+
   const transactions = (ledgerResult.data ?? []).map((row) => mapLedgerRow(row, partnerMetaById));
   const requests = requestsRows.map((row) => mapRequestRow(row, partnerMetaById));
 

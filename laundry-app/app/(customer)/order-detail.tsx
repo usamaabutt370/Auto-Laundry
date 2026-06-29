@@ -258,12 +258,7 @@ export default function CustomerOrderDetailScreen() {
         <>
           <ScrollView
             style={styles.scroll}
-            contentContainerStyle={[
-              styles.content,
-              ((order.displayStatus === "pending" && order.rawStatus === "submitted") ||
-                order.displayStatus === "rejected") &&
-                styles.contentWithStickyFooter,
-            ]}
+            contentContainerStyle={styles.content}
             showsVerticalScrollIndicator={false}
           >
           <View style={styles.heroCard}>
@@ -313,103 +308,99 @@ export default function CustomerOrderDetailScreen() {
             <CustomerTrustBanner verified={order.partnerVerified} />
           ) : null}
 
-          <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>Partner</Text>
-            <View style={styles.infoRow}>
-              <MaterialCommunityIcons name="storefront-outline" size={18} color={c.outline} />
+          <View style={styles.detailCard}>
+            <Text style={styles.secLabel}>Partner</Text>
+            <View style={styles.detailRow}>
+              <MaterialCommunityIcons name="storefront-outline" size={16} color={c.outline} />
               <PartnerNameWithBadge
                 name={order.partnerName}
                 verified={order.partnerVerified}
-                nameStyle={styles.sectionValue}
-                containerStyle={styles.partnerNameRow}
+                nameStyle={styles.detailValue}
+                containerStyle={styles.flex1}
               />
             </View>
-            <View style={styles.infoRow}>
-              <MaterialCommunityIcons name="phone-outline" size={18} color={c.outline} />
-              <Text style={styles.sectionValue}>{order.partnerPhone}</Text>
+            <View style={styles.detailRow}>
+              <MaterialCommunityIcons name="phone-outline" size={16} color={c.outline} />
+              <Text style={styles.detailValue}>{order.partnerPhone}</Text>
             </View>
-            <View style={styles.infoRow}>
-              <MaterialCommunityIcons name="map-marker-outline" size={18} color={c.outline} />
-              <Text style={styles.sectionValue}>{order.partnerAddress}</Text>
+            <View style={styles.detailRow}>
+              <MaterialCommunityIcons name="map-marker-outline" size={16} color={c.outline} />
+              <Text style={styles.detailValue}>{order.partnerAddress}</Text>
             </View>
-            <Pressable
-              onPress={() =>
-                router.push({
-                  pathname: "/(customer)/chat/[orderId]",
-                  params: { orderId: order.id },
-                })
-              }
-              style={({ pressed }) => [
-                styles.chatButton,
-                pressed && styles.pressed,
-              ]}
-            >
-              <MaterialCommunityIcons name="chat-processing-outline" size={16} color={c.white} />
-              <Text style={styles.chatButtonText}>Chat with partner</Text>
-            </Pressable>
-            {order.displayStatus !== "rejected" ? (
+            <View style={styles.partnerActionsRow}>
               <Pressable
-                onPress={() => setReportVisible(true)}
-                style={({ pressed }) => [
-                  styles.reportButton,
-                  pressed && styles.pressed,
-                ]}
+                onPress={() =>
+                  router.push({
+                    pathname: "/(customer)/chat/[orderId]",
+                    params: { orderId: order.id },
+                  })
+                }
+                style={({ pressed }) => [styles.chatButton, pressed && styles.pressed]}
               >
-                <MaterialCommunityIcons
-                  name={hasReportedProblem ? "check-circle-outline" : "alert-circle-outline"}
-                  size={16}
-                  color={hasReportedProblem ? c.outline : "#F6D36B"}
-                />
-                <Text style={styles.reportButtonText}>
-                  {hasReportedProblem ? sReport.reportedButton : sReport.reportButton}
-                </Text>
+                <MaterialCommunityIcons name="chat-processing-outline" size={15} color={c.white} />
+                <Text style={styles.chatButtonText}>Chat with partner</Text>
               </Pressable>
-            ) : null}
-          </View>
+              {order.displayStatus !== "rejected" ? (
+                <Pressable
+                  onPress={() => setReportVisible(true)}
+                  style={({ pressed }) => [styles.reportButton, pressed && styles.pressed]}
+                >
+                  <MaterialCommunityIcons
+                    name={hasReportedProblem ? "check-circle-outline" : "alert-circle-outline"}
+                    size={15}
+                    color={hasReportedProblem ? c.outline : "#F6D36B"}
+                  />
+                  <Text style={styles.reportButtonText}>
+                    {hasReportedProblem ? sReport.reportedButton : sReport.reportButton}
+                  </Text>
+                </Pressable>
+              ) : null}
+            </View>
 
-          <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>Schedule</Text>
-            <View style={styles.infoRow}>
-              <MaterialCommunityIcons name="truck-delivery-outline" size={18} color={c.outline} />
-              <View style={styles.infoTextBlock}>
-                <Text style={styles.sectionLabel}>Pickup</Text>
-                <Text style={styles.sectionValue}>{order.pickupSchedule}</Text>
+            <View style={styles.sectionDivider} />
+
+            <Text style={styles.secLabel}>Schedule</Text>
+            <View style={styles.detailRow}>
+              <MaterialCommunityIcons name="truck-delivery-outline" size={16} color={c.outline} />
+              <View style={styles.flex1}>
+                <Text style={styles.detailMeta}>Pickup</Text>
+                <Text style={styles.detailValue}>{order.pickupSchedule}</Text>
               </View>
             </View>
-            <View style={styles.infoRow}>
-              <MaterialCommunityIcons name="package-variant-closed" size={18} color={c.outline} />
-              <View style={styles.infoTextBlock}>
-                <Text style={styles.sectionLabel}>Delivery</Text>
-                <Text style={styles.sectionValue}>{order.deliverySchedule}</Text>
+            <View style={styles.detailRow}>
+              <MaterialCommunityIcons name="package-variant-closed" size={16} color={c.outline} />
+              <View style={styles.flex1}>
+                <Text style={styles.detailMeta}>Delivery</Text>
+                <Text style={styles.detailValue}>{order.deliverySchedule}</Text>
               </View>
             </View>
-          </View>
 
-          <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>Services</Text>
-            {order.serviceGroups.map((group) => (
-              <View key={group.id} style={styles.serviceCard}>
-                <View style={styles.serviceHeader}>
-                  <Text style={styles.serviceTitle}>{group.title}</Text>
-                  <Text style={styles.servicePrice}>{group.estimatedPriceLabel}</Text>
+            <View style={styles.sectionDivider} />
+
+            <Text style={styles.secLabel}>Services</Text>
+            {order.serviceGroups.map((group, gi) => (
+              <View key={group.id} style={[styles.serviceGroup, gi > 0 && styles.serviceGroupSep]}>
+                <View style={styles.serviceGroupHeader}>
+                  <Text style={styles.serviceGroupTitle}>{group.title}</Text>
+                  <Text style={styles.serviceGroupPrice}>{group.estimatedPriceLabel}</Text>
                 </View>
                 {group.items.map((item) => (
-                  <View key={item.id} style={styles.itemRow}>
-                    <View style={styles.itemTextWrap}>
-                      <Text style={styles.itemLabel}>{item.name}</Text>
-                      <Text style={styles.itemMeta}>
+                  <View key={item.id} style={styles.serviceItem}>
+                    <View style={styles.flex1}>
+                      <Text style={styles.serviceItemName}>{item.name}</Text>
+                      <Text style={styles.detailMeta}>
                         {item.confirmedQuantity != null
                           ? `${sDetail.qtyConfirmed}: ${item.confirmedQuantity} (est. ${item.quantity})`
                           : `Qty: ${item.quantity}`}
                       </Text>
-                      <Text style={styles.itemMeta}>Preferences: {item.preferences}</Text>
+                      {item.preferences && item.preferences !== "None" ? (
+                        <Text style={styles.detailMeta}>Preferences: {item.preferences}</Text>
+                      ) : null}
                     </View>
-                    <View style={styles.itemPriceCol}>
-                      <Text style={styles.itemPrice}>{item.estimatedPriceLabel}</Text>
+                    <View style={styles.serviceItemPriceCol}>
+                      <Text style={styles.serviceItemPrice}>{item.estimatedPriceLabel}</Text>
                       {item.confirmedPriceLabel ? (
-                        <Text style={styles.itemPriceConfirmed}>
-                          {item.confirmedPriceLabel}
-                        </Text>
+                        <Text style={styles.serviceItemPriceConfirmed}>{item.confirmedPriceLabel}</Text>
                       ) : null}
                     </View>
                   </View>
@@ -419,26 +410,26 @@ export default function CustomerOrderDetailScreen() {
           </View>
 
           {order.notes ? (
-            <View style={styles.sectionCard}>
-              <Text style={styles.sectionTitle}>Order notes</Text>
-              <Text style={styles.sectionValue}>{order.notes}</Text>
+            <View style={styles.detailCard}>
+              <Text style={styles.secLabel}>Order notes</Text>
+              <Text style={styles.detailValue}>{order.notes}</Text>
             </View>
           ) : null}
 
           {order.displayStatus === "rejected" && order.rejectionReasonOption ? (
-            <View style={styles.sectionCard}>
-              <Text style={styles.sectionTitle}>Rejection reason</Text>
-              <Text style={styles.sectionValue}>
+            <View style={styles.detailCard}>
+              <Text style={styles.secLabel}>Rejection reason</Text>
+              <Text style={styles.detailValue}>
                 {order.rejectionReasonDetails
                   ? `${order.rejectionReasonOption} - ${order.rejectionReasonDetails}`
                   : order.rejectionReasonOption}
               </Text>
             </View>
           ) : null}
-          </ScrollView>
 
           {order.displayStatus === "pending" && order.rawStatus === "submitted" ? (
-            <SafeAreaView edges={["bottom"]} style={styles.editFooter}>
+            <View style={styles.detailCard}>
+              <Text style={styles.secLabel}>Actions</Text>
               <Pressable
                 onPress={handleDeleteOrder}
                 disabled={isDeleting}
@@ -449,7 +440,7 @@ export default function CustomerOrderDetailScreen() {
                 ]}
               >
                 {isDeleting ? (
-                  <ActivityIndicator color={c.white} size="small" />
+                  <ActivityIndicator color="#f87171" size="small" />
                 ) : (
                   <>
                     <MaterialCommunityIcons name="trash-can-outline" size={18} color="#f87171" />
@@ -457,27 +448,9 @@ export default function CustomerOrderDetailScreen() {
                   </>
                 )}
               </Pressable>
-            </SafeAreaView>
+            </View>
           ) : null}
-          {order.displayStatus === "rejected" ? (
-            <SafeAreaView edges={["bottom"]} style={styles.editFooter}>
-              <Pressable
-                onPress={() =>
-                  router.push({
-                    pathname: "/(customer)/pick-launderer",
-                    params: {
-                      reorderOrderId: order.id,
-                      mode: order.fulfillmentMode,
-                    },
-                  })
-                }
-                style={({ pressed }) => [styles.reorderBtn, pressed && styles.pressed]}
-              >
-                <MaterialCommunityIcons name="storefront-outline" size={18} color={c.white} />
-                <Text style={styles.editOrderBtnText}>{sDetail.reorderAction}</Text>
-              </Pressable>
-            </SafeAreaView>
-          ) : null}
+          </ScrollView>
         </>
       )}
       {order?.displayStatus === "completed" && feedbackChecked ? (
@@ -622,9 +595,6 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
     gap: 16,
   },
-  contentWithStickyFooter: {
-    paddingBottom: 120,
-  },
   heroCard: {
     borderRadius: CARD_RADIUS,
     borderWidth: 1,
@@ -691,114 +661,95 @@ const styles = StyleSheet.create({
     marginTop: 4,
     lineHeight: 14,
   },
-  sectionCard: {
+  detailCard: {
     borderRadius: CARD_RADIUS,
     borderWidth: 1,
     borderColor: c.outline,
     backgroundColor: c.blue900,
     padding: 18,
   },
-  sectionTitle: {
-    color: c.white,
-    fontSize: fs.smallTitle,
+  secLabel: {
+    fontSize: 11,
     fontWeight: "700",
-    marginBottom: 14,
-  },
-  sectionLabel: {
     color: c.blue500,
-    fontSize: fs.xxSmallText,
-    fontWeight: "700",
     textTransform: "uppercase",
-    marginBottom: 4,
+    letterSpacing: 0.8,
+    marginBottom: 12,
   },
-  infoRow: {
+  sectionDivider: {
+    height: 1,
+    backgroundColor: "rgba(255,255,255,0.07)",
+    marginVertical: 18,
+  },
+  detailRow: {
     flexDirection: "row",
     alignItems: "flex-start",
     gap: 10,
-    marginBottom: 12,
+    marginBottom: 10,
   },
-  partnerNameRow: {
+  detailMeta: {
+    fontSize: 11,
+    color: c.blue500,
+    fontWeight: "600",
+    marginBottom: 2,
+  },
+  detailValue: {
     flex: 1,
-  },
-  infoTextBlock: {
-    flex: 1,
-  },
-  sectionValue: {
     color: c.white,
-    fontSize: fs.descText,
+    fontSize: 14,
     lineHeight: 20,
   },
+  flex1: {
+    flex: 1,
+  },
+  partnerActionsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 4,
+  },
   chatButton: {
-    marginTop: 2,
-    alignSelf: "flex-start",
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 6,
     borderWidth: 1,
     borderColor: c.outline,
     borderRadius: 999,
     paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingVertical: 7,
     backgroundColor: c.background,
   },
   chatButtonText: {
     color: c.white,
-    fontSize: fs.descText,
+    fontSize: 13,
     fontWeight: "600",
   },
   reportButton: {
-    marginTop: 10,
-    alignSelf: "flex-start",
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 6,
     borderWidth: 1,
     borderColor: "rgba(246, 211, 107, 0.45)",
     borderRadius: 999,
     paddingHorizontal: 12,
-    paddingVertical: 8,
-    backgroundColor: "rgba(246, 211, 107, 0.12)",
+    paddingVertical: 7,
+    backgroundColor: "rgba(246, 211, 107, 0.08)",
   },
   reportButtonText: {
     color: c.white,
-    fontSize: fs.descText,
+    fontSize: 13,
     fontWeight: "600",
-  },
-  editFooter: {
-    paddingHorizontal: PAD,
-    paddingTop: 12,
-    paddingBottom: 12,
-    borderTopWidth: 1,
-    borderTopColor: c.outline,
-    backgroundColor: c.blue900,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: -3 },
-    shadowOpacity: 0.18,
-    shadowRadius: 8,
-    elevation: 10,
-  },
-  editFooterHint: {
-    color: c.blue500,
-    fontSize: fs.xxSmallText,
-    lineHeight: 16,
-    marginBottom: 10,
-  },
-  footerRow: {
-    flexDirection: "row",
-    gap: 10,
   },
   deleteOrderBtn: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    alignSelf: "center",
     gap: 8,
     backgroundColor: "transparent",
     borderWidth: 1,
     borderColor: "#f87171",
     borderRadius: 12,
     paddingVertical: 14,
-    paddingHorizontal: 32,
   },
   editOrderBtn: {
     flexDirection: "row",
@@ -832,62 +783,55 @@ const styles = StyleSheet.create({
   deleteOrderBtnText: {
     color: "#f87171",
   },
-  serviceCard: {
-    paddingTop: 14,
+  serviceGroup: {},
+  serviceGroupSep: {
     marginTop: 14,
+    paddingTop: 14,
     borderTopWidth: 1,
-    borderTopColor: "rgba(255,255,255,0.14)",
+    borderTopColor: "rgba(255,255,255,0.09)",
   },
-  serviceHeader: {
+  serviceGroupHeader: {
     flexDirection: "row",
-    alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 10,
+    alignItems: "center",
+    marginBottom: 8,
   },
-  serviceTitle: {
+  serviceGroupTitle: {
     color: c.white,
-    fontSize: fs.smallText,
+    fontSize: 14,
     fontWeight: "700",
   },
-  servicePrice: {
+  serviceGroupPrice: {
     color: c.blue500,
-    fontSize: fs.descText,
+    fontSize: 13,
     fontWeight: "700",
   },
-  itemRow: {
+  serviceItem: {
     flexDirection: "row",
     justifyContent: "space-between",
     gap: 12,
-    paddingVertical: 10,
+    paddingVertical: 8,
     borderTopWidth: 1,
-    borderTopColor: "rgba(255,255,255,0.08)",
+    borderTopColor: "rgba(255,255,255,0.06)",
   },
-  itemTextWrap: {
-    flex: 1,
-  },
-  itemLabel: {
+  serviceItemName: {
     color: c.white,
-    fontSize: fs.smallText,
-    fontWeight: "600",
-    marginBottom: 4,
+    fontSize: 14,
+    fontWeight: "500",
+    marginBottom: 3,
   },
-  itemMeta: {
-    color: c.blue500,
-    fontSize: fs.descText,
-    lineHeight: 18,
-  },
-  itemPriceCol: {
+  serviceItemPriceCol: {
     alignItems: "flex-end",
-    gap: 4,
+    gap: 3,
   },
-  itemPrice: {
+  serviceItemPrice: {
     color: c.white,
-    fontSize: fs.smallText,
+    fontSize: 14,
     fontWeight: "700",
   },
-  itemPriceConfirmed: {
+  serviceItemPriceConfirmed: {
     color: c.lightBlue,
-    fontSize: fs.smallText,
+    fontSize: 13,
     fontWeight: "700",
   },
   center: {

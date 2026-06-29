@@ -10,13 +10,17 @@ import { strings } from "@/constants/strings";
 import { useAuth } from "@/contexts/auth-context";
 import { avatarUrlWithCacheBuster } from "@/lib/avatar";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
+import { awardWelcomeCredits } from "@/lib/partner-credits";
 import { AvatarImage } from "@/components/avatar-image";
-import { AppButton } from "@/components/ui/button";
 import { AppHeader } from "@/components/app-header";
 
 const c = theme.colors;
-const WHATSAPP_URL =
-	"https://wa.me/923004639943?text=Hello%21%20I%20would%20like%20to%20buy%20credits.";
+const WHATSAPP_PHONE = "923004639943";
+
+function buildWhatsAppUrl(name: string, balance: number | null): string {
+	const message = `Hello! I am ${name} and I would like to buy credits. My current balance is ${balance?.toLocaleString() ?? 0} credits.`;
+	return `https://wa.me/${WHATSAPP_PHONE}?text=${encodeURIComponent(message)}`;
+}
 
 export default function PartnerProfileMenu() {
 	const router = useRouter();
@@ -25,15 +29,16 @@ export default function PartnerProfileMenu() {
 	const [isUpdatingRole, setIsUpdatingRole] = useState(false);
 	const [roleSwitchValue, setRoleSwitchValue] = useState<boolean | null>(null);
 	const [avatarUri, setAvatarUri] = useState<string | undefined>(undefined);
-	const [displayName, setDisplayName] = useState<string>("Launderer");
+	const [displayName, setDisplayName] = useState<string>("Laundry Captain");
 	const [displayPhone, setDisplayPhone] = useState<string>("");
+	const [creditBalance, setCreditBalance] = useState<number | null>(null);
 
 	const fetchProfile = useCallback(async () => {
 		if (!isSupabaseConfigured() || !user?.id) return;
 		try {
 			const { data, error } = await supabase
 				.from("partner_profiles")
-				.select("image_url,updated_at")
+				.select("image_url,updated_at,status")
 				.eq("id", user.id)
 				.maybeSingle();
 			const { data: profileData } = await supabase
@@ -54,7 +59,7 @@ export default function PartnerProfileMenu() {
 				[profileData?.first_name ?? "", profileData?.last_name ?? ""].join(" ").trim() ||
 				user?.user_metadata?.full_name ||
 				user?.user_metadata?.first_name ||
-				"Launderer";
+				"Laundry Captain";
 			setDisplayName(resolvedName);
 			setDisplayPhone(profileData?.phone ?? (user?.user_metadata as any)?.phone ?? "");
 
@@ -68,6 +73,33 @@ export default function PartnerProfileMenu() {
 			setAvatarUri(avatarUrlWithCacheBuster(data.image_url, data.updated_at));
 		} catch {
 			// ignore and leave placeholder
+		}
+
+		try {
+			const { data: creditData } = await supabase
+				.from("partner_credit_accounts")
+				.select("balance")
+				.eq("partner_id", user.id)
+				.maybeSingle();
+
+			if (creditData) {
+				setCreditBalance(creditData.balance as number);
+			} else {
+				// No account yet — if KYC is approved, self-award welcome credits now
+				const { data: partnerData } = await supabase
+					.from("partner_profiles")
+					.select("status")
+					.eq("id", user.id)
+					.maybeSingle();
+				if ((partnerData as any)?.status === "approved") {
+					const result = await awardWelcomeCredits().catch(() => null);
+					setCreditBalance(result?.balance ?? null);
+				} else {
+					setCreditBalance(null);
+				}
+			}
+		} catch {
+			// ignore
 		}
 	}, [user?.id]);
 
@@ -142,17 +174,20 @@ export default function PartnerProfileMenu() {
 					<MenuItem icon="headphones" label="Contact & Support" onPress={() => router.push("/(customer)/contact-support")} />
 				</View>
 
-				<AppButton
-					label="Buy Credits"
-					onPress={() => {
-						Linking.openURL(WHATSAPP_URL).catch(() => {
-							Alert.alert("Error", "Could not open WhatsApp.");
-						});
-					}}
-					variant="filled"
-					style={styles.buyCreditsBtn}
-					accessibilityLabel="Buy Credits"
-				/>
+				{creditBalance !== null ? (
+					<View style={styles.creditCard}>
+						<View>
+							<Text style={styles.creditBalance}>{creditBalance.toLocaleString()}</Text>
+							<Text style={styles.creditHint}>Available credits</Text>
+						</View>
+						<Pressable
+							onPress={() => Linking.openURL(buildWhatsAppUrl(displayName, creditBalance)).catch(() => Alert.alert("Error", "Could not open WhatsApp."))}
+							style={({ pressed }) => [styles.buyCreditsBtn, pressed && styles.pressed]}
+						>
+							<Text style={styles.buyCreditsBtnText}>Buy Credits</Text>
+						</Pressable>
+					</View>
+				) : null}
 
 				<View style={styles.roleCard}>
 					<View style={styles.roleRow}>
@@ -216,6 +251,11 @@ const styles = StyleSheet.create({
 	phone: { fontSize: 14, color: c.blue500, marginTop: 4, textAlign: "center" },
 	editPill: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 10, paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.07)", borderWidth: 1, borderColor: "rgba(255,255,255,0.1)" },
 	editPillText: { fontSize: 13, color: c.blue500, fontWeight: "500" },
+	creditCard: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: c.backgroundDark, borderRadius: 14, paddingHorizontal: 18, paddingVertical: 16, marginTop: 8, borderWidth: 1, borderColor: "rgba(255,255,255,0.08)" },
+	creditBalance: { fontSize: 22, fontWeight: "800", color: c.white, letterSpacing: 0.2 },
+	creditHint: { fontSize: 12, color: c.blue500, fontWeight: "500", marginTop: 2 },
+	buyCreditsBtn: { paddingHorizontal: 16, paddingVertical: 9, borderRadius: 999, backgroundColor: c.white },
+	buyCreditsBtnText: { fontSize: 13, fontWeight: "700", color: c.background },
 	divider: { height: 1, backgroundColor: "rgba(255,255,255,0.06)", marginVertical: 16 },
 	menuGroup: { backgroundColor: "transparent", gap: 8 },
 	menuItem: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 14 },
@@ -228,11 +268,4 @@ const styles = StyleSheet.create({
 	roleHint: { fontSize: 13, color: c.blue500, lineHeight: 18, marginTop: 8 },
 	signOutBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: c.backgroundDark, borderRadius: 12, paddingVertical: 14, marginTop: 4, marginBottom: 8, borderWidth: 1, borderColor: "rgba(255,255,255,0.12)" },
 	signOutLabel: { fontSize: 16, fontWeight: "700", color: c.white },
-	buyCreditsBtn: {
-		marginTop: 20,
-		marginBottom: 8,
-		alignSelf: "stretch",
-		borderRadius: 12,
-		minHeight: 48,
-	},
 });

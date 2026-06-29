@@ -79,8 +79,8 @@ export const en = {
     roleSelectSubtitle: "Select how you want to use the app (placeholder)",
     roles: {
       customer: "Customer",
-      partner: "Launderer",
-      launderer: "Launderer",
+      partner: "Laundry Captain",
+      launderer: "Laundry Captain",
     } as const,
   },
 
@@ -125,15 +125,15 @@ export const en = {
     },
     pickLaunderer: {
       title: "Pick Up & Delivery",
-      reassignTitle: "Choose a new launderer",
+      reassignTitle: "Choose a new Laundry Captain",
       addressPlaceholder: "1465 5th Avenue APt 5C",
       hoursPlaceholder: "Hours not set",
       emptyList:
-        "No launderers are available for pickup yet. Complete partner onboarding with pickup enabled to appear here.",
+        "No Laundry Captains are available for pickup yet. Complete your onboarding with pickup enabled to appear here.",
       retry: "Retry",
       reassignSuccessTitle: "Order reassigned",
       reassignSuccessMessage:
-        "Your order is now pending with the new launderer.",
+        "Your order is now pending with the new Laundry Captain.",
       reassignErrorTitle: "Could not reassign order",
       reassignErrorMessage: "Please try again.",
     },
@@ -194,17 +194,17 @@ export const en = {
       title: "Wash & fold",
       lead: "Select each item type and quantity. Your estimated total updates as you go.",
       estimateDisclaimer:
-        "This is an estimate. Final amount may change after the launderer counts items at pickup.",
+        "This is an estimate. Final amount may change after your Laundry Captain counts items at pickup.",
       itemsSection: "Items",
       packagesSection: "Bulk packages",
       packagesHint: "Tap a package to add it to your order (one per package).",
       noGarmentRates:
-        "No per-item rates listed yet — your launderer may confirm price at pickup.",
-      noPackageRates: "This launderer has not set bulk package prices yet.",
-      noRates: "This launderer has not set wash & fold prices yet.",
-      noPartner: "Choose a launderer from the map first.",
+        "No per-item rates listed yet — your Laundry Captain may confirm price at pickup.",
+      noPackageRates: "This Laundry Captain has not set bulk package prices yet.",
+      noRates: "This Laundry Captain has not set wash & fold prices yet.",
+      noPartner: "Choose a Laundry Captain from the map first.",
       loadError:
-        "Could not load this launderer's prices. Pull to refresh or try again.",
+        "Could not load this Laundry Captain's prices. Pull to refresh or try again.",
       saveHint:
         "Partner: open Wash & Fold, enter prices, tap Continue (not only back), then Save on Merchant Services.",
       each: "each",
@@ -217,11 +217,11 @@ export const en = {
       qtyConfirmed: "Qty (confirmed)",
       editOrder: "Edit order",
       editOrderHint:
-        "You can change this order until your launderer accepts it.",
+        "You can change this order until your Laundry Captain accepts it.",
       editOrderLoading: "Loading order…",
       editOrderUnavailable:
         "This order can no longer be edited because your launderer has already accepted it.",
-      reorderAction: "Reorder with another launderer",
+      reorderAction: "This order can no longer be edited because your Laundry Captain has already accepted it."
     },
     liveEstimate: {
       estimatedLabel: "Estimated total",
@@ -229,7 +229,7 @@ export const en = {
       hideBreakdown: "Hide breakdown",
       loading: "Loading partner prices…",
       noPartner:
-        "Choose a launderer from the map first to see live prices for this load.",
+        "Choose a Laundry Captain from the map first to see live prices for this load.",
       partialNote:
         "* Some lines are not in the partner’s price list — total is partial.",
     },
@@ -265,14 +265,14 @@ export const en = {
     },
     trustBanner: {
       message:
-        "Your clothes are covered. Verified Launderer. Report any issue in chat.",
+        "Your clothes are covered. Verified Laundry Captain. Report any issue in chat.",
     },
     reportProblem: {
       title: "Report a problem",
       subtitle:
-        "Order #{{ref}} — this goes to our support team, not your launderer.",
+        "Order #{{ref}} — this goes to our support team, not your Laundry Captain.",
       adminNote:
-        "A Super Admin will review your report. Your launderer will not see it directly.",
+        "A Super Admin will review your report. Your Laundry Captain will not see it directly.",
       descriptionLabel: "Describe the issue",
       descriptionPlaceholder: "What went wrong? Include any helpful details.",
       photosLabel: "Photos (optional)",
@@ -290,7 +290,7 @@ export const en = {
       submitErrorTitle: "Could not submit",
       submitSuccessTitle: "Report submitted",
       submitSuccessMessage:
-        "Our team will review your report. You can still chat with your launderer for quick updates.",
+        "Our team will review your report. You can still chat with your Laundry Captain for quick updates.",
     },
     orderSummary: {
       title: "Order Summary",
@@ -317,18 +317,18 @@ export const en = {
       editMissingPartnerTitle: "Launderer unavailable",
       editMissingPartner:
         "We could not load your launderer for this order. Go back and try again.",
-      goBack: "Go back",
+      goBack: "Go back"
     },
     ordersTab: {
       title: "My orders",
-      liveHint: "Status updates when your launderer acts on the order.",
+      liveHint: "Status updates when your Laundry Captain acts on the order.",
       empty: "You don't have any orders yet.",
       signIn: "Sign in to see your orders.",
       loading: "Loading orders…",
       error: "Couldn't load orders.",
       retry: "Retry",
       orderRef: "Order #{{ref}}",
-      launderer: "Launderer",
+      launderer: "Laundry Captain",
       estTotal: "Est. total",
       services: "Services",
       placed: "Placed",
@@ -346,7 +346,7 @@ export const en = {
         "This removes the order from your list. This cannot be undone.",
       deleteError: "Could not delete the order.",
       cancel: "Cancel",
-      reorderAction: "Reorder with another launderer",
+      reorderAction: "Reorder with another Laundry Captain",
     },
     chatTab: {
       empty: "You don't have any chats yet.",
@@ -395,22 +395,22 @@ export const en = {
         {
           question: "How do I place a new laundry order?",
           answer:
-            "From Dashboard, choose a service (Wash & Fold, Dry Cleaning, or Tailoring), select a launderer, add your items, then confirm on Order Summary.",
+            "From Dashboard, choose a service (Wash & Fold, Dry Cleaning, or Tailoring), select a Laundry Captain, add your items, then confirm on Order Summary.",
         },
         {
           question: "Can I choose pickup and delivery?",
           answer:
-            "Yes. If your selected launderer offers pickup & delivery, enable it on Pickup Services and set your preferred pickup and delivery schedule before submitting.",
+            "Yes. If your selected Laundry Captain offers pickup & delivery, enable it on Pickup Services and set your preferred pickup and delivery schedule before submitting.",
         },
         {
           question: "Why can my final bill differ from the estimate?",
           answer:
-            "The app shows an estimated total while ordering. Your launderer may confirm quantities or weight at pickup, and the confirmed total can change based on actual intake.",
+            "The app shows an estimated total while ordering. Your Laundry Captain may confirm quantities or weight at pickup, and the confirmed total can change based on actual intake.",
         },
         {
           question: "How do I track updates after placing an order?",
           answer:
-            "Open Order or Chat tabs to follow status updates. You can see when an order is pending, accepted, rejected, or completed, and chat directly with your launderer.",
+            "Open Order or Chat tabs to follow status updates. You can see when an order is pending, accepted, rejected, or completed, and chat directly with your Laundry Captain.",
         },
         {
           question: "How do I report an issue with my order?",
@@ -431,9 +431,9 @@ export const en = {
   },
 
   partner: {
-    dashboardTitle: "Launderer dashboard",
+    dashboardTitle: "Captain Dashboard",
     dashboardSubtitle: "Incoming orders and earnings (placeholder)",
-    useAppAsLaunderer: "Use app as launderer",
+    useAppAsLaunderer: "Switch to Customer mode",
     sidebar: {
       menu: "Menu",
       order: "Order",
@@ -574,9 +574,9 @@ export const en = {
       orderAmountLabel: "Amount",
       tokenHint:
         "Tokens are deducted only when an order is accepted. Keep enough tokens to continue receiving orders.",
-      placeholderTitle: "Get started as a launderer",
+      placeholderTitle: "Get started as a Laundry Captain",
       placeholderMessage:
-        "Complete your launderer or partner onboarding to see your dashboard and stats.",
+        "Complete your Laundry Captain onboarding to see your dashboard and stats.",
       placeholderButton: "Start onboarding",
       placeholderButtonWithArrow: "Start onboarding →",
       pendingTitle: "KYC review in progress",

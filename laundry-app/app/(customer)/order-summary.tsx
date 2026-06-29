@@ -54,10 +54,7 @@ export default function OrderSummaryScreen() {
       return;
     }
     if (!draft.partnerId) {
-      Alert.alert(
-        isEditing ? s.editMissingPartnerTitle : s.missingLaundererTitle,
-        isEditing ? s.editMissingPartner : s.missingLaundererMessage,
-      );
+      Alert.alert("No Laundry Captain selected", "Please select a Laundry Captain first.");
       return;
     }
     if (draft.selectedServiceIds.length === 0) {
@@ -162,21 +159,13 @@ export default function OrderSummaryScreen() {
       >
         {!draft.partnerId ? (
           <View style={styles.centerBlock}>
-            <Text style={styles.muted}>
-              {isEditing ? s.editMissingPartner : s.selectLaundererFirst}
-            </Text>
-            {isEditing ? (
-              <Pressable onPress={() => router.back()} style={styles.linkBtn}>
-                <Text style={styles.linkText}>{s.goBack}</Text>
-              </Pressable>
-            ) : (
-              <Pressable
-                onPress={() => router.replace("/(customer)/pick-launderer")}
-                style={styles.linkBtn}
-              >
-                <Text style={styles.linkText}>{s.pickLaunderer}</Text>
-              </Pressable>
-            )}
+            <Text style={styles.muted}>Select a Laundry Captain first.</Text>
+            <Pressable
+              onPress={() => router.replace("/(customer)/pick-launderer")}
+              style={styles.linkBtn}
+            >
+              <Text style={styles.linkText}>Pick a Laundry Captain</Text>
+            </Pressable>
           </View>
         ) : loading ? (
           <View style={styles.centerBlock}>

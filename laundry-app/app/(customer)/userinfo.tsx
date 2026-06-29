@@ -207,8 +207,8 @@ export default function UserInfo() {
         if (isFirstTimeBecomingLaunderer) {
           setRoleSwitchValue(true);
           Alert.alert(
-            "Become a Launderer",
-            "Are you sure you want to become a launderer? You will be asked to provide your business details.",
+            "Become a Laundry Captain",
+            "Are you sure you want to become a Laundry Captain? You will be asked to provide your business details.",
             [
               {
                 text: "Cancel",
@@ -322,7 +322,7 @@ export default function UserInfo() {
 
             <View style={styles.roleCard}>
               <View style={styles.roleRow}>
-                <Text style={styles.roleLabel}>Become a launderer</Text>
+                <Text style={styles.roleLabel}>Become a Laundry Captain</Text>
                 <View style={styles.switchWrap}>
                   <Switch
                     value={isPartnerSwitchOn}
@@ -335,7 +335,7 @@ export default function UserInfo() {
                 </View>
               </View>
               <Text style={styles.roleHint}>
-                Offer laundry services and manage orders as a launderer.
+                Offer laundry services and manage orders as a Laundry Captain.
               </Text>
             </View>
           </View>

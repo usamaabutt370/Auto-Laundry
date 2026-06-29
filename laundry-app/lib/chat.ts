@@ -324,7 +324,7 @@ export async function fetchOrderChatHeader(
         .maybeSingle<PartnerNameRow>(),
       fetchVerifiedPartnerIds([order.partner_id]),
     ]);
-    title = partnerData?.business_name?.trim() || "Launderer";
+    title = partnerData?.business_name?.trim() || "Laundry Captain";
     titleVerified = verifiedPartnerIds.has(order.partner_id);
   } else {
     const { data: customerData } = await supabase
@@ -529,7 +529,7 @@ export async function fetchMyConversations(
     if (order?.customer_id === userId) {
       const p = partnerNameMap.get(order.partner_id);
       const pProfile = partnerProfileMap.get(order.partner_id);
-      counterpartyName = p?.business_name?.trim() || "Launderer";
+      counterpartyName = p?.business_name?.trim() || "Laundry Captain";
       counterpartyVerified = verifiedPartnerIds.has(order.partner_id);
       counterpartyAvatarUrl = p?.image_url ?? pProfile?.image_url ?? null;
     } else if (order?.partner_id === userId) {
