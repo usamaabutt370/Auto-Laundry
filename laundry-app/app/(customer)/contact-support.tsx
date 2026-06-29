@@ -1,7 +1,6 @@
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import {
-  Alert,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
@@ -14,6 +13,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { showAppAlert } from "@/components/app-alert";
 import { AppHeader } from "@/components/app-header";
 import { strings } from "@/constants/strings";
 import { theme } from "@/constants/theme";
@@ -31,12 +31,12 @@ export default function ContactSupportScreen() {
     Keyboard.dismiss();
     const trimmed = message.trim();
     if (!trimmed) {
-      Alert.alert(s.messageRequired);
+      showAppAlert(s.messageRequired);
       return;
     }
 
     openWhatsApp(trimmed).catch(() => {
-      Alert.alert(s.openError);
+      showAppAlert(s.openError);
     });
   };
 

@@ -128,6 +128,9 @@ const styles = StyleSheet.create({
     borderColor: "rgba(171, 233, 254, 0.35)",
     padding: 20,
     maxHeight: "80%",
+    width: "100%",
+    maxWidth: 480,
+    alignSelf: "center",
   },
   title: {
     fontSize: fs.smallTitle,

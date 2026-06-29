@@ -2,7 +2,6 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import {
-  Alert,
   Modal,
   Pressable,
   ScrollView,
@@ -13,6 +12,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { showAppAlert } from "@/components/app-alert";
 import { AppHeader } from "@/components/app-header";
 import { PartnerRiderPickerModal } from "@/components/partner-rider-picker-modal";
 import { theme } from "@/constants/theme";
@@ -95,6 +95,9 @@ function mapDemoDetail(detail: DemoOrderDetail): PartnerOrderDetailData {
     estimatedTotal: bags[0]?.estimatedPrice ?? "0",
     confirmedTotal: null,
     confirmedAt: null,
+    pickupFee: null,
+    pickupFeeLabel: null,
+    grandTotalLabel: bags[0]?.estimatedPrice ?? "0",
     intakeNotes: null,
     totalItems: String(
       bags.reduce((sum, bag) => sum + (Number.parseInt(bag.numItems, 10) || 0), 0),
@@ -185,7 +188,7 @@ export default function PartnerOrderDetailScreen() {
       .catch((error) => {
         if (!cancelled) {
           setLiveDetail(null);
-          Alert.alert(
+          showAppAlert(
             "Unable to load order detail",
             error instanceof Error ? error.message : "Please try again.",
           );
@@ -204,7 +207,7 @@ export default function PartnerOrderDetailScreen() {
 
   const beginAcceptOrder = async (pickup: string) => {
     if (!orderIdParam || !isUuid(orderIdParam)) {
-      Alert.alert(
+      showAppAlert(
         "Demo order",
         "This order detail is using demo data. Live actions only work for real database orders.",
       );
@@ -227,11 +230,11 @@ export default function PartnerOrderDetailScreen() {
       setPartnerRiders(riders);
       if (riders.length === 0) {
         setRiderModalVisible(false);
-        Alert.alert(s.noRidersTitle, s.noRidersMessage);
+        showAppAlert(s.noRidersTitle, s.noRidersMessage);
       }
     } catch (error) {
       setRiderModalVisible(false);
-      Alert.alert(
+      showAppAlert(
         "Unable to load riders",
         error instanceof Error ? error.message : "Please try again.",
       );
@@ -243,13 +246,13 @@ export default function PartnerOrderDetailScreen() {
   const confirmRiderAccept = async () => {
     if (!orderIdParam || !user?.id) return;
     if (!selectedRiderId) {
-      Alert.alert(s.selectRiderRequired);
+      showAppAlert(s.selectRiderRequired);
       return;
     }
 
     const rider = partnerRiders.find((item) => item.id === selectedRiderId);
     if (!rider) {
-      Alert.alert(s.selectRiderRequired);
+      showAppAlert(s.selectRiderRequired);
       return;
     }
 
@@ -272,7 +275,7 @@ export default function PartnerOrderDetailScreen() {
       );
       setRiderModalVisible(false);
       setSelectedRiderId(null);
-      Alert.alert("Order accepted", s.acceptSuccess, [
+      showAppAlert("Order accepted", s.acceptSuccess, [
         {
           text: "OK",
           onPress: () =>
@@ -283,7 +286,7 @@ export default function PartnerOrderDetailScreen() {
         },
       ]);
     } catch (error) {
-      Alert.alert(
+      showAppAlert(
         "Unable to accept order",
         error instanceof Error ? error.message : "Please try again.",
       );
@@ -297,7 +300,7 @@ export default function PartnerOrderDetailScreen() {
     rejectionPayload?: { option: string; details?: string },
   ) => {
     if (!orderIdParam || !isUuid(orderIdParam)) {
-      Alert.alert(
+      showAppAlert(
         "Demo order",
         "This order detail is using demo data. Live actions only work for real database orders.",
       );
@@ -334,9 +337,9 @@ export default function PartnerOrderDetailScreen() {
           : prev,
       );
       if (target === "ready") {
-        Alert.alert("Order marked ready", "Order is ready for pick up / delivery.");
+        showAppAlert("Order marked ready", "Order is ready for pick up / delivery.");
       } else if (target === "completed") {
-        Alert.alert(
+        showAppAlert(
           "Order completed",
           `Charged: ${result.charged} credits\nCurrent balance: ${result.balance} credits`,
           [
@@ -351,7 +354,7 @@ export default function PartnerOrderDetailScreen() {
           ],
         );
       } else if (target === "accepted") {
-        Alert.alert("Order accepted", "The order has been accepted.", [
+        showAppAlert("Order accepted", "The order has been accepted.", [
           {
             text: "OK",
             onPress: () =>
@@ -362,7 +365,7 @@ export default function PartnerOrderDetailScreen() {
           },
         ]);
       } else {
-        Alert.alert("Order rejected", "The order has been rejected.");
+        showAppAlert("Order rejected", "The order has been rejected.");
       }
     } catch (error) {
       const actionLabel =
@@ -373,7 +376,7 @@ export default function PartnerOrderDetailScreen() {
             : target === "completed"
               ? "complete"
               : "reject";
-      Alert.alert(
+      showAppAlert(
         `Unable to ${actionLabel} order`,
         error instanceof Error ? error.message : "Please try again.",
       );
@@ -385,12 +388,12 @@ export default function PartnerOrderDetailScreen() {
 
   const submitRejection = () => {
     if (!selectedRejectionOption) {
-      Alert.alert("Select rejection reason", "Please choose a reason before rejecting this order.");
+      showAppAlert("Select rejection reason", "Please choose a reason before rejecting this order.");
       return;
     }
     const details = selectedRejectionOption === "Other" ? otherRejectionReason.trim() : "";
     if (selectedRejectionOption === "Other" && details.length === 0) {
-      Alert.alert("Add details", "Please explain the rejection reason in the input box.");
+      showAppAlert("Add details", "Please explain the rejection reason in the input box.");
       return;
     }
     setRejectModalVisible(false);
@@ -583,6 +586,29 @@ export default function PartnerOrderDetailScreen() {
           ))}
         </View>
 
+        <View style={styles.sectionCard}>
+          <Text style={styles.sectionTitle}>Payment Summary</Text>
+          <View style={styles.payRow}>
+            <Text style={styles.payLabel}>Order fee</Text>
+            <Text style={styles.payValue}>
+              {formatMoney(finalDetail.estimatedTotal)}
+            </Text>
+          </View>
+          {finalDetail.pickupFeeLabel ? (
+            <View style={styles.payRow}>
+              <Text style={styles.payLabel}>Delivery fee</Text>
+              <Text style={styles.payValue}>{finalDetail.pickupFeeLabel}</Text>
+            </View>
+          ) : null}
+          <View style={styles.payDivider} />
+          <View style={styles.payRow}>
+            <Text style={styles.payTotalLabel}>
+              {finalDetail.confirmedTotal ? "Confirmed total" : "Estimated total"}
+            </Text>
+            <Text style={styles.payTotalValue}>{finalDetail.grandTotalLabel}</Text>
+          </View>
+        </View>
+
         {false && finalDetail.confirmedTotal == null &&
         finalDetail.rawStatus !== "rejected" &&
         finalDetail.rawStatus !== "cancelled" &&
@@ -658,10 +684,10 @@ export default function PartnerOrderDetailScreen() {
                 );
                 setIsConfirmingBill(false);
                 if (!result.ok) {
-                  Alert.alert("Could not confirm bill", result.error);
+                  showAppAlert("Could not confirm bill", result.error);
                   return;
                 }
-                Alert.alert(s.intakeSuccessTitle, s.intakeSuccessMessage);
+                showAppAlert(s.intakeSuccessTitle, s.intakeSuccessMessage);
                 const refreshed = await fetchPartnerOrderDetail(finalDetail.orderId);
                 if (refreshed) setLiveDetail(refreshed);
               }}
@@ -1313,5 +1339,35 @@ const styles = StyleSheet.create({
     color: "#D9534F",
     fontSize: fs.descText,
     fontWeight: "700",
+  },
+  payRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 6,
+  },
+  payLabel: {
+    fontSize: fs.descText,
+    color: c.blue500,
+  },
+  payValue: {
+    fontSize: fs.descText,
+    fontWeight: "600",
+    color: c.white,
+  },
+  payDivider: {
+    height: 1,
+    backgroundColor: "rgba(171,233,254,0.15)",
+    marginVertical: 4,
+  },
+  payTotalLabel: {
+    fontSize: fs.smallText,
+    fontWeight: "700",
+    color: c.white,
+  },
+  payTotalValue: {
+    fontSize: fs.smallText,
+    fontWeight: "700",
+    color: c.lightBlue,
   },
 });

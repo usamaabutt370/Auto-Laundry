@@ -1,10 +1,9 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useFocusEffect, useLocalSearchParams, useRouter, useNavigation } from "expo-router";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Modal,
   Pressable,
   RefreshControl,
@@ -17,9 +16,14 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Swipeable } from "react-native-gesture-handler";
 
-import { OrderCard } from "@/components/order-card";
+import { showAppAlert } from "@/components/app-alert";
 import { AppHeader } from "@/components/app-header";
+import { OrderCard } from "@/components/order-card";
 import { useConfirmDialog } from "@/components/confirm-dialog";
+import {
+  PartnerOrderSuccessModal,
+  type PartnerOrderSuccessPayload,
+} from "@/components/partner-order-success-modal";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { PartnerRiderPickerModal } from "@/components/partner-rider-picker-modal";
 import { theme } from "@/constants/theme";
@@ -32,6 +36,7 @@ import {
 import { partnerUpdateOrderStatus } from "@/lib/partner-order-status";
 import { fetchPartnerOrders, type PartnerOrderListItem } from "@/lib/partner-orders";
 import { fetchPartnerRiders, type PartnerRider } from "@/lib/partner-riders";
+import { supabase } from "@/lib/supabase";
 import { getStrings } from "@/locales";
 
 const c = theme.colors;
@@ -81,6 +86,7 @@ export default function PartnerOrderScreen() {
   const [partnerRiders, setPartnerRiders] = useState<PartnerRider[]>([]);
   const [loadingRiders, setLoadingRiders] = useState(false);
   const [selectedRiderId, setSelectedRiderId] = useState<string | null>(null);
+  const [successPayload, setSuccessPayload] = useState<PartnerOrderSuccessPayload | null>(null);
 
   const filterLabels: Record<OrderFilter, string> = {
     pending: "Pending",
@@ -95,7 +101,7 @@ export default function PartnerOrderScreen() {
       const data = await fetchPartnerOrders();
       setOrders(data);
     } catch (error) {
-      Alert.alert(
+      showAppAlert(
         "Unable to load orders",
         error instanceof Error ? error.message : "Please try again.",
       );
@@ -113,6 +119,27 @@ export default function PartnerOrderScreen() {
       void loadOrders(true);
     }, [loadOrders]),
   );
+
+  // Auto-refresh when new orders arrive or existing orders are updated.
+  const loadOrdersRef = useRef(loadOrders);
+  loadOrdersRef.current = loadOrders;
+  useEffect(() => {
+    if (!supabase || !user?.id) return;
+    const channel = supabase
+      .channel(`partner_orders_${user.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "customer_orders",
+          filter: `partner_id=eq.${user.id}`,
+        },
+        () => { void loadOrdersRef.current(false); },
+      )
+      .subscribe();
+    return () => { void supabase.removeChannel(channel); };
+  }, [user?.id]);
 
   const handleRefresh = useCallback(async () => {
     try {
@@ -162,12 +189,12 @@ export default function PartnerOrderScreen() {
           ),
         );
         if (status === "accepted") {
-          Alert.alert("Order accepted", "The order has been accepted.");
+          setSuccessPayload({ type: "accepted" });
         } else {
-          Alert.alert("Order rejected", "The order has been rejected.");
+          showAppAlert("Order rejected", "The order has been rejected.");
         }
       } catch (error) {
-        Alert.alert(
+        showAppAlert(
           `Unable to ${status === "accepted" ? "accept" : "reject"} order`,
           error instanceof Error ? error.message : "Please try again.",
         );
@@ -198,12 +225,12 @@ export default function PartnerOrderScreen() {
         if (riders.length === 0) {
           setRiderModalVisible(false);
           setPendingAcceptOrderId(null);
-          Alert.alert(s.noRidersTitle, s.noRidersMessage);
+          showAppAlert(s.noRidersTitle, s.noRidersMessage);
         }
       } catch (error) {
         setRiderModalVisible(false);
         setPendingAcceptOrderId(null);
-        Alert.alert(
+        showAppAlert(
           "Unable to load riders",
           error instanceof Error ? error.message : "Please try again.",
         );
@@ -222,7 +249,7 @@ export default function PartnerOrderScreen() {
   const confirmRiderAccept = useCallback(async () => {
     if (!pendingAcceptOrderId || !user?.id) return;
     if (!selectedRiderId) {
-      Alert.alert(s.selectRiderRequired);
+      showAppAlert(s.selectRiderRequired);
       return;
     }
 
@@ -247,9 +274,9 @@ export default function PartnerOrderScreen() {
       setRiderModalVisible(false);
       setPendingAcceptOrderId(null);
       setSelectedRiderId(null);
-      Alert.alert("Order accepted", s.acceptSuccess);
+      setSuccessPayload({ type: "accepted" });
     } catch (error) {
-      Alert.alert(
+      showAppAlert(
         "Unable to accept order",
         error instanceof Error ? error.message : "Please try again.",
       );
@@ -268,12 +295,12 @@ export default function PartnerOrderScreen() {
   const submitRejection = useCallback(() => {
     if (!pendingRejectOrderId) return;
     if (!selectedRejectionOption) {
-      Alert.alert("Select rejection reason", "Please choose a reason before rejecting this order.");
+      showAppAlert("Select rejection reason", "Please choose a reason before rejecting this order.");
       return;
     }
     const details = selectedRejectionOption === "Other" ? otherRejectionReason.trim() : "";
     if (selectedRejectionOption === "Other" && details.length === 0) {
-      Alert.alert("Add details", "Please explain the rejection reason in the input box.");
+      showAppAlert("Add details", "Please explain the rejection reason in the input box.");
       return;
     }
     const orderId = pendingRejectOrderId;
@@ -300,16 +327,13 @@ export default function PartnerOrderScreen() {
             : order,
         ),
       );
-      if (result && typeof result.charged !== "undefined") {
-        Alert.alert(
-          "Order completed",
-          `Charged: ${result.charged} credits\nCurrent balance: ${result.balance} credits`,
-        );
-      } else {
-        Alert.alert("Order completed", "The order has been completed.");
-      }
+      setSuccessPayload({
+        type: "completed",
+        charged: result.charged,
+        balance: result.balance,
+      });
     } catch (error) {
-      Alert.alert(
+      showAppAlert(
         "Unable to complete order",
         error instanceof Error ? error.message : "Please try again.",
       );
@@ -336,7 +360,7 @@ export default function PartnerOrderScreen() {
         }
         setOrders((prev) => prev.filter((o) => o.id !== orderId));
       } catch (e) {
-        Alert.alert(
+        showAppAlert(
           custStrings.deleteError,
           e instanceof Error ? e.message : String(e),
         );
@@ -519,6 +543,10 @@ export default function PartnerOrderScreen() {
           })
         )}
       </ScrollView>
+      <PartnerOrderSuccessModal
+        payload={successPayload}
+        onClose={() => setSuccessPayload(null)}
+      />
       <PartnerRiderPickerModal
         visible={riderModalVisible}
         riders={partnerRiders}

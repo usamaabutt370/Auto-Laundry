@@ -3,7 +3,6 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -15,6 +14,7 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import { Image } from "expo-image";
 
 import { Spacer } from "@/components";
+import { showAppAlert } from "@/components/app-alert";
 import { AppHeader } from "@/components/app-header";
 import { PartnerNameWithBadge } from "@/components/partner-name-with-badge";
 import { assets } from "@/assets/assets";
@@ -223,7 +223,7 @@ export default function PickupServicesScreen() {
 
   const handleConfirm = () => {
     if (!draft.partnerId) {
-      Alert.alert(
+      showAppAlert(
         "Choose a Laundry Captain",
         "Go back and select a Laundry Captain before scheduling pickup.",
       );

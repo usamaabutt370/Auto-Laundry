@@ -1,9 +1,10 @@
 import { useRouter } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useState } from "react";
-import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { showAppAlert } from "@/components/app-alert";
 import { FormTextInput } from "@/components/form-text-input";
 import { PartnerHeader } from "@/components/partner-header";
 import {
@@ -110,7 +111,7 @@ export function PartnerServicesScreen({ mode }: PartnerServicesScreenProps) {
   const hasPickupAmount = normalizedPickupAmount.length > 0;
 
   const showRiderRequirementAlert = () => {
-    Alert.alert("Required", onboardingStrings.riderDetailsIncomplete);
+    showAppAlert("Required", onboardingStrings.riderDetailsIncomplete);
   };
 
   const ensurePickupRiderRequirements = async (userId: string): Promise<boolean> => {
@@ -125,20 +126,20 @@ export function PartnerServicesScreen({ mode }: PartnerServicesScreenProps) {
 
   const handleOpenRiderDetail = async () => {
     if (!pickupDeliveryPricing.enabled) {
-      Alert.alert(
+      showAppAlert(
         onboardingStrings.pickupRidersOnlyTitle,
         onboardingStrings.pickupRidersOnlyMessage,
       );
       return;
     }
     if (!hasPickupAmount) {
-      Alert.alert("Required", onboardingStrings.pickupDeliveryAmountRequired);
+      showAppAlert("Required", onboardingStrings.pickupDeliveryAmountRequired);
       return;
     }
 
     const pickupSaved = await savePickupDeliveryPricing();
     if (!pickupSaved) {
-      Alert.alert("Error", "Could not save pickup settings. Please try again.");
+      showAppAlert("Error", "Could not save pickup settings. Please try again.");
       return;
     }
 
@@ -163,7 +164,7 @@ export function PartnerServicesScreen({ mode }: PartnerServicesScreenProps) {
     if (isSubmittingRequest) return;
 
     if (!isSupabaseConfigured() || !supabase) {
-      Alert.alert(
+      showAppAlert(
         "Configuration error",
         "Supabase is not configured. Please set your Supabase URL and anon key.",
       );
@@ -177,13 +178,13 @@ export function PartnerServicesScreen({ mode }: PartnerServicesScreenProps) {
         (await supabase.auth.getSession()).data.session?.user?.id ??
         null;
       if (!resolvedUserId) {
-        Alert.alert("Error", "Missing user ID. Please sign in again.");
+        showAppAlert("Error", "Missing user ID. Please sign in again.");
         return;
       }
 
       const persistedServiceResult = await submitOnboardingServices();
       if (!persistedServiceResult.ok) {
-        Alert.alert(
+        showAppAlert(
           "Error",
           persistedServiceResult.error ?? "Could not save services before submitting KYC.",
         );
@@ -191,12 +192,12 @@ export function PartnerServicesScreen({ mode }: PartnerServicesScreenProps) {
       }
 
       if (!hasConfiguredServices) {
-        Alert.alert("Error", "Please add at least one service before submitting.");
+        showAppAlert("Error", "Please add at least one service before submitting.");
         return;
       }
 
       if (pickupDeliveryPricing.enabled && !hasPickupAmount) {
-        Alert.alert("Required", onboardingStrings.pickupDeliveryAmountRequired);
+        showAppAlert("Required", onboardingStrings.pickupDeliveryAmountRequired);
         return;
       }
 
@@ -207,7 +208,7 @@ export function PartnerServicesScreen({ mode }: PartnerServicesScreenProps) {
         .order("created_at", { ascending: true });
 
       if (persistedServicesError) {
-        Alert.alert("Error", `Could not load partner services. ${persistedServicesError.message}`);
+        showAppAlert("Error", `Could not load partner services. ${persistedServicesError.message}`);
         return;
       }
 
@@ -230,7 +231,7 @@ export function PartnerServicesScreen({ mode }: PartnerServicesScreenProps) {
       const serviceLines = dbServiceLines.length > 0 ? dbServiceLines : memoryServiceLines;
 
       if (serviceLines.length === 0) {
-        Alert.alert("Error", "Please add at least one service before submitting.");
+        showAppAlert("Error", "Please add at least one service before submitting.");
         return;
       }
 
@@ -263,7 +264,7 @@ export function PartnerServicesScreen({ mode }: PartnerServicesScreenProps) {
           .maybeSingle<{ riders_responsibility_accepted_at: string | null }>();
 
         if (partnerProfileError) {
-          Alert.alert("Error", partnerProfileError.message);
+          showAppAlert("Error", partnerProfileError.message);
           return;
         }
 
@@ -283,9 +284,9 @@ export function PartnerServicesScreen({ mode }: PartnerServicesScreenProps) {
 
       if (!kycResult.ok) {
         if (kycResult.code === "missing_table") {
-          Alert.alert("Database update required", kycResult.error);
+          showAppAlert("Database update required", kycResult.error);
         } else {
-          Alert.alert("Error", kycResult.error);
+          showAppAlert("Error", kycResult.error);
         }
         return;
       }
@@ -294,7 +295,7 @@ export function PartnerServicesScreen({ mode }: PartnerServicesScreenProps) {
       void refreshPartnerApproval();
     } catch (err) {
       const message = err instanceof Error ? err.message : "Could not submit onboarding request.";
-      Alert.alert("Error", message);
+      showAppAlert("Error", message);
     } finally {
       setIsSubmittingRequest(false);
     }
@@ -307,12 +308,12 @@ export function PartnerServicesScreen({ mode }: PartnerServicesScreenProps) {
         : null);
 
     if (!resolvedUserId) {
-      Alert.alert("Error", "Missing user ID. Please sign in again.");
+      showAppAlert("Error", "Missing user ID. Please sign in again.");
       return;
     }
 
     if (pickupDeliveryPricing.enabled && !hasPickupAmount) {
-      Alert.alert("Required", onboardingStrings.pickupDeliveryAmountRequired);
+      showAppAlert("Required", onboardingStrings.pickupDeliveryAmountRequired);
       return;
     }
 
@@ -322,7 +323,7 @@ export function PartnerServicesScreen({ mode }: PartnerServicesScreenProps) {
 
     const servicesResult = await submitOnboardingServices();
     if (!servicesResult.ok) {
-      Alert.alert(
+      showAppAlert(
         "Error",
         servicesResult.error ?? "Could not save service prices. Please try again.",
       );
@@ -330,10 +331,10 @@ export function PartnerServicesScreen({ mode }: PartnerServicesScreenProps) {
     }
     const pickupOk = await savePickupDeliveryPricing();
     if (pickupOk) {
-      Alert.alert("Saved", "Service prices and pickup settings have been saved.");
+      showAppAlert("Saved", "Service prices and pickup settings have been saved.");
       return;
     }
-    Alert.alert("Error", "Service prices saved, but pickup settings could not be saved.");
+    showAppAlert("Error", "Service prices saved, but pickup settings could not be saved.");
   };
 
   return (
@@ -594,8 +595,8 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   modalCard: {
-    width: "92%",
-    maxWidth: 340,
+    width: "100%",
+    maxWidth: 400,
     backgroundColor: c.blue900,
     borderRadius: 18,
     borderWidth: 1,

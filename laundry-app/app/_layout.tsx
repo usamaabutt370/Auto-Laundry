@@ -6,6 +6,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import "react-native-reanimated";
 
+import { AppAlertProvider } from "@/components/app-alert";
 import { FcmNotificationRouter } from "@/components/chat/fcm-notification-router";
 import { WebAppShell } from "@/components/web-shells";
 import { strings } from "@/constants/strings";
@@ -26,6 +27,7 @@ export default function RootLayout() {
       <KeyboardProvider>
         <AuthProvider>
           <LocaleProvider>
+            <AppAlertProvider>
             <WebAppShell>
               <FcmNotificationRouter />
               <Stack screenOptions={{ headerShown: false }}>
@@ -41,6 +43,7 @@ export default function RootLayout() {
               </Stack>
               <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
             </WebAppShell>
+            </AppAlertProvider>
           </LocaleProvider>
         </AuthProvider>
       </KeyboardProvider>

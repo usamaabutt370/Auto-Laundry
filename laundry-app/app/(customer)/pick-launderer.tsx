@@ -3,7 +3,6 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -16,6 +15,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 
+import { showAppAlert } from "@/components/app-alert";
 import { LaundererDetailView } from "@/components/launderer-detail-view";
 import { WebCenteredPanel } from "@/components/web-layout";
 import { PartnerNameWithBadge } from "@/components/partner-name-with-badge";
@@ -383,14 +383,14 @@ export default function PickLaundererScreen() {
 
       try {
         await reassignRejectedCustomerOrder(reorderOrderId, partnerId);
-        Alert.alert(s.reassignSuccessTitle, s.reassignSuccessMessage, [
+        showAppAlert(s.reassignSuccessTitle, s.reassignSuccessMessage, [
           {
             text: "OK",
             onPress: () => router.replace("/(customer)/(tabs)/order"),
           },
         ]);
       } catch (error) {
-        Alert.alert(
+        showAppAlert(
           s.reassignErrorTitle,
           error instanceof Error ? error.message : s.reassignErrorMessage,
         );

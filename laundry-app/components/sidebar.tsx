@@ -1,7 +1,6 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useEffect } from "react";
 import {
-  Alert,
   Dimensions,
   Modal,
   Pressable,
@@ -17,6 +16,7 @@ import Animated, {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useRouter } from "expo-router";
+import { showAppAlert } from "@/components/app-alert";
 import { strings } from "@/constants/strings";
 import { theme } from "@/constants/theme";
 import { useAuth } from "@/contexts/auth-context";
@@ -100,7 +100,7 @@ export function Sidebar() {
     } else if (id === "faq") {
       router.push("/(customer)/faq");
     } else if (id === "signout") {
-      Alert.alert(strings.sidebar.signOut, "Are you sure you want to sign out?", [
+      showAppAlert(strings.sidebar.signOut, "Are you sure you want to sign out?", [
         { text: "Cancel", style: "cancel" },
         {
           text: strings.sidebar.signOut,

@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -11,6 +10,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter, useFocusEffect } from "expo-router";
+import { showAppAlert } from "@/components/app-alert";
 import { AppHeader } from "@/components/app-header";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
@@ -21,6 +21,7 @@ import { fetchPartnerOnboardingRequest } from "@/lib/partner-onboarding-request"
 import { getSession, isSupabaseConfigured, supabase } from "@/lib/supabase";
 import type { UserRole } from "@/types/user";
 import { AvatarImage } from "@/components/avatar-image";
+import { useConfirmDialog } from "@/components/confirm-dialog";
 
 const c = theme.colors;
 
@@ -46,6 +47,7 @@ function formatDateDisplay(iso: string | null | undefined): string {
 export default function UserInfo() {
   const router = useRouter();
   const { user, refreshRole } = useAuth();
+  const { confirm, dialog: confirmDialog } = useConfirmDialog();
   const [profile, setProfile] = useState<ProfileRow | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdatingRole, setIsUpdatingRole] = useState(false);
@@ -174,7 +176,7 @@ export default function UserInfo() {
       } catch (err) {
         setRoleSwitchValue(!value);
         const message = err instanceof Error ? err.message : "Could not update role.";
-        Alert.alert("Error", message);
+        showAppAlert("Error", message);
       } finally {
         setIsUpdatingRole(false);
       }
@@ -190,7 +192,7 @@ export default function UserInfo() {
         const { data: onboardingRequest, error: onboardingError } =
           await fetchPartnerOnboardingRequest(user.id);
         if (onboardingError) {
-          Alert.alert("Error", onboardingError.message);
+          showAppAlert("Error", onboardingError.message);
           return;
         }
         const { data: partnerProfile, error: partnerProfileError } = await supabase
@@ -199,30 +201,24 @@ export default function UserInfo() {
           .eq("id", user.id)
           .maybeSingle();
         if (partnerProfileError) {
-          Alert.alert("Error", partnerProfileError.message);
+          showAppAlert("Error", partnerProfileError.message);
           return;
         }
         const isFirstTimeBecomingLaunderer = !onboardingRequest && !partnerProfile;
 
         if (isFirstTimeBecomingLaunderer) {
           setRoleSwitchValue(true);
-          Alert.alert(
-            "Become a Laundry Captain",
-            "Are you sure you want to become a Laundry Captain? You will be asked to provide your business details.",
-            [
-              {
-                text: "Cancel",
-                style: "cancel",
-                onPress: () => {
-                  setRoleSwitchValue(false);
-                },
-              },
-              {
-                text: "Confirm",
-                onPress: () => performRoleUpdate(true),
-              },
-            ],
-          );
+          const confirmed = await confirm({
+            title: "Become a Laundry Captain",
+            message: "Are you sure you want to become a Laundry Captain? You will be asked to provide your business details.",
+            confirmLabel: "Confirm",
+            cancelLabel: "Cancel",
+          });
+          if (confirmed) {
+            performRoleUpdate(true);
+          } else {
+            setRoleSwitchValue(false);
+          }
           return;
         }
 
@@ -231,7 +227,7 @@ export default function UserInfo() {
         performRoleUpdate(false);
       }
     },
-    [user?.id, isUpdatingRole, performRoleUpdate],
+    [user?.id, isUpdatingRole, performRoleUpdate, confirm],
   );
 
   const isPartnerSwitchOn =
@@ -321,19 +317,23 @@ export default function UserInfo() {
             </View>
 
             <View style={styles.roleCard}>
-              <View style={styles.roleRow}>
+              <Pressable style={({ pressed }) => [styles.roleRow, pressed && styles.pressed]} onPress={() => !isUpdatingRole && handleRoleToggle(!isPartnerSwitchOn)}>
                 <Text style={styles.roleLabel}>Become a Laundry Captain</Text>
                 <View style={styles.switchWrap}>
-                  <Switch
-                    value={isPartnerSwitchOn}
-                    onValueChange={handleRoleToggle}
-                    disabled={isUpdatingRole}
-                    trackColor={{ false: c.blue900, true: c.blue600 }}
-                    thumbColor={c.white}
-                    ios_backgroundColor={c.backgroundLight}
-                  />
+                  {isUpdatingRole ? (
+                    <ActivityIndicator color={c.white} size="small" />
+                  ) : (
+                    <Switch
+                      value={isPartnerSwitchOn}
+                      onValueChange={handleRoleToggle}
+                      disabled={isUpdatingRole}
+                      trackColor={{ false: c.blue900, true: c.blue600 }}
+                      thumbColor={c.white}
+                      ios_backgroundColor={c.backgroundLight}
+                    />
+                  )}
                 </View>
-              </View>
+              </Pressable>
               <Text style={styles.roleHint}>
                 Offer laundry services and manage orders as a Laundry Captain.
               </Text>
@@ -349,6 +349,7 @@ export default function UserInfo() {
           <Text style={styles.resetLabel}>Reset Password</Text>
         </Pressable>
       </ScrollView>
+      {confirmDialog}
     </View>
   );
 }

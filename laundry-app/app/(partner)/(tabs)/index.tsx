@@ -223,6 +223,9 @@ const styles = StyleSheet.create({
     padding: 20,
     marginBottom: 12,
     gap: 12,
+    width: "50%",
+    minWidth: 280,
+    alignSelf: "center",
   },
   placeholderTitle: {
     fontSize: fs.smallTitle,

@@ -3,10 +3,11 @@ import { Image } from "expo-image";
 import type { Href } from "expo-router";
 import { usePathname, useRouter, useSegments } from "expo-router";
 import type { ComponentProps, ReactNode } from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { assets } from "@/assets/assets";
+import { showAppAlert } from "@/components/app-alert";
 import { strings } from "@/constants/strings";
 import { theme } from "@/constants/theme";
 import { useAuth } from "@/contexts/auth-context";
@@ -131,7 +132,7 @@ export function WebSidebarNav({ brandLabel = "Tap2Laundry", items, footerItems =
   };
 
   const handleSignOut = () => {
-    Alert.alert(strings.sidebar.signOut, "Are you sure you want to sign out?", [
+    showAppAlert(strings.sidebar.signOut, "Are you sure you want to sign out?", [
       { text: "Cancel", style: "cancel" },
       {
         text: strings.sidebar.signOut,

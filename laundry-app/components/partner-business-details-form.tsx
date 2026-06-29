@@ -2,7 +2,6 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  Alert,
   BackHandler,
   Image,
   KeyboardAvoidingView,
@@ -18,6 +17,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import * as FileSystem from "expo-file-system";
 import * as ImagePicker from "expo-image-picker";
 
+import { showAppAlert } from "@/components/app-alert";
 import { FormTextInput } from "@/components/form-text-input";
 import { Input } from "@/components/ui/input";
 import { AppButton } from "@/components/ui/button";
@@ -250,12 +250,12 @@ export function PartnerBusinessDetailsForm({ mode }: Props) {
   const pickBusinessImages = useCallback(async () => {
     if (!supabase || !user?.id) return;
     if (businessImages.length >= MAX_BUSINESS_IMAGES) {
-      Alert.alert("Limit reached", `Maximum ${MAX_BUSINESS_IMAGES} business images allowed.`);
+      showAppAlert("Limit reached", `Maximum ${MAX_BUSINESS_IMAGES} business images allowed.`);
       return;
     }
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
-      Alert.alert("Permission needed", "Please allow photo access to upload business images.");
+      showAppAlert("Permission needed", "Please allow photo access to upload business images.");
       return;
     }
     const remaining = MAX_BUSINESS_IMAGES - businessImages.length;
@@ -335,17 +335,17 @@ export function PartnerBusinessDetailsForm({ mode }: Props) {
     setSubmitAttempted(true);
     if (!isFormValid) return;
     if (!isSupabaseConfigured() || !supabase) {
-      Alert.alert("Configuration error", "Supabase is not configured.");
+      showAppAlert("Configuration error", "Supabase is not configured.");
       return;
     }
     if (!user?.id) {
-      Alert.alert("Authentication error", "Please sign in again and try.");
+      showAppAlert("Authentication error", "Please sign in again and try.");
       return;
     }
 
     const profileReady = await ensureActiveUserProfile(user);
     if (!profileReady.ok) {
-      Alert.alert("Account error", profileReady.error);
+      showAppAlert("Account error", profileReady.error);
       return;
     }
 
@@ -356,12 +356,12 @@ export function PartnerBusinessDetailsForm({ mode }: Props) {
       console.log("[partner-location] coordinates:", locationResult.coords);
       if (!locationResult.coords) {
         if (locationResult.status === "denied") {
-          Alert.alert(
+          showAppAlert(
             "Location permission required",
             "Please allow location permission so we can place your business marker on the map.",
           );
         } else {
-          Alert.alert(
+          showAppAlert(
             "Location unavailable",
             "We could not detect your current location. Please try again in an open area with GPS enabled.",
           );
@@ -375,7 +375,7 @@ export function PartnerBusinessDetailsForm({ mode }: Props) {
       });
 
       if (!coords) {
-        Alert.alert(
+        showAppAlert(
           "Location unavailable",
           "Unable to detect your current location. Please try again.",
         );
@@ -392,13 +392,24 @@ export function PartnerBusinessDetailsForm({ mode }: Props) {
           uploadedImageUrls.push(image.uri);
           continue;
         }
-        const lower = image.uri.toLowerCase();
-        const isJpeg = lower.endsWith(".jpg") || lower.endsWith(".jpeg");
-        const ext = isJpeg ? "jpg" : "png";
-        const contentType = isJpeg ? "image/jpeg" : "image/png";
+        let bytes: ArrayBuffer;
+        let contentType: string;
+        let ext: string;
+        if (Platform.OS === "web") {
+          const response = await fetch(image.uri);
+          bytes = await response.arrayBuffer();
+          const mime = (response.headers.get("content-type") ?? "image/jpeg").split(";")[0].trim();
+          contentType = mime;
+          ext = mime === "image/png" ? "png" : "jpg";
+        } else {
+          const lower = image.uri.toLowerCase();
+          const isJpeg = lower.endsWith(".jpg") || lower.endsWith(".jpeg");
+          ext = isJpeg ? "jpg" : "png";
+          contentType = isJpeg ? "image/jpeg" : "image/png";
+          const file = new FileSystem.File(image.uri);
+          bytes = await file.arrayBuffer();
+        }
         const path = `${user.id}/${Date.now()}-${i}.${ext}`;
-        const file = new FileSystem.File(image.uri);
-        const bytes = await file.arrayBuffer();
         const { error: uploadError } = await supabase.storage
           .from(BUSINESS_IMAGES_BUCKET)
           .upload(path, bytes, { upsert: true, contentType });
@@ -440,7 +451,7 @@ export function PartnerBusinessDetailsForm({ mode }: Props) {
         onConflict: "id",
       });
       if (error) {
-        Alert.alert("Save failed", error.message);
+        showAppAlert("Save failed", error.message);
         return;
       }
 
@@ -459,7 +470,7 @@ export function PartnerBusinessDetailsForm({ mode }: Props) {
       }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Unable to save details.";
-      Alert.alert("Save failed", message);
+      showAppAlert("Save failed", message);
     } finally {
       setIsSaving(false);
     }

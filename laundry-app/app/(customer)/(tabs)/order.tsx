@@ -4,7 +4,6 @@ import { useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -18,6 +17,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { showAppAlert } from "@/components/app-alert";
 import { AppHeader } from "@/components/app-header";
 import { useConfirmDialog } from "@/components/confirm-dialog";
 import { PartnerNameWithBadge } from "@/components/partner-name-with-badge";
@@ -103,7 +103,7 @@ export default function CustomerOrderScreen() {
       try {
         await deleteOrder(orderId);
       } catch (e) {
-        Alert.alert(s.deleteError, e instanceof Error ? e.message : String(e));
+        showAppAlert(s.deleteError, e instanceof Error ? e.message : String(e));
       }
     },
     [confirm, deleteOrder, s.cancel, s.deleteAction, s.deleteError, s.deleteMessage, s.deleteTitle],
@@ -207,11 +207,11 @@ export default function CustomerOrderScreen() {
   const submitFeedback = useCallback(async () => {
     if (!user?.id || !feedbackOrder) return;
     if (rating < 1) {
-      Alert.alert("Rating required", "Please select a star rating.");
+      showAppAlert("Rating required", "Please select a star rating.");
       return;
     }
     if (!feedbackMessage.trim()) {
-      Alert.alert("Feedback required", "Please add your feedback before submitting.");
+      showAppAlert("Feedback required", "Please add your feedback before submitting.");
       return;
     }
 
@@ -231,9 +231,9 @@ export default function CustomerOrderScreen() {
       }
       setTriggerUpdate((n) => n + 1);
       closeFeedback();
-      Alert.alert("Thanks!", "Your review has been submitted.");
+      showAppAlert("Thanks!", "Your review has been submitted.");
     } catch (e) {
-      Alert.alert(
+      showAppAlert(
         "Unable to submit feedback",
         e instanceof Error ? e.message : "Please try again.",
       );
@@ -427,7 +427,7 @@ export default function CustomerOrderScreen() {
                   {order.displayStatus === "rejected" ? (
                     <Pressable
                       onPress={() =>
-                        Alert.alert(
+                        showAppAlert(
                           "Order rejected",
                           "This order was rejected by your Laundry Captain. Please place a new order.",
                           [

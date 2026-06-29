@@ -2,7 +2,6 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import {
-  Alert,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -15,6 +14,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { showAppAlert } from "@/components/app-alert";
 import { AppHeader } from "@/components/app-header";
 import {
   WashFoldPackageBox,
@@ -325,7 +325,7 @@ export default function ServiceOtherScreen() {
     const snapshot: OnboardingServicesSnapshot = { [key]: pricingWithRows };
     const result = await submitOnboardingServices(snapshot);
     if (!result.ok) {
-      Alert.alert(
+      showAppAlert(
         "Could not save prices",
         result.error ?? "Please try again.",
       );

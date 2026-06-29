@@ -1,7 +1,6 @@
 import { useRouter } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
 import {
-  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -10,6 +9,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { showAppAlert } from "@/components/app-alert";
 import { AppHeader } from "@/components/app-header";
 import {
   CustomerScheduleSlotSection,
@@ -51,18 +51,18 @@ export default function SchedulePickupScreen() {
 
   const handleConfirm = () => {
     if (!pickupSlot || !deliverySlot) {
-      Alert.alert(s.title, s.incompleteSchedule);
+      showAppAlert(s.title, s.incompleteSchedule);
       return;
     }
     if (isBeforeDate(deliverySlot.date, pickupSlot.date)) {
-      Alert.alert(s.title, s.deliveryBeforePickup);
+      showAppAlert(s.title, s.deliveryBeforePickup);
       return;
     }
     if (
       isSameDay(deliverySlot.date, pickupSlot.date) &&
       deliverySlot.timeSlotIndex < pickupSlot.timeSlotIndex
     ) {
-      Alert.alert(s.title, s.deliveryTimeBeforePickup);
+      showAppAlert(s.title, s.deliveryTimeBeforePickup);
       return;
     }
 

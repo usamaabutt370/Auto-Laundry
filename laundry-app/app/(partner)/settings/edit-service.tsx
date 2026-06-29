@@ -2,7 +2,6 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useCallback, useState } from "react";
 import {
-  Alert,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -15,6 +14,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { showAppAlert } from "@/components/app-alert";
 import { LanguageSelector } from "@/components/language-selector";
 import { AppHeader } from "@/components/app-header";
 import { ServicePricingCard } from "@/components/service-pricing-card";
@@ -66,7 +66,7 @@ export default function EditServiceScreen() {
 
   const handleDelete = useCallback(
     (item: ServiceItem) => {
-      Alert.alert(s.delete, `Remove "${item.name}"?`, [
+      showAppAlert(s.delete, `Remove "${item.name}"?`, [
         { text: s.cancel, style: "cancel" },
         {
           text: s.delete,

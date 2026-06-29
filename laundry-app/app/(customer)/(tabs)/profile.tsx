@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View, Switch, ActivityIndicator } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View, Switch, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter, useFocusEffect } from "expo-router";
@@ -9,13 +9,16 @@ import { useAuth } from "@/contexts/auth-context";
 import { avatarUrlWithCacheBuster } from "@/lib/avatar";
 import { fetchPartnerOnboardingRequest } from "@/lib/partner-onboarding-request";
 import { getSession, isSupabaseConfigured, supabase } from "@/lib/supabase";
+import { showAppAlert } from "@/components/app-alert";
 import { AvatarImage } from "@/components/avatar-image";
+import { useConfirmDialog } from "@/components/confirm-dialog";
 
 const c = theme.colors;
 
 export default function CustomerProfileMenu() {
 	const router = useRouter();
 	const { user, signOut, refreshRole } = useAuth();
+	const { confirm, dialog: confirmDialog } = useConfirmDialog();
 
 	const [isUpdatingRole, setIsUpdatingRole] = useState(false);
 	const [roleSwitchValue, setRoleSwitchValue] = useState<boolean | null>(null);
@@ -81,7 +84,7 @@ export default function CustomerProfileMenu() {
 			const { data: onboardingRequest, error: onboardingError } =
 				await fetchPartnerOnboardingRequest(user.id);
 			if (onboardingError) {
-				Alert.alert("Error", onboardingError.message);
+				showAppAlert("Error", onboardingError.message);
 				return;
 			}
 			const { data: partnerProfile, error: partnerProfileError } = await supabase
@@ -90,30 +93,24 @@ export default function CustomerProfileMenu() {
 				.eq("id", user.id)
 				.maybeSingle();
 			if (partnerProfileError) {
-				Alert.alert("Error", partnerProfileError.message);
+				showAppAlert("Error", partnerProfileError.message);
 				return;
 			}
 			const isFirstTimeBecomingLaunderer = !onboardingRequest && !partnerProfile;
 
 			if (isFirstTimeBecomingLaunderer) {
 				setRoleSwitchValue(true);
-				Alert.alert(
-					"Become a Laundry Captain",
-					"Are you sure you want to become a Laundry Partner? You will be asked to provide your business details.",
-					[
-						{
-							text: "Cancel",
-							style: "cancel",
-							onPress: () => {
-								setRoleSwitchValue(false);
-							},
-						},
-						{
-							text: "Confirm",
-							onPress: () => performRoleUpdate(true),
-						},
-					]
-				);
+				const confirmed = await confirm({
+					title: "Become a Laundry Captain",
+					message: "Are you sure you want to become a Laundry Captain? You will be asked to provide your business details.",
+					confirmLabel: "Confirm",
+					cancelLabel: "Cancel",
+				});
+				if (confirmed) {
+					performRoleUpdate(true);
+				} else {
+					setRoleSwitchValue(false);
+				}
 				return;
 			}
 
@@ -135,10 +132,7 @@ export default function CustomerProfileMenu() {
 				.eq("id", user.id);
 			if (error) throw error;
 			await refreshRole();
-			let destination:
-				| "/(partner)"
-				| "/(partner)/onboarding?from=role_switch&returnTo=customer_profile"
-				| "/(customer)" = value ? "/(partner)" : "/(customer)";
+			let destination: "/(partner)" | "/(partner)/onboarding?from=role_switch&returnTo=customer_profile" | "/(customer)" = value ? "/(partner)" : "/(customer)";
 			if (value) {
 				const { data: onboardingRequest, error: onboardingError } =
 					await fetchPartnerOnboardingRequest(user.id);
@@ -161,7 +155,7 @@ export default function CustomerProfileMenu() {
 		} catch (err) {
 			setRoleSwitchValue(!value);
 			const message = err instanceof Error ? err.message : "Could not update role.";
-			Alert.alert("Error", message);
+			showAppAlert("Error", message);
 		} finally {
 			setIsUpdatingRole(false);
 		}
@@ -204,7 +198,7 @@ export default function CustomerProfileMenu() {
 					<MenuItem icon="headphones" label="Contact & Support" onPress={() => router.push("/(customer)/contact-support")} />
 				</View>
 				<View style={styles.roleCard}>
-					<View style={styles.roleRow}>
+					<Pressable style={({ pressed }) => [styles.roleRow, pressed && styles.pressed]} onPress={() => !isUpdatingRole && handleRoleToggle(!isPartnerSwitchOn)}>
 						<Text style={styles.roleLabel}>Become a Laundry Captain</Text>
 						<View style={styles.switchWrap}>
 							{isUpdatingRole ? (
@@ -221,7 +215,7 @@ export default function CustomerProfileMenu() {
 							)
 							}
 						</View>
-					</View>
+					</Pressable>
 					<Text style={styles.roleHint}>Offer laundry services and manage orders as a Laundry Captain.</Text>
 				</View>
 				<View style={styles.divider} />
@@ -229,7 +223,7 @@ export default function CustomerProfileMenu() {
 				<Pressable
 					style={({ pressed }) => [styles.signOutBtn, pressed && styles.pressed]}
 					onPress={() => {
-						Alert.alert("Sign out", "Are you sure you want to sign out?", [
+						showAppAlert("Sign out", "Are you sure you want to sign out?", [
 							{ text: "Cancel", style: "cancel" },
 							{
 								text: "Sign out",
@@ -250,6 +244,7 @@ export default function CustomerProfileMenu() {
 				</Pressable>
 
 			</ScrollView>
+			{confirmDialog}
 		</SafeAreaView>
 	);
 }

@@ -2,7 +2,6 @@ import { useRouter } from "expo-router";
 import { useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Modal,
   Pressable,
   ScrollView,
@@ -12,6 +11,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { showAppAlert } from "@/components/app-alert";
 import { AppHeader } from "@/components/app-header";
 import { CustomerTrustBanner } from "@/components/customer-trust-banner";
 import { PartnerNameWithBadge } from "@/components/partner-name-with-badge";
@@ -50,15 +50,15 @@ export default function OrderSummaryScreen() {
 
   const handleSubmitOrder = async () => {
     if (!user?.id) {
-      Alert.alert("Sign in required", "Please sign in again to submit your order.");
+      showAppAlert("Sign in required", "Please sign in again to submit your order.");
       return;
     }
     if (!draft.partnerId) {
-      Alert.alert("No Laundry Captain selected", "Please select a Laundry Captain first.");
+      showAppAlert("No Laundry Captain selected", "Please select a Laundry Captain first.");
       return;
     }
     if (draft.selectedServiceIds.length === 0) {
-      Alert.alert("No services selected", "Please select at least one service.");
+      showAppAlert("No services selected", "Please select at least one service.");
       return;
     }
     setSubmitting(true);
@@ -72,12 +72,12 @@ export default function OrderSummaryScreen() {
       });
       setSubmitting(false);
       if (!result.ok) {
-        Alert.alert("Unable to save changes", result.error);
+        showAppAlert("Unable to save changes", result.error);
         return;
       }
       const savedOrderId = editingOrderId;
       resetDraft();
-      Alert.alert(s.orderUpdated, s.orderUpdatedMessage, [
+      showAppAlert(s.orderUpdated, s.orderUpdatedMessage, [
         {
           text: "OK",
           onPress: () =>
@@ -99,7 +99,7 @@ export default function OrderSummaryScreen() {
     });
     setSubmitting(false);
     if (!result.ok) {
-      Alert.alert("Unable to submit order", result.error);
+      showAppAlert("Unable to submit order", result.error);
       return;
     }
     resetDraft();

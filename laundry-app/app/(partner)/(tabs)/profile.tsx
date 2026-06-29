@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View, Switch, ActivityIndicator } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View, Switch, ActivityIndicator } from "react-native";
 import { Linking } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -11,6 +11,7 @@ import { useAuth } from "@/contexts/auth-context";
 import { avatarUrlWithCacheBuster } from "@/lib/avatar";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { awardWelcomeCredits } from "@/lib/partner-credits";
+import { showAppAlert } from "@/components/app-alert";
 import { AvatarImage } from "@/components/avatar-image";
 import { AppHeader } from "@/components/app-header";
 
@@ -131,7 +132,7 @@ export default function PartnerProfileMenu() {
 		} catch (err) {
 			setRoleSwitchValue(!value);
 			const message = err instanceof Error ? err.message : "Could not update role.";
-			Alert.alert("Error", message);
+			showAppAlert("Error", message);
 		} finally {
 			setIsUpdatingRole(false);
 		}
@@ -181,7 +182,7 @@ export default function PartnerProfileMenu() {
 							<Text style={styles.creditHint}>Available credits</Text>
 						</View>
 						<Pressable
-							onPress={() => Linking.openURL(buildWhatsAppUrl(displayName, creditBalance)).catch(() => Alert.alert("Error", "Could not open WhatsApp."))}
+							onPress={() => Linking.openURL(buildWhatsAppUrl(displayName, creditBalance)).catch(() => showAppAlert("Error", "Could not open WhatsApp."))}
 							style={({ pressed }) => [styles.buyCreditsBtn, pressed && styles.pressed]}
 						>
 							<Text style={styles.buyCreditsBtnText}>Buy Credits</Text>
@@ -215,7 +216,7 @@ export default function PartnerProfileMenu() {
 				<Pressable
 					style={({ pressed }) => [styles.signOutBtn, pressed && styles.pressed]}
 					onPress={() => {
-						Alert.alert("Sign out", "Are you sure you want to sign out?", [
+						showAppAlert("Sign out", "Are you sure you want to sign out?", [
 							{ text: "Cancel", style: "cancel" },
 							{
 								text: "Sign out",

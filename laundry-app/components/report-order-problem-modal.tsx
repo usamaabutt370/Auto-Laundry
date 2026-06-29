@@ -4,7 +4,6 @@ import { Image } from "expo-image";
 import { useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -16,6 +15,7 @@ import {
   View,
 } from "react-native";
 
+import { showAppAlert } from "@/components/app-alert";
 import { theme } from "@/constants/theme";
 import { useLocale } from "@/contexts/locale-context";
 import { submitOrderDispute } from "@/lib/order-disputes";
@@ -67,13 +67,13 @@ export function ReportOrderProblemModal({
 
   const pickPhoto = async () => {
     if (photos.length >= MAX_PHOTOS) {
-      Alert.alert(s.photoLimitTitle, s.photoLimitMessage.replace("{{max}}", String(MAX_PHOTOS)));
+      showAppAlert(s.photoLimitTitle, s.photoLimitMessage.replace("{{max}}", String(MAX_PHOTOS)));
       return;
     }
 
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
-      Alert.alert(s.permissionTitle, s.permissionMessage);
+      showAppAlert(s.permissionTitle, s.permissionMessage);
       return;
     }
 
@@ -98,7 +98,7 @@ export function ReportOrderProblemModal({
 
   const handleSubmit = async () => {
     if (!description.trim()) {
-      Alert.alert(s.requiredTitle, s.requiredMessage);
+      showAppAlert(s.requiredTitle, s.requiredMessage);
       return;
     }
 
@@ -114,14 +114,14 @@ export function ReportOrderProblemModal({
     setSubmitting(false);
 
     if (!result.ok) {
-      Alert.alert(s.submitErrorTitle, result.error);
+      showAppAlert(s.submitErrorTitle, result.error);
       return;
     }
 
     reset();
     onSubmitted?.();
     onClose();
-    Alert.alert(s.submitSuccessTitle, s.submitSuccessMessage);
+    showAppAlert(s.submitSuccessTitle, s.submitSuccessMessage);
   };
 
   return (

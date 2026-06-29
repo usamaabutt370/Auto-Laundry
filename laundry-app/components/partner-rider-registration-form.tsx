@@ -2,7 +2,6 @@ import { useFocusEffect, useRouter } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useCallback, useState } from "react";
 import {
-  Alert,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -17,6 +16,7 @@ import * as ImagePicker from "expo-image-picker";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
 import { type CountryCode } from "react-native-country-picker-modal";
 
+import { showAppAlert } from "@/components/app-alert";
 import { FormTextInput } from "@/components/form-text-input";
 import { PartnerHeader } from "@/components/partner-header";
 import { AppButton } from "@/components/ui/button";
@@ -102,7 +102,7 @@ export function PartnerRiderRegistrationForm() {
     try {
       const pickupEnabled = await fetchPartnerPickupDeliveryEnabled(user.id);
       if (!pickupEnabled) {
-        Alert.alert(s.pickupRidersOnlyTitle, s.pickupRidersOnlyMessage, [
+        showAppAlert(s.pickupRidersOnlyTitle, s.pickupRidersOnlyMessage, [
           { text: "OK", onPress: () => router.back() },
         ]);
         return;
@@ -214,7 +214,7 @@ export function PartnerRiderRegistrationForm() {
   const pickRiderPhoto = useCallback(async (riderId: string) => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
-      Alert.alert(s.riderPhotoPermissionTitle, s.riderPhotoPermissionMessage);
+      showAppAlert(s.riderPhotoPermissionTitle, s.riderPhotoPermissionMessage);
       return;
     }
 
@@ -248,13 +248,13 @@ export function PartnerRiderRegistrationForm() {
     }
 
     if (!isSupabaseConfigured() || !supabase || !user?.id) {
-      Alert.alert("Configuration error", "Supabase is not configured.");
+      showAppAlert("Configuration error", "Supabase is not configured.");
       return;
     }
 
     const profileReady = await ensureActiveUserProfile(user);
     if (!profileReady.ok) {
-      Alert.alert("Account error", profileReady.error);
+      showAppAlert("Account error", profileReady.error);
       return;
     }
 
@@ -281,7 +281,7 @@ export function PartnerRiderRegistrationForm() {
       );
 
       if (profileError) {
-        Alert.alert("Error", profileError.message);
+        showAppAlert("Error", profileError.message);
         return;
       }
 
@@ -291,7 +291,7 @@ export function PartnerRiderRegistrationForm() {
         if (!rider.photoUploaded) {
           const uploadResult = await uploadRiderPhoto(user.id, rider.photoUri);
           if (!uploadResult.ok) {
-            Alert.alert("Error", uploadResult.error);
+            showAppAlert("Error", uploadResult.error);
             return;
           }
           photoUrl = uploadResult.url;
@@ -310,14 +310,14 @@ export function PartnerRiderRegistrationForm() {
 
       const ridersSaveResult = await replacePartnerRiders(user.id, riderPayload);
       if (!ridersSaveResult.ok) {
-        Alert.alert("Error", ridersSaveResult.error);
+        showAppAlert("Error", ridersSaveResult.error);
         return;
       }
 
       router.back();
     } catch (err) {
       const message = err instanceof Error ? err.message : "Could not save rider details.";
-      Alert.alert("Error", message);
+      showAppAlert("Error", message);
     } finally {
       setIsSaving(false);
     }

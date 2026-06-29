@@ -3,7 +3,6 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -15,6 +14,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { showAppAlert } from "@/components/app-alert";
 import { CustomerTrustBanner } from "@/components/customer-trust-banner";
 import { PartnerNameWithBadge } from "@/components/partner-name-with-badge";
 import { ReportOrderProblemModal } from "@/components/report-order-problem-modal";
@@ -149,7 +149,7 @@ export default function CustomerOrderDetailScreen() {
 
   const handleDeleteOrder = () => {
     if (!order) return;
-    Alert.alert(
+    showAppAlert(
       "Delete order",
       "Are you sure you want to delete this order? This cannot be undone.",
       [
@@ -163,7 +163,7 @@ export default function CustomerOrderDetailScreen() {
               await deleteCustomerOrder(order.id);
               router.back();
             } catch (e) {
-              Alert.alert("Error", e instanceof Error ? e.message : "Could not delete order.");
+              showAppAlert("Error", e instanceof Error ? e.message : "Could not delete order.");
             } finally {
               setIsDeleting(false);
             }
@@ -179,13 +179,13 @@ export default function CustomerOrderDetailScreen() {
     try {
       const loaded = await fetchCustomerOrderForEdit(user.id, order.id);
       if (!loaded) {
-        Alert.alert("Order not found", "This order could not be loaded for editing.");
+        showAppAlert("Order not found", "This order could not be loaded for editing.");
         return;
       }
       loadDraftForEdit(loaded.draft, order.id);
       router.push("/(customer)/pickup-services");
     } catch (e) {
-      Alert.alert(
+      showAppAlert(
         "Cannot edit order",
         e instanceof Error ? e.message : sDetail.editOrderUnavailable,
       );
@@ -197,11 +197,11 @@ export default function CustomerOrderDetailScreen() {
   const handleSubmitFeedback = async () => {
     if (!user?.id || !order) return;
     if (rating < 1) {
-      Alert.alert("Rating required", "Please rate the service before submitting.");
+      showAppAlert("Rating required", "Please rate the service before submitting.");
       return;
     }
     if (!feedbackMessage.trim()) {
-      Alert.alert("Feedback required", "Please write a short feedback or complaint.");
+      showAppAlert("Feedback required", "Please write a short feedback or complaint.");
       return;
     }
 
@@ -219,9 +219,9 @@ export default function CustomerOrderDetailScreen() {
       setFeedbackChecked(true);
       setFeedbackMessage("");
       setRating(0);
-      Alert.alert("Thank you!", "Your feedback has been submitted.");
+      showAppAlert("Thank you!", "Your feedback has been submitted.");
     } catch (e) {
-      Alert.alert(
+      showAppAlert(
         "Unable to submit feedback",
         e instanceof Error ? e.message : "Please try again.",
       );
@@ -407,6 +407,27 @@ export default function CustomerOrderDetailScreen() {
                 ))}
               </View>
             ))}
+          </View>
+
+          <View style={styles.detailCard}>
+            <Text style={styles.secLabel}>Payment Summary</Text>
+            <View style={styles.payRow}>
+              <Text style={styles.payLabel}>Order fee</Text>
+              <Text style={styles.payValue}>{order.estimatedTotalLabel}</Text>
+            </View>
+            {order.pickupFeeLabel ? (
+              <View style={styles.payRow}>
+                <Text style={styles.payLabel}>Delivery fee</Text>
+                <Text style={styles.payValue}>{order.pickupFeeLabel}</Text>
+              </View>
+            ) : null}
+            <View style={styles.sectionDivider} />
+            <View style={styles.payRow}>
+              <Text style={styles.payTotalLabel}>
+                {order.confirmedTotalLabel ? "Confirmed total" : "Estimated total"}
+              </Text>
+              <Text style={styles.payTotalValue}>{order.grandTotalLabel}</Text>
+            </View>
           </View>
 
           {order.notes ? (
@@ -961,5 +982,30 @@ const styles = StyleSheet.create({
   },
   disabled: {
     opacity: 0.55,
+  },
+  payRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 6,
+  },
+  payLabel: {
+    fontSize: fs.descText,
+    color: c.blue500,
+  },
+  payValue: {
+    fontSize: fs.descText,
+    fontWeight: "600",
+    color: c.white,
+  },
+  payTotalLabel: {
+    fontSize: fs.smallText,
+    fontWeight: "700",
+    color: c.white,
+  },
+  payTotalValue: {
+    fontSize: fs.smallText,
+    fontWeight: "700",
+    color: c.lightBlue,
   },
 });

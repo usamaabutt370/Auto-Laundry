@@ -77,6 +77,9 @@ export interface CustomerOrderDetailData {
   estimatedTotalLabel: string;
   confirmedTotalLabel: string | null;
   confirmedAt: string | null;
+  pickupFee: number | null;
+  pickupFeeLabel: string | null;
+  grandTotalLabel: string;
   totalItems: number;
   notes: string | null;
   rejectionReasonOption: string | null;
@@ -541,6 +544,10 @@ export async function fetchCustomerOrderDetail(
   const totalAmount = order.estimated_total ?? order.estimated_partial_total ?? 0;
   const confirmedTotal =
     order.confirmed_total != null ? formatUsd(order.confirmed_total) : null;
+  const pickupFee = order.pickup_fee != null && order.pickup_fee > 0 ? order.pickup_fee : null;
+  const grandTotal = order.confirmed_total != null
+    ? order.confirmed_total
+    : totalAmount + (pickupFee ?? 0);
 
   return {
     id: order.id,
@@ -565,6 +572,9 @@ export async function fetchCustomerOrderDetail(
     estimatedTotalLabel: formatUsd(totalAmount),
     confirmedTotalLabel: confirmedTotal,
     confirmedAt: order.confirmed_at,
+    pickupFee,
+    pickupFeeLabel: pickupFee != null ? formatUsd(pickupFee) : null,
+    grandTotalLabel: formatUsd(grandTotal),
     totalItems,
     notes: notes || null,
     rejectionReasonOption: order.rejection_reason_option?.trim() || null,

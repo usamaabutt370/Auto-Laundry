@@ -68,6 +68,9 @@ export interface PartnerOrderDetailData {
   estimatedTotal: string;
   confirmedTotal: string | null;
   confirmedAt: string | null;
+  pickupFee: number | null;
+  pickupFeeLabel: string | null;
+  grandTotalLabel: string;
   intakeNotes: string | null;
   totalItems: string;
   servicesSummary: string;
@@ -491,6 +494,17 @@ export async function fetchPartnerOrderDetail(
     confirmedTotal:
       order.confirmed_total != null ? String(order.confirmed_total) : null,
     confirmedAt: order.confirmed_at,
+    pickupFee: order.pickup_fee != null && order.pickup_fee > 0 ? order.pickup_fee : null,
+    pickupFeeLabel:
+      order.pickup_fee != null && order.pickup_fee > 0
+        ? formatUsd(order.pickup_fee)
+        : null,
+    grandTotalLabel: formatUsd(
+      order.confirmed_total != null
+        ? order.confirmed_total
+        : (order.estimated_total ?? order.estimated_partial_total ?? 0) +
+          (order.pickup_fee != null && order.pickup_fee > 0 ? order.pickup_fee : 0),
+    ),
     intakeNotes: order.intake_notes?.trim() || null,
     totalItems: String(totalItems),
     servicesSummary,

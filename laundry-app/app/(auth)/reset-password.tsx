@@ -2,7 +2,6 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import {
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -11,6 +10,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
+import { showAppAlert } from "@/components/app-alert";
 import { Input, Spacer, ThemedText, ThemedView } from "@/components";
 import { theme } from "@/constants/theme";
 import { strings } from "@/constants/strings";
@@ -50,7 +50,7 @@ export default function ResetPasswordScreen() {
           password: newPassword,
         });
         if (updateError) throw updateError;
-        Alert.alert("", s.successMessage, [
+        showAppAlert("", s.successMessage, [
           {
             text: "OK",
             onPress: () => router.replace("/(auth)/login"),
@@ -63,7 +63,7 @@ export default function ResetPasswordScreen() {
       }
     } else {
       // No Supabase: simulate success and navigate
-      Alert.alert("", s.successMessage, [
+      showAppAlert("", s.successMessage, [
         {
           text: "OK",
           onPress: () => router.replace("/(auth)/login"),

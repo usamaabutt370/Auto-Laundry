@@ -6,7 +6,6 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   ScrollView,
   Modal,
@@ -27,6 +26,7 @@ import {
 import { runOnJS } from "react-native-reanimated";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { showAppAlert } from "@/components/app-alert";
 import { AppHeader } from "@/components/app-header";
 import { ChatListScrollView } from "@/components/chat/chat-list-scroll-view";
 import { RiderAssignmentMessage } from "@/components/chat/rider-assignment-message";
@@ -369,7 +369,7 @@ export function OrderChatScreen() {
           ? await ImagePicker.requestCameraPermissionsAsync()
           : await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!perm.granted) {
-        Alert.alert(
+        showAppAlert(
           "Permission needed",
           source === "camera"
             ? "Camera access is required to take a photo."
@@ -414,7 +414,7 @@ export function OrderChatScreen() {
   const onDeleteSelectedMessages = useCallback(() => {
     if (!user?.id || selectedMessageIds.length === 0) return;
 
-    Alert.alert(
+    showAppAlert(
       "Delete selected messages",
       `Delete ${selectedMessageIds.length} selected message${selectedMessageIds.length > 1 ? "s" : ""}?`,
       [

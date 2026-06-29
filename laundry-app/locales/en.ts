@@ -221,7 +221,7 @@ export const en = {
       editOrderLoading: "Loading order…",
       editOrderUnavailable:
         "This order can no longer be edited because your launderer has already accepted it.",
-      reorderAction: "This order can no longer be edited because your Laundry Captain has already accepted it."
+      reorderAction: "Reorder with another Laundry Captain",
     },
     liveEstimate: {
       estimatedLabel: "Estimated total",
@@ -304,10 +304,10 @@ export const en = {
       saveChanges: "Save changes",
       orderUpdated: "Order updated",
       orderUpdatedMessage:
-        "Your changes have been saved. Your launderer will see the updated order.",
+        "Your changes have been saved. Your Laundry Captain will see the updated order.",
       orderSubmitted: "Order submitted",
       orderSubmittedMessage:
-        "Your order has been sent to your launderer. Reference: {{ref}}.",
+        "Your order has been sent to your Laundry Captain. Reference: {{ref}}.",
       orderSubmittedOk: "View order",
       selectLaundererFirst: "Select a launderer first.",
       pickLaunderer: "Pick a launderer",

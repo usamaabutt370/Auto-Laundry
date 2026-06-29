@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Image,
   KeyboardAvoidingView,
   Modal,
@@ -18,8 +17,9 @@ import { useRouter, useLocalSearchParams, useSegments } from "expo-router";
 import * as FileSystem from "expo-file-system";
 import * as ImagePicker from "expo-image-picker";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { theme } from "@/constants/theme";
+import { showAppAlert } from "@/components/app-alert";
 import { AppHeader } from "@/components/app-header";
+import { theme } from "@/constants/theme";
 import { avatarUrlWithCacheBuster } from "@/lib/avatar";
 import { getPaymentMethod, setPaymentMethod } from "@/lib/payment-storage";
 import { getSession, isSupabaseConfigured, supabase } from "@/lib/supabase";
@@ -316,7 +316,7 @@ export default function EditProfileScreen() {
       const phoneNumberObj = parsePhoneNumberFromString(`+${callingCode}${rawPhone}`);
 
       if (!rawPhone) {
-        Alert.alert(
+        showAppAlert(
           "Missing required fields",
           "Phone is required to save your profile.",
         );
@@ -325,7 +325,7 @@ export default function EditProfileScreen() {
       }
 
       if (!phoneNumberObj || !phoneNumberObj.isValid()) {
-        Alert.alert(
+        showAppAlert(
           "Invalid phone",
           `Please enter a valid mobile number for ${countryCode}.`,
         );
@@ -355,7 +355,7 @@ export default function EditProfileScreen() {
         .upsert(upsertPayload, { onConflict: "id" });
 
       if (error) {
-        Alert.alert(
+        showAppAlert(
           "Error",
           error.message || "Could not save profile. Please try again.",
         );
@@ -371,7 +371,7 @@ export default function EditProfileScreen() {
         err instanceof Error
           ? err.message
           : "Something went wrong. Please try again.";
-      Alert.alert("Error", message);
+      showAppAlert("Error", message);
     } finally {
       setSaving(false);
     }
@@ -406,7 +406,7 @@ export default function EditProfileScreen() {
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Could not save payment method.";
-      Alert.alert("Error", message);
+      showAppAlert("Error", message);
     } finally {
       setSaving(false);
     }
@@ -432,7 +432,7 @@ export default function EditProfileScreen() {
 
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
-      Alert.alert(
+      showAppAlert(
         "Permission needed",
         "Allow access to your photos to set a profile image.",
       );
@@ -472,7 +472,7 @@ export default function EditProfileScreen() {
         });
 
       if (uploadError) {
-        Alert.alert("Upload failed", uploadError.message);
+        showAppAlert("Upload failed", uploadError.message);
         return;
       }
 
@@ -490,7 +490,7 @@ export default function EditProfileScreen() {
         .eq("id", user.id);
 
       if (updateError) {
-        Alert.alert("Update failed", updateError.message);
+        showAppAlert("Update failed", updateError.message);
         return;
       }
 
@@ -506,11 +506,11 @@ export default function EditProfileScreen() {
 
       setImageUrl(publicUrl);
       setProfileUpdatedAt(now);
-      Alert.alert("Success", "Profile image updated successfully.");
+      showAppAlert("Success", "Profile image updated successfully.");
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Failed to upload image.";
-      Alert.alert("Error", message);
+      showAppAlert("Error", message);
     } finally {
       setUploadingImage(false);
     }

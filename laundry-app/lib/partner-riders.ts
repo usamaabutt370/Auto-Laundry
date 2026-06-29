@@ -1,3 +1,4 @@
+import { Platform } from "react-native";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
 export type PartnerRider = {
@@ -105,14 +106,27 @@ export async function uploadRiderPhoto(
   }
 
   try {
-    const FileSystem = await import("expo-file-system");
-    const lower = localUri.toLowerCase();
-    const isJpeg = lower.endsWith(".jpg") || lower.endsWith(".jpeg");
-    const ext = isJpeg ? "jpg" : "png";
-    const contentType = isJpeg ? "image/jpeg" : "image/png";
+    let bytes: ArrayBuffer;
+    let contentType: string;
+    let ext: string;
+
+    if (Platform.OS === "web") {
+      const response = await fetch(localUri);
+      bytes = await response.arrayBuffer();
+      const mime = (response.headers.get("content-type") ?? "image/jpeg").split(";")[0].trim();
+      contentType = mime;
+      ext = mime === "image/png" ? "png" : "jpg";
+    } else {
+      const FileSystem = await import("expo-file-system");
+      const lower = localUri.toLowerCase();
+      const isJpeg = lower.endsWith(".jpg") || lower.endsWith(".jpeg");
+      ext = isJpeg ? "jpg" : "png";
+      contentType = isJpeg ? "image/jpeg" : "image/png";
+      const file = new FileSystem.File(localUri);
+      bytes = await file.arrayBuffer();
+    }
+
     const path = `${partnerId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-    const file = new FileSystem.File(localUri);
-    const bytes = await file.arrayBuffer();
     const { error: uploadError } = await supabase.storage
       .from("rider-photos")
       .upload(path, bytes, { upsert: true, contentType });

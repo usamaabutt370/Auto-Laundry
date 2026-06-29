@@ -48,5 +48,5 @@ export function shouldUseFullWidthWebContent(
     return false;
   }
 
-  return seg.includes("(customer)") || seg.includes("(partner)");
+  return seg.includes("(customer)");
 }
