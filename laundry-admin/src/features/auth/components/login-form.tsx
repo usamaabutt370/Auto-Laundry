@@ -1,10 +1,10 @@
 "use client";
 
+import { useActionState, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { theme } from "@/lib/theme/theme";
-import { useRouter } from "next/navigation";
-import { useState, type FormEvent } from "react";
+import { loginAction } from "../actions/login-action";
 
 const cardStyle = {
   borderColor: theme.colors.filledButtonBorder,
@@ -19,40 +19,8 @@ const titleStyle = {
 } as const;
 
 export function LoginForm() {
-  const router = useRouter();
+  const [state, action, isPending] = useActionState(loginAction, null);
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setError(null);
-    setLoading(true);
-
-    const form = new FormData(event.currentTarget);
-    const username = (form.get("username") as string | null)?.trim() ?? "";
-    const password = (form.get("password") as string | null) ?? "";
-
-    try {
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
-      });
-
-      if (!response.ok) {
-        const data = (await response.json().catch(() => null)) as { error?: string } | null;
-        setError(data?.error ?? "Invalid username or password");
-        return;
-      }
-
-      router.push("/dashboard");
-    } catch {
-      setError("Something went wrong. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <main className="flex min-h-dvh items-center justify-center p-3 sm:p-6 md:p-8">
@@ -69,12 +37,13 @@ export function LoginForm() {
 
         <form
           className="mx-auto w-full max-w-[340px] space-y-3.5 sm:space-y-5"
-          onSubmit={handleSubmit}
+          action={action}
         >
           <Input
             type="text"
             name="username"
             placeholder="Username"
+            autoComplete="username"
           />
           <div className="relative">
             <Input
@@ -82,6 +51,7 @@ export function LoginForm() {
               name="password"
               placeholder="Password"
               className="pr-12"
+              autoComplete="current-password"
             />
             <button
               type="button"
@@ -114,16 +84,16 @@ export function LoginForm() {
             </button>
           </div>
 
-          {error ? (
-            <p className="text-center text-sm text-red-400">{error}</p>
+          {state?.error ? (
+            <p className="text-center text-sm text-red-400">{state.error}</p>
           ) : null}
 
           <Button
             type="submit"
             className="mt-6 sm:mt-8"
-            disabled={loading}
+            disabled={isPending}
           >
-            {loading ? "Signing in…" : "Sign In"}
+            {isPending ? "Signing in…" : "Sign In"}
           </Button>
         </form>
       </section>

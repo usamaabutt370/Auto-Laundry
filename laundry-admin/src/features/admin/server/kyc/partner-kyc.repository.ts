@@ -43,11 +43,11 @@ export async function listPartnerKycRequestsForAdmin(): Promise<AdminPartnerKycL
     if (asText(profile.role).toLowerCase() === "launderer") allPartnerIds.add(profile.id);
   }
 
-  const list: AdminPartnerKycListItem[] = Array.from(allPartnerIds).map((userId) => {
+  const itemsWithSortKey = Array.from(allPartnerIds).map((userId) => {
     const req = latestRequestByUserId.get(userId);
     const profile = profilesById.get(userId);
     const partnerProfile = partnerProfilesById.get(userId);
-    return {
+    const item: AdminPartnerKycListItem = {
       userId,
       partnerName:
         (profile ? buildFullName(profile) : null) ??
@@ -64,9 +64,14 @@ export async function listPartnerKycRequestsForAdmin(): Promise<AdminPartnerKycL
       reviewedAt: asTextOrNull(req?.reviewed_at),
       reviewedBy: asTextOrNull(req?.reviewed_by),
     };
+    // Use submitted_at first; fall back to updated_at so entries without
+    // submitted_at are still ordered by recency rather than Set insertion order.
+    const sortKey = req?.submitted_at ?? req?.updated_at ?? null;
+    return { item, sortKey };
   });
 
-  return list.sort((a, b) => sortIsoDesc(a.submittedAt, b.submittedAt));
+  itemsWithSortKey.sort((a, b) => sortIsoDesc(a.sortKey, b.sortKey));
+  return itemsWithSortKey.map(({ item }) => item);
 }
 
 export async function getPartnerKycDetailForAdmin(userId: string): Promise<AdminPartnerKycDetail | null> {

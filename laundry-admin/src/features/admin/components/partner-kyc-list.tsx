@@ -462,7 +462,7 @@ export function PartnerKycList({ partners }: PartnerKycListProps) {
         total={total}
         rangeStart={rangeStart}
         rangeEnd={rangeEnd}
-        onPageChange={setPage}
+        onPageChange={(n) => { setPage(n); window.scrollTo({ top: 0, behavior: "smooth" }); }}
         pageNumbers={pageNumbers}
       />
 
