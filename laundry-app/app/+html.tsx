@@ -22,6 +22,7 @@ export default function Root({ children }: PropsWithChildren) {
                 margin: 0;
                 padding: 0;
                 background-color: #3b7f95;
+                font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
               }
               /* RN Web renders TextInput as <input>; remove default browser box/outline */
               input,

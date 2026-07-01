@@ -1,6 +1,7 @@
 import { Redirect } from "expo-router";
 import { ActivityIndicator, Platform, StyleSheet, View } from "react-native";
 
+import { LandingPage } from "@/components/landing";
 import { useAuth } from "@/contexts/auth-context";
 import { useOnboardingComplete } from "@/hooks/use-onboarding-complete";
 
@@ -25,6 +26,11 @@ export default function IndexScreen() {
   }
 
   if (!isAuthenticated) {
+    // Web visitors get a marketing landing page instead of dropping straight
+    // into the login form; native apps keep the direct-to-login flow.
+    if (Platform.OS === "web") {
+      return <LandingPage />;
+    }
     return <Redirect href="/(auth)" />;
   }
 
