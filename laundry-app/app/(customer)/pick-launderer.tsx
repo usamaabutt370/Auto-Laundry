@@ -177,7 +177,6 @@ export default function PickLaundererScreen() {
   const { setPartner, editingOrderId } = useCustomerOrderDraft();
   const params = useLocalSearchParams<{ reorderOrderId?: string; mode?: string }>();
   const s = strings.customer.pickLaunderer;
-  const sHome = strings.customer.home;
   const { isWebDesktop } = useResponsiveLayout();
   const reorderOrderId = typeof params.reorderOrderId === "string" ? params.reorderOrderId : "";
   const fulfillmentMode: PartnerFulfillmentMode =
@@ -186,8 +185,8 @@ export default function PickLaundererScreen() {
   const defaultTitle = isReassignMode
     ? s.reassignTitle
     : fulfillmentMode === "dropoff"
-      ? sHome.dropOff
-      : sHome.pickUpDelivery;
+      ? strings.customer.home.dropOff
+      : strings.customer.home.pickUpDelivery;
   const [partners, setPartners] = useState<PartnerPublicRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

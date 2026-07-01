@@ -1,4 +1,5 @@
 import { Stack } from "expo-router";
+import { Platform } from "react-native";
 
 import { PartnerSidebar } from "@/components/partner-sidebar";
 import { WebAreaShell } from "@/components/web-layout";
@@ -22,7 +23,12 @@ export default function PartnerLayout() {
         <PartnerSidebar />
         <WebAreaShell area="partner">
         <Stack
-          screenOptions={{ headerShown: false }}
+          screenOptions={{
+            headerShown: false,
+            ...(Platform.OS === "web"
+              ? { header: () => null, title: "", headerTitle: "" }
+              : {}),
+          }}
           initialRouteName="(tabs)"
         >
           <Stack.Screen name="index" />

@@ -14,7 +14,6 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams, useSegments } from "expo-router";
-import * as FileSystem from "expo-file-system";
 import * as ImagePicker from "expo-image-picker";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { showAppAlert } from "@/components/app-alert";
@@ -23,6 +22,7 @@ import { theme } from "@/constants/theme";
 import { avatarUrlWithCacheBuster } from "@/lib/avatar";
 import { getPaymentMethod, setPaymentMethod } from "@/lib/payment-storage";
 import { getSession, isSupabaseConfigured, supabase } from "@/lib/supabase";
+import { prepareImageForUpload } from "@/utils/read-local-image-bytes";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
 import type { CountryCode } from "libphonenumber-js";
 import { Input } from "@/components";
@@ -444,25 +444,24 @@ export default function EditProfileScreen() {
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.8,
+      preferredAssetRepresentationMode:
+        ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
     });
 
     if (result.canceled || !result.assets?.[0]?.uri) return;
 
-    const uri = result.assets[0].uri;
-    const lower = uri.toLowerCase();
-    const isJpeg = lower.endsWith(".jpg") || lower.endsWith(".jpeg");
-    const ext = isJpeg ? "jpg" : "png";
-    const contentType = isJpeg ? "image/jpeg" : "image/png";
+    const asset = result.assets[0];
+    const uri = asset.uri;
 
     // Show selected image immediately (local file URI)
     setLocalImageUri(uri);
     setUploadingImage(true);
     try {
+      const { bytes: arrayBuffer, ext, contentType } = await prepareImageForUpload(
+        uri,
+        asset.mimeType,
+      );
       const path = `${user.id}/${AVATAR_PATH_PREFIX}.${ext}`;
-
-      // Use expo-file-system File API to read as ArrayBuffer (fetch(file://) is unreliable in RN)
-      const file = new FileSystem.File(uri);
-      const arrayBuffer = await file.arrayBuffer();
 
       const { error: uploadError } = await supabase.storage
         .from(AVATAR_BUCKET)

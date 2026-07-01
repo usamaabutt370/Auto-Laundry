@@ -1,6 +1,7 @@
 import "@/lib/chat-push-background";
 
 import { Stack } from "expo-router";
+import { Platform } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
@@ -30,7 +31,14 @@ export default function RootLayout() {
             <AppAlertProvider>
             <WebAppShell>
               <FcmNotificationRouter />
-              <Stack screenOptions={{ headerShown: false }}>
+              <Stack
+                screenOptions={{
+                  headerShown: false,
+                  ...(Platform.OS === "web"
+                    ? { header: () => null, title: "", headerTitle: "" }
+                    : {}),
+                }}
+              >
                 <Stack.Screen name="index" />
                 <Stack.Screen name="(onboarding)" />
                 <Stack.Screen name="(auth)" />

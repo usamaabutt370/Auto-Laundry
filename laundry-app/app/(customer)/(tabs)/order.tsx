@@ -25,6 +25,7 @@ import { useAuth } from "@/contexts/auth-context";
 import { useLocale } from "@/contexts/locale-context";
 import { useSidebar } from "@/contexts/sidebar-context";
 import { useCustomerOrders } from "@/hooks/use-customer-orders";
+import { useSuppressWebScreenHeader } from "@/hooks/use-suppress-web-screen-header";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import {
   findOrdersMissingFeedback,
@@ -70,6 +71,7 @@ export default function CustomerOrderScreen() {
   const { orders, loading, error, refresh, deleteOrder } = useCustomerOrders(user?.id);
   const { confirm, dialog } = useConfirmDialog();
   const { isWeb } = useResponsiveLayout();
+  useSuppressWebScreenHeader();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [feedbackVisible, setFeedbackVisible] = useState(false);
   const [feedbackOrderId, setFeedbackOrderId] = useState<string | null>(null);
@@ -245,15 +247,16 @@ export default function CustomerOrderScreen() {
   return (
     <View style={styles.container}>
       {dialog}
-      <SafeAreaView style={styles.safeTop} edges={["top"]}>
-        <AppHeader
-          title={s.title}
-          // subtitle={s.liveHint}
-          onLeftPress={openSidebar}
-          leftAccessibilityLabel="Menu"
-        />
-      </SafeAreaView>
-      <Text style={styles.hint}>{s.liveHint}</Text>
+      {!isWeb ? (
+        <SafeAreaView style={styles.safeTop} edges={["top"]}>
+          <AppHeader
+            title={s.title}
+            onLeftPress={openSidebar}
+            leftAccessibilityLabel="Menu"
+          />
+        </SafeAreaView>
+      ) : null}
+      {!isWeb ? <Text style={styles.hint}>{s.liveHint}</Text> : null}
       {!user?.id ? (
         <View style={styles.center}>
           <MaterialCommunityIcons name="account-outline" size={48} color={c.blue500} />
@@ -282,7 +285,10 @@ export default function CustomerOrderScreen() {
       ) : (
         <ScrollView
           style={styles.scroll}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[
+            styles.scrollContent,
+            isWeb ? styles.scrollContentWeb : null,
+          ]}
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
@@ -573,6 +579,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: PAD,
     paddingBottom: 100,
     gap: 12,
+  },
+  scrollContentWeb: {
+    paddingTop: 16,
   },
   center: {
     flex: 1,

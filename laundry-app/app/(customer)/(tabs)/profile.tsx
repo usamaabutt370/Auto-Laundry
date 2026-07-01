@@ -12,6 +12,7 @@ import { getSession, isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { showAppAlert } from "@/components/app-alert";
 import { AvatarImage } from "@/components/avatar-image";
 import { useConfirmDialog } from "@/components/confirm-dialog";
+import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 
 const c = theme.colors;
 
@@ -19,6 +20,7 @@ export default function CustomerProfileMenu() {
 	const router = useRouter();
 	const { user, signOut, refreshRole } = useAuth();
 	const { confirm, dialog: confirmDialog } = useConfirmDialog();
+	const { isWeb } = useResponsiveLayout();
 
 	const [isUpdatingRole, setIsUpdatingRole] = useState(false);
 	const [roleSwitchValue, setRoleSwitchValue] = useState<boolean | null>(null);
@@ -218,30 +220,34 @@ export default function CustomerProfileMenu() {
 					</Pressable>
 					<Text style={styles.roleHint}>Offer laundry services and manage orders as a Laundry Captain.</Text>
 				</View>
-				<View style={styles.divider} />
+				{!isWeb ? (
+					<>
+						<View style={styles.divider} />
 
-				<Pressable
-					style={({ pressed }) => [styles.signOutBtn, pressed && styles.pressed]}
-					onPress={() => {
-						showAppAlert("Sign out", "Are you sure you want to sign out?", [
-							{ text: "Cancel", style: "cancel" },
-							{
-								text: "Sign out",
-								style: "destructive",
-								onPress: async () => {
-									await signOut();
-									if (router.canDismiss && router.canDismiss()) {
-										router.dismissAll && router.dismissAll();
-									}
-									router.replace("/(auth)/login");
-								},
-							},
-						]);
-					}}
-				>
-					<MaterialCommunityIcons name="logout" size={18} color={c.white} />
-					<Text style={styles.signOutLabel}>Sign out</Text>
-				</Pressable>
+						<Pressable
+							style={({ pressed }) => [styles.signOutBtn, pressed && styles.pressed]}
+							onPress={() => {
+								showAppAlert("Sign out", "Are you sure you want to sign out?", [
+									{ text: "Cancel", style: "cancel" },
+									{
+										text: "Sign out",
+										style: "destructive",
+										onPress: async () => {
+											await signOut();
+											if (router.canDismiss && router.canDismiss()) {
+												router.dismissAll && router.dismissAll();
+											}
+											router.replace("/(auth)/login");
+										},
+									},
+								]);
+							}}
+						>
+							<MaterialCommunityIcons name="logout" size={18} color={c.white} />
+							<Text style={styles.signOutLabel}>Sign out</Text>
+						</Pressable>
+					</>
+				) : null}
 
 			</ScrollView>
 			{confirmDialog}

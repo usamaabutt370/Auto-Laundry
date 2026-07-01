@@ -18,6 +18,7 @@ import { AppHeader } from "@/components/app-header";
 import { strings } from "@/constants/strings";
 import { theme } from "@/constants/theme";
 import { openWhatsApp } from "@/lib/whatsapp";
+import { goBackToCustomerHome } from "@/utils/customer-navigation";
 
 const c = theme.colors;
 
@@ -46,7 +47,7 @@ export default function ContactSupportScreen() {
         <AppHeader
           title={s.title}
           leftIcon="arrow-left"
-          onLeftPress={() => router.back()}
+          onLeftPress={() => goBackToCustomerHome(router)}
           leftAccessibilityLabel="Go back"
         />
       </SafeAreaView>

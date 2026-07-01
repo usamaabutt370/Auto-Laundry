@@ -6,6 +6,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { strings } from "@/constants/strings";
 import { theme } from "@/constants/theme";
+import { goBackToCustomerHome } from "@/utils/customer-navigation";
 import { Spacer } from "@/components";
 
 const c = theme.colors;
@@ -31,7 +32,7 @@ export default function RecurringOptionsScreen() {
     <View style={styles.container}>
       <SafeAreaView style={styles.header} edges={["top"]}>
         <Pressable
-          onPress={() => router.back()}
+          onPress={() => goBackToCustomerHome(router)}
           style={({ pressed }) => [styles.backBtn, pressed && styles.pressed]}
           accessibilityRole="button"
           accessibilityLabel="Go back"

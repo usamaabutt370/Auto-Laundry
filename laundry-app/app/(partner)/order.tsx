@@ -25,9 +25,11 @@ import {
   type PartnerOrderSuccessPayload,
 } from "@/components/partner-order-success-modal";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
+import { useSuppressWebScreenHeader } from "@/hooks/use-suppress-web-screen-header";
 import { PartnerRiderPickerModal } from "@/components/partner-rider-picker-modal";
 import { theme } from "@/constants/theme";
 import { useAuth } from "@/contexts/auth-context";
+import { useSidebar } from "@/contexts/sidebar-context";
 import { useLocale } from "@/contexts/locale-context";
 import {
   acceptOrderWithRider,
@@ -60,6 +62,7 @@ export default function PartnerOrderScreen() {
   const params = useLocalSearchParams<{ filter?: string }>();
   const { locale } = useLocale();
   const { user } = useAuth();
+  const { open: openSidebar } = useSidebar();
   const s = getStrings(locale).partner.order;
 
   const initialFilter =
@@ -80,6 +83,7 @@ export default function PartnerOrderScreen() {
   const [otherRejectionReason, setOtherRejectionReason] = useState("");
   const { confirm, dialog } = useConfirmDialog();
   const { isWeb } = useResponsiveLayout();
+  useSuppressWebScreenHeader();
   const custStrings = getStrings(locale).customer.ordersTab;
   const [riderModalVisible, setRiderModalVisible] = useState(false);
   const [pendingAcceptOrderId, setPendingAcceptOrderId] = useState<string | null>(null);
@@ -372,13 +376,13 @@ export default function PartnerOrderScreen() {
   return (
     <View style={styles.container}>
       {dialog}
-      <SafeAreaView edges={["top"]} style={styles.safeArea}>
-        <AppHeader
-          title={s.title}
-         
-          leftAccessibilityLabel={s.title}
-        />
-      </SafeAreaView>
+      {!isWeb ? (
+        <SafeAreaView edges={["top"]} style={styles.safeArea}>
+          <AppHeader
+            title={s.title}
+          />
+        </SafeAreaView>
+      ) : null}
 
       <ScrollView
         horizontal

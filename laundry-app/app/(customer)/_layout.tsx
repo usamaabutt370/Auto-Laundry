@@ -1,4 +1,5 @@
 import { Stack } from "expo-router";
+import { Platform } from "react-native";
 
 import { Sidebar } from "@/components/sidebar";
 import { WebAreaShell } from "@/components/web-layout";
@@ -14,6 +15,9 @@ export default function CustomerLayout() {
         <Stack
           screenOptions={{
             headerShown: false,
+            ...(Platform.OS === "web"
+              ? { header: () => null, title: "", headerTitle: "" }
+              : {}),
           }}
         >
           <Stack.Screen name="index" />
