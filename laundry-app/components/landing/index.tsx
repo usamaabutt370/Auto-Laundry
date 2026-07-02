@@ -35,8 +35,8 @@ export function LandingPage() {
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       <StatusBar style="dark" />
-      <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false}>
-        <LandingHeader onNavigate={handleNavigate} />
+      <LandingHeader onNavigate={handleNavigate} />
+      <ScrollView ref={scrollRef} style={styles.scroll} showsVerticalScrollIndicator={false}>
         <LandingHero />
         <LandingVision />
         <View onLayout={registerSection("how-it-works")}>
@@ -64,5 +64,8 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.themeWhite,
+  },
+  scroll: {
+    flex: 1,
   },
 });
