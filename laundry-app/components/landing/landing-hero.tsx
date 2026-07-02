@@ -11,14 +11,14 @@ import { LandingContainer } from "./landing-container";
 
 const c = theme.colors;
 
-/** Top-of-page hero: the earn-from-home pitch, area-check bar, and illustration. */
+/** Top-of-page hero: the customer pitch — gentle, trusted laundry care. */
 export function LandingHero() {
   const router = useRouter();
   const { isWebDesktop } = useResponsiveLayout();
-  const [area, setArea] = useState("");
+  const [address, setAddress] = useState("");
 
-  const handleCheckArea = () => {
-    router.push("/(auth)/welcome");
+  const handleCheckAddress = () => {
+    router.push("/(auth)/sign-up");
   };
 
   return (
@@ -26,28 +26,29 @@ export function LandingHero() {
       <LandingContainer style={isWebDesktop ? styles.rowDesktop : undefined}>
         <View style={[styles.textCol, isWebDesktop && styles.textColDesktop]}>
           <View style={styles.eyebrowPill}>
-            <MaterialCommunityIcons name="home-heart" size={14} color={c.background} />
-            <Text style={styles.eyebrow}>Earn From Home</Text>
+            <MaterialCommunityIcons name="hand-heart-outline" size={14} color={c.background} />
+            <Text style={styles.eyebrow}>Gentle, Trusted Laundry Care</Text>
           </View>
           <Text style={styles.heading}>
-            Turn Your Time At Home Into{" "}
-            <Text style={styles.headingAccent}>Real Income</Text>
+            Clothes Deserve Care,{" "}
+            <Text style={styles.headingAccent}>Not Rough Handling</Text>
           </Text>
           <Text style={styles.subtitle}>
-            <Text style={styles.subtitleBold}>Tap2Laundry</Text> helps women
-            earn on their own schedule as Laundry Captains — taking wash &
-            fold, dry cleaning, or tailoring orders from customers near home,
-            at hours that work for you.
+            Too many commercial launderers rush your clothes through rough
+            machines and damage them. <Text style={styles.subtitleBold}>Tap2Laundry</Text>{" "}
+            is different — we onboard trusted, trained housewives to wash,
+            fold, and care for your laundry the way they&apos;d treat their
+            own family&apos;s clothes.
           </Text>
 
           <View style={styles.ctaRow}>
             <Pressable
               style={({ pressed }) => [styles.primaryBtn, pressed && styles.pressed]}
-              onPress={() => router.push("/(auth)/welcome")}
+              onPress={() => router.push("/(auth)/sign-up")}
               accessibilityRole="button"
-              accessibilityLabel="Become a Laundry Captain"
+              accessibilityLabel="Book Your Pickup"
             >
-              <Text style={styles.primaryBtnText}>Become a Laundry Captain</Text>
+              <Text style={styles.primaryBtnText}>Book Your Pickup</Text>
               <MaterialCommunityIcons name="arrow-right" size={18} color={c.white} />
             </Pressable>
             <Pressable
@@ -64,30 +65,30 @@ export function LandingHero() {
             <MaterialCommunityIcons name="map-marker-outline" size={20} color={c.themeGray} />
             <TextInput
               style={styles.addressInput}
-              placeholder="Enter your area to check demand"
+              placeholder="Enter your pickup address"
               placeholderTextColor={c.themeGray}
-              value={area}
-              onChangeText={setArea}
+              value={address}
+              onChangeText={setAddress}
             />
             <Pressable
               style={({ pressed }) => [styles.addressBtn, pressed && styles.pressed]}
-              onPress={handleCheckArea}
+              onPress={handleCheckAddress}
               accessibilityRole="button"
-              accessibilityLabel="Check my area"
+              accessibilityLabel="Check availability"
             >
               <Text style={styles.addressBtnText}>Check</Text>
             </Pressable>
           </View>
 
           <Pressable
-            onPress={() => router.push("/(auth)/sign-up")}
+            onPress={() => router.push("/(auth)/welcome")}
             accessibilityRole="button"
-            accessibilityLabel="Need laundry done instead? Sign up as a customer"
+            accessibilityLabel="Are you a housewife? Become a Laundry Captain"
             style={({ pressed }) => [styles.customerNudge, pressed && styles.pressed]}
           >
             <Text style={styles.customerNudgeText}>
-              Need laundry done instead?{" "}
-              <Text style={styles.customerNudgeLink}>Sign up as a customer →</Text>
+              Are you a housewife looking to earn from home?{" "}
+              <Text style={styles.customerNudgeLink}>Become a Laundry Captain →</Text>
             </Text>
           </Pressable>
         </View>
@@ -95,7 +96,7 @@ export function LandingHero() {
         <View style={[styles.imageCol, isWebDesktop && styles.imageColDesktop]}>
           <View style={styles.imageBlobWrap}>
             <View style={styles.imageBlob} />
-            <Image source={assets.onboarding.slide3} style={styles.image} contentFit="contain" />
+            <Image source={assets.onboarding.slide1} style={styles.image} contentFit="contain" />
           </View>
         </View>
       </LandingContainer>

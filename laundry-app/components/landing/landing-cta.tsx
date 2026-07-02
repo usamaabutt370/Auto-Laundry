@@ -11,20 +11,20 @@ export function LandingCta() {
 
   return (
     <View style={styles.section}>
-      <Text style={styles.heading}>Ready To Start Earning From Home?</Text>
+      <Text style={styles.heading}>Ready For Laundry That&apos;s Actually Cared For?</Text>
       <Text style={styles.subtitle}>
-        Create your Laundry Captain profile and start receiving nearby orders
-        in minutes.
+        Book your first pickup and let a trusted housewife near you handle it
+        with care.
       </Text>
 
       <View style={styles.ctaRow}>
         <Pressable
           style={({ pressed }) => [styles.primaryBtn, pressed && styles.pressed]}
-          onPress={() => router.push("/(auth)/welcome")}
+          onPress={() => router.push("/(auth)/sign-up")}
           accessibilityRole="button"
-          accessibilityLabel="Become a Laundry Captain"
+          accessibilityLabel="Book Your Pickup"
         >
-          <Text style={styles.primaryBtnText}>Become a Laundry Captain</Text>
+          <Text style={styles.primaryBtnText}>Book Your Pickup</Text>
         </Pressable>
         <Pressable
           style={({ pressed }) => [styles.secondaryBtn, pressed && styles.pressed]}
@@ -37,13 +37,13 @@ export function LandingCta() {
       </View>
 
       <Pressable
-        onPress={() => router.push("/(auth)/sign-up")}
+        onPress={() => router.push("/(auth)/welcome")}
         accessibilityRole="button"
-        accessibilityLabel="Need laundry done instead? Sign up as a customer"
+        accessibilityLabel="Are you a housewife? Become a Laundry Captain"
         style={({ pressed }) => [styles.customerNudge, pressed && styles.pressed]}
       >
         <Text style={styles.customerNudgeText}>
-          Need laundry done instead? Sign up as a customer →
+          Are you a housewife looking to earn from home? Become a Laundry Captain →
         </Text>
       </Pressable>
     </View>

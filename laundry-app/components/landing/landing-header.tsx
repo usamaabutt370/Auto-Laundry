@@ -10,8 +10,9 @@ const c = theme.colors;
 
 const NAV_LINKS = [
   { label: "How It Works", anchor: "how-it-works" },
-  { label: "What You Can Offer", anchor: "services" },
+  { label: "Services", anchor: "services" },
   { label: "Why Us", anchor: "why-choose-us" },
+  { label: "Earn From Home", anchor: "become-captain" },
 ];
 
 type Props = {
@@ -19,7 +20,7 @@ type Props = {
   onNavigate?: (anchor: string) => void;
 };
 
-/** Sticky-feel top bar: logo, desktop nav links, and Sign In / Start Earning CTAs. */
+/** Sticky-feel top bar: logo, desktop nav links, and Sign In / Get Started CTAs. */
 export function LandingHeader({ onNavigate }: Props) {
   const router = useRouter();
   const { isWebDesktop } = useResponsiveLayout();
@@ -52,11 +53,11 @@ export function LandingHeader({ onNavigate }: Props) {
         </Pressable>
         <Pressable
           style={({ pressed }) => [styles.signUpBtn, pressed && styles.pressed]}
-          onPress={() => router.push("/(auth)/welcome")}
+          onPress={() => router.push("/(auth)/sign-up")}
           accessibilityRole="button"
-          accessibilityLabel="Start Earning"
+          accessibilityLabel="Get Started"
         >
-          <Text style={styles.signUpText}>Start Earning</Text>
+          <Text style={styles.signUpText}>Get Started</Text>
         </Pressable>
       </View>
     </View>

@@ -30,24 +30,24 @@ export function LandingVision() {
             Our <Text style={styles.kickerAccent}>Vision</Text>
           </Text>
           <Text style={styles.paragraph}>
-            <Text style={styles.paragraphBold}>Tap2Laundry</Text> was built
-            around a simple idea: women who are home shouldn&apos;t have to
-            choose between being there for their family and earning their own
-            income. Our Laundry Captains run their business from home, on
-            their own schedule.
+            <Text style={styles.paragraphBold}>Tap2Laundry</Text> exists
+            because too many commercial launderers treat your clothes like
+            just another load — rough machines, harsh handling, and
+            sometimes ruined garments. That&apos;s not good enough for
+            clothes you care about.
           </Text>
           <Text style={styles.paragraph}>
-            Every order moves through the same simple loop: collect, clean,
-            deliver — so nearby customers get trusted, local laundry care
-            while Captains earn from the comfort of home.
+            So instead, we onboard trained, trustworthy housewives near you
+            to wash, fold, and care for your laundry by hand — with the same
+            attention they give their own family&apos;s clothes.
           </Text>
           <Pressable
             style={({ pressed }) => [styles.btn, pressed && styles.pressed]}
-            onPress={() => router.push("/(auth)/welcome")}
+            onPress={() => router.push("/(auth)/sign-up")}
             accessibilityRole="button"
-            accessibilityLabel="Become a Laundry Captain"
+            accessibilityLabel="Book Your Pickup"
           >
-            <Text style={styles.btnText}>Become a Laundry Captain</Text>
+            <Text style={styles.btnText}>Book Your Pickup</Text>
             <MaterialCommunityIcons name="arrow-right" size={18} color={c.white} />
           </Pressable>
         </View>

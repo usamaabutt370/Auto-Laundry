@@ -9,26 +9,26 @@ const SERVICES = [
   {
     icon: "tshirt-crew-outline" as const,
     title: "Wash & Fold",
-    description: "Offer everyday laundry: washing, drying, and neat folding.",
+    description: "Everyday laundry washed by hand, dried, and neatly folded.",
   },
   {
     icon: "hanger" as const,
     title: "Dry Cleaning",
-    description: "Take on delicate and formal wear cleaning at your rate.",
+    description: "Delicate and formal wear cleaned with careful attention.",
   },
   {
     icon: "content-cut" as const,
     title: "Tailoring & Alterations",
-    description: "Put your tailoring skills to work with paid alterations.",
+    description: "Fixes and alterations from trusted local housewives.",
   },
 ];
 
-/** "What You Can Offer" — services a Laundry Captain can earn from. */
+/** "Our Services" — 3 core service offerings, matching real app order types. */
 export function LandingServices() {
   return (
     <View style={styles.section}>
       <Text style={styles.heading}>
-        What You Can <Text style={styles.headingAccent}>Offer</Text>
+        Our <Text style={styles.headingAccent}>Services</Text>
       </Text>
 
       <View style={styles.grid}>

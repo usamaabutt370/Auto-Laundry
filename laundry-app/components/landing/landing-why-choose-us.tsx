@@ -7,27 +7,27 @@ const c = theme.colors;
 const REASONS = [
   {
     number: "01",
-    title: "Work From Home",
-    description: "Run your laundry business from home, on your own terms.",
+    title: "Gentle, Careful Handling",
+    description: "Washed by hand, not rough machines — your clothes stay safe.",
   },
   {
     number: "02",
-    title: "Flexible Hours",
-    description: "Accept orders around your day — no fixed shifts required.",
+    title: "Trusted, Vetted Housewives",
+    description: "Every Laundry Captain is verified before taking your order.",
   },
   {
     number: "03",
-    title: "Keep What You Earn",
-    description: "Get paid per order, with earnings tracked in your dashboard.",
+    title: "Live Order Tracking",
+    description: "Follow your laundry from pickup to clean-up to delivery.",
   },
 ];
 
-/** "Why Women Choose Tap2Laundry" — the earning perks that matter most. */
+/** "Why Choose Us" — 3 reasons customers trust Tap2Laundry over commercial launderers. */
 export function LandingWhyChooseUs() {
   return (
     <View style={styles.section}>
       <Text style={styles.heading}>
-        Why Women Choose <Text style={styles.headingAccent}>Tap2Laundry</Text>
+        Why Choose <Text style={styles.headingAccent}>Us</Text>
       </Text>
 
       <View style={styles.grid}>

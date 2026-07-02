@@ -7,37 +7,37 @@ const c = theme.colors;
 
 const STEPS = [
   {
-    icon: "account-check-outline" as const,
-    title: "Sign Up & Get Verified",
-    description: "Create your Laundry Captain profile in minutes, from home.",
+    icon: "calendar-clock" as const,
+    title: "Schedule a Pickup",
+    description: "Pick a date and time that works for you, right from the app.",
     background: c.background,
   },
   {
-    icon: "calendar-clock" as const,
-    title: "Set Your Hours",
-    description: "Choose the services you offer and the hours that suit you.",
+    icon: "hand-heart-outline" as const,
+    title: "A Housewife Collects It",
+    description: "A trained, vetted housewife near you picks up your laundry.",
     background: c.blue900,
   },
   {
-    icon: "bell-ring-outline" as const,
-    title: "Receive Nearby Orders",
-    description: "Get matched with customers near home who need laundry care.",
+    icon: "washing-machine" as const,
+    title: "Washed With Care",
+    description: "No rough machines — cleaned by hand, gently, like her own.",
     background: c.backgroundDark,
   },
   {
-    icon: "cash-multiple" as const,
-    title: "Clean, Deliver & Earn",
-    description: "Complete the order and get paid — tracked in your dashboard.",
+    icon: "package-variant-closed" as const,
+    title: "Delivered Back",
+    description: "Fresh, folded laundry delivered right back to your door.",
     background: c.blue900,
   },
 ];
 
-/** "How It Works" — a Laundry Captain's path from sign-up to earning. */
+/** "How It Works" — the customer's pickup-to-delivery journey. */
 export function LandingHowItWorks() {
   return (
     <View style={styles.section}>
       <Text style={styles.heading}>
-        How You Start <Text style={styles.headingAccent}>Earning</Text>
+        How It <Text style={styles.headingAccent}>Works</Text>
       </Text>
 
       <View style={styles.grid}>

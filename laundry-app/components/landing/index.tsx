@@ -10,6 +10,7 @@ import { LandingVision } from "./landing-vision";
 import { LandingHowItWorks } from "./landing-how-it-works";
 import { LandingServices } from "./landing-services";
 import { LandingWhyChooseUs } from "./landing-why-choose-us";
+import { LandingBecomeCaptain } from "./landing-become-captain";
 import { LandingGallery } from "./landing-gallery";
 import { LandingTestimonials } from "./landing-testimonials";
 import { LandingCta } from "./landing-cta";
@@ -46,6 +47,9 @@ export function LandingPage() {
         </View>
         <View onLayout={registerSection("why-choose-us")}>
           <LandingWhyChooseUs />
+        </View>
+        <View onLayout={registerSection("become-captain")}>
+          <LandingBecomeCaptain />
         </View>
         <LandingGallery />
         <LandingTestimonials />
