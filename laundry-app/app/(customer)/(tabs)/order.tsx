@@ -19,6 +19,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { showAppAlert } from "@/components/app-alert";
 import { AppHeader } from "@/components/app-header";
+import { WebHeaderSpacer } from "@/components/web-header-spacer";
 import { useConfirmDialog } from "@/components/confirm-dialog";
 import { PartnerNameWithBadge } from "@/components/partner-name-with-badge";
 import { useAuth } from "@/contexts/auth-context";
@@ -255,7 +256,9 @@ export default function CustomerOrderScreen() {
             leftAccessibilityLabel="Menu"
           />
         </SafeAreaView>
-      ) : null}
+      ) : (
+        <WebHeaderSpacer />
+      )}
       {!isWeb ? <Text style={styles.hint}>{s.liveHint}</Text> : null}
       {!user?.id ? (
         <View style={styles.center}>
@@ -285,10 +288,7 @@ export default function CustomerOrderScreen() {
       ) : (
         <ScrollView
           style={styles.scroll}
-          contentContainerStyle={[
-            styles.scrollContent,
-            isWeb ? styles.scrollContentWeb : null,
-          ]}
+          contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
@@ -579,9 +579,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: PAD,
     paddingBottom: 100,
     gap: 12,
-  },
-  scrollContentWeb: {
-    paddingTop: 16,
   },
   center: {
     flex: 1,

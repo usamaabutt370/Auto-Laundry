@@ -4,6 +4,7 @@ import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AppHeader } from "@/components/app-header";
+import { WebHeaderSpacer } from "@/components/web-header-spacer";
 import { getTabBarBottomInset } from "@/components/bottom-tab-bar";
 import {
   PartnerDashboardHero,
@@ -101,7 +102,9 @@ export default function PartnerDashboardScreen() {
         <SafeAreaView edges={["top"]} style={styles.safeArea}>
           <AppHeader title={s.title} />
         </SafeAreaView>
-      ) : null}
+      ) : (
+        <WebHeaderSpacer />
+      )}
 
       <ScrollView
         style={styles.scroll}

@@ -9,6 +9,8 @@ import React, {
 import { Platform } from "react-native";
 import type { Session } from "@supabase/supabase-js";
 
+import { BlockingLoader } from "@/components/blocking-loader";
+import { strings } from "@/constants/strings";
 import { registerForChatPush, unregisterChatPush } from "@/lib/push-notifications";
 import {
   fetchPartnerOnboardingRequest,
@@ -22,6 +24,7 @@ export interface AuthState {
   user: Session["user"] | null;
   role: UserRole | null;
   isLoading: boolean;
+  isSigningOut: boolean;
   isAuthenticated: boolean;
   partnerApprovalStatus: PartnerOnboardingRequestStatus | null;
   partnerRejectionReason: string | null;
@@ -36,6 +39,7 @@ const defaultState: AuthState = {
   user: null,
   role: null,
   isLoading: true,
+  isSigningOut: false,
   isAuthenticated: false,
   partnerApprovalStatus: null,
   partnerRejectionReason: null,
@@ -69,6 +73,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     useState<PartnerOnboardingRequestStatus | null>(null);
   const [partnerRejectionReason, setPartnerRejectionReason] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
   const loadRole = useCallback(async (userId: string) => {
     const r = await fetchUserRole(userId);
@@ -138,25 +143,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [session?.user?.id, loadRole]);
 
   const signOut = useCallback(async () => {
-    const uid = session?.user?.id;
-    if (uid) {
-      await unregisterChatPush(uid);
-    }
-    if (Platform.OS !== "web") {
-      try {
-        const Notifications = await import("expo-notifications");
-        await Notifications.clearLastNotificationResponseAsync();
-      } catch {
-        // Ignore if notifications module is unavailable.
+    if (isSigningOut) return;
+
+    setIsSigningOut(true);
+    try {
+      const uid = session?.user?.id;
+      if (uid) {
+        await unregisterChatPush(uid);
       }
+      if (Platform.OS !== "web") {
+        try {
+          const Notifications = await import("expo-notifications");
+          await Notifications.clearLastNotificationResponseAsync();
+        } catch {
+          // Ignore if notifications module is unavailable.
+        }
+      }
+      if (supabase) {
+        await supabase.auth.signOut();
+        // Manually clear state to ensure real-time UI updates
+        setSession(null);
+        setRole(null);
+      }
+    } finally {
+      setIsSigningOut(false);
     }
-    if (supabase) {
-      await supabase.auth.signOut();
-      // Manually clear state to ensure real-time UI updates
-      setSession(null);
-      setRole(null);
-    }
-  }, [session?.user?.id]);
+  }, [isSigningOut, session?.user?.id]);
 
   const refreshPartnerApproval = useCallback(async () => {
     if (session?.user?.id) {
@@ -170,6 +182,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       user: session?.user ?? null,
       role,
       isLoading,
+      isSigningOut,
       isAuthenticated: Boolean(session),
       partnerApprovalStatus,
       partnerRejectionReason,
@@ -181,6 +194,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       session,
       role,
       isLoading,
+      isSigningOut,
       partnerApprovalStatus,
       partnerRejectionReason,
       refreshRole,
@@ -189,7 +203,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     ]
   );
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+      <BlockingLoader visible={isSigningOut} message={strings.common.signingOut} />
+    </AuthContext.Provider>
+  );
 }
 
 export function useAuth(): AuthState {

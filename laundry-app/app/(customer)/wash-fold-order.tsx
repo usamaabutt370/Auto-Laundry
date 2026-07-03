@@ -5,7 +5,10 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AppHeader } from "@/components/app-header";
-import { CustomerItemizedOrderLayout } from "@/components/customer-itemized-order-layout";
+import {
+  CustomerItemizedOrderLayout,
+  customerOrderFooterStyles,
+} from "@/components/customer-itemized-order-layout";
 import { CustomerLiveEstimateFooter } from "@/components/customer-live-estimate-footer";
 import {
   WashFoldPackageBox,
@@ -265,9 +268,12 @@ export default function WashFoldOrderScreen() {
             ) : null}
             <Pressable
               onPress={() => router.back()}
-              style={({ pressed }) => [styles.continueBtn, pressed && styles.pressed]}
+              style={({ pressed }) => [
+                customerOrderFooterStyles.actionBtn,
+                pressed && styles.pressed,
+              ]}
             >
-              <Text style={styles.continueLabel}>{sDet.save}</Text>
+              <Text style={customerOrderFooterStyles.actionLabel}>{sDet.save}</Text>
             </Pressable>
           </>
         }
@@ -460,14 +466,4 @@ const styles = StyleSheet.create({
     minWidth: 28,
     textAlign: "center",
   },
-  continueBtn: {
-    marginHorizontal: 24,
-    marginBottom: 8,
-    marginTop: 4,
-    backgroundColor: c.backgroundLight,
-    paddingVertical: 16,
-    borderRadius: 12,
-    alignItems: "center",
-  },
-  continueLabel: { fontSize: 17, fontWeight: "700", color: c.white },
 });

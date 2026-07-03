@@ -4,6 +4,8 @@
 export const en = {
   common: {
     loading: "Loading...",
+    acceptingOrder: "Accepting order…",
+    signingOut: "Signing out…",
     error: "Something went wrong",
     modal: "Modal",
     goToHome: "Go to home screen",

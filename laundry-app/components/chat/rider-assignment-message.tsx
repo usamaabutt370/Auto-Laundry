@@ -108,7 +108,6 @@ export function RiderAssignmentMessage({ metadata, role, intro }: RiderAssignmen
         }
         style={({ pressed }) => [styles.trackBtn, pressed && styles.pressed]}
       >
-        <MaterialCommunityIcons name="map-marker-radius" size={18} color={c.background} />
         <Text style={styles.trackBtnText}>{s.trackOrder}</Text>
       </Pressable>
     </View>

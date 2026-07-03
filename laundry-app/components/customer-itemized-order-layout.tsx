@@ -14,7 +14,28 @@ import { theme } from "@/constants/theme";
 /** Caps order-notes growth so the sticky footer stays on screen while typing. */
 export const CUSTOMER_ORDER_NOTES_MAX_HEIGHT = 120;
 
+/** Shared horizontal inset for sticky footer (estimate bar + Save align). */
+export const CUSTOMER_ORDER_FOOTER_PAD = 20;
+
 const c = theme.colors;
+
+export const customerOrderFooterStyles = StyleSheet.create({
+  actionBtn: {
+    alignSelf: "stretch",
+    width: "100%",
+    marginTop: 8,
+    marginBottom: 8,
+    backgroundColor: c.backgroundLight,
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: "center",
+  },
+  actionLabel: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: c.white,
+  },
+});
 
 type Props = {
   children: ReactNode;
@@ -64,5 +85,6 @@ const styles = StyleSheet.create({
     backgroundColor: c.background,
     borderTopWidth: 1,
     borderTopColor: "rgba(255,255,255,0.06)",
+    paddingHorizontal: CUSTOMER_ORDER_FOOTER_PAD,
   },
 });
