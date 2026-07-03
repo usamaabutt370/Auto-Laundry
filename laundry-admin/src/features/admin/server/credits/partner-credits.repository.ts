@@ -537,21 +537,6 @@ export async function setPartnerCreditBalance(input: {
   return { transaction, balance };
 }
 
-function mapBalanceRow(
-  row: PartnerCreditAccountRow,
-  partnerMetaById: Map<string, { name: string; phone: string }>,
-): UserCreditBalance {
-  const partnerId = asText(row.partner_id) || "unknown-partner";
-  const partnerMeta = partnerMetaById.get(partnerId);
-  return {
-    userId: partnerId,
-    userName: partnerMeta?.name ?? "Unknown partner",
-    userPhone: partnerMeta?.phone ?? "N/A",
-    balance: toNumber(row.balance) ?? 0,
-    lastTopupAt: normalizeDateOrNull(row.updated_at),
-  };
-}
-
 function mapLedgerRow(
   row: PartnerCreditLedgerRow,
   partnerMetaById: Map<string, { name: string; phone: string }>,
