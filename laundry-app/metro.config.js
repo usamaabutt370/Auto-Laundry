@@ -22,6 +22,19 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
     };
   }
 
+  // heic2any accesses `window` at module level and crashes during Expo's
+  // Node.js static rendering pass. Swap in a safe no-op stub for that pass;
+  // the browser bundle gets the real package.
+  if (
+    moduleName === "heic2any" &&
+    context.customResolverOptions?.environment === "node"
+  ) {
+    return {
+      type: "sourceFile",
+      filePath: path.resolve(__dirname, "stubs/heic2any.js"),
+    };
+  }
+
   return defaultResolveRequest
     ? defaultResolveRequest(context, moduleName, platform)
     : context.resolveRequest(context, moduleName, platform);
