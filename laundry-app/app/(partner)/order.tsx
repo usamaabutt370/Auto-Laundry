@@ -18,6 +18,8 @@ import { Swipeable } from "react-native-gesture-handler";
 
 import { showAppAlert } from "@/components/app-alert";
 import { AppHeader } from "@/components/app-header";
+import { WebHeaderSpacer } from "@/components/web-header-spacer";
+import { BlockingLoader } from "@/components/blocking-loader";
 import { OrderCard } from "@/components/order-card";
 import { useConfirmDialog } from "@/components/confirm-dialog";
 import {
@@ -25,9 +27,11 @@ import {
   type PartnerOrderSuccessPayload,
 } from "@/components/partner-order-success-modal";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
+import { useSuppressWebScreenHeader } from "@/hooks/use-suppress-web-screen-header";
 import { PartnerRiderPickerModal } from "@/components/partner-rider-picker-modal";
 import { theme } from "@/constants/theme";
 import { useAuth } from "@/contexts/auth-context";
+import { useSidebar } from "@/contexts/sidebar-context";
 import { useLocale } from "@/contexts/locale-context";
 import {
   acceptOrderWithRider,
@@ -60,7 +64,9 @@ export default function PartnerOrderScreen() {
   const params = useLocalSearchParams<{ filter?: string }>();
   const { locale } = useLocale();
   const { user } = useAuth();
+  const { open: openSidebar } = useSidebar();
   const s = getStrings(locale).partner.order;
+  const commonStrings = getStrings(locale).common;
 
   const initialFilter =
     params.filter === "accepted" ||
@@ -80,6 +86,7 @@ export default function PartnerOrderScreen() {
   const [otherRejectionReason, setOtherRejectionReason] = useState("");
   const { confirm, dialog } = useConfirmDialog();
   const { isWeb } = useResponsiveLayout();
+  useSuppressWebScreenHeader();
   const custStrings = getStrings(locale).customer.ordersTab;
   const [riderModalVisible, setRiderModalVisible] = useState(false);
   const [pendingAcceptOrderId, setPendingAcceptOrderId] = useState<string | null>(null);
@@ -94,6 +101,34 @@ export default function PartnerOrderScreen() {
     completed: "Completed",
     rejected: "Rejected",
   };
+
+  const filterChips = (Object.keys(filterLabels) as OrderFilter[]).map((key) => {
+    const selected = orderFilter === key;
+    return (
+      <Pressable
+        key={key}
+        onPress={() => setOrderFilter(key)}
+        style={({ pressed }) => [
+          styles.filterChip,
+          selected && styles.filterChipSelected,
+          pressed && styles.pressed,
+        ]}
+        accessibilityRole="button"
+        accessibilityState={{ selected }}
+        accessibilityLabel={`${filterLabels[key]} orders`}
+      >
+        <Text
+          style={[
+            styles.filterChipText,
+            selected && styles.filterChipTextSelected,
+          ]}
+          numberOfLines={1}
+        >
+          {filterLabels[key]}
+        </Text>
+      </Pressable>
+    );
+  });
 
   const loadOrders = useCallback(async (showLoader = true) => {
     try {
@@ -372,48 +407,28 @@ export default function PartnerOrderScreen() {
   return (
     <View style={styles.container}>
       {dialog}
-      <SafeAreaView edges={["top"]} style={styles.safeArea}>
-        <AppHeader
-          title={s.title}
-         
-          leftAccessibilityLabel={s.title}
-        />
-      </SafeAreaView>
+      {!isWeb ? (
+        <SafeAreaView edges={["top"]} style={styles.safeArea}>
+          <AppHeader
+            title={s.title}
+          />
+        </SafeAreaView>
+      ) : (
+        <WebHeaderSpacer />
+      )}
 
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.filterScroll}
-        contentContainerStyle={styles.filterRow}
-      >
-        {(Object.keys(filterLabels) as OrderFilter[]).map((key) => {
-          const selected = orderFilter === key;
-          return (
-            <Pressable
-              key={key}
-              onPress={() => setOrderFilter(key)}
-              style={({ pressed }) => [
-                styles.filterChip,
-                selected && styles.filterChipSelected,
-                pressed && styles.pressed,
-              ]}
-              accessibilityRole="button"
-              accessibilityState={{ selected }}
-              accessibilityLabel={`${filterLabels[key]} orders`}
-            >
-              <Text
-                style={[
-                  styles.filterChipText,
-                  selected && styles.filterChipTextSelected,
-                ]}
-                numberOfLines={1}
-              >
-                {filterLabels[key]}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </ScrollView>
+      {isWeb ? (
+        <View style={[styles.filterRow, styles.filterRowWeb]}>{filterChips}</View>
+      ) : (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.filterScroll}
+          contentContainerStyle={styles.filterRow}
+        >
+          {filterChips}
+        </ScrollView>
+      )}
 
       <ScrollView
         style={styles.scroll}
@@ -560,11 +575,18 @@ export default function PartnerOrderScreen() {
         emptyLabel={s.noRidersMessage}
         onSelectRider={setSelectedRiderId}
         onConfirm={() => void confirmRiderAccept()}
+        confirming={actionOrderId === pendingAcceptOrderId && pendingAcceptOrderId !== null}
+        confirmingLabel={commonStrings.acceptingOrder}
         onClose={() => {
+          if (actionOrderId === pendingAcceptOrderId) return;
           setRiderModalVisible(false);
           setPendingAcceptOrderId(null);
           setSelectedRiderId(null);
         }}
+      />
+      <BlockingLoader
+        visible={actionOrderId !== null}
+        message={commonStrings.acceptingOrder}
       />
       <Modal
         visible={rejectModalVisible}
@@ -654,6 +676,11 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingHorizontal: H_PAD,
     paddingVertical: 2,
+  },
+  filterRowWeb: {
+    justifyContent: "center",
+    width: "100%",
+    marginBottom: 12,
   },
   filterChip: {
     paddingVertical: 8,

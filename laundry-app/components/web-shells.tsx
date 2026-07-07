@@ -1,3 +1,4 @@
+import { useSegments } from "expo-router";
 import type { ReactNode } from "react";
 import { Platform, StyleSheet, View } from "react-native";
 
@@ -20,6 +21,10 @@ export function WebAppShell({ children }: Props) {
 /** Centers auth screens on wide web viewports. */
 export function WebAuthShell({ children }: Props) {
   const { isWebDesktop } = useResponsiveLayout();
+  const segments = useSegments();
+  const activeRoute = segments[segments.length - 1];
+  const isSignUpRoute = activeRoute === "sign-up";
+  const isLoginRoute = activeRoute === "login";
 
   if (!isWebDesktop) {
     return <>{children}</>;
@@ -27,7 +32,15 @@ export function WebAuthShell({ children }: Props) {
 
   return (
     <View style={authStyles.root}>
-      <View style={authStyles.card}>{children}</View>
+      <View
+        style={[
+          authStyles.card,
+          (isLoginRoute || isSignUpRoute) && authStyles.cardAuth,
+          isSignUpRoute && authStyles.cardSignUp,
+        ]}
+      >
+        {children}
+      </View>
     </View>
   );
 }
@@ -62,5 +75,11 @@ const authStyles = StyleSheet.create({
     backgroundColor: theme.colors.background,
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.15)",
+  },
+  cardSignUp: {
+    minHeight: 600,
+  },
+  cardAuth: {
+    paddingTop: 20,
   },
 });

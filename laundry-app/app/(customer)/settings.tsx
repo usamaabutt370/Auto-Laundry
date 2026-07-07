@@ -14,6 +14,9 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { MapSearchRadiusSlider } from "@/components/map-search-radius-slider";
 import { strings } from "@/constants/strings";
 import { theme } from "@/constants/theme";
+import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
+import { useSuppressWebScreenHeader } from "@/hooks/use-suppress-web-screen-header";
+import { goBackToCustomerHome } from "@/utils/customer-navigation";
 
 const c = theme.colors;
 const CARD_BG = c.blue900;
@@ -48,6 +51,8 @@ function RadioOption<Id extends string>({
 
 export default function SettingsScreen() {
   const router = useRouter();
+  const { isWeb } = useResponsiveLayout();
+  useSuppressWebScreenHeader();
   const s = strings.customer.settings;
 
   const [language, setLanguage] = useState<LanguageId>("english");
@@ -57,18 +62,20 @@ export default function SettingsScreen() {
 
   return (
     <View style={styles.container}>
-      <SafeAreaView style={styles.header} edges={["top"]}>
-        <Pressable
-          onPress={() => router.back()}
-          style={({ pressed }) => [styles.backBtn, pressed && styles.pressed]}
-          accessibilityRole="button"
-          accessibilityLabel="Go back"
-        >
-          <MaterialCommunityIcons name="arrow-left" size={24} color={c.white} />
-        </Pressable>
-        <Text style={styles.headerTitle}>{s.title}</Text>
-        <View style={styles.headerSpacer} />
-      </SafeAreaView>
+      {!isWeb ? (
+        <SafeAreaView style={styles.header} edges={["top"]}>
+          <Pressable
+            onPress={() => goBackToCustomerHome(router)}
+            style={({ pressed }) => [styles.backBtn, pressed && styles.pressed]}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+          >
+            <MaterialCommunityIcons name="arrow-left" size={24} color={c.white} />
+          </Pressable>
+          <Text style={styles.headerTitle}>{s.title}</Text>
+          <View style={styles.headerSpacer} />
+        </SafeAreaView>
+      ) : null}
 
       <ScrollView
         style={styles.scroll}

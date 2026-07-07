@@ -4,16 +4,21 @@ import { Linking } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter, useFocusEffect } from "expo-router";
+import { useIsFocused } from "@react-navigation/native";
 
 import { theme } from "@/constants/theme";
 import { strings } from "@/constants/strings";
 import { useAuth } from "@/contexts/auth-context";
 import { avatarUrlWithCacheBuster } from "@/lib/avatar";
+import { subscribeProfileAvatarUpdated } from "@/lib/profile-avatar-refresh";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { awardWelcomeCredits } from "@/lib/partner-credits";
 import { showAppAlert } from "@/components/app-alert";
 import { AvatarImage } from "@/components/avatar-image";
 import { AppHeader } from "@/components/app-header";
+import { WebHeaderSpacer } from "@/components/web-header-spacer";
+import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
+import { useSuppressWebScreenHeader } from "@/hooks/use-suppress-web-screen-header";
 
 const c = theme.colors;
 const WHATSAPP_PHONE = "923004639943";
@@ -26,6 +31,9 @@ function buildWhatsAppUrl(name: string, balance: number | null): string {
 export default function PartnerProfileMenu() {
 	const router = useRouter();
 	const { user, signOut, refreshRole } = useAuth();
+	const { isWeb } = useResponsiveLayout();
+	const isFocused = useIsFocused();
+	useSuppressWebScreenHeader();
 
 	const [isUpdatingRole, setIsUpdatingRole] = useState(false);
 	const [roleSwitchValue, setRoleSwitchValue] = useState<boolean | null>(null);
@@ -114,6 +122,18 @@ export default function PartnerProfileMenu() {
 		}, [fetchProfile])
 	);
 
+	useEffect(() => {
+		if (isFocused) {
+			void fetchProfile();
+		}
+	}, [isFocused, fetchProfile]);
+
+	useEffect(() => {
+		return subscribeProfileAvatarUpdated(() => {
+			void fetchProfile();
+		});
+	}, [fetchProfile]);
+
 	const handleRoleToggle = async (value: boolean) => {
 		if (!user?.id || !isSupabaseConfigured() || isUpdatingRole) return;
 		setRoleSwitchValue(value);
@@ -149,11 +169,21 @@ export default function PartnerProfileMenu() {
 
 	return (
 		<View style={styles.container}>
-			<SafeAreaView edges={["top"]}>
-				<AppHeader title={strings.tabs.partner.profile} />
-			</SafeAreaView>
-			<ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-				<Pressable style={styles.profileCard} onPress={() => router.push("/(partner)/laundrerinfo")}>
+			{!isWeb ? (
+				<SafeAreaView edges={["top"]}>
+					<AppHeader title={strings.tabs.partner.profile} />
+				</SafeAreaView>
+			) : (
+				<WebHeaderSpacer />
+			)}
+			<ScrollView
+				contentContainerStyle={[styles.content, isWeb && styles.contentWeb]}
+				showsVerticalScrollIndicator={false}
+			>
+				<Pressable
+					style={[styles.profileCard, isWeb && styles.profileCardWeb]}
+					onPress={() => router.push("/(partner)/laundrerinfo")}
+				>
 					<View style={styles.avatarWrap}>
 						<AvatarImage uri={avatarUri} name={displayName} size={80} style={styles.avatar} />
 						<View style={styles.editBadge}>
@@ -244,7 +274,9 @@ export default function PartnerProfileMenu() {
 const styles = StyleSheet.create({
 	container: { flex: 1, backgroundColor: c.background },
 	content: { padding: 20 },
+	contentWeb: { paddingTop: 0 },
 	profileCard: { alignItems: "center", paddingVertical: 20, marginBottom: 8 },
+	profileCardWeb: { paddingTop: 0 },
 	avatarWrap: { width: 80, height: 80, borderRadius: 40, overflow: "visible", marginBottom: 12 },
 	avatar: { width: 80, height: 80, borderRadius: 40, borderWidth: 2, borderColor: c.blue600 },
 	editBadge: { position: "absolute", bottom: 0, right: 0, width: 24, height: 24, borderRadius: 12, backgroundColor: c.backgroundLight, borderWidth: 1.5, borderColor: c.background, alignItems: "center", justifyContent: "center" },

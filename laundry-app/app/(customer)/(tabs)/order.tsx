@@ -19,12 +19,14 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { showAppAlert } from "@/components/app-alert";
 import { AppHeader } from "@/components/app-header";
+import { WebHeaderSpacer } from "@/components/web-header-spacer";
 import { useConfirmDialog } from "@/components/confirm-dialog";
 import { PartnerNameWithBadge } from "@/components/partner-name-with-badge";
 import { useAuth } from "@/contexts/auth-context";
 import { useLocale } from "@/contexts/locale-context";
 import { useSidebar } from "@/contexts/sidebar-context";
 import { useCustomerOrders } from "@/hooks/use-customer-orders";
+import { useSuppressWebScreenHeader } from "@/hooks/use-suppress-web-screen-header";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import {
   findOrdersMissingFeedback,
@@ -70,6 +72,7 @@ export default function CustomerOrderScreen() {
   const { orders, loading, error, refresh, deleteOrder } = useCustomerOrders(user?.id);
   const { confirm, dialog } = useConfirmDialog();
   const { isWeb } = useResponsiveLayout();
+  useSuppressWebScreenHeader();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [feedbackVisible, setFeedbackVisible] = useState(false);
   const [feedbackOrderId, setFeedbackOrderId] = useState<string | null>(null);
@@ -245,15 +248,18 @@ export default function CustomerOrderScreen() {
   return (
     <View style={styles.container}>
       {dialog}
-      <SafeAreaView style={styles.safeTop} edges={["top"]}>
-        <AppHeader
-          title={s.title}
-          // subtitle={s.liveHint}
-          onLeftPress={openSidebar}
-          leftAccessibilityLabel="Menu"
-        />
-      </SafeAreaView>
-      <Text style={styles.hint}>{s.liveHint}</Text>
+      {!isWeb ? (
+        <SafeAreaView style={styles.safeTop} edges={["top"]}>
+          <AppHeader
+            title={s.title}
+            onLeftPress={openSidebar}
+            leftAccessibilityLabel="Menu"
+          />
+        </SafeAreaView>
+      ) : (
+        <WebHeaderSpacer />
+      )}
+      {!isWeb ? <Text style={styles.hint}>{s.liveHint}</Text> : null}
       {!user?.id ? (
         <View style={styles.center}>
           <MaterialCommunityIcons name="account-outline" size={48} color={c.blue500} />

@@ -4,6 +4,8 @@
 export const ur = {
   common: {
     loading: "لوڈ ہو رہا ہے...",
+    acceptingOrder: "آرڈر قبول ہو رہا ہے…",
+    signingOut: "سائن آؤٹ ہو رہا ہے…",
     error: "کچھ غلط ہو گیا",
     modal: "موڈل",
     goToHome: "ہوم اسکرین پر جائیں",

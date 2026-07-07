@@ -16,6 +16,8 @@ import { theme } from "@/constants/theme";
 import { useAuth } from "@/contexts/auth-context";
 import { useLocale } from "@/contexts/locale-context";
 import { useMerchantServices } from "@/contexts/merchant-services-context";
+import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
+import { useSuppressWebScreenHeader } from "@/hooks/use-suppress-web-screen-header";
 import { getStrings } from "@/locales";
 import { submitPartnerOnboardingKyc } from "@/lib/partner-onboarding-submit";
 import { validatePickupRiderRequirements } from "@/lib/partner-pickup-rider-requirements";
@@ -73,6 +75,8 @@ export function PartnerServicesScreen({ mode }: PartnerServicesScreenProps) {
   const router = useRouter();
   const { locale } = useLocale();
   const { user, refreshPartnerApproval } = useAuth();
+  const { isWeb } = useResponsiveLayout();
+  useSuppressWebScreenHeader();
   const {
     services,
     washAndFoldPricing,
@@ -339,12 +343,14 @@ export function PartnerServicesScreen({ mode }: PartnerServicesScreenProps) {
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
-      <PartnerHeader
-        title={title}
-        leftIcon="arrow-left"
-        onLeftPress={() => router.back()}
-        leftAccessibilityLabel={onboardingStrings.back}
-      />
+      {!isWeb || isOnboarding ? (
+        <PartnerHeader
+          title={title}
+          leftIcon="arrow-left"
+          onLeftPress={() => router.back()}
+          leftAccessibilityLabel={onboardingStrings.back}
+        />
+      ) : null}
 
       <ScrollView
         style={styles.scroll}

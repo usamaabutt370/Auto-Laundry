@@ -1,6 +1,11 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { Image } from "expo-image";
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { assets } from "@/assets/assets";
+import { PartnerNameWithBadge } from "@/components/partner-name-with-badge";
+import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import type { PartnerMapMarker } from "@/hooks/use-customer-home-map-data";
 import { theme } from "@/constants/theme";
 
@@ -9,81 +14,140 @@ const c = theme.colors;
 type HomeStrings = {
   dropOff: string;
   pickUpDelivery: string;
+  viewPartnerDetails: string;
+  closePartnerDetails: string;
+  noImage: string;
+  updatedPrefix: string;
 };
 
 type Props = {
   strings: HomeStrings;
   loadingPartners: boolean;
   recenterBottomOffset: number;
+  mapBottomInset: number;
   onRecenter: () => void;
+  onMenuPress?: () => void;
   selectedPartner: PartnerMapMarker | null;
   selectedPartnerPrimaryImage: string | null;
   selectedPartnerUpdatedLabel: string | null;
   onClosePartner: () => void;
   onPartnerPress: (partnerId: string, mode: "dropoff" | "pickupDelivery") => void;
+  showMapChrome?: boolean;
+  showPartnerSheet?: boolean;
 };
 
 export function CustomerHomeMapOverlays({
   strings,
   loadingPartners,
   recenterBottomOffset,
+  mapBottomInset,
   onRecenter,
+  onMenuPress,
   selectedPartner,
   selectedPartnerPrimaryImage,
   selectedPartnerUpdatedLabel,
   onClosePartner,
   onPartnerPress,
+  showMapChrome = true,
+  showPartnerSheet = true,
 }: Props) {
+  const insets = useSafeAreaInsets();
+  const { hideBottomTabBar } = useResponsiveLayout();
+  const partnerSheetBottom =
+    mapBottomInset > 0 ? mapBottomInset + 12 : Math.max(12, recenterBottomOffset - 58);
+
   return (
     <>
-      {loadingPartners ? (
+      {showMapChrome && onMenuPress != null && !hideBottomTabBar ? (
+        <Pressable
+          onPress={onMenuPress}
+          style={({ pressed }) => [
+            styles.menuBtn,
+            { top: insets.top + 12 },
+            pressed && styles.pressed,
+          ]}
+          accessibilityRole="button"
+          accessibilityLabel="Menu"
+        >
+          <Image
+            source={assets.icons.app_icon}
+            style={styles.menuBrandLogo}
+            contentFit="contain"
+            accessibilityLabel="Tap2Laundry"
+          />
+        </Pressable>
+      ) : null}
+
+      {showMapChrome && loadingPartners ? (
         <View style={styles.mapLoading}>
           <ActivityIndicator color={c.white} size="small" />
         </View>
       ) : null}
 
-      <Pressable
-        onPress={onRecenter}
-        style={({ pressed }) => [
-          styles.recenterBtn,
-          { bottom: recenterBottomOffset },
-          pressed && styles.pressed,
-        ]}
-        accessibilityRole="button"
-        accessibilityLabel="Recenter map"
-      >
-        <MaterialCommunityIcons name="crosshairs-gps" size={20} color={c.background} />
-      </Pressable>
+      {showMapChrome ? (
+        <Pressable
+          onPress={onRecenter}
+          style={({ pressed }) => [
+            styles.recenterBtn,
+            { bottom: recenterBottomOffset },
+            pressed && styles.pressed,
+          ]}
+          accessibilityRole="button"
+          accessibilityLabel="Recenter map"
+        >
+          <MaterialCommunityIcons name="crosshairs-gps" size={20} color={c.background} />
+        </Pressable>
+      ) : null}
 
-      {selectedPartner ? (
+      {showPartnerSheet && selectedPartner ? (
         <View style={styles.modalOverlay} pointerEvents="box-none">
+          <Pressable style={styles.sheetBackdrop} onPress={onClosePartner} accessibilityRole="button" />
           <View
             style={[
               styles.partnerSheetWrap,
-              { bottom: Math.max(12, recenterBottomOffset - 58) },
+              { bottom: partnerSheetBottom },
             ]}
+            pointerEvents="box-none"
           >
             <View style={styles.partnerSheet}>
               <View style={styles.partnerSheetTop}>
-                {selectedPartnerPrimaryImage ? (
-                  <Image
-                    source={{ uri: selectedPartnerPrimaryImage }}
-                    style={styles.partnerSheetImage}
-                    resizeMode="cover"
-                  />
-                ) : (
-                  <View style={[styles.partnerSheetImage, styles.partnerSheetImagePlaceholder]}>
-                    <MaterialCommunityIcons name="image-off-outline" size={22} color={c.gray50} />
-                    <Text style={styles.partnerSheetImagePlaceholderText}>No Image</Text>
+                <View style={styles.partnerSheetMediaCol}>
+                  {selectedPartnerPrimaryImage ? (
+                    <Image
+                      source={{ uri: selectedPartnerPrimaryImage }}
+                      style={styles.partnerSheetImage}
+                      contentFit="cover"
+                    />
+                  ) : (
+                    <View style={styles.partnerSheetImagePlaceholder}>
+                      <MaterialCommunityIcons name="image-off-outline" size={22} color={c.gray50} />
+                      <Text style={styles.partnerSheetImagePlaceholderText}>{strings.noImage}</Text>
+                    </View>
+                  )}
+                </View>
+                <View style={styles.partnerSheetContentCol}>
+                  <View style={styles.partnerSheetHeaderRow}>
+                    <View style={styles.partnerInfoWrap}>
+                      <PartnerNameWithBadge
+                        name={selectedPartner.business_name.trim()}
+                        verified
+                        nameStyle={styles.partnerSheetTitle}
+                      />
+                      <Text style={styles.partnerSheetSubtitle}>
+                        {selectedPartner.fulfillmentMode === "pickupDelivery"
+                          ? strings.pickUpDelivery
+                          : strings.dropOff}
+                      </Text>
+                    </View>
+                    <Pressable
+                      onPress={onClosePartner}
+                      style={({ pressed }) => [styles.partnerSheetClose, pressed && styles.pressed]}
+                      accessibilityRole="button"
+                      accessibilityLabel={strings.closePartnerDetails}
+                    >
+                      <MaterialCommunityIcons name="close" size={20} color={c.background} />
+                    </Pressable>
                   </View>
-                )}
-                <View style={styles.partnerInfoWrap}>
-                  <Text style={styles.partnerSheetTitle}>{selectedPartner.business_name.trim()}</Text>
-                  <Text style={styles.partnerSheetSubtitle}>
-                    {selectedPartner.fulfillmentMode === "pickupDelivery"
-                      ? strings.pickUpDelivery
-                      : strings.dropOff}
-                  </Text>
                   <View style={styles.partnerDetailsGrid}>
                     {selectedPartner.phone_number?.trim() ? (
                       <View style={styles.partnerMetaRow}>
@@ -121,20 +185,12 @@ export function CustomerHomeMapOverlays({
                           color={c.gray50}
                         />
                         <Text style={styles.partnerSheetMeta} numberOfLines={1}>
-                          Updated {selectedPartnerUpdatedLabel}
+                          {strings.updatedPrefix} {selectedPartnerUpdatedLabel}
                         </Text>
                       </View>
                     ) : null}
                   </View>
                 </View>
-                <Pressable
-                  onPress={onClosePartner}
-                  style={({ pressed }) => [styles.partnerSheetClose, pressed && styles.pressed]}
-                  accessibilityRole="button"
-                  accessibilityLabel="Close partner details"
-                >
-                  <MaterialCommunityIcons name="close" size={20} color={c.background} />
-                </Pressable>
               </View>
               <Pressable
                 onPress={() => {
@@ -142,8 +198,11 @@ export function CustomerHomeMapOverlays({
                   onClosePartner();
                 }}
                 style={({ pressed }) => [styles.partnerSheetAction, pressed && styles.pressed]}
+                accessibilityRole="button"
+                accessibilityLabel={strings.viewPartnerDetails}
               >
-                <Text style={styles.partnerSheetActionText}>View partner details</Text>
+                <Text style={styles.partnerSheetActionText}>{strings.viewPartnerDetails}</Text>
+                <MaterialCommunityIcons name="chevron-right" size={20} color={c.white} />
               </Pressable>
             </View>
           </View>
@@ -185,18 +244,27 @@ const styles = StyleSheet.create({
   pressed: {
     opacity: 0.7,
   },
-  partnerSheetWrap: {
-    position: "absolute",
-    left: 12,
-    right: 12,
-    zIndex: 120,
-    elevation: 12,
-    marginBottom: -100,
-  },
   modalOverlay: {
     ...StyleSheet.absoluteFillObject,
+    zIndex: 300,
+    elevation: 30,
+  },
+  sheetBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "transparent",
+  },
+  partnerSheetWrap: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    alignItems: "center",
+    paddingHorizontal: 20,
+    zIndex: 310,
+    elevation: 31,
   },
   partnerSheet: {
+    width: "100%",
+    maxWidth: 380,
     backgroundColor: c.white,
     borderRadius: 16,
     borderWidth: 1,
@@ -210,28 +278,48 @@ const styles = StyleSheet.create({
   },
   partnerSheetTop: {
     flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-    gap: 10,
+    alignItems: "stretch",
+    gap: 12,
   },
-  partnerInfoWrap: {
-    flex: 1,
+  partnerSheetMediaCol: {
+    width: 108,
+    minHeight: 124,
+    borderRadius: 12,
+    overflow: "hidden",
+    backgroundColor: "#E5E7EB",
+    flexShrink: 0,
+    position: "relative",
   },
   partnerSheetImage: {
-    width: "35%",
-    height: "100%",
-    borderRadius: 12,
-    backgroundColor: "#E5E7EB",
+    ...StyleSheet.absoluteFillObject,
   },
   partnerSheetImagePlaceholder: {
+    flex: 1,
+    minHeight: 124,
     alignItems: "center",
     justifyContent: "center",
     gap: 4,
+    paddingHorizontal: 8,
   },
   partnerSheetImagePlaceholderText: {
     color: c.gray50,
     fontSize: 11,
     fontWeight: "600",
+    textAlign: "center",
+  },
+  partnerSheetContentCol: {
+    flex: 1,
+    minWidth: 0,
+  },
+  partnerSheetHeaderRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 8,
+  },
+  partnerInfoWrap: {
+    flex: 1,
+    minWidth: 0,
   },
   partnerSheetTitle: {
     color: c.background,
@@ -271,13 +359,29 @@ const styles = StyleSheet.create({
     marginTop: 12,
     borderRadius: 12,
     backgroundColor: c.background,
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    gap: 4,
     paddingVertical: 11,
+    paddingHorizontal: 14,
   },
   partnerSheetActionText: {
     color: c.white,
     fontSize: 14,
     fontWeight: "700",
+  },
+  menuBtn: {
+    position: "absolute",
+    left: 16,
+    zIndex: 20,
+    padding: 4,
+    borderRadius: 10,
+    backgroundColor: "rgba(59, 127, 149, 0.92)",
+  },
+  menuBrandLogo: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
   },
 });

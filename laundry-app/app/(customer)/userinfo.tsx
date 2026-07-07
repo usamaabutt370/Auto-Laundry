@@ -32,17 +32,10 @@ type ProfileRow = {
   phone: string | null;
   full_name: string | null;
   address?: string | null;
-  date_of_birth?: string | null;
   image_url?: string | null;
   updated_at?: string | null;
   role?: string | null;
 };
-
-function formatDateDisplay(iso: string | null | undefined): string {
-  if (!iso || iso.length < 10) return "";
-  const [y, m, d] = iso.slice(0, 10).split("-");
-  return `${d}/${m}/${y}`;
-}
 
 export default function UserInfo() {
   const router = useRouter();
@@ -77,7 +70,6 @@ export default function UserInfo() {
         phone: (meta.phone as string) ?? null,
         full_name: (meta.full_name as string) ?? null,
         address: null,
-        date_of_birth: null,
         image_url: null,
         updated_at: null,
         role: "customer",
@@ -86,7 +78,7 @@ export default function UserInfo() {
       const { data, error } = await supabase
         .from("profiles")
         .select(
-          "first_name,last_name,email,phone,full_name,address,date_of_birth,image_url,updated_at,role",
+          "first_name,last_name,email,phone,full_name,address,image_url,updated_at,role",
         )
         .eq("id", user.id)
         .maybeSingle<ProfileRow>();
@@ -105,7 +97,6 @@ export default function UserInfo() {
           phone: data.phone ?? fallback.phone,
           full_name: data.full_name ?? fallback.full_name,
           address: data.address ?? fallback.address,
-          date_of_birth: data.date_of_birth ?? fallback.date_of_birth,
           image_url: data.image_url ?? fallback.image_url ?? null,
           updated_at: data.updated_at ?? fallback.updated_at ?? null,
           role: data.role ?? fallback.role ?? "customer",
@@ -238,8 +229,6 @@ export default function UserInfo() {
   const email = profile?.email ?? "";
   const phone = profile?.phone ?? "";
   const address = profile?.address ?? "";
-  const dateOfBirth = profile?.date_of_birth ?? "";
-  const dateDisplay = dateOfBirth ? formatDateDisplay(dateOfBirth) : "";
 
   return (
     <View style={styles.container}>
@@ -299,11 +288,6 @@ export default function UserInfo() {
             <View style={styles.detailBlock}>
               <Text style={styles.detailLabel}>Address</Text>
               <Text style={styles.detailValue}>{address || "-"}</Text>
-            </View>
-
-            <View style={styles.detailBlock}>
-              <Text style={styles.detailLabel}>Date of Birth</Text>
-              <Text style={styles.detailValue}>{dateDisplay || "-"}</Text>
             </View>
 
             <View style={styles.detailBlock}>

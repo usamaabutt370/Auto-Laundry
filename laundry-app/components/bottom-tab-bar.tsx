@@ -10,6 +10,7 @@ import {
   View,
   type TextStyle,
   type ViewStyle,
+  Platform,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -124,6 +125,16 @@ function BottomTabBarLabel({
 }
 
 export function getBottomTabScreenOptions(tabBarBottom: number) {
+  const webHeaderSuppression =
+    Platform.OS === "web"
+      ? {
+          headerShown: false as const,
+          header: () => null,
+          title: "",
+          headerTitle: "",
+        }
+      : { headerShown: false as const };
+
   return {
     tabBarActiveTintColor: TabBarColors.activeTint,
     tabBarInactiveTintColor: TabBarColors.inactiveTint,
@@ -166,7 +177,7 @@ export function getBottomTabScreenOptions(tabBarBottom: number) {
       paddingBottom: 6,
       backgroundColor: "transparent",
     },
-    headerShown: false,
+    ...webHeaderSuppression,
     tabBarButton: BottomTabBarButton,
   };
 }
@@ -237,6 +248,7 @@ export function AppTabsLayout({ tabs, hideTabBar = false }: { tabs: AppTabItem[]
           name={tab.name}
           options={{
             title: tab.title,
+            headerShown: false,
             tabBarIcon: ({ color }) => renderTabIcon(tab.icon, color, tab.iconScale),
           }}
         />

@@ -7,13 +7,17 @@ import {
   type MapHtmlSurfaceHandle,
 } from "@/components/map-html-surface";
 import type { WebViewMessageEvent } from "react-native-webview";
-import { useCustomerHomeMapData } from "@/hooks/use-customer-home-map-data";
+import { type CustomerHomeMapData } from "@/hooks/use-customer-home-map-data";
 
 const DEFAULT_ZOOM = 8;
 
 type HomeStrings = {
   dropOff: string;
   pickUpDelivery: string;
+  viewPartnerDetails: string;
+  closePartnerDetails: string;
+  noImage: string;
+  updatedPrefix: string;
 };
 
 type Props = {
@@ -21,12 +25,19 @@ type Props = {
   onMenuPress: () => void;
   onPartnerPress: (partnerId: string, mode: "dropoff" | "pickupDelivery") => void;
   recenterBottomOffset: number;
+  mapBottomInset?: number;
+  mapData: CustomerHomeMapData;
+  partnerSheetHost?: "map" | "screen";
 };
 
 export function CustomerHomeMap({
   strings,
+  onMenuPress,
   onPartnerPress,
   recenterBottomOffset,
+  mapBottomInset = 0,
+  mapData,
+  partnerSheetHost = "screen",
 }: Props) {
   const mapRef = useRef<MapHtmlSurfaceHandle | null>(null);
   const {
@@ -37,7 +48,7 @@ export function CustomerHomeMap({
     selectedPartner,
     selectedPartnerUpdatedLabel,
     selectedPartnerPrimaryImage,
-  } = useCustomerHomeMapData();
+  } = mapData;
 
   const mapHtml = useMemo(() => {
     const markersJson = JSON.stringify(mapMarkers);
@@ -203,12 +214,16 @@ export function CustomerHomeMap({
         strings={strings}
         loadingPartners={loadingPartners}
         recenterBottomOffset={recenterBottomOffset}
+        mapBottomInset={mapBottomInset}
         onRecenter={focusMap}
+        onMenuPress={onMenuPress}
         selectedPartner={selectedPartner}
         selectedPartnerPrimaryImage={selectedPartnerPrimaryImage}
         selectedPartnerUpdatedLabel={selectedPartnerUpdatedLabel}
         onClosePartner={() => setSelectedPartnerId(null)}
         onPartnerPress={onPartnerPress}
+        showMapChrome
+        showPartnerSheet={partnerSheetHost === "map"}
       />
     </View>
   );

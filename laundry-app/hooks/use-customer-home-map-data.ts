@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { fetchPartnersByFulfillmentMode, type PartnerPublicRow } from "@/lib/partner-discovery";
+import { avatarUrlWithCacheBuster } from "@/lib/avatar";
 import { getDeviceCoordinates } from "@/utils/device-location";
 import { getCoordinatesWithFallback, type Coordinates } from "@/utils/geocoding";
 
@@ -43,10 +44,11 @@ export function formatPartnerUpdatedAt(updatedAt: string | null): string | null 
 
 export function getPartnerPrimaryImage(partner: PartnerMapMarker | null): string | null {
   if (!partner) return null;
-  const firstBusinessImage = partner.business_images?.[0]?.trim() ?? "";
-  if (firstBusinessImage.length > 0) return firstBusinessImage;
-  const fallbackImage = partner.image_url?.trim() ?? "";
-  return fallbackImage.length > 0 ? fallbackImage : null;
+  const businessImage = partner.business_images?.find(
+    (item): item is string => typeof item === "string" && item.trim().length > 0,
+  );
+  if (businessImage) return businessImage.trim();
+  return avatarUrlWithCacheBuster(partner.image_url, partner.updated_at);
 }
 
 export function useCustomerHomeMapData() {
@@ -226,3 +228,5 @@ export function useCustomerHomeMapData() {
     selectedPartnerPrimaryImage: getPartnerPrimaryImage(selectedPartner),
   };
 }
+
+export type CustomerHomeMapData = ReturnType<typeof useCustomerHomeMapData>;

@@ -12,9 +12,13 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AppHeader } from "@/components/app-header";
+import { WebHeaderSpacer } from "@/components/web-header-spacer";
 import { theme } from "@/constants/theme";
 import { useLocale } from "@/contexts/locale-context";
 import { useAuth } from "@/contexts/auth-context";
+import { useSidebar } from "@/contexts/sidebar-context";
+import { useSuppressWebScreenHeader } from "@/hooks/use-suppress-web-screen-header";
+import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { fetchMyConversations, type ChatConversationListItem } from "@/lib/chat";
 import { getStrings } from "@/locales";
 import { supabase } from "@/lib/supabase";
@@ -37,6 +41,9 @@ function formatShortDate(valueIso: string): string {
 export default function PartnerChatScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  const { open: openSidebar } = useSidebar();
+  const { isWeb } = useResponsiveLayout();
+  useSuppressWebScreenHeader();
   const { locale } = useLocale();
   const tabStrings = getStrings(locale).tabs.partner;
   const s = getStrings(locale).partner.chatTab;
@@ -108,9 +115,17 @@ export default function PartnerChatScreen() {
 
   return (
     <View style={styles.container}>
-      <SafeAreaView edges={["top"]} style={styles.safeArea}>
-        <AppHeader title={tabStrings.chat} />
-      </SafeAreaView>
+      {!isWeb ? (
+        <SafeAreaView edges={["top"]} style={styles.safeArea}>
+          <AppHeader
+            title={tabStrings.chat}
+            onLeftPress={openSidebar}
+            leftAccessibilityLabel="Menu"
+          />
+        </SafeAreaView>
+      ) : (
+        <WebHeaderSpacer />
+      )}
       {!user?.id ? (
         <View style={styles.center}>
           <MaterialCommunityIcons name="account-outline" size={48} color={c.blue500} />

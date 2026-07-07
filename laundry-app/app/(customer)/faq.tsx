@@ -6,6 +6,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { strings } from "@/constants/strings";
 import { theme } from "@/constants/theme";
+import { goBackToCustomerHome } from "@/utils/customer-navigation";
 import { AppHeader } from "@/components/app-header";
 
 const c = theme.colors;
@@ -83,7 +84,7 @@ export default function FAQScreen() {
         <AppHeader
           title={s.title}
           leftIcon="arrow-left"
-          onLeftPress={() => router.back()}
+          onLeftPress={() => goBackToCustomerHome(router)}
           leftAccessibilityLabel="Go back"
         />
       </SafeAreaView>

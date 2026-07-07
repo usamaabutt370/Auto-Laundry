@@ -1,13 +1,16 @@
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
+import { useCallback } from "react";
 import { Image } from "expo-image";
 import { getTabBarBottomInset } from "@/components/bottom-tab-bar";
 import { CustomerHomeMap } from "@/components/customer-home-map";
+import { CustomerHomeMapOverlays } from "@/components/customer-home-map-overlays";
 import { ThemedText } from "@/components/themed-text";
 import { strings } from "@/constants/strings";
 import { theme } from "@/constants/theme";
 import { assets } from "@/assets/assets";
 import { useSidebar } from "@/contexts/sidebar-context";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
+import { useCustomerHomeMapData } from "@/hooks/use-customer-home-map-data";
 import { Platform, Pressable, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -19,8 +22,21 @@ export default function CustomerHomeScreen() {
   const insets = useSafeAreaInsets();
   const { hideBottomTabBar, isWebDesktop } = useResponsiveLayout();
   const tabBarInset = getTabBarBottomInset(Math.max(insets.bottom, 8), hideBottomTabBar);
+  const serviceCardHeight = 160;
   const showWebTopNav = isWebDesktop;
+  const mapBottomInset = showWebTopNav ? 0 : tabBarInset + serviceCardHeight;
+  const recenterBottomOffset = showWebTopNav ? Math.max(insets.bottom, 24) : tabBarInset + 162;
   const { open: openSidebar } = useSidebar();
+  const mapData = useCustomerHomeMapData();
+  const partnerSheetOpen = mapData.selectedPartner != null;
+
+  useFocusEffect(
+    useCallback(() => {
+      return () => {
+        mapData.setSelectedPartnerId(null);
+      };
+    }, [mapData.setSelectedPartnerId]),
+  );
 
   const goToPickLaunderer = (mode: "dropoff" | "pickupDelivery") => {
     router.push({
@@ -75,7 +91,10 @@ export default function CustomerHomeScreen() {
             params: { id: partnerId, mode },
           })
         }
-        recenterBottomOffset={showWebTopNav ? Math.max(insets.bottom, 24) : tabBarInset + 162}
+        recenterBottomOffset={recenterBottomOffset}
+        mapBottomInset={mapBottomInset}
+        mapData={mapData}
+        partnerSheetHost="screen"
       />
 
       {showWebTopNav ? (
@@ -91,6 +110,7 @@ export default function CustomerHomeScreen() {
             styles.serviceCard,
             { bottom: tabBarInset, paddingBottom: 24 },
           ]}
+          pointerEvents={partnerSheetOpen ? "none" : "auto"}
         >
           <ThemedText style={styles.serviceCardTitle}>{s.chooseService}</ThemedText>
           <View style={[styles.serviceButtons, styles.serviceButtonsWithMargin]}>
@@ -98,6 +118,26 @@ export default function CustomerHomeScreen() {
           </View>
         </View>
       )}
+
+      <CustomerHomeMapOverlays
+        strings={s}
+        loadingPartners={mapData.loadingPartners}
+        recenterBottomOffset={recenterBottomOffset}
+        mapBottomInset={mapBottomInset}
+        onRecenter={() => {}}
+        selectedPartner={mapData.selectedPartner}
+        selectedPartnerPrimaryImage={mapData.selectedPartnerPrimaryImage}
+        selectedPartnerUpdatedLabel={mapData.selectedPartnerUpdatedLabel}
+        onClosePartner={() => mapData.setSelectedPartnerId(null)}
+        onPartnerPress={(partnerId, mode) =>
+          router.push({
+            pathname: "/(customer)/launderer-detail",
+            params: { id: partnerId, mode },
+          })
+        }
+        showMapChrome={false}
+        showPartnerSheet
+      />
     </View>
   );
 }

@@ -4,6 +4,7 @@ import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AppHeader } from "@/components/app-header";
+import { WebHeaderSpacer } from "@/components/web-header-spacer";
 import { getTabBarBottomInset } from "@/components/bottom-tab-bar";
 import {
   PartnerDashboardHero,
@@ -20,6 +21,8 @@ import { theme } from "@/constants/theme";
 import { useAuth } from "@/contexts/auth-context";
 import { useLocale } from "@/contexts/locale-context";
 import { useLaundererDashboard } from "@/hooks/use-launderer-dashboard";
+import { useSuppressWebScreenHeader } from "@/hooks/use-suppress-web-screen-header";
+import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { formatDashboardPeriodRange } from "@/lib/dashboard-period-bounds";
 import { getStrings } from "@/locales";
 
@@ -48,6 +51,8 @@ export default function PartnerDashboardScreen() {
   const [period, setPeriod] = useState<DashboardPeriod>("week");
   const insets = useSafeAreaInsets();
   const tabBarInset = getTabBarBottomInset(Math.max(insets.bottom, 8));
+  const { isWeb } = useResponsiveLayout();
+  useSuppressWebScreenHeader();
 
   const periodRangeLabel = useMemo(
     () =>
@@ -93,14 +98,13 @@ export default function PartnerDashboardScreen() {
 
   return (
     <View style={styles.container}>
-      <SafeAreaView edges={["top"]} style={styles.safeArea}>
-        <AppHeader
-          title={s.title}
-        // rightElement={
-        //   <DashboardPeriodSelector value={period} onValueChange={setPeriod} />
-        // }
-        />
-      </SafeAreaView>
+      {!isWeb ? (
+        <SafeAreaView edges={["top"]} style={styles.safeArea}>
+          <AppHeader title={s.title} />
+        </SafeAreaView>
+      ) : (
+        <WebHeaderSpacer />
+      )}
 
       <ScrollView
         style={styles.scroll}
