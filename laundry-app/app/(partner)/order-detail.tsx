@@ -14,6 +14,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { showAppAlert } from "@/components/app-alert";
 import { AppHeader } from "@/components/app-header";
+import { BlockingLoader } from "@/components/blocking-loader";
 import { PartnerRiderPickerModal } from "@/components/partner-rider-picker-modal";
 import { theme } from "@/constants/theme";
 import { getOrderDetail, type DemoOrderDetail } from "@/data/demo-order-details";
@@ -127,6 +128,7 @@ export default function PartnerOrderDetailScreen() {
   const { locale } = useLocale();
   const { user } = useAuth();
   const s = getStrings(locale).partner.order;
+  const commonStrings = getStrings(locale).common;
   const [isConfirming, setIsConfirming] = useState(false);
   const [isRejecting, setIsRejecting] = useState(false);
   const [liveDetail, setLiveDetail] = useState<PartnerOrderDetailData | null>(null);
@@ -810,10 +812,17 @@ export default function PartnerOrderDetailScreen() {
         emptyLabel={s.noRidersMessage}
         onSelectRider={setSelectedRiderId}
         onConfirm={() => void confirmRiderAccept()}
+        confirming={isConfirming}
+        confirmingLabel={commonStrings.acceptingOrder}
         onClose={() => {
+          if (isConfirming) return;
           setRiderModalVisible(false);
           setSelectedRiderId(null);
         }}
+      />
+      <BlockingLoader
+        visible={isConfirming}
+        message={commonStrings.acceptingOrder}
       />
       <Modal
         visible={rejectModalVisible}

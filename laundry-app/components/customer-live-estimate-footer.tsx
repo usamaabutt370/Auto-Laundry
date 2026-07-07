@@ -154,10 +154,13 @@ export function CustomerLiveEstimateFooter({
 
 const styles = StyleSheet.create({
   wrap: {
+    alignSelf: "stretch",
+    width: "100%",
     backgroundColor: c.blue900,
     borderTopWidth: 1,
     borderTopColor: "rgba(255,255,255,0.12)",
-    paddingHorizontal: 20,
+    borderRadius: 12,
+    paddingHorizontal: 14,
     paddingTop: 14,
   },
   warn: {

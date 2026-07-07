@@ -18,6 +18,8 @@ type PartnerRiderPickerModalProps = {
   cancelLabel: string;
   loadingLabel: string;
   emptyLabel: string;
+  confirming?: boolean;
+  confirmingLabel?: string;
   onSelectRider: (riderId: string) => void;
   onConfirm: () => void;
   onClose: () => void;
@@ -34,14 +36,21 @@ export function PartnerRiderPickerModal({
   cancelLabel,
   loadingLabel,
   emptyLabel,
+  confirming = false,
+  confirmingLabel = "Accepting…",
   onSelectRider,
   onConfirm,
   onClose,
 }: PartnerRiderPickerModalProps) {
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={confirming ? undefined : onClose}
+    >
       <View style={styles.overlay}>
-        <Pressable style={styles.backdrop} onPress={onClose} />
+        <Pressable style={styles.backdrop} onPress={confirming ? undefined : onClose} />
         <View style={styles.card}>
           <Text style={styles.title}>{title}</Text>
           <Text style={styles.subtitle}>{subtitle}</Text>
@@ -89,20 +98,32 @@ export function PartnerRiderPickerModal({
           <View style={styles.actions}>
             <Pressable
               onPress={onClose}
-              style={({ pressed }) => [styles.cancelBtn, pressed && styles.pressed]}
+              disabled={confirming}
+              style={({ pressed }) => [
+                styles.cancelBtn,
+                confirming && styles.confirmBtnDisabled,
+                pressed && !confirming && styles.pressed,
+              ]}
             >
               <Text style={styles.cancelText}>{cancelLabel}</Text>
             </Pressable>
             <Pressable
               onPress={onConfirm}
-              disabled={loading || riders.length === 0}
+              disabled={loading || confirming || riders.length === 0}
               style={({ pressed }) => [
                 styles.confirmBtn,
-                (loading || riders.length === 0) && styles.confirmBtnDisabled,
-                pressed && !loading && riders.length > 0 && styles.pressed,
+                (loading || confirming || riders.length === 0) && styles.confirmBtnDisabled,
+                pressed && !loading && !confirming && riders.length > 0 && styles.pressed,
               ]}
             >
-              <Text style={styles.confirmText}>{confirmLabel}</Text>
+              {confirming ? (
+                <View style={styles.confirmingRow}>
+                  <ActivityIndicator color={c.background} size="small" />
+                  <Text style={styles.confirmText}>{confirmingLabel}</Text>
+                </View>
+              ) : (
+                <Text style={styles.confirmText}>{confirmLabel}</Text>
+              )}
             </Pressable>
           </View>
         </View>
@@ -245,6 +266,11 @@ const styles = StyleSheet.create({
     fontSize: fs.descText,
     color: c.background,
     fontWeight: "700",
+  },
+  confirmingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
   },
   pressed: {
     opacity: 0.85,

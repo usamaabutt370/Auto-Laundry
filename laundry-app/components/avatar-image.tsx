@@ -23,6 +23,7 @@ export function AvatarImage({ uri, name, size = 80, style }: Props) {
   if (uri) {
     return (
       <Image
+        key={uri}
         source={{ uri }}
         style={[{ width: size, height: size, borderRadius }, style]}
         resizeMode="cover"

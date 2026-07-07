@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AppHeader } from "@/components/app-header";
+import { WebHeaderSpacer } from "@/components/web-header-spacer";
 import { PartnerNameWithBadge } from "@/components/partner-name-with-badge";
 import { theme } from "@/constants/theme";
 import { useAuth } from "@/contexts/auth-context";
@@ -123,7 +124,9 @@ export default function CustomerChatScreen() {
             leftAccessibilityLabel="Menu"
           />
         </SafeAreaView>
-      ) : null}
+      ) : (
+        <WebHeaderSpacer />
+      )}
       {!user?.id ? (
         <View style={styles.center}>
           <MaterialCommunityIcons name="account-outline" size={48} color={c.blue500} />
