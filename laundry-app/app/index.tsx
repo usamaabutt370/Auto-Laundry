@@ -13,6 +13,13 @@ export default function IndexScreen() {
   const { hasCompleted: onboardingComplete } = useOnboardingComplete();
   const { isLoading, isAuthenticated, role } = useAuth();
 
+  // On web, show the landing page immediately — don't make visitors wait for
+  // a Supabase session check before seeing anything. If auth resolves to
+  // "authenticated", the component re-renders and redirects below.
+  if (Platform.OS === "web" && (isLoading || !isAuthenticated)) {
+    return <LandingPage />;
+  }
+
   if (onboardingComplete === null || isLoading) {
     return (
       <View style={styles.centered}>
@@ -26,11 +33,6 @@ export default function IndexScreen() {
   }
 
   if (!isAuthenticated) {
-    // Web visitors get a marketing landing page instead of dropping straight
-    // into the login form; native apps keep the direct-to-login flow.
-    if (Platform.OS === "web") {
-      return <LandingPage />;
-    }
     return <Redirect href="/(auth)" />;
   }
 
