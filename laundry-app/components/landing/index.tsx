@@ -1,25 +1,27 @@
-import { useRef } from "react";
-import { LayoutChangeEvent, ScrollView, StyleSheet, View } from "react-native";
+import { useRef, useState } from "react";
+import { LayoutChangeEvent, NativeScrollEvent, NativeSyntheticEvent, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 
 import { theme } from "@/constants/theme";
 import { LandingHeader } from "./landing-header";
 import { LandingHero } from "./landing-hero";
-import { LandingVision } from "./landing-vision";
 import { LandingHowItWorks } from "./landing-how-it-works";
 import { LandingServices } from "./landing-services";
-import { LandingWhyChooseUs } from "./landing-why-choose-us";
 import { LandingBecomeCaptain } from "./landing-become-captain";
-import { LandingGallery } from "./landing-gallery";
-import { LandingTestimonials } from "./landing-testimonials";
 import { LandingCta } from "./landing-cta";
-import { LandingFooter } from "./landing-footer";
 
 /** Marketing landing page shown to signed-out visitors on web. */
 export function LandingPage() {
   const scrollRef = useRef<ScrollView>(null);
   const sectionOffsets = useRef<Record<string, number>>({});
+  const [scrolled, setScrolled] = useState(false);
+  const heroHeight = useRef(0);
+
+  const handleScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const y = e.nativeEvent.contentOffset.y;
+    setScrolled(y >= heroHeight.current);
+  };
 
   const registerSection = (anchor: string) => (e: LayoutChangeEvent) => {
     sectionOffsets.current[anchor] = e.nativeEvent.layout.y;
@@ -35,26 +37,27 @@ export function LandingPage() {
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       <StatusBar style="dark" />
-      <LandingHeader onNavigate={handleNavigate} />
-      <ScrollView ref={scrollRef} style={styles.scroll} showsVerticalScrollIndicator={false}>
-        <LandingHero />
-        <LandingVision />
+      <LandingHeader onNavigate={handleNavigate} scrolled={scrolled} />
+      <ScrollView
+        ref={scrollRef}
+        style={styles.scroll}
+        showsVerticalScrollIndicator={false}
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
+      >
+        <View onLayout={(e) => { heroHeight.current = e.nativeEvent.layout.height; }}>
+          <LandingHero />
+        </View>
         <View onLayout={registerSection("how-it-works")}>
           <LandingHowItWorks />
         </View>
         <View onLayout={registerSection("services")}>
           <LandingServices />
         </View>
-        <View onLayout={registerSection("why-choose-us")}>
-          <LandingWhyChooseUs />
-        </View>
         <View onLayout={registerSection("become-captain")}>
           <LandingBecomeCaptain />
         </View>
-        <LandingGallery />
-        <LandingTestimonials />
         <LandingCta />
-        <LandingFooter />
       </ScrollView>
     </SafeAreaView>
   );

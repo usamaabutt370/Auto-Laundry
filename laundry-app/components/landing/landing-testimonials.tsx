@@ -62,7 +62,8 @@ const styles = StyleSheet.create({
     backgroundColor: c.white,
   },
   heading: {
-    fontSize: 32,
+    fontSize: 40,
+    lineHeight: 48,
     fontWeight: "800",
     color: c.themeBlack,
     textAlign: "center",
@@ -88,8 +89,8 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   quote: {
-    fontSize: 16,
-    lineHeight: 24,
+    fontSize: 18,
+    lineHeight: 28,
     color: c.themeBlack,
     marginBottom: 16,
   },
@@ -114,6 +115,6 @@ const styles = StyleSheet.create({
   name: {
     fontSize: 14,
     fontWeight: "600",
-    color: c.themeGray,
+    color: c.themeBlack,
   },
 });

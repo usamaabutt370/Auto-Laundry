@@ -50,7 +50,8 @@ const styles = StyleSheet.create({
     backgroundColor: c.themeWhite,
   },
   heading: {
-    fontSize: 32,
+    fontSize: 40,
+    lineHeight: 48,
     fontWeight: "800",
     color: c.themeBlack,
     textAlign: "center",
@@ -75,20 +76,20 @@ const styles = StyleSheet.create({
     ...theme.shadow,
   },
   number: {
-    fontSize: 30,
+    fontSize: 40,
     fontWeight: "800",
     color: c.outline,
     marginBottom: 8,
   },
   cardTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: "700",
     color: c.themeBlack,
     marginBottom: 6,
   },
   cardDescription: {
-    fontSize: 15,
-    lineHeight: 21,
+    fontSize: 16,
+    lineHeight: 24,
     color: c.themeGray,
   },
 });

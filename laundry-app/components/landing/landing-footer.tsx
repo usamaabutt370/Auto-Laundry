@@ -1,4 +1,5 @@
-import { StyleSheet, Text, View } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import { StyleSheet, Text } from "react-native";
 
 import { theme } from "@/constants/theme";
 
@@ -9,22 +10,26 @@ export function LandingFooter() {
   const year = new Date().getFullYear();
 
   return (
-    <View style={styles.section}>
+    <LinearGradient
+      colors={["#071828", "#0f3040", "#1a5060"]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={styles.section}
+    >
       <Text style={styles.logo}>Tap2Laundry</Text>
       <Text style={styles.copyright}>
         &copy; {year} Tap2Laundry. All rights reserved.
       </Text>
-    </View>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   section: {
     paddingHorizontal: 24,
-    paddingVertical: 24,
-    backgroundColor: c.themeBlack,
+    paddingVertical: 28,
     borderTopWidth: 1,
-    borderTopColor: "rgba(255,255,255,0.1)",
+    borderTopColor: "rgba(255,255,255,0.08)",
     alignItems: "center",
   },
   logo: {
@@ -35,6 +40,6 @@ const styles = StyleSheet.create({
   },
   copyright: {
     fontSize: 13,
-    color: "rgba(255,255,255,0.5)",
+    color: "rgba(255,255,255,0.55)",
   },
 });

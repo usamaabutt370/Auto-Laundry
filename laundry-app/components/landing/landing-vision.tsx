@@ -103,7 +103,8 @@ const styles = StyleSheet.create({
     marginTop: 0,
   },
   kicker: {
-    fontSize: 36,
+    fontSize: 40,
+    lineHeight: 48,
     fontWeight: "800",
     color: c.themeBlack,
     marginBottom: 18,
@@ -112,8 +113,8 @@ const styles = StyleSheet.create({
     color: c.background,
   },
   paragraph: {
-    fontSize: 17,
-    lineHeight: 27,
+    fontSize: 18,
+    lineHeight: 28,
     color: c.themeGray,
     marginBottom: 14,
     maxWidth: 500,

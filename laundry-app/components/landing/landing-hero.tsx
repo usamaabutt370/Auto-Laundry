@@ -1,7 +1,7 @@
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
-import { useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import { Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 import { assets } from "@/assets/assets";
@@ -10,19 +10,16 @@ import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { LandingContainer } from "./landing-container";
 
 const c = theme.colors;
+const NAVBAR_HEIGHT = 72;
 
 /** Top-of-page hero: the customer pitch — gentle, trusted laundry care. */
 export function LandingHero() {
   const router = useRouter();
   const { isWebDesktop } = useResponsiveLayout();
-  const [address, setAddress] = useState("");
-
-  const handleCheckAddress = () => {
-    router.push("/(auth)/sign-up");
-  };
+  const { height: windowHeight } = useWindowDimensions();
 
   return (
-    <View style={styles.section}>
+    <View style={[styles.section, { minHeight: windowHeight - NAVBAR_HEIGHT }]}>
       <LandingContainer style={isWebDesktop ? styles.rowDesktop : undefined}>
         <View style={[styles.textCol, isWebDesktop && styles.textColDesktop]}>
           <View style={styles.eyebrowPill}>
@@ -34,63 +31,61 @@ export function LandingHero() {
             <Text style={styles.headingAccent}>Not Rough Handling</Text>
           </Text>
           <Text style={styles.subtitle}>
-            Too many commercial launderers rush your clothes through rough
-            machines and damage them. <Text style={styles.subtitleBold}>Tap2Laundry</Text>{" "}
-            is different — we onboard trusted, trained housewives to wash,
-            fold, and care for your laundry the way they&apos;d treat their
-            own family&apos;s clothes.
+            Trusted housewives wash and fold your clothes with the care
+            they&apos;d give their own family&apos;s laundry.
           </Text>
 
-          <View style={styles.ctaRow}>
-            <Pressable
-              style={({ pressed }) => [styles.primaryBtn, pressed && styles.pressed]}
-              onPress={() => router.push("/(auth)/sign-up")}
-              accessibilityRole="button"
-              accessibilityLabel="Book Your Pickup"
-            >
-              <Text style={styles.primaryBtnText}>Book Your Pickup</Text>
-              <MaterialCommunityIcons name="arrow-right" size={18} color={c.white} />
-            </Pressable>
-            <Pressable
-              style={({ pressed }) => [styles.secondaryBtn, pressed && styles.pressed]}
-              onPress={() => router.push("/(auth)/login")}
-              accessibilityRole="button"
-              accessibilityLabel="Sign In"
-            >
-              <Text style={styles.secondaryBtnText}>Sign In</Text>
-            </Pressable>
-          </View>
-
-          <View style={styles.addressBar}>
-            <MaterialCommunityIcons name="map-marker-outline" size={20} color={c.themeGray} />
-            <TextInput
-              style={styles.addressInput}
-              placeholder="Enter your pickup address"
-              placeholderTextColor={c.themeGray}
-              value={address}
-              onChangeText={setAddress}
-            />
-            <Pressable
-              style={({ pressed }) => [styles.addressBtn, pressed && styles.pressed]}
-              onPress={handleCheckAddress}
-              accessibilityRole="button"
-              accessibilityLabel="Check availability"
-            >
-              <Text style={styles.addressBtnText}>Check</Text>
-            </Pressable>
-          </View>
-
-          <Pressable
-            onPress={() => router.push("/(auth)/welcome")}
-            accessibilityRole="button"
-            accessibilityLabel="Are you a housewife? Become a Laundry Captain"
-            style={({ pressed }) => [styles.customerNudge, pressed && styles.pressed]}
-          >
-            <Text style={styles.customerNudgeText}>
-              Are you a housewife looking to earn from home?{" "}
-              <Text style={styles.customerNudgeLink}>Become a Laundry Captain →</Text>
+          {/* App download offer */}
+          <View style={styles.downloadCard}>
+            <View style={styles.offerBadge}>
+              <Text style={styles.offerBadgeText}>LIMITED OFFER</Text>
+            </View>
+            <Text style={styles.offerHeading}>
+              🎉 Get <Text style={styles.offerAccent}>20% off</Text> your first order
             </Text>
-          </Pressable>
+            <Text style={styles.offerSub}>
+              Download the app and use code <Text style={styles.offerCode}>FIRST20</Text> at checkout.
+            </Text>
+            <View style={styles.downloadRow}>
+              <Pressable
+                style={({ pressed }) => [pressed && styles.pressed]}
+                accessibilityRole="link"
+                accessibilityLabel="Download on the App Store"
+              >
+                <LinearGradient
+                  colors={["#1c1c1e", "#2c2c2e"]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.storeBadge}
+                >
+                  <MaterialCommunityIcons name="apple" size={26} color={c.white} />
+                  <View>
+                    <Text style={styles.badgeSmall}>Download on the</Text>
+                    <Text style={styles.badgeBig}>App Store</Text>
+                  </View>
+                </LinearGradient>
+              </Pressable>
+
+              <Pressable
+                style={({ pressed }) => [pressed && styles.pressed]}
+                accessibilityRole="link"
+                accessibilityLabel="Get it on Google Play"
+              >
+                <LinearGradient
+                  colors={["#1c1c1e", "#2c2c2e"]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.storeBadge}
+                >
+                  <MaterialCommunityIcons name="google-play" size={22} color={c.white} />
+                  <View>
+                    <Text style={styles.badgeSmall}>Get it on</Text>
+                    <Text style={styles.badgeBig}>Google Play</Text>
+                  </View>
+                </LinearGradient>
+              </Pressable>
+            </View>
+          </View>
         </View>
 
         <View style={[styles.imageCol, isWebDesktop && styles.imageColDesktop]}>
@@ -110,6 +105,7 @@ const styles = StyleSheet.create({
     paddingVertical: 48,
     backgroundColor: c.themeWhite,
     overflow: "hidden",
+    justifyContent: "center",
   },
   rowDesktop: {
     flexDirection: "row",
@@ -142,8 +138,8 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
   },
   heading: {
-    fontSize: 48,
-    lineHeight: 56,
+    fontSize: 64,
+    lineHeight: 72,
     fontWeight: "800",
     color: c.themeBlack,
   },
@@ -151,87 +147,93 @@ const styles = StyleSheet.create({
     color: c.background,
   },
   subtitle: {
-    fontSize: 18,
-    lineHeight: 28,
-    color: c.themeGray,
+    fontSize: 20,
+    lineHeight: 30,
+    color: c.themeBlack,
     marginTop: 18,
-    maxWidth: 500,
+    maxWidth: 520,
   },
   subtitleBold: {
     fontWeight: "800",
     color: c.themeBlack,
   },
-  ctaRow: {
+  downloadCard: {
+    marginTop: 28,
+    backgroundColor: c.white,
+    borderRadius: 20,
+    padding: 20,
+    maxWidth: 440,
+    borderWidth: 1,
+    borderColor: "rgba(0,0,0,0.06)",
+    ...theme.shadow,
+  },
+  offerBadge: {
+    alignSelf: "flex-start",
+    backgroundColor: "#fff3cd",
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    marginBottom: 10,
+  },
+  offerBadgeText: {
+    fontSize: 10,
+    fontWeight: "800",
+    color: "#b45309",
+    letterSpacing: 1,
+  },
+  offerHeading: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: c.themeBlack,
+    marginBottom: 6,
+  },
+  offerAccent: {
+    color: "#e67e22",
+    fontWeight: "800",
+  },
+  offerSub: {
+    fontSize: 13,
+    color: c.themeBlack,
+    marginBottom: 16,
+    lineHeight: 19,
+  },
+  offerCode: {
+    fontWeight: "700",
+    color: c.themeBlack,
+    backgroundColor: "#f0f0f0",
+  },
+  downloadRow: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 12,
-    marginTop: 28,
+    gap: 10,
   },
-  primaryBtn: {
+  storeBadge: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    paddingHorizontal: 24,
-    paddingVertical: 16,
-    borderRadius: 999,
-    backgroundColor: c.background,
-    ...theme.shadow,
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 11,
+    borderRadius: 12,
+    minWidth: 150,
   },
-  primaryBtnText: {
+  badgeSmall: {
+    fontSize: 10,
+    color: "rgba(255,255,255,0.7)",
+    fontWeight: "400",
+    lineHeight: 14,
+  },
+  badgeBig: {
     fontSize: 16,
-    fontWeight: "700",
     color: c.white,
-  },
-  secondaryBtn: {
-    paddingHorizontal: 24,
-    paddingVertical: 16,
-    borderRadius: 999,
-    borderWidth: 1.5,
-    borderColor: c.background,
-  },
-  secondaryBtnText: {
-    fontSize: 16,
     fontWeight: "700",
-    color: c.background,
-  },
-  addressBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 32,
-    backgroundColor: c.white,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: "rgba(0,0,0,0.08)",
-    paddingLeft: 16,
-    paddingRight: 6,
-    paddingVertical: 6,
-    maxWidth: 440,
-    gap: 8,
-    ...theme.shadow,
-  },
-  addressInput: {
-    flex: 1,
-    fontSize: 15,
-    color: c.themeBlack,
-    paddingVertical: 8,
-  },
-  addressBtn: {
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-    borderRadius: 999,
-    backgroundColor: c.background,
-  },
-  addressBtnText: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: c.white,
+    lineHeight: 20,
   },
   customerNudge: {
-    marginTop: 16,
+    marginTop: 20,
   },
   customerNudgeText: {
     fontSize: 14,
-    color: c.themeGray,
+    color: c.themeBlack,
   },
   customerNudgeLink: {
     fontWeight: "700",

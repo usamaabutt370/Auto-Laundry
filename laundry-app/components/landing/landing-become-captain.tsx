@@ -10,28 +10,6 @@ import { LandingContainer } from "./landing-container";
 
 const c = theme.colors;
 
-const PERKS = [
-  {
-    icon: "home-heart" as const,
-    title: "Work From Home",
-    description: "Run your laundry business from your own home, on your terms.",
-  },
-  {
-    icon: "clock-time-eight-outline" as const,
-    title: "Flexible Hours",
-    description: "Accept orders around your day — no fixed shifts required.",
-  },
-  {
-    icon: "cash-multiple" as const,
-    title: "Keep What You Earn",
-    description: "Get paid for every order, with earnings tracked in your dashboard.",
-  },
-];
-
-/**
- * Secondary section: invites housewives to become the Laundry Captains
- * that make the customer promise (gentle, trusted care) possible.
- */
 export function LandingBecomeCaptain() {
   const router = useRouter();
   const { isWebDesktop } = useResponsiveLayout();
@@ -39,42 +17,18 @@ export function LandingBecomeCaptain() {
   return (
     <View style={styles.section}>
       <LandingContainer style={isWebDesktop ? styles.rowDesktop : undefined}>
-        <View style={[styles.imageCol, isWebDesktop && styles.imageColDesktop]}>
-          <View style={styles.imageBlobWrap}>
-            <View style={styles.imageBlob} />
-            <Image source={assets.onboarding.slide3} style={styles.image} contentFit="contain" />
-          </View>
-        </View>
-
         <View style={[styles.textCol, isWebDesktop && styles.textColDesktop]}>
           <View style={styles.eyebrowPill}>
-            <MaterialCommunityIcons name="home-heart" size={14} color={c.outline} />
+            <MaterialCommunityIcons name="home-heart" size={13} color={c.background} />
             <Text style={styles.eyebrow}>For Housewives</Text>
           </View>
           <Text style={styles.heading}>
-            Are You A Housewife? Turn Spare Time Into{" "}
+            Are You A Housewife?{"\n"}Turn Spare Time Into{" "}
             <Text style={styles.headingAccent}>Real Income</Text>
           </Text>
           <Text style={styles.subtitle}>
-            Every Tap2Laundry order is cared for by a Laundry Captain — a
-            trained housewife earning from home on her own schedule.
-            If that&apos;s you, we&apos;d love to have you.
+            Join hundreds of Laundry Captains earning from home — on your own schedule, from your own kitchen.
           </Text>
-
-          <View style={styles.perks}>
-            {PERKS.map((perk) => (
-              <View key={perk.title} style={styles.perkRow}>
-                <View style={styles.perkIcon}>
-                  <MaterialCommunityIcons name={perk.icon} size={20} color={c.white} />
-                </View>
-                <View style={styles.perkText}>
-                  <Text style={styles.perkTitle}>{perk.title}</Text>
-                  <Text style={styles.perkDescription}>{perk.description}</Text>
-                </View>
-              </View>
-            ))}
-          </View>
-
           <Pressable
             style={({ pressed }) => [styles.btn, pressed && styles.pressed]}
             onPress={() => router.push("/(auth)/welcome")}
@@ -82,8 +36,12 @@ export function LandingBecomeCaptain() {
             accessibilityLabel="Become a Laundry Captain"
           >
             <Text style={styles.btnText}>Become a Laundry Captain</Text>
-            <MaterialCommunityIcons name="arrow-right" size={18} color={c.themeBlack} />
+            <MaterialCommunityIcons name="arrow-right" size={18} color={c.white} />
           </Pressable>
+        </View>
+
+        <View style={[styles.imageCol, isWebDesktop && styles.imageColDesktop]}>
+          <Image source={assets.onboarding.slide3} style={styles.image} contentFit="contain" />
         </View>
       </LandingContainer>
     </View>
@@ -92,116 +50,56 @@ export function LandingBecomeCaptain() {
 
 const styles = StyleSheet.create({
   section: {
+    backgroundColor: "rgba(20,83,107,0.06)",
+    paddingVertical: 64,
     paddingHorizontal: 24,
-    paddingVertical: 56,
-    backgroundColor: c.blue900,
     overflow: "hidden",
   },
   rowDesktop: {
-    flexDirection: "row-reverse",
+    flexDirection: "row",
     alignItems: "center",
-    gap: 56,
-  },
-  imageCol: {
-    alignItems: "center",
-    backgroundColor: "transparent",
-  },
-  imageColDesktop: {
-    flex: 0.9,
-  },
-  imageBlobWrap: {
-    width: "100%",
-    maxWidth: 340,
-    aspectRatio: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "transparent",
-  },
-  imageBlob: {
-    position: "absolute",
-    width: "85%",
-    height: "85%",
-    borderRadius: 999,
-    backgroundColor: "rgba(255,255,255,0.1)",
-  },
-  image: {
-    width: "100%",
-    height: "100%",
+    gap: 64,
   },
   textCol: {
-    marginTop: 40,
     backgroundColor: "transparent",
   },
   textColDesktop: {
     flex: 1.1,
-    marginTop: 0,
   },
   eyebrowPill: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
     alignSelf: "flex-start",
-    backgroundColor: "rgba(255,255,255,0.12)",
-    paddingHorizontal: 14,
-    paddingVertical: 6,
+    backgroundColor: "rgba(20,83,107,0.1)",
+    paddingHorizontal: 12,
+    paddingVertical: 5,
     borderRadius: 999,
     marginBottom: 16,
   },
   eyebrow: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "700",
-    color: c.outline,
+    color: c.background,
     letterSpacing: 0.5,
     textTransform: "uppercase",
   },
   heading: {
-    fontSize: 30,
-    lineHeight: 38,
+    fontSize: 40,
+    lineHeight: 48,
     fontWeight: "800",
-    color: c.white,
-    marginBottom: 14,
+    color: c.themeBlack,
+    marginBottom: 16,
   },
   headingAccent: {
-    color: c.outline,
+    color: c.background,
   },
   subtitle: {
-    fontSize: 16,
-    lineHeight: 25,
-    color: "rgba(255,255,255,0.85)",
-    marginBottom: 24,
-    maxWidth: 480,
-  },
-  perks: {
-    gap: 16,
+    fontSize: 18,
+    lineHeight: 28,
+    color: c.themeBlack,
     marginBottom: 28,
-  },
-  perkRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 14,
-  },
-  perkIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: "rgba(255,255,255,0.15)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  perkText: {
-    flex: 1,
-    backgroundColor: "transparent",
-  },
-  perkTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: c.white,
-    marginBottom: 2,
-  },
-  perkDescription: {
-    fontSize: 14,
-    lineHeight: 20,
-    color: "rgba(255,255,255,0.75)",
+    maxWidth: 480,
   },
   btn: {
     flexDirection: "row",
@@ -211,14 +109,28 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 15,
     borderRadius: 999,
-    backgroundColor: c.outline,
+    backgroundColor: c.background,
   },
   btnText: {
     fontSize: 16,
     fontWeight: "700",
-    color: c.themeBlack,
+    color: c.white,
   },
   pressed: {
     opacity: 0.8,
+  },
+  imageCol: {
+    alignItems: "center",
+    marginTop: 40,
+    backgroundColor: "transparent",
+  },
+  imageColDesktop: {
+    flex: 0.9,
+    marginTop: 0,
+  },
+  image: {
+    width: "100%",
+    maxWidth: 380,
+    aspectRatio: 1,
   },
 });

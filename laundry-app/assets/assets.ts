@@ -27,5 +27,8 @@ export const assets = {
   },
   images: {
     profile_placeholder: require("./images/profile-placeholder.png"),
+    schedule_pickup: require("./images/schedule-pickup-image.png"),
+    delivery: require("./images/delivery-image.png"),
+    top_facilities: require("./images/top-facilities-image.png"),
   },
 };
