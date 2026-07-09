@@ -12,7 +12,7 @@ const iosGs = path.join(root, "GoogleService-Info.plist");
 const firebasePlugins = [
   "@react-native-firebase/app",
   "@react-native-firebase/messaging",
-  ["expo-build-properties", { ios: { useFrameworks: "static" } }],
+  ["expo-build-properties", { ios: { useFrameworks: "static", buildReactNativeFromSource: true } }],
   "expo-notifications",
   [
     "expo-image-picker",

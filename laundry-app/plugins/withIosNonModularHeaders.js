@@ -23,8 +23,18 @@ module.exports = function withIosNonModularHeaders(config) {
             /post_install do \|installer\|/,
             `post_install do |installer|${patch}`
           );
-          fs.writeFileSync(filePath, contents);
         }
+
+        // react-native-firebase requires this when using static frameworks, otherwise
+        // its Objective-C bridging files (RCT_EXPORT_METHOD macros) fail to compile.
+        if (!contents.includes("$RNFirebaseAsStaticFramework")) {
+          contents = contents.replace(
+            /(prepare_react_native_project!)/,
+            `$RNFirebaseAsStaticFramework = true\n\n$1`
+          );
+        }
+
+        fs.writeFileSync(filePath, contents);
       }
       return config;
     },
