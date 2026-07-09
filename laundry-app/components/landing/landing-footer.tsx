@@ -1,11 +1,10 @@
+import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { StyleSheet, Text } from "react-native";
 
-import { theme } from "@/constants/theme";
+import { assets } from "@/assets/assets";
 
-const c = theme.colors;
-
-/** Simple footer: brand line + copyright. */
+/** Simple footer: brand logo + copyright. */
 export function LandingFooter() {
   const year = new Date().getFullYear();
 
@@ -16,7 +15,7 @@ export function LandingFooter() {
       end={{ x: 1, y: 1 }}
       style={styles.section}
     >
-      <Text style={styles.logo}>Tap2Laundry</Text>
+      <Image source={assets.icons.landing_logo} style={styles.logo} contentFit="contain" />
       <Text style={styles.copyright}>
         &copy; {year} Tap2Laundry. All rights reserved.
       </Text>
@@ -33,9 +32,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   logo: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: c.white,
+    height: 50,
+    aspectRatio: 3,
     marginBottom: 8,
   },
   copyright: {

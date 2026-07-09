@@ -1,5 +1,5 @@
-import { useRef, useState } from "react";
-import { LayoutChangeEvent, NativeScrollEvent, NativeSyntheticEvent, ScrollView, StyleSheet, View } from "react-native";
+import { useRef } from "react";
+import { LayoutChangeEvent, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 
@@ -15,13 +15,6 @@ import { LandingCta } from "./landing-cta";
 export function LandingPage() {
   const scrollRef = useRef<ScrollView>(null);
   const sectionOffsets = useRef<Record<string, number>>({});
-  const [scrolled, setScrolled] = useState(false);
-  const heroHeight = useRef(0);
-
-  const handleScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const y = e.nativeEvent.contentOffset.y;
-    setScrolled(y >= heroHeight.current);
-  };
 
   const registerSection = (anchor: string) => (e: LayoutChangeEvent) => {
     sectionOffsets.current[anchor] = e.nativeEvent.layout.y;
@@ -37,17 +30,13 @@ export function LandingPage() {
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       <StatusBar style="dark" />
-      <LandingHeader onNavigate={handleNavigate} scrolled={scrolled} />
+      <LandingHeader onNavigate={handleNavigate} />
       <ScrollView
         ref={scrollRef}
         style={styles.scroll}
         showsVerticalScrollIndicator={false}
-        onScroll={handleScroll}
-        scrollEventThrottle={16}
       >
-        <View onLayout={(e) => { heroHeight.current = e.nativeEvent.layout.height; }}>
-          <LandingHero />
-        </View>
+        <LandingHero />
         <View onLayout={registerSection("how-it-works")}>
           <LandingHowItWorks />
         </View>

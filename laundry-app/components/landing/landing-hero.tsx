@@ -1,7 +1,7 @@
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
-import { Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { Linking, Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 import { assets } from "@/assets/assets";
@@ -11,6 +11,7 @@ import { LandingContainer } from "./landing-container";
 
 const c = theme.colors;
 const NAVBAR_HEIGHT = 72;
+const GOOGLE_PLAY_URL = "https://play.google.com/store/apps/details?id=com.autolaundry.app&hl=en";
 
 /** Top-of-page hero: the customer pitch — gentle, trusted laundry care. */
 export function LandingHero() {
@@ -68,6 +69,7 @@ export function LandingHero() {
 
               <Pressable
                 style={({ pressed }) => [pressed && styles.pressed]}
+                onPress={() => Linking.openURL(GOOGLE_PLAY_URL)}
                 accessibilityRole="link"
                 accessibilityLabel="Get it on Google Play"
               >
@@ -91,7 +93,7 @@ export function LandingHero() {
         <View style={[styles.imageCol, isWebDesktop && styles.imageColDesktop]}>
           <View style={styles.imageBlobWrap}>
             <View style={styles.imageBlob} />
-            <Image source={assets.onboarding.slide1} style={styles.image} contentFit="contain" />
+            <Image source={assets.hero.laundryCare} style={styles.image} contentFit="contain" />
           </View>
         </View>
       </LandingContainer>

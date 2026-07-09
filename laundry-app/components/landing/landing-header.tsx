@@ -1,14 +1,11 @@
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
-import { useEffect, useRef } from "react";
-import { Animated, Pressable, StyleSheet, View } from "react-native";
+import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { assets } from "@/assets/assets";
-import { theme } from "@/constants/theme";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
-
-const c = theme.colors;
+import { LandingContainer } from "./landing-container";
 
 const NAV_LINKS = [
   { label: "How It Works", anchor: "how-it-works" },
@@ -18,166 +15,114 @@ const NAV_LINKS = [
 
 type Props = {
   onNavigate?: (anchor: string) => void;
-  scrolled?: boolean;
 };
 
-/** Transparent navbar that fades in a gradient background once the user scrolls. */
-export function LandingHeader({ onNavigate, scrolled = false }: Props) {
+/** Sticky navbar — stays fixed at the top with the same dark gradient always applied. */
+export function LandingHeader({ onNavigate }: Props) {
   const router = useRouter();
   const { isWebDesktop, width } = useResponsiveLayout();
   const isCompact = width < 480;
 
-  // 0 = top of page (transparent bg, dark text)
-  // 1 = scrolled (gradient bg, white text)
-  const progress = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.timing(progress, {
-      toValue: scrolled ? 1 : 0,
-      duration: 250,
-      useNativeDriver: false,
-    }).start();
-  }, [scrolled, progress]);
-
-  const textColor = progress.interpolate({
-    inputRange: [0, 1],
-    outputRange: ["#1a1a1a", "#ffffff"],
-  });
-
-  const signInBg = progress.interpolate({
-    inputRange: [0, 1],
-    outputRange: ["rgba(0,0,0,0.06)", "rgba(255,255,255,0.18)"],
-  });
+  const handleLogoPress = () => {
+    if (Platform.OS === "web") {
+      window.location.href = "/";
+    } else {
+      router.replace("/");
+    }
+  };
 
   return (
     <View style={[styles.bar, isCompact && styles.barCompact]}>
-      {/* Gradient layer fades in on scroll */}
-      <Animated.View style={[StyleSheet.absoluteFill, { opacity: progress }]}>
-        <LinearGradient
-          colors={["#14536b", "#3b7f95", "#4aafc9"]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={StyleSheet.absoluteFill}
-        />
-      </Animated.View>
+      <LinearGradient
+        colors={["#14536b", "#3b7f95", "#4aafc9"]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={StyleSheet.absoluteFill}
+      />
 
-      {/* Logo */}
-      <View style={styles.brand}>
-        <Image
-          source={assets.icons.app_icon}
-          style={[styles.brandIcon, isCompact && styles.brandIconCompact]}
-          contentFit="cover"
-        />
-        <Animated.Text
-          style={[styles.logo, isCompact && styles.logoCompact, { color: textColor }]}
-          numberOfLines={1}
+      <LandingContainer style={styles.barRow}>
+        {/* Logo — sized as a wordmark: height-driven, width follows aspect ratio. */}
+        <Pressable
+          onPress={handleLogoPress}
+          accessibilityRole="link"
+          accessibilityLabel="Tap2Laundry Home"
         >
-          Tap2Laundry
-        </Animated.Text>
-      </View>
+          <Image
+            source={assets.icons.landing_logo_white}
+            style={[styles.brandIcon, isCompact && styles.brandIconCompact]}
+            contentFit="contain"
+          />
+        </Pressable>
 
-      {/* Desktop nav links */}
-      {isWebDesktop && (
-        <View style={styles.nav}>
-          {NAV_LINKS.map((link) => (
-            <Pressable
-              key={link.anchor}
-              onPress={() => onNavigate?.(link.anchor)}
-              style={({ pressed }) => [styles.navBtn, pressed && styles.pressed]}
-              accessibilityRole="button"
-              accessibilityLabel={link.label}
+        {/* Desktop nav links */}
+        {isWebDesktop && (
+          <View style={styles.nav}>
+            {NAV_LINKS.map((link) => (
+              <Pressable
+                key={link.anchor}
+                onPress={() => onNavigate?.(link.anchor)}
+                style={({ pressed }) => [styles.navBtn, pressed && styles.pressed]}
+                accessibilityRole="button"
+                accessibilityLabel={link.label}
+              >
+                <Text style={styles.navLink}>{link.label}</Text>
+              </Pressable>
+            ))}
+          </View>
+        )}
+
+        {/* Action button */}
+        <View style={[styles.actions, isCompact && styles.actionsCompact]}>
+          <Pressable
+            style={({ pressed }) => [pressed && styles.pressed]}
+            onPress={() => router.push("/(auth)/sign-up")}
+            accessibilityRole="button"
+            accessibilityLabel="Get Started"
+          >
+            <LinearGradient
+              colors={["#f9c74f", "#f4a124"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={[styles.signUpBtn, isCompact && styles.btnCompact]}
             >
-              <Animated.Text style={[styles.navLink, { color: textColor }]}>
-                {link.label}
-              </Animated.Text>
-            </Pressable>
-          ))}
+              <Text
+                style={[styles.signUpText, isCompact && styles.btnTextCompact]}
+                numberOfLines={1}
+              >
+                {isCompact ? "Start" : "Get Started"}
+              </Text>
+            </LinearGradient>
+          </Pressable>
         </View>
-      )}
-
-      {/* Action buttons */}
-      <View style={[styles.actions, isCompact && styles.actionsCompact]}>
-        <Pressable
-          style={({ pressed }) => [pressed && styles.pressed]}
-          onPress={() => router.push("/(auth)/login")}
-          accessibilityRole="button"
-          accessibilityLabel="Sign In"
-        >
-          <Animated.View
-            style={[
-              styles.signInBtn,
-              isCompact && styles.btnCompact,
-              { backgroundColor: signInBg },
-            ]}
-          >
-            <Animated.Text style={[styles.signInText, isCompact && styles.btnTextCompact, { color: textColor }]}>
-              Sign In
-            </Animated.Text>
-          </Animated.View>
-        </Pressable>
-
-        <Pressable
-          style={({ pressed }) => [pressed && styles.pressed]}
-          onPress={() => router.push("/(auth)/sign-up")}
-          accessibilityRole="button"
-          accessibilityLabel="Get Started"
-        >
-          <LinearGradient
-            colors={["#f9c74f", "#f4a124"]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={[styles.signUpBtn, isCompact && styles.btnCompact]}
-          >
-            <Animated.Text
-              style={[styles.signUpText, isCompact && styles.btnTextCompact]}
-              numberOfLines={1}
-            >
-              {isCompact ? "Start" : "Get Started"}
-            </Animated.Text>
-          </LinearGradient>
-        </Pressable>
-      </View>
+      </LandingContainer>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   bar: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
     paddingHorizontal: 24,
-    paddingVertical: 16,
+    // paddingVertical: 10,
     zIndex: 10,
   },
   barCompact: {
     paddingHorizontal: 14,
     paddingVertical: 12,
   },
-  brand: {
+  barRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    flexShrink: 1,
-    backgroundColor: "transparent",
+    justifyContent: "space-between",
   },
   brandIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-  },
-  brandIconCompact: {
-    width: 26,
-    height: 26,
-    borderRadius: 7,
-  },
-  logo: {
-    fontSize: 23,
-    fontWeight: "800",
+    height: 70,
+    aspectRatio: 3,
     flexShrink: 1,
   },
-  logoCompact: {
-    fontSize: 16,
+  brandIconCompact: {
+    height: 40,
+    aspectRatio: 3,
+    flexShrink: 1,
   },
   nav: {
     flexDirection: "row",
@@ -191,6 +136,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "500",
     letterSpacing: 0.2,
+    color: "#ffffff",
   },
   actions: {
     flexDirection: "row",
@@ -199,15 +145,6 @@ const styles = StyleSheet.create({
   },
   actionsCompact: {
     gap: 6,
-  },
-  signInBtn: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 999,
-  },
-  signInText: {
-    fontSize: 15,
-    fontWeight: "600",
   },
   signUpBtn: {
     paddingHorizontal: 16,

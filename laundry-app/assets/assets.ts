@@ -5,8 +5,13 @@ export const assets = {
     slide2: require("./images/second-onboarding-img.jpg"),
     slide3: require("./images/third-onboarding-img.jpg"),
   },
+  hero: {
+    laundryCare: require("./images/hero-laundry-care.jpg"),
+  },
   icons: {
     app_icon: require("./icons/App-launcher-icon.png"),
+    landing_logo: require("./icons/Tap2Laundry-Wordmark.png"),
+    landing_logo_white: require("./icons/Tap2Laundry-Wordmark-white.png"),
     user_icon: require("./icons/user-icon.png"),
     google_icon: require("./icons/google-icon.png"),
     facebook_icon: require("./icons/fb-icon.png"),

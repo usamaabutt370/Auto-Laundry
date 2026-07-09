@@ -48,14 +48,20 @@ export function LandingHowItWorks() {
 
       <View style={styles.grid}>
         {STEPS.map((step) => (
-          <View key={step.number} style={styles.card}>
+          <LinearGradient
+            key={step.number}
+            colors={["#071828", "#0f3040", "#1a5060"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.card}
+          >
             <Text style={styles.number}>{step.number}</Text>
             <View style={styles.iconCircle}>
-              <MaterialCommunityIcons name={step.icon} size={28} color={c.background} />
+              <MaterialCommunityIcons name={step.icon} size={28} color={c.white} />
             </View>
             <Text style={styles.cardTitle}>{step.title}</Text>
             <Text style={styles.cardDescription}>{step.description}</Text>
-          </View>
+          </LinearGradient>
         ))}
       </View>
 
@@ -114,26 +120,25 @@ const styles = StyleSheet.create({
   card: {
     width: 240,
     alignItems: "center",
-    backgroundColor: c.themeWhite,
     borderRadius: 20,
     padding: 28,
     borderWidth: 1,
-    borderColor: "rgba(0,0,0,0.07)",
+    borderColor: "rgba(255,255,255,0.08)",
     ...theme.shadow,
   },
   number: {
     fontSize: 48,
     lineHeight: 56,
     fontWeight: "800",
-    color: c.background,
+    color: c.white,
     marginBottom: 16,
-    opacity: 0.25,
+    opacity: 0.2,
   },
   iconCircle: {
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: "rgba(20,83,107,0.08)",
+    backgroundColor: c.primaryTintSoft,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 20,
@@ -142,14 +147,14 @@ const styles = StyleSheet.create({
     fontSize: 18,
     lineHeight: 26,
     fontWeight: "700",
-    color: c.themeBlack,
+    color: c.white,
     textAlign: "center",
     marginBottom: 8,
   },
   cardDescription: {
     fontSize: 15,
     lineHeight: 23,
-    color: c.themeBlack,
+    color: "rgba(255,255,255,0.75)",
     textAlign: "center",
   },
   ctaBtn: {
