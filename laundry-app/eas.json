@@ -12,10 +12,23 @@
       "distribution": "internal"
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "android": {
+        "credentialsSource": "local"
+      },
+      "ios": {
+        "credentialsSource": "local"
+      }
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "ios": {
+        "ascApiKeyPath": "credentials/ios/AuthKey_S93LGR68H7.p8",
+        "ascApiKeyId": "S93LGR68H7",
+        "ascApiKeyIssuerId": "d3b7c56d-6209-4a1b-a1a9-d709fcfaa20f",
+        "ascAppId": "6789571411"
+      }
+    }
   }
 }

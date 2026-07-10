@@ -2,6 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const appJson = require("./app.json");
 const withIosNonModularHeaders = require("./plugins/withIosNonModularHeaders");
+const withAndroidReleaseSigning = require("./plugins/withAndroidReleaseSigning");
 
 require("dotenv").config();
 
@@ -29,12 +30,14 @@ const firebasePlugins = [
     },
   ],
   withIosNonModularHeaders,
+  withAndroidReleaseSigning,
 ];
 
 module.exports = {
   ...appJson,
   expo: {
     ...appJson.expo,
+    owner: "usamaabutt371",
     plugins: [...(appJson.expo.plugins || []), ...firebasePlugins],
     android: {
       ...appJson.expo.android,
@@ -42,6 +45,10 @@ module.exports = {
     },
     ios: {
       ...appJson.expo.ios,
+      infoPlist: {
+        ...appJson.expo.ios?.infoPlist,
+        ITSAppUsesNonExemptEncryption: false,
+      },
       ...(fs.existsSync(iosGs) ? { googleServicesFile: "./GoogleService-Info.plist" } : {}),
     },
     extra: {
@@ -52,7 +59,7 @@ module.exports = {
         ...(typeof appJson.expo.extra?.eas === "object" && appJson.expo.extra.eas !== null
           ? appJson.expo.extra.eas
           : {}),
-        projectId: "4a51a6dc-ed9a-49ea-b679-d6bf0e149a16",
+        projectId: "3822a2ec-4323-4393-89ac-59a78c554ed8",
       },
       supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL ?? "",
       supabaseAnonKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? "",
