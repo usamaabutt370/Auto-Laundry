@@ -215,7 +215,7 @@ export default function PartnerProfileMenu() {
 							onPress={() => Linking.openURL(buildWhatsAppUrl(displayName, creditBalance)).catch(() => showAppAlert("Error", "Could not open WhatsApp."))}
 							style={({ pressed }) => [styles.buyCreditsBtn, pressed && styles.pressed]}
 						>
-							<Text style={styles.buyCreditsBtnText}>Buy Credits</Text>
+							<Text style={styles.buyCreditsBtnText}>Buy more credits</Text>
 						</Pressable>
 					</View>
 				) : null}

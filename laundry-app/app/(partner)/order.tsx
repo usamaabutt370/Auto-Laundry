@@ -31,7 +31,6 @@ import { useSuppressWebScreenHeader } from "@/hooks/use-suppress-web-screen-head
 import { PartnerRiderPickerModal } from "@/components/partner-rider-picker-modal";
 import { theme } from "@/constants/theme";
 import { useAuth } from "@/contexts/auth-context";
-import { useSidebar } from "@/contexts/sidebar-context";
 import { useLocale } from "@/contexts/locale-context";
 import {
   acceptOrderWithRider,
@@ -64,7 +63,6 @@ export default function PartnerOrderScreen() {
   const params = useLocalSearchParams<{ filter?: string }>();
   const { locale } = useLocale();
   const { user } = useAuth();
-  const { open: openSidebar } = useSidebar();
   const s = getStrings(locale).partner.order;
   const commonStrings = getStrings(locale).common;
 

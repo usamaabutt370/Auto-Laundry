@@ -1,10 +1,8 @@
 import { Stack } from "expo-router";
 import { Platform } from "react-native";
 
-import { PartnerSidebar } from "@/components/partner-sidebar";
 import { WebAreaShell } from "@/components/web-layout";
 import { MerchantServicesProvider } from "@/contexts/merchant-services-context";
-import { SidebarProvider } from "@/contexts/sidebar-context";
 
 /** Ensure "/(partner)" opens the tabs (Dashboard), not bare index. */
 export const unstable_settings = {
@@ -12,16 +10,14 @@ export const unstable_settings = {
 };
 
 /**
- * Partner area: Dashboard (index) with sidebar, plus Order, Settings, Profile, Support, FAQ.
+ * Partner area: Dashboard (index), plus Order, Settings, Profile, Support, FAQ.
  * Onboarding when first becoming a launderer. Root redirects partners to (partner) = Dashboard.
  * Settings is a folder: index (Screen 1), add-service (Screen 2), edit-service (Screen 3).
  */
 export default function PartnerLayout() {
   return (
-    <SidebarProvider>
-      <MerchantServicesProvider>
-        <PartnerSidebar />
-        <WebAreaShell area="partner">
+    <MerchantServicesProvider>
+      <WebAreaShell area="partner">
         <Stack
           screenOptions={{
             headerShown: false,
@@ -46,8 +42,7 @@ export default function PartnerLayout() {
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="onboarding" />
         </Stack>
-        </WebAreaShell>
-      </MerchantServicesProvider>
-    </SidebarProvider>
+      </WebAreaShell>
+    </MerchantServicesProvider>
   );
 }

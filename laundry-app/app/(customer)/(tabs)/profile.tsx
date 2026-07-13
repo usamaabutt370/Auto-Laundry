@@ -221,6 +221,8 @@ export default function CustomerProfileMenu() {
 				<View style={styles.divider} />
 				<View style={styles.menuGroup}>
 
+					<MenuItem icon="calendar-sync-outline" label="Recurring options" onPress={() => router.push("/(customer)/recurring")} />
+					<MenuItem icon="cog-outline" label="Settings" onPress={() => router.push("/(customer)/settings")} />
 					<MenuItem icon="help-circle-outline" label="FAQs" onPress={() => router.push("/(customer)/faq")} />
 					<MenuItem icon="headphones" label="Contact & Support" onPress={() => router.push("/(customer)/contact-support")} />
 				</View>

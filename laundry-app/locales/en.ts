@@ -422,7 +422,7 @@ export const en = {
         {
           question: "Where can I contact support?",
           answer:
-            "Go to Contact Support from the sidebar, write your message, or email us directly using the address shown on that screen.",
+            "Go to Contact Support from your Profile, write your message, or email us directly using the address shown on that screen.",
         },
       ],
     },

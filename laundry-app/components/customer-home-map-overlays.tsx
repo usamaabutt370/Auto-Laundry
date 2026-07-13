@@ -1,11 +1,8 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { assets } from "@/assets/assets";
 import { PartnerNameWithBadge } from "@/components/partner-name-with-badge";
-import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import type { PartnerMapMarker } from "@/hooks/use-customer-home-map-data";
 import { theme } from "@/constants/theme";
 
@@ -26,7 +23,6 @@ type Props = {
   recenterBottomOffset: number;
   mapBottomInset: number;
   onRecenter: () => void;
-  onMenuPress?: () => void;
   selectedPartner: PartnerMapMarker | null;
   selectedPartnerPrimaryImage: string | null;
   selectedPartnerUpdatedLabel: string | null;
@@ -42,7 +38,6 @@ export function CustomerHomeMapOverlays({
   recenterBottomOffset,
   mapBottomInset,
   onRecenter,
-  onMenuPress,
   selectedPartner,
   selectedPartnerPrimaryImage,
   selectedPartnerUpdatedLabel,
@@ -51,33 +46,11 @@ export function CustomerHomeMapOverlays({
   showMapChrome = true,
   showPartnerSheet = true,
 }: Props) {
-  const insets = useSafeAreaInsets();
-  const { hideBottomTabBar } = useResponsiveLayout();
   const partnerSheetBottom =
     mapBottomInset > 0 ? mapBottomInset + 12 : Math.max(12, recenterBottomOffset - 58);
 
   return (
     <>
-      {showMapChrome && onMenuPress != null && !hideBottomTabBar ? (
-        <Pressable
-          onPress={onMenuPress}
-          style={({ pressed }) => [
-            styles.menuBtn,
-            { top: insets.top + 12 },
-            pressed && styles.pressed,
-          ]}
-          accessibilityRole="button"
-          accessibilityLabel="Menu"
-        >
-          <Image
-            source={assets.icons.app_icon}
-            style={styles.menuBrandLogo}
-            contentFit="contain"
-            accessibilityLabel="Tap2Laundry"
-          />
-        </Pressable>
-      ) : null}
-
       {showMapChrome && loadingPartners ? (
         <View style={styles.mapLoading}>
           <ActivityIndicator color={c.white} size="small" />
@@ -370,18 +343,5 @@ const styles = StyleSheet.create({
     color: c.white,
     fontSize: 14,
     fontWeight: "700",
-  },
-  menuBtn: {
-    position: "absolute",
-    left: 16,
-    zIndex: 20,
-    padding: 4,
-    borderRadius: 10,
-    backgroundColor: "rgba(59, 127, 149, 0.92)",
-  },
-  menuBrandLogo: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
   },
 });

@@ -8,7 +8,6 @@ import { ThemedText } from "@/components/themed-text";
 import { strings } from "@/constants/strings";
 import { theme } from "@/constants/theme";
 import { assets } from "@/assets/assets";
-import { useSidebar } from "@/contexts/sidebar-context";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { useCustomerHomeMapData } from "@/hooks/use-customer-home-map-data";
 import { Platform, Pressable, StyleSheet, View } from "react-native";
@@ -26,7 +25,6 @@ export default function CustomerHomeScreen() {
   const showWebTopNav = isWebDesktop;
   const mapBottomInset = showWebTopNav ? 0 : tabBarInset + serviceCardHeight;
   const recenterBottomOffset = showWebTopNav ? Math.max(insets.bottom, 24) : tabBarInset + 162;
-  const { open: openSidebar } = useSidebar();
   const mapData = useCustomerHomeMapData();
   const partnerSheetOpen = mapData.selectedPartner != null;
 
@@ -84,7 +82,6 @@ export default function CustomerHomeScreen() {
     <View style={styles.container}>
       <CustomerHomeMap
         strings={s}
-        onMenuPress={openSidebar}
         onPartnerPress={(partnerId, mode) =>
           router.push({
             pathname: "/(customer)/launderer-detail",

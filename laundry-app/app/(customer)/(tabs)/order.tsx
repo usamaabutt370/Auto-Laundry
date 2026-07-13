@@ -24,7 +24,6 @@ import { useConfirmDialog } from "@/components/confirm-dialog";
 import { PartnerNameWithBadge } from "@/components/partner-name-with-badge";
 import { useAuth } from "@/contexts/auth-context";
 import { useLocale } from "@/contexts/locale-context";
-import { useSidebar } from "@/contexts/sidebar-context";
 import { useCustomerOrders } from "@/hooks/use-customer-orders";
 import { useSuppressWebScreenHeader } from "@/hooks/use-suppress-web-screen-header";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
@@ -67,7 +66,6 @@ export default function CustomerOrderScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const { locale } = useLocale();
-  const { open: openSidebar } = useSidebar();
   const s = getStrings(locale).customer.ordersTab;
   const { orders, loading, error, refresh, deleteOrder } = useCustomerOrders(user?.id);
   const { confirm, dialog } = useConfirmDialog();
@@ -250,11 +248,7 @@ export default function CustomerOrderScreen() {
       {dialog}
       {!isWeb ? (
         <SafeAreaView style={styles.safeTop} edges={["top"]}>
-          <AppHeader
-            title={s.title}
-            onLeftPress={openSidebar}
-            leftAccessibilityLabel="Menu"
-          />
+          <AppHeader title={s.title} />
         </SafeAreaView>
       ) : (
         <WebHeaderSpacer />

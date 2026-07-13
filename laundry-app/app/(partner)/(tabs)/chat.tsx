@@ -16,7 +16,6 @@ import { WebHeaderSpacer } from "@/components/web-header-spacer";
 import { theme } from "@/constants/theme";
 import { useLocale } from "@/contexts/locale-context";
 import { useAuth } from "@/contexts/auth-context";
-import { useSidebar } from "@/contexts/sidebar-context";
 import { useSuppressWebScreenHeader } from "@/hooks/use-suppress-web-screen-header";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { fetchMyConversations, type ChatConversationListItem } from "@/lib/chat";
@@ -41,7 +40,6 @@ function formatShortDate(valueIso: string): string {
 export default function PartnerChatScreen() {
   const router = useRouter();
   const { user } = useAuth();
-  const { open: openSidebar } = useSidebar();
   const { isWeb } = useResponsiveLayout();
   useSuppressWebScreenHeader();
   const { locale } = useLocale();
@@ -117,11 +115,7 @@ export default function PartnerChatScreen() {
     <View style={styles.container}>
       {!isWeb ? (
         <SafeAreaView edges={["top"]} style={styles.safeArea}>
-          <AppHeader
-            title={tabStrings.chat}
-            onLeftPress={openSidebar}
-            leftAccessibilityLabel="Menu"
-          />
+          <AppHeader title={tabStrings.chat} />
         </SafeAreaView>
       ) : (
         <WebHeaderSpacer />

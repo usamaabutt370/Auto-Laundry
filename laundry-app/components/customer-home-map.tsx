@@ -22,7 +22,6 @@ type HomeStrings = {
 
 type Props = {
   strings: HomeStrings;
-  onMenuPress: () => void;
   onPartnerPress: (partnerId: string, mode: "dropoff" | "pickupDelivery") => void;
   recenterBottomOffset: number;
   mapBottomInset?: number;
@@ -32,7 +31,6 @@ type Props = {
 
 export function CustomerHomeMap({
   strings,
-  onMenuPress,
   onPartnerPress,
   recenterBottomOffset,
   mapBottomInset = 0,
@@ -216,7 +214,6 @@ export function CustomerHomeMap({
         recenterBottomOffset={recenterBottomOffset}
         mapBottomInset={mapBottomInset}
         onRecenter={focusMap}
-        onMenuPress={onMenuPress}
         selectedPartner={selectedPartner}
         selectedPartnerPrimaryImage={selectedPartnerPrimaryImage}
         selectedPartnerUpdatedLabel={selectedPartnerUpdatedLabel}
