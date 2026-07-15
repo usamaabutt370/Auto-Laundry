@@ -97,8 +97,7 @@ export function LandingHero() {
 
         <View style={[styles.imageCol, isWebDesktop && styles.imageColDesktop]}>
           <View style={styles.imageBlobWrap}>
-            <View style={styles.imageBlob} />
-            <Image source={assets.hero.laundryCare} style={styles.image} contentFit="contain" />
+            <Image source={assets.hero.laundryCare} style={styles.image} contentFit="cover" />
           </View>
         </View>
       </LandingContainer>
@@ -260,21 +259,15 @@ const styles = StyleSheet.create({
   },
   imageBlobWrap: {
     width: "100%",
-    maxWidth: 400,
-    aspectRatio: 1,
+    maxWidth: 420,
+    aspectRatio: 0.78,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "transparent",
   },
-  imageBlob: {
-    position: "absolute",
-    width: "88%",
-    height: "88%",
-    borderRadius: 999,
-    backgroundColor: c.blue500,
-  },
   image: {
     width: "100%",
     height: "100%",
+    borderRadius: 24,
   },
 });

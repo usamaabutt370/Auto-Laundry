@@ -6,7 +6,8 @@ export const assets = {
     slide3: require("./images/third-onboarding-img.jpg"),
   },
   hero: {
-    laundryCare: require("./images/hero-laundry-care.jpg"),
+    laundryCare: require("./images/heroimage2.jpg"),
+    becomeCaptain: require("./images/heroimage.jpg"),
   },
   icons: {
     app_icon: require("./icons/App-launcher-icon.png"),

@@ -41,7 +41,7 @@ export function LandingBecomeCaptain() {
         </View>
 
         <View style={[styles.imageCol, isWebDesktop && styles.imageColDesktop]}>
-          <Image source={assets.onboarding.slide3} style={styles.image} contentFit="contain" />
+          <Image source={assets.hero.becomeCaptain} style={styles.image} contentFit="cover" />
         </View>
       </LandingContainer>
     </View>
@@ -130,7 +130,8 @@ const styles = StyleSheet.create({
   },
   image: {
     width: "100%",
-    maxWidth: 380,
-    aspectRatio: 1,
+    maxWidth: 480,
+    aspectRatio: 1680 / 944,
+    borderRadius: 24,
   },
 });
