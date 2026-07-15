@@ -1,10 +1,12 @@
 import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Linking, Pressable, StyleSheet, Text, View } from "react-native";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 import { theme } from "@/constants/theme";
 
 const c = theme.colors;
+const FACEBOOK_URL = "https://www.facebook.com/profile.php?id=61591951860013";
 
 /** Bottom-of-page conversion banner. */
 export function LandingCta() {
@@ -61,6 +63,14 @@ export function LandingCta() {
       </Pressable>
 
       <View style={styles.divider} />
+      <Pressable
+        style={({ pressed }) => [styles.socialIcon, pressed && styles.pressed]}
+        onPress={() => Linking.openURL(FACEBOOK_URL)}
+        accessibilityRole="link"
+        accessibilityLabel="Follow us on Facebook"
+      >
+        <MaterialCommunityIcons name="facebook" size={20} color="rgba(255,255,255,0.85)" />
+      </Pressable>
       <Text style={styles.copyright}>
         © {new Date().getFullYear()} Tap2Laundry. All rights reserved.
       </Text>
@@ -132,6 +142,15 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: "rgba(255,255,255,0.12)",
     marginTop: 36,
+  },
+  socialIcon: {
+    height: 36,
+    width: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(255,255,255,0.08)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 20,
   },
   copyright: {
     marginTop: 16,

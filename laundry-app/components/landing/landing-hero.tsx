@@ -7,6 +7,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { assets } from "@/assets/assets";
 import { theme } from "@/constants/theme";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
+import { trackMetaEvent } from "@/lib/meta-pixel";
 import { LandingContainer } from "./landing-container";
 
 const c = theme.colors;
@@ -50,6 +51,7 @@ export function LandingHero() {
             <View style={styles.downloadRow}>
               <Pressable
                 style={({ pressed }) => [pressed && styles.pressed]}
+                onPress={() => trackMetaEvent("ClickAppStore")}
                 accessibilityRole="link"
                 accessibilityLabel="Download on the App Store"
               >
@@ -69,7 +71,10 @@ export function LandingHero() {
 
               <Pressable
                 style={({ pressed }) => [pressed && styles.pressed]}
-                onPress={() => Linking.openURL(GOOGLE_PLAY_URL)}
+                onPress={() => {
+                  trackMetaEvent("ClickPlayStore");
+                  Linking.openURL(GOOGLE_PLAY_URL);
+                }}
                 accessibilityRole="link"
                 accessibilityLabel="Get it on Google Play"
               >
