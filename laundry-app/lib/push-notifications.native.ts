@@ -4,14 +4,24 @@ import { Platform } from "react-native";
 
 import { CHAT_FCM_ANDROID_CHANNEL_ID } from "@/constants/chat-push";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
+import { waitForLocationPromptSettled } from "@/utils/device-location";
 
 let tokenRefreshUnsub: undefined | (() => void);
+
+const PERMISSION_PROMPT_BREATHING_ROOM_MS = 600;
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 async function ensureLocalNotificationPermission(): Promise<boolean> {
   const existing = await Notifications.getPermissionsAsync();
   if (existing.granted || existing.ios?.status === Notifications.IosAuthorizationStatus.PROVISIONAL) {
     return true;
   }
+
+  await waitForLocationPromptSettled();
+  await delay(PERMISSION_PROMPT_BREATHING_ROOM_MS);
 
   const requested = await Notifications.requestPermissionsAsync();
   return (

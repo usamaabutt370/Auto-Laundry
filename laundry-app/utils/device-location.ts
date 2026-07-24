@@ -7,6 +7,33 @@ export type DeviceLocationResult = {
   status: DeviceLocationStatus;
 };
 
+let locationPromptSettled = false;
+let resolveLocationPromptSettled: (() => void) | null = null;
+const locationPromptSettledPromise = new Promise<void>((resolve) => {
+  resolveLocationPromptSettled = resolve;
+});
+
+function markLocationPromptSettled(): void {
+  if (locationPromptSettled) return;
+  locationPromptSettled = true;
+  resolveLocationPromptSettled?.();
+}
+
+/**
+ * Resolves once the device location permission flow has been requested and
+ * answered (or immediately, if it was never in a pending state to begin with).
+ * Other permission prompts (e.g. push notifications) await this so iOS doesn't
+ * stack system dialogs back-to-back with no context between them. Falls back
+ * to `timeoutMs` when location permission is never requested on this screen.
+ */
+export function waitForLocationPromptSettled(timeoutMs = 4000): Promise<void> {
+  if (locationPromptSettled) return Promise.resolve();
+  return Promise.race([
+    locationPromptSettledPromise,
+    new Promise<void>((resolve) => setTimeout(resolve, timeoutMs)),
+  ]);
+}
+
 function toCoordinates(
   location: { coords?: { latitude?: number; longitude?: number }; latitude?: number; longitude?: number } | null | undefined,
 ): Coordinates | null {
@@ -40,9 +67,11 @@ export async function getDeviceCoordinatesWithStatus(): Promise<DeviceLocationRe
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       Location = require("expo-location");
     } catch {
+      markLocationPromptSettled();
       return { coords: null, status: "unavailable" };
     }
     const permission = await Location.requestForegroundPermissionsAsync();
+    markLocationPromptSettled();
     if (permission.status !== "granted") {
       return { coords: null, status: "denied" };
     }
@@ -58,6 +87,7 @@ export async function getDeviceCoordinatesWithStatus(): Promise<DeviceLocationRe
     if (currentCoords) return { coords: currentCoords, status: "granted" };
     return { coords: null, status: "unavailable" };
   } catch {
+    markLocationPromptSettled();
     return { coords: null, status: "unavailable" };
   }
 }

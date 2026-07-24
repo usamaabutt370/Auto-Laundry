@@ -20,6 +20,7 @@ const firebasePlugins = [
     {
       photosPermission: "Allow access to your photos to share images in chat.",
       cameraPermission: "Allow the app to use the camera to share photos in chat.",
+      microphonePermission: false,
     },
   ],
   [
@@ -27,6 +28,8 @@ const firebasePlugins = [
     {
       locationWhenInUsePermission:
         "Allow location access to show nearby launderers and accurate distance.",
+      locationAlwaysAndWhenInUsePermission: false,
+      locationAlwaysPermission: false,
     },
   ],
   withIosNonModularHeaders,
