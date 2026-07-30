@@ -204,6 +204,10 @@ export default function CustomerOrderDetailScreen() {
       showAppAlert("Feedback required", "Please write a short feedback or complaint.");
       return;
     }
+    if (!order.partnerId) {
+      showAppAlert("Unable to submit feedback", "This laundry captain's account no longer exists.");
+      return;
+    }
 
     try {
       setIsSubmittingFeedback(true);

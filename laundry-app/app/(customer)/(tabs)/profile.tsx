@@ -19,10 +19,11 @@ import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { useSuppressWebScreenHeader } from "@/hooks/use-suppress-web-screen-header";
 
 const c = theme.colors;
+const DESTRUCTIVE_RED = "#FF3B30";
 
 export default function CustomerProfileMenu() {
 	const router = useRouter();
-	const { user, signOut, refreshRole } = useAuth();
+	const { user, signOut, deleteAccount, refreshRole } = useAuth();
 	const { confirm, dialog: confirmDialog } = useConfirmDialog();
 	const { isWeb } = useResponsiveLayout();
 	const isFocused = useIsFocused();
@@ -273,6 +274,37 @@ export default function CustomerProfileMenu() {
 							<MaterialCommunityIcons name="logout" size={18} color={c.white} />
 							<Text style={styles.signOutLabel}>Sign out</Text>
 						</Pressable>
+
+						<Pressable
+							style={({ pressed }) => [styles.deleteAccountBtn, pressed && styles.pressed]}
+							onPress={() => {
+								showAppAlert(
+									"Delete Account",
+									"This will permanently delete your account and all your personal data. This cannot be undone.",
+									[
+										{ text: "Cancel", style: "cancel" },
+										{
+											text: "Delete Account",
+											style: "destructive",
+											onPress: async () => {
+												const { error } = await deleteAccount();
+												if (error) {
+													showAppAlert("Error", error);
+													return;
+												}
+												if (router.canDismiss && router.canDismiss()) {
+													router.dismissAll && router.dismissAll();
+												}
+												router.replace("/(auth)/login");
+											},
+										},
+									]
+								);
+							}}
+						>
+							<MaterialCommunityIcons name="trash-can-outline" size={18} color={DESTRUCTIVE_RED} />
+							<Text style={styles.deleteAccountLabel}>Delete Account</Text>
+						</Pressable>
 					</>
 				) : null}
 
@@ -307,4 +339,6 @@ const styles = StyleSheet.create({
 	roleHint: { fontSize: 13, color: c.blue500, lineHeight: 18, marginTop: 8 },
 	signOutBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: c.backgroundDark, borderRadius: 12, paddingVertical: 14, marginTop: 4, marginBottom: 8, borderWidth: 1, borderColor: "rgba(255,255,255,0.12)" },
 	signOutLabel: { fontSize: 16, fontWeight: "700", color: c.white },
+	deleteAccountBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: "transparent", borderRadius: 12, paddingVertical: 14, marginBottom: 8, borderWidth: 1, borderColor: DESTRUCTIVE_RED },
+	deleteAccountLabel: { fontSize: 16, fontWeight: "700", color: DESTRUCTIVE_RED },
 });

@@ -22,6 +22,7 @@ import { useSuppressWebScreenHeader } from "@/hooks/use-suppress-web-screen-head
 
 const c = theme.colors;
 const WHATSAPP_PHONE = "923004639943";
+const DESTRUCTIVE_RED = "#FF3B30";
 
 function buildWhatsAppUrl(name: string, balance: number | null): string {
 	const message = `Hello! I am ${name} and I would like to buy credits. My current balance is ${balance?.toLocaleString() ?? 0} credits.`;
@@ -30,7 +31,7 @@ function buildWhatsAppUrl(name: string, balance: number | null): string {
 
 export default function PartnerProfileMenu() {
 	const router = useRouter();
-	const { user, signOut, refreshRole } = useAuth();
+	const { user, signOut, deleteAccount, refreshRole } = useAuth();
 	const { isWeb } = useResponsiveLayout();
 	const isFocused = useIsFocused();
 	useSuppressWebScreenHeader();
@@ -266,6 +267,37 @@ export default function PartnerProfileMenu() {
 					<Text style={styles.signOutLabel}>Sign out</Text>
 				</Pressable>
 
+				<Pressable
+					style={({ pressed }) => [styles.deleteAccountBtn, pressed && styles.pressed]}
+					onPress={() => {
+						showAppAlert(
+							"Delete Account",
+							"This will permanently delete your account and all your personal data. This cannot be undone.",
+							[
+								{ text: "Cancel", style: "cancel" },
+								{
+									text: "Delete Account",
+									style: "destructive",
+									onPress: async () => {
+										const { error } = await deleteAccount();
+										if (error) {
+											showAppAlert("Error", error);
+											return;
+										}
+										if (router.canDismiss && router.canDismiss()) {
+											router.dismissAll && router.dismissAll();
+										}
+										router.replace("/(auth)/login");
+									},
+								},
+							]
+						);
+					}}
+				>
+					<MaterialCommunityIcons name="trash-can-outline" size={18} color={DESTRUCTIVE_RED} />
+					<Text style={styles.deleteAccountLabel}>Delete Account</Text>
+				</Pressable>
+
 			</ScrollView>
 		</View>
 	);
@@ -301,4 +333,6 @@ const styles = StyleSheet.create({
 	roleHint: { fontSize: 13, color: c.blue500, lineHeight: 18, marginTop: 8 },
 	signOutBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: c.backgroundDark, borderRadius: 12, paddingVertical: 14, marginTop: 4, marginBottom: 8, borderWidth: 1, borderColor: "rgba(255,255,255,0.12)" },
 	signOutLabel: { fontSize: 16, fontWeight: "700", color: c.white },
+	deleteAccountBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: "transparent", borderRadius: 12, paddingVertical: 14, marginBottom: 8, borderWidth: 1, borderColor: DESTRUCTIVE_RED },
+	deleteAccountLabel: { fontSize: 16, fontWeight: "700", color: DESTRUCTIVE_RED },
 });

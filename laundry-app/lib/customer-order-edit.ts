@@ -12,7 +12,7 @@ import { supabase } from "@/lib/supabase";
 
 type OrderForEditRow = {
   id: string;
-  partner_id: string;
+  partner_id: string | null;
   status: CustomerOrderDbStatus;
   pickup_date_iso: string | null;
   pickup_day_label: string | null;
@@ -66,11 +66,13 @@ export async function fetchCustomerOrderForEdit(
     throw new Error("This order can no longer be edited.");
   }
 
-  const { data: partnerData } = await supabase
-    .from("partner_profiles")
-    .select("business_name")
-    .eq("id", order.partner_id)
-    .maybeSingle();
+  const { data: partnerData } = order.partner_id
+    ? await supabase
+        .from("partner_profiles")
+        .select("business_name")
+        .eq("id", order.partner_id)
+        .maybeSingle()
+    : { data: null };
   const partnerName =
     (partnerData as { business_name?: string | null } | null)?.business_name?.trim() ||
     "Launderer";

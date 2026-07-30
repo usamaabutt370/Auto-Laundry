@@ -1,11 +1,11 @@
 import { supabase } from "@/lib/supabase";
 
 export async function fetchVerifiedPartnerIds(
-  partnerIds: string[],
+  partnerIds: Array<string | null | undefined>,
 ): Promise<Set<string>> {
   if (!supabase || partnerIds.length === 0) return new Set();
 
-  const uniqueIds = Array.from(new Set(partnerIds.filter(Boolean)));
+  const uniqueIds = Array.from(new Set(partnerIds.filter((id): id is string => Boolean(id))));
   if (uniqueIds.length === 0) return new Set();
 
   const { data, error } = await supabase

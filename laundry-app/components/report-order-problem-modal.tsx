@@ -34,7 +34,7 @@ type ReportOrderProblemModalProps = {
   orderId: string;
   orderRef: string;
   customerId: string;
-  partnerId: string;
+  partnerId: string | null;
   onClose: () => void;
   onSubmitted?: () => void;
 };

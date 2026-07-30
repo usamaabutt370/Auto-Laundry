@@ -83,7 +83,7 @@ export interface PartnerOrderDetailData {
 
 type CustomerOrderRow = {
   id: string;
-  customer_id: string;
+  customer_id: string | null;
   status: PartnerOrderStatus;
   estimated_total: number | null;
   estimated_partial_total: number;
@@ -256,8 +256,10 @@ function summarizeServiceTypesForOrder(
   return labels.length > 0 ? labels.join(", ") : "";
 }
 
-async function fetchProfilesByIds(userIds: string[]): Promise<Map<string, ProfileRow>> {
-  const ids = Array.from(new Set(userIds.filter(Boolean)));
+async function fetchProfilesByIds(
+  userIds: Array<string | null | undefined>,
+): Promise<Map<string, ProfileRow>> {
+  const ids = Array.from(new Set(userIds.filter((id): id is string => Boolean(id))));
   if (!supabase || ids.length === 0) return new Map();
 
   const { data, error } = await supabase
@@ -307,7 +309,7 @@ export async function fetchPartnerOrders(): Promise<PartnerOrderListItem[]> {
   }
 
   return orders.map((order) => {
-    const profile = profiles.get(order.customer_id);
+    const profile = order.customer_id ? profiles.get(order.customer_id) : undefined;
     const customerName = formatPersonName(profile);
     const hasPickup = Boolean(order.pickup_day_label || order.pickup_time_slot_label);
     const svcTypes = serviceTypesByOrderId.get(order.id) ?? [];
@@ -388,7 +390,7 @@ export async function fetchPartnerOrderDetail(
   }
 
   const profiles = await fetchProfilesByIds([order.customer_id]);
-  const customerProfile = profiles.get(order.customer_id);
+  const customerProfile = order.customer_id ? profiles.get(order.customer_id) : undefined;
   const customerName = formatPersonName(customerProfile);
   const serviceGroups: PartnerOrderServiceGroup[] = serviceRows.map((serviceRow, index) => {
     const itemRows = orderServiceItemsByServiceId.get(serviceRow.id) ?? [];

@@ -215,6 +215,10 @@ export default function CustomerOrderScreen() {
       showAppAlert("Feedback required", "Please add your feedback before submitting.");
       return;
     }
+    if (!feedbackOrder.partnerId) {
+      showAppAlert("Unable to submit feedback", "This laundry captain's account no longer exists.");
+      return;
+    }
 
     try {
       setIsSubmittingFeedback(true);

@@ -6,6 +6,7 @@ export const en = {
     loading: "Loading...",
     acceptingOrder: "Accepting order…",
     signingOut: "Signing out…",
+    deletingAccount: "Deleting account…",
     error: "Something went wrong",
     modal: "Modal",
     goToHome: "Go to home screen",

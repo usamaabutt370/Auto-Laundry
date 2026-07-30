@@ -19,8 +19,8 @@ export function partnerOrderDetailNeedsRider(pickup: string): boolean {
 
 type OrderSummaryRow = {
   id: string;
-  customer_id: string;
-  partner_id: string;
+  customer_id: string | null;
+  partner_id: string | null;
   estimated_total: number | null;
   estimated_partial_total: number | null;
   pickup_day_label: string | null;
@@ -102,11 +102,13 @@ async function fetchOrderAssignmentContext(orderId: string, partnerId: string) {
       .select("business_name")
       .eq("id", partnerId)
       .maybeSingle<PartnerProfileRow>(),
-    supabase
-      .from("profiles")
-      .select("address")
-      .eq("id", order.customer_id)
-      .maybeSingle<CustomerProfileRow>(),
+    order.customer_id
+      ? supabase
+          .from("profiles")
+          .select("address")
+          .eq("id", order.customer_id)
+          .maybeSingle<CustomerProfileRow>()
+      : Promise.resolve({ data: null }),
     isPartnerVerified(partnerId),
   ]);
 

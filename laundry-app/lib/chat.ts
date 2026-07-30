@@ -12,8 +12,8 @@ type ConversationRow = {
 
 type OrderOwnerRow = {
   id: string;
-  customer_id: string;
-  partner_id: string;
+  customer_id: string | null;
+  partner_id: string | null;
   status?: string;
 };
 
@@ -80,7 +80,7 @@ export function riderAssignmentDisplayBody(body: string): string {
 type MessageRow = {
   id: string;
   conversation_id: string;
-  sender_id: string;
+  sender_id: string | null;
   body: string | null;
   image_url: string | null;
   message_type: ChatMessageType | null;
@@ -102,7 +102,7 @@ type ConversationHeaderRow = {
 export interface ChatMessage {
   id: string;
   conversationId: string;
-  senderId: string;
+  senderId: string | null;
   body: string;
   imageUrl: string | null;
   messageType: ChatMessageType;
@@ -314,17 +314,21 @@ export async function fetchOrderChatHeader(
   let title = "Order chat";
   let titleVerified = false;
   if (order.customer_id === userId) {
-    const [{ data: partnerData }, verifiedPartnerIds] = await Promise.all([
-      supabase
-        .from("partner_profiles")
-        .select("business_name")
-        .eq("id", order.partner_id)
-        .maybeSingle<PartnerNameRow>(),
-      fetchVerifiedPartnerIds([order.partner_id]),
-    ]);
-    title = partnerData?.business_name?.trim() || "Laundry Captain";
-    titleVerified = verifiedPartnerIds.has(order.partner_id);
-  } else {
+    if (order.partner_id) {
+      const [{ data: partnerData }, verifiedPartnerIds] = await Promise.all([
+        supabase
+          .from("partner_profiles")
+          .select("business_name")
+          .eq("id", order.partner_id)
+          .maybeSingle<PartnerNameRow>(),
+        fetchVerifiedPartnerIds([order.partner_id]),
+      ]);
+      title = partnerData?.business_name?.trim() || "Laundry Captain";
+      titleVerified = verifiedPartnerIds.has(order.partner_id);
+    } else {
+      title = "Laundry Captain";
+    }
+  } else if (order.customer_id) {
     const { data: customerData } = await supabase
       .from("profiles")
       .select("full_name,first_name,last_name")
@@ -440,8 +444,12 @@ export async function fetchMyConversations(
   const counterpartCustomerIds = new Set<string>();
   const counterpartPartnerIds = new Set<string>();
   for (const order of orders) {
-    if (order.customer_id === userId) counterpartPartnerIds.add(order.partner_id);
-    if (order.partner_id === userId) counterpartCustomerIds.add(order.customer_id);
+    if (order.customer_id === userId && order.partner_id) {
+      counterpartPartnerIds.add(order.partner_id);
+    }
+    if (order.partner_id === userId && order.customer_id) {
+      counterpartCustomerIds.add(order.customer_id);
+    }
   }
 
   const customerProfileMap = new Map<string, ProfileNameRow>();
@@ -525,13 +533,13 @@ export async function fetchMyConversations(
     let counterpartyVerified = false;
     let counterpartyAvatarUrl: string | null = null;
     if (order?.customer_id === userId) {
-      const p = partnerNameMap.get(order.partner_id);
-      const pProfile = partnerProfileMap.get(order.partner_id);
+      const p = order.partner_id ? partnerNameMap.get(order.partner_id) : undefined;
+      const pProfile = order.partner_id ? partnerProfileMap.get(order.partner_id) : undefined;
       counterpartyName = p?.business_name?.trim() || "Laundry Captain";
-      counterpartyVerified = verifiedPartnerIds.has(order.partner_id);
+      counterpartyVerified = order.partner_id ? verifiedPartnerIds.has(order.partner_id) : false;
       counterpartyAvatarUrl = p?.image_url ?? pProfile?.image_url ?? null;
     } else if (order?.partner_id === userId) {
-      const c = customerProfileMap.get(order.customer_id);
+      const c = order.customer_id ? customerProfileMap.get(order.customer_id) : undefined;
       counterpartyName = formatCustomerName(c ?? null);
       counterpartyAvatarUrl = c?.image_url ?? null;
     }

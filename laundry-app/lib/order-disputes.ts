@@ -16,7 +16,7 @@ export type OrderDisputeCategory =
 export type SubmitOrderDisputeInput = {
   orderId: string;
   customerId: string;
-  partnerId: string;
+  partnerId: string | null;
   description: string;
   category?: OrderDisputeCategory;
   photoUris?: string[];

@@ -18,7 +18,8 @@
     "prebuild:android": "npx expo prebuild --platform android",
     "prebuild:ios": "npx expo prebuild --platform ios",
     "supabase:deploy:chat-push": "npx supabase functions deploy chat-message-push --no-verify-jwt",
-    "supabase:deploy:functions": "npx supabase functions deploy chat-message-push --no-verify-jwt",
+    "supabase:deploy:delete-account": "npx supabase functions deploy delete-account",
+    "supabase:deploy:functions": "npx supabase functions deploy chat-message-push --no-verify-jwt && npx supabase functions deploy delete-account",
     "supabase:secret:firebase": "node scripts/set-firebase-service-account-secret.cjs",
     "build:android:production": "eas build --profile production --platform android"
   },

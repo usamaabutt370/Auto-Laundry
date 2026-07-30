@@ -31,6 +31,9 @@ export interface AuthState {
   /** Call after updating profiles.role so the app reflects the new role and can redirect. */
   refreshRole: () => Promise<void>;
   signOut: () => Promise<void>;
+  /** Permanently deletes the current user's account. Resolves with an error message on failure. */
+  deleteAccount: () => Promise<{ error?: string }>;
+  isDeletingAccount: boolean;
   refreshPartnerApproval: () => Promise<void>;
 }
 
@@ -46,6 +49,8 @@ const defaultState: AuthState = {
   refreshRole: async () => {},
   refreshPartnerApproval: async () => {},
   signOut: async () => {},
+  deleteAccount: async () => ({}),
+  isDeletingAccount: false,
 };
 
 const AuthContext = createContext<AuthState | null>(null);
@@ -74,6 +79,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [partnerRejectionReason, setPartnerRejectionReason] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
 
   const loadRole = useCallback(async (userId: string) => {
     const r = await fetchUserRole(userId);
@@ -170,6 +176,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [isSigningOut, session?.user?.id]);
 
+  const deleteAccount = useCallback(async (): Promise<{ error?: string }> => {
+    if (isDeletingAccount || !supabase) return {};
+
+    setIsDeletingAccount(true);
+    try {
+      const uid = session?.user?.id;
+      if (uid) {
+        await unregisterChatPush(uid);
+      }
+      const { data, error } = await supabase.functions.invoke("delete-account");
+      if (error || (data as { error?: string } | null)?.error) {
+        const message =
+          (data as { error?: string } | null)?.error ?? error?.message ?? "Could not delete account.";
+        return { error: message };
+      }
+      await supabase.auth.signOut();
+      setSession(null);
+      setRole(null);
+      return {};
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Could not delete account.";
+      return { error: message };
+    } finally {
+      setIsDeletingAccount(false);
+    }
+  }, [isDeletingAccount, session?.user?.id]);
+
   const refreshPartnerApproval = useCallback(async () => {
     if (session?.user?.id) {
       await loadPartnerApproval(session.user.id);
@@ -188,6 +221,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       partnerRejectionReason,
       refreshRole,
       signOut,
+      deleteAccount,
+      isDeletingAccount,
       refreshPartnerApproval,
     }),
     [
@@ -199,6 +234,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       partnerRejectionReason,
       refreshRole,
       signOut,
+      deleteAccount,
+      isDeletingAccount,
       refreshPartnerApproval,
     ]
   );
@@ -206,7 +243,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   return (
     <AuthContext.Provider value={value}>
       {children}
-      <BlockingLoader visible={isSigningOut} message={strings.common.signingOut} />
+      <BlockingLoader
+        visible={isSigningOut || isDeletingAccount}
+        message={isDeletingAccount ? strings.common.deletingAccount : strings.common.signingOut}
+      />
     </AuthContext.Provider>
   );
 }

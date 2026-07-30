@@ -20,7 +20,7 @@ export interface CustomerOrderListItem {
   id: string;
   /** Short reference e.g. first 8 chars of UUID */
   orderRef: string;
-  partnerId: string;
+  partnerId: string | null;
   partnerName: string;
   partnerVerified: boolean;
   /** @deprecated Prefer scheduleLines — kept for any legacy use */
@@ -65,7 +65,7 @@ export interface CustomerOrderDetailServiceGroup {
 export interface CustomerOrderDetailData {
   id: string;
   orderRef: string;
-  partnerId: string;
+  partnerId: string | null;
   partnerName: string;
   partnerVerified: boolean;
   partnerPhone: string;
@@ -102,7 +102,7 @@ export interface CustomerOrderFeedbackInput {
 
 type OrderRow = {
   id: string;
-  partner_id: string;
+  partner_id: string | null;
   status: CustomerOrderDbStatus;
   estimated_total: number | null;
   estimated_partial_total: number;
@@ -230,8 +230,10 @@ export function mapDbStatusForCustomer(
   return "accepted";
 }
 
-async function fetchPartnerNames(partnerIds: string[]): Promise<Map<string, string>> {
-  const ids = Array.from(new Set(partnerIds.filter(Boolean)));
+async function fetchPartnerNames(
+  partnerIds: Array<string | null | undefined>,
+): Promise<Map<string, string>> {
+  const ids = Array.from(new Set(partnerIds.filter((id): id is string => Boolean(id))));
   if (!supabase || ids.length === 0) return new Map();
 
   const { data, error } = await supabase
@@ -375,8 +377,8 @@ export async function fetchCustomerOrders(customerId: string): Promise<CustomerO
       id: order.id,
       orderRef: order.id.replace(/-/g, "").slice(0, 8).toUpperCase(),
       partnerId: order.partner_id,
-      partnerName: partners.get(order.partner_id) ?? "Launderer",
-      partnerVerified: verifiedPartnerIds.has(order.partner_id),
+      partnerName: (order.partner_id ? partners.get(order.partner_id) : undefined) ?? "Launderer",
+      partnerVerified: order.partner_id ? verifiedPartnerIds.has(order.partner_id) : false,
       subtitle,
       scheduleLines,
       servicesSummary,
@@ -445,11 +447,13 @@ export async function fetchCustomerOrderDetail(
   const order = data as OrderRow & { customer_id?: string };
 
   const [{ data: partnerData }, verifiedPartnerIds] = await Promise.all([
-    supabase
-      .from("partner_profiles")
-      .select("id,business_name,phone_number,address")
-      .eq("id", order.partner_id)
-      .maybeSingle(),
+    order.partner_id
+      ? supabase
+          .from("partner_profiles")
+          .select("id,business_name,phone_number,address")
+          .eq("id", order.partner_id)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
     fetchVerifiedPartnerIds([order.partner_id]),
   ]);
   const partner = (partnerData as PartnerRow | null) ?? null;
@@ -554,7 +558,7 @@ export async function fetchCustomerOrderDetail(
     orderRef: order.id.replace(/-/g, "").slice(0, 8).toUpperCase(),
     partnerId: order.partner_id,
     partnerName: partner?.business_name?.trim() || "Laundry Captain",
-    partnerVerified: verifiedPartnerIds.has(order.partner_id),
+    partnerVerified: order.partner_id ? verifiedPartnerIds.has(order.partner_id) : false,
     partnerPhone: partner?.phone_number?.trim() || "Not provided",
     partnerAddress: partner?.address?.trim() || "Address not available",
     displayStatus: mapDbStatusForCustomer(order.status),

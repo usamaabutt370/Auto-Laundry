@@ -6,6 +6,7 @@ export const ur = {
     loading: "لوڈ ہو رہا ہے...",
     acceptingOrder: "آرڈر قبول ہو رہا ہے…",
     signingOut: "سائن آؤٹ ہو رہا ہے…",
+    deletingAccount: "اکاؤنٹ حذف ہو رہا ہے…",
     error: "کچھ غلط ہو گیا",
     modal: "موڈل",
     goToHome: "ہوم اسکرین پر جائیں",
