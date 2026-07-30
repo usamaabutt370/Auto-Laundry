@@ -222,7 +222,6 @@ export default function CustomerProfileMenu() {
 				<View style={styles.divider} />
 				<View style={styles.menuGroup}>
 
-					<MenuItem icon="calendar-sync-outline" label="Recurring options" onPress={() => router.push("/(customer)/recurring")} />
 					<MenuItem icon="cog-outline" label="Settings" onPress={() => router.push("/(customer)/settings")} />
 					<MenuItem icon="help-circle-outline" label="FAQs" onPress={() => router.push("/(customer)/faq")} />
 					<MenuItem icon="headphones" label="Contact & Support" onPress={() => router.push("/(customer)/contact-support")} />
@@ -252,30 +251,30 @@ export default function CustomerProfileMenu() {
 					<>
 						<View style={styles.divider} />
 
-						<Pressable
-							style={({ pressed }) => [styles.signOutBtn, pressed && styles.pressed]}
-							onPress={() => {
-								showAppAlert("Sign out", "Are you sure you want to sign out?", [
-									{ text: "Cancel", style: "cancel" },
-									{
-										text: "Sign out",
-										style: "destructive",
-										onPress: async () => {
-											await signOut();
-											if (router.canDismiss && router.canDismiss()) {
-												router.dismissAll && router.dismissAll();
-											}
-											router.replace("/(auth)/login");
+						<View style={styles.accountActionsRow}>
+							<Pressable
+								style={({ pressed }) => [styles.signOutBtn, pressed && styles.pressed]}
+								onPress={() => {
+									showAppAlert("Sign out", "Are you sure you want to sign out?", [
+										{ text: "Cancel", style: "cancel" },
+										{
+											text: "Sign out",
+											style: "destructive",
+											onPress: async () => {
+												await signOut();
+												if (router.canDismiss && router.canDismiss()) {
+													router.dismissAll && router.dismissAll();
+												}
+												router.replace("/(auth)/login");
+											},
 										},
-									},
-								]);
-							}}
-						>
-							<MaterialCommunityIcons name="logout" size={18} color={c.white} />
-							<Text style={styles.signOutLabel}>Sign out</Text>
-						</Pressable>
+									]);
+								}}
+							>
+								<MaterialCommunityIcons name="logout" size={16} color={c.white} />
+								<Text style={styles.signOutLabel}>Sign out</Text>
+							</Pressable>
 
-						<View style={styles.deleteAccountWrap}>
 							<DeleteAccountButton />
 						</View>
 					</>
@@ -289,7 +288,7 @@ export default function CustomerProfileMenu() {
 
 const styles = StyleSheet.create({
 	container: { flex: 1, backgroundColor: c.background },
-	content: { padding: 20 },
+	content: { padding: 20, paddingBottom: 120 },
 	contentWeb: { paddingTop: 0 },
 	profileCard: { alignItems: "center", paddingVertical: 20, marginBottom: 8 },
 	profileCardWeb: { paddingTop: 0 },
@@ -300,7 +299,7 @@ const styles = StyleSheet.create({
 	phone: { fontSize: 14, color: c.blue500, marginTop: 4, textAlign: "center" },
 	editPill: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 10, paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.07)", borderWidth: 1, borderColor: "rgba(255,255,255,0.1)" },
 	editPillText: { fontSize: 13, color: c.blue500, fontWeight: "500" },
-	deleteAccountWrap: { marginTop: 4 },
+	accountActionsRow: { flexDirection: "row", justifyContent: "center", gap: 12, marginTop: 4 },
 	divider: { height: 1, backgroundColor: "rgba(255,255,255,0.06)", marginVertical: 16 },
 	menuGroup: { backgroundColor: "transparent", gap: 8 },
 	menuItem: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 14 },
@@ -311,6 +310,6 @@ const styles = StyleSheet.create({
 	roleLabel: { fontSize: 17, color: c.white, fontWeight: "700", flex: 1 },
 	switchWrap: { transform: [{ scale: 1.02 }] },
 	roleHint: { fontSize: 13, color: c.blue500, lineHeight: 18, marginTop: 8 },
-	signOutBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: c.backgroundDark, borderRadius: 12, paddingVertical: 14, marginTop: 4, marginBottom: 8, borderWidth: 1, borderColor: "rgba(255,255,255,0.12)" },
-	signOutLabel: { fontSize: 16, fontWeight: "700", color: c.white },
+	signOutBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: c.backgroundDark, borderRadius: 12, paddingVertical: 14, paddingHorizontal: 20, borderWidth: 1, borderColor: "rgba(255,255,255,0.12)" },
+	signOutLabel: { fontSize: 15, fontWeight: "700", color: c.white },
 });

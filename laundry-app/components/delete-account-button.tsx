@@ -77,9 +77,9 @@ export function DeleteAccountButton() {
       accessibilityRole="button"
       accessibilityLabel="Delete account"
     >
-      <MaterialCommunityIcons name="account-remove-outline" size={18} color={DESTRUCTIVE_RED} />
+      <MaterialCommunityIcons name="account-remove-outline" size={16} color="#FFFFFF" />
       <Text style={styles.label}>Delete Account</Text>
-      {isDeleting ? <ActivityIndicator size="small" color={DESTRUCTIVE_RED} /> : null}
+      {isDeleting ? <ActivityIndicator size="small" color="#FFFFFF" /> : null}
     </Pressable>
   );
 }
@@ -90,16 +90,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    backgroundColor: "transparent",
+    backgroundColor: DESTRUCTIVE_RED,
     borderRadius: 12,
     paddingVertical: 14,
-    borderWidth: 1,
-    borderColor: DESTRUCTIVE_RED,
+    paddingHorizontal: 20,
   },
   pressed: { opacity: 0.7 },
   label: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "700",
-    color: DESTRUCTIVE_RED,
+    color: "#FFFFFF",
   },
 });
