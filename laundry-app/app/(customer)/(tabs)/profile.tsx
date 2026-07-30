@@ -5,6 +5,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter, useFocusEffect } from "expo-router";
 import { useIsFocused } from "@react-navigation/native";
 
+import { DeleteAccountButton } from "@/components/delete-account-button";
 import { theme } from "@/constants/theme";
 import { useAuth } from "@/contexts/auth-context";
 import { avatarUrlWithCacheBuster } from "@/lib/avatar";
@@ -273,6 +274,10 @@ export default function CustomerProfileMenu() {
 							<MaterialCommunityIcons name="logout" size={18} color={c.white} />
 							<Text style={styles.signOutLabel}>Sign out</Text>
 						</Pressable>
+
+						<View style={styles.deleteAccountWrap}>
+							<DeleteAccountButton />
+						</View>
 					</>
 				) : null}
 
@@ -295,6 +300,7 @@ const styles = StyleSheet.create({
 	phone: { fontSize: 14, color: c.blue500, marginTop: 4, textAlign: "center" },
 	editPill: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 10, paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.07)", borderWidth: 1, borderColor: "rgba(255,255,255,0.1)" },
 	editPillText: { fontSize: 13, color: c.blue500, fontWeight: "500" },
+	deleteAccountWrap: { marginTop: 4 },
 	divider: { height: 1, backgroundColor: "rgba(255,255,255,0.06)", marginVertical: 16 },
 	menuGroup: { backgroundColor: "transparent", gap: 8 },
 	menuItem: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 14 },

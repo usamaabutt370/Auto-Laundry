@@ -15,6 +15,7 @@ import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { awardWelcomeCredits } from "@/lib/partner-credits";
 import { showAppAlert } from "@/components/app-alert";
 import { AvatarImage } from "@/components/avatar-image";
+import { DeleteAccountButton } from "@/components/delete-account-button";
 import { AppHeader } from "@/components/app-header";
 import { WebHeaderSpacer } from "@/components/web-header-spacer";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
@@ -266,6 +267,10 @@ export default function PartnerProfileMenu() {
 					<Text style={styles.signOutLabel}>Sign out</Text>
 				</Pressable>
 
+				<View style={styles.deleteAccountWrap}>
+					<DeleteAccountButton />
+				</View>
+
 			</ScrollView>
 		</View>
 	);
@@ -289,6 +294,7 @@ const styles = StyleSheet.create({
 	creditHint: { fontSize: 12, color: c.blue500, fontWeight: "500", marginTop: 2 },
 	buyCreditsBtn: { paddingHorizontal: 16, paddingVertical: 9, borderRadius: 999, backgroundColor: c.white },
 	buyCreditsBtnText: { fontSize: 13, fontWeight: "700", color: c.background },
+	deleteAccountWrap: { marginTop: 4 },
 	divider: { height: 1, backgroundColor: "rgba(255,255,255,0.06)", marginVertical: 16 },
 	menuGroup: { backgroundColor: "transparent", gap: 8 },
 	menuItem: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 14 },
