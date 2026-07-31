@@ -32,10 +32,7 @@ export function DeleteAccountButton() {
 
       await goToSignUpAfterDelete();
 
-      Alert.alert(
-        "Account deleted",
-        "Your account has been deleted. Sign up again with the same phone number to restore your account and order history.",
-      );
+      Alert.alert("Account deleted", "Your account has been deleted.");
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Something went wrong. Please try again.";
@@ -48,7 +45,7 @@ export function DeleteAccountButton() {
   const onPress = () => {
     Alert.alert(
       "Delete account",
-      "Your account will be deleted and you'll be signed out. Your orders and messages are kept so you can sign up again later with the same phone number to restore everything.",
+      "This will permanently delete your account. This action cannot be undone.",
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -57,7 +54,7 @@ export function DeleteAccountButton() {
           onPress: () => {
             Alert.alert(
               "Are you sure?",
-              "You will need to sign up again with the same phone number to use the app.",
+              "This action cannot be undone.",
               [
                 { text: "Cancel", style: "cancel" },
                 { text: "Delete", style: "destructive", onPress: () => void runDelete() },
