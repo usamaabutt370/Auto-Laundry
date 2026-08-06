@@ -229,6 +229,13 @@ export default function PickupServicesScreen() {
       );
       return;
     }
+    if (selectedIds.length === 0) {
+      showAppAlert(
+        "No services selected",
+        "Please select at least one service before continuing.",
+      );
+      return;
+    }
     if (draft.pickupDeliveryRequested) {
       router.replace("/(customer)/schedule-pickup");
       return;

@@ -124,8 +124,10 @@ export function ReportOrderProblemModal({
     showAppAlert(s.submitSuccessTitle, s.submitSuccessMessage);
   };
 
+  if (!visible) return null;
+
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={handleClose}>
+    <Modal visible transparent animationType="fade" onRequestClose={handleClose}>
       <KeyboardAvoidingView
         style={styles.overlay}
         behavior={Platform.OS === "ios" ? "padding" : undefined}

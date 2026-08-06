@@ -1,4 +1,4 @@
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
 import {
   KeyboardAvoidingView,
@@ -7,9 +7,11 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { AuthErrorModal, Input, Spacer, ThemedText, ThemedView } from "@/components";
 import { theme } from "@/constants/theme";
 import { strings } from "@/constants/strings";
@@ -21,6 +23,7 @@ const c = theme.colors;
 
 export default function SignUpScreen() {
   const router = useRouter();
+  const { returnTo } = useLocalSearchParams<{ returnTo?: string }>();
   const s = strings.auth.signUpScreen;
 
   const [firstName, setFirstName] = useState("");
@@ -130,8 +133,25 @@ export default function SignUpScreen() {
         }
       }
 
-      // Go directly to customer dashboard after signup.
-      router.replace("/(customer)");
+      // Resume prior screen when coming from chat / checkout; otherwise go home.
+      if (returnTo === "order-summary") {
+        // Auth was pushed as a sheet over order-summary — dismiss to resume checkout.
+        if (typeof router.canDismiss === "function" && router.canDismiss()) {
+          router.dismiss();
+        } else if (router.canGoBack()) {
+          router.back();
+        } else {
+          router.replace("/(customer)/order-summary");
+        }
+      } else if (returnTo === "chat") {
+        router.replace("/(customer)/(tabs)/chat");
+      } else if (returnTo === "orders") {
+        router.replace("/(customer)/(tabs)/order");
+      } else if (returnTo === "profile") {
+        router.replace("/(customer)/(tabs)/profile");
+      } else {
+        router.replace("/(customer)");
+      }
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : "Something went wrong. Please try again.";
@@ -140,7 +160,40 @@ export default function SignUpScreen() {
       setIsLoading(false);
     }
   };
-  const handleSignIn = () => router.replace("/(auth)/login");
+  const handleSignIn = () =>
+    router.replace({
+      pathname: "/(auth)/login",
+      params: returnTo ? { returnTo } : undefined,
+    });
+
+  const handleClose = () => {
+    if (typeof router.canDismiss === "function" && router.canDismiss()) {
+      router.dismiss();
+      return;
+    }
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+    if (returnTo === "order-summary") {
+      router.replace("/(customer)/order-summary");
+      return;
+    }
+    if (returnTo === "chat") {
+      router.replace("/(customer)/(tabs)/chat");
+      return;
+    }
+    if (returnTo === "orders") {
+      router.replace("/(customer)/(tabs)/order");
+      return;
+    }
+    if (returnTo === "profile") {
+      router.replace("/(customer)/(tabs)/profile");
+      return;
+    }
+    router.replace("/(customer)");
+  };
+
   const inputProps = {
     borderColor: "rgba(255,255,255,0.5)",
     focusUnderlineColor: c.backgroundLight,
@@ -156,6 +209,17 @@ export default function SignUpScreen() {
         message={authError?.message ?? ""}
         onClose={() => setAuthError(null)}
       />
+      <View style={styles.header}>
+        <Pressable
+          onPress={handleClose}
+          hitSlop={12}
+          style={({ pressed }) => [styles.closeBtn, pressed && styles.pressed]}
+          accessibilityRole="button"
+          accessibilityLabel="Close"
+        >
+          <MaterialCommunityIcons name="close" size={22} color={c.white} />
+        </Pressable>
+      </View>
       <KeyboardAvoidingView
         style={styles.keyboardView}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -259,6 +323,18 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: c.background,
+  },
+  header: {
+    paddingHorizontal: 16,
+    paddingTop: 4,
+    paddingBottom: 4,
+    alignItems: "flex-end",
+  },
+  closeBtn: {
+    width: 40,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
   },
   keyboardView: {
     flex: 1,

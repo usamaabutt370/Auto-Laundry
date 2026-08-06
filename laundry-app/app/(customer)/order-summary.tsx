@@ -15,6 +15,7 @@ import { showAppAlert } from "@/components/app-alert";
 import { AppHeader } from "@/components/app-header";
 import { CustomerTrustBanner } from "@/components/customer-trust-banner";
 import { PartnerNameWithBadge } from "@/components/partner-name-with-badge";
+import { SignInRequiredModal } from "@/components/sign-in-required-modal";
 import { AppButton } from "@/components/ui/button";
 import { usePartnerVerified } from "@/hooks/use-partner-verified";
 import { strings } from "@/constants/strings";
@@ -25,11 +26,45 @@ import { updateCustomerOrder } from "@/lib/customer-order-edit";
 import { submitCustomerOrder } from "@/lib/customer-order-submit";
 import { usePartnerOrderEstimate } from "@/hooks/use-partner-order-estimate";
 import { formatMoney } from "@/utils/format-money";
+import { runAfterModalTeardown } from "@/utils/run-after-modal-teardown";
 
 const c = theme.colors;
 
 function formatOrderReference(orderId: string): string {
   return orderId.replace(/-/g, "").slice(0, 8).toUpperCase();
+}
+
+function goToSubmittedOrderDetail(
+  router: ReturnType<typeof useRouter>,
+  orderId: string,
+) {
+  runAfterModalTeardown(() => {
+    if (typeof router.dismissAll === "function") {
+      try {
+        router.dismissAll();
+      } catch {
+        // Some navigators may not support dismissAll in every state.
+      }
+    }
+    router.replace({
+      pathname: "/(customer)/order-detail",
+      params: { orderId },
+    });
+  });
+}
+
+/**
+ * Open auth from guest order submit as a sheet on top of the current screen.
+ * Do not dismiss order-summary / pick-launderer first — that caused a close-then-open flash.
+ */
+function goToAuthFromOrderSummary(
+  router: ReturnType<typeof useRouter>,
+  pathname: "/(auth)/login" | "/(auth)/sign-up",
+) {
+  router.push({
+    pathname,
+    params: { returnTo: "order-summary" },
+  });
 }
 
 export default function OrderSummaryScreen() {
@@ -38,6 +73,7 @@ export default function OrderSummaryScreen() {
   const { draft, editingOrderId, resetDraft } = useCustomerOrderDraft();
   const [submitting, setSubmitting] = useState(false);
   const [submittedOrderId, setSubmittedOrderId] = useState<string | null>(null);
+  const [signInPromptVisible, setSignInPromptVisible] = useState(false);
   const isEditing = Boolean(editingOrderId);
   const s = strings.customer.orderSummary;
   const sServices = strings.customer.pickupServices;
@@ -50,7 +86,7 @@ export default function OrderSummaryScreen() {
 
   const handleSubmitOrder = async () => {
     if (!user?.id) {
-      showAppAlert("Sign in required", "Please sign in again to submit your order.");
+      setSignInPromptVisible(true);
       return;
     }
     if (!draft.partnerId) {
@@ -80,11 +116,7 @@ export default function OrderSummaryScreen() {
       showAppAlert(s.orderUpdated, s.orderUpdatedMessage, [
         {
           text: "OK",
-          onPress: () =>
-            router.replace({
-              pathname: "/(customer)/order-detail",
-              params: { orderId: savedOrderId },
-            }),
+          onPress: () => goToSubmittedOrderDetail(router, savedOrderId),
         },
       ]);
       return;
@@ -110,10 +142,7 @@ export default function OrderSummaryScreen() {
     if (!submittedOrderId) return;
     const orderId = submittedOrderId;
     setSubmittedOrderId(null);
-    router.replace({
-      pathname: "/(customer)/order-detail",
-      params: { orderId },
-    });
+    goToSubmittedOrderDetail(router, orderId);
   };
 
   const orderRef = useMemo(() => {
@@ -284,8 +313,23 @@ export default function OrderSummaryScreen() {
         </Pressable>
       </SafeAreaView>
 
+      <SignInRequiredModal
+        visible={signInPromptVisible}
+        onClose={() => setSignInPromptVisible(false)}
+        onSignIn={() => {
+          goToAuthFromOrderSummary(router, "/(auth)/login");
+          // Keep prompt until the sheet covers it (avoids close-then-open flash).
+          setTimeout(() => setSignInPromptVisible(false), 500);
+        }}
+        onSignUp={() => {
+          goToAuthFromOrderSummary(router, "/(auth)/sign-up");
+          setTimeout(() => setSignInPromptVisible(false), 500);
+        }}
+      />
+
+      {submittedOrderId != null ? (
       <Modal
-        visible={submittedOrderId != null}
+        visible
         transparent
         animationType="fade"
         onRequestClose={handleSubmittedOrderContinue}
@@ -313,6 +357,7 @@ export default function OrderSummaryScreen() {
           </Pressable>
         </Pressable>
       </Modal>
+      ) : null}
     </View>
   );
 }

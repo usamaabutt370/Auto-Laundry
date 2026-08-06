@@ -42,9 +42,11 @@ export function PartnerRiderPickerModal({
   onConfirm,
   onClose,
 }: PartnerRiderPickerModalProps) {
+  if (!visible) return null;
+
   return (
     <Modal
-      visible={visible}
+      visible
       transparent
       animationType="fade"
       onRequestClose={confirming ? undefined : onClose}

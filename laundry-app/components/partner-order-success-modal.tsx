@@ -16,9 +16,11 @@ type Props = {
 };
 
 export function PartnerOrderSuccessModal({ payload, onClose }: Props) {
+  if (payload == null) return null;
+
   return (
     <Modal
-      visible={payload !== null}
+      visible
       transparent
       animationType="fade"
       onRequestClose={onClose}

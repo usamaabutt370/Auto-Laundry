@@ -167,8 +167,8 @@ export function CustomerHomeMapOverlays({
               </View>
               <Pressable
                 onPress={() => {
-                  onPartnerPress(selectedPartner.id, selectedPartner.fulfillmentMode);
                   onClosePartner();
+                  onPartnerPress(selectedPartner.id, selectedPartner.fulfillmentMode);
                 }}
                 style={({ pressed }) => [styles.partnerSheetAction, pressed && styles.pressed]}
                 accessibilityRole="button"
@@ -220,7 +220,6 @@ const styles = StyleSheet.create({
   modalOverlay: {
     ...StyleSheet.absoluteFillObject,
     zIndex: 300,
-    elevation: 30,
   },
   sheetBackdrop: {
     ...StyleSheet.absoluteFillObject,
@@ -233,7 +232,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 20,
     zIndex: 310,
-    elevation: 31,
   },
   partnerSheet: {
     width: "100%",

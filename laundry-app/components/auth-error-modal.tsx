@@ -1,5 +1,5 @@
 import { theme } from "@/constants/theme";
-import { Modal, Pressable, StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 
 import { ThemedText } from "./themed-text";
 import { ThemedView } from "./themed-view";
@@ -19,8 +19,11 @@ export function AuthErrorModal({
   onClose,
   actionLabel = "OK",
 }: AuthErrorModalProps) {
+  // In-tree overlay (not RN Modal) — avoids iOS ghost touch-blockers on login.
+  if (!visible) return null;
+
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <View style={styles.host} pointerEvents="box-none">
       <View style={styles.overlay}>
         <Pressable style={styles.backdrop} onPress={onClose} accessibilityRole="button" />
         <ThemedView style={styles.card}>
@@ -36,11 +39,16 @@ export function AuthErrorModal({
           </Pressable>
         </ThemedView>
       </View>
-    </Modal>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  host: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 1000,
+    elevation: 1000,
+  },
   overlay: {
     flex: 1,
     justifyContent: "center",

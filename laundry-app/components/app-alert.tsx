@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { theme } from "@/constants/theme";
 
@@ -46,67 +46,74 @@ export function AppAlertProvider({ children }: { children: React.ReactNode }) {
 
   const dismiss = (btn?: AppAlertButton) => {
     setPending(null);
-    btn?.onPress?.();
+    // In-tree overlay — next tick is enough before navigation actions.
+    if (btn?.onPress) {
+      const action = btn.onPress;
+      setTimeout(action, 0);
+    }
   };
 
   return (
-    <>
+    <View style={styles.root}>
       {children}
-      <Modal
-        visible={pending !== null}
-        transparent
-        animationType="fade"
-        onRequestClose={() => dismiss()}
-      >
-        <Pressable style={styles.backdrop} onPress={() => dismiss()}>
-          <Pressable style={styles.card} onPress={(e) => e.stopPropagation()}>
-            {pending?.title ? (
-              <Text style={styles.title}>{pending.title}</Text>
-            ) : null}
-            {pending?.message ? (
-              <Text style={styles.message}>{pending.message}</Text>
-            ) : null}
-            <View
-              style={[
-                styles.actions,
-                (pending?.buttons.length ?? 0) > 1
-                  ? styles.actionsRow
-                  : styles.actionsColumn,
-              ]}
-            >
-              {pending?.buttons.map((btn, i) => (
-                <Pressable
-                  key={i}
-                  onPress={() => dismiss(btn)}
-                  style={({ pressed }) => [
-                    styles.btn,
-                    btn.style === "cancel" && styles.cancelBtn,
-                    btn.style === "destructive" && styles.destructiveBtn,
-                    btn.style !== "cancel" && btn.style !== "destructive" && styles.defaultBtn,
-                    pressed && styles.pressed,
-                    (pending?.buttons.length ?? 0) > 1 && styles.btnFlex,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.btnText,
-                      btn.style === "cancel" && styles.cancelText,
-                      btn.style === "destructive" && styles.destructiveText,
+      {pending !== null ? (
+        <View style={styles.host} pointerEvents="box-none">
+          <Pressable style={styles.backdrop} onPress={() => dismiss()}>
+            <Pressable style={styles.card} onPress={(e) => e.stopPropagation()}>
+              {pending.title ? <Text style={styles.title}>{pending.title}</Text> : null}
+              {pending.message ? (
+                <Text style={styles.message}>{pending.message}</Text>
+              ) : null}
+              <View
+                style={[
+                  styles.actions,
+                  pending.buttons.length > 1 ? styles.actionsRow : styles.actionsColumn,
+                ]}
+              >
+                {pending.buttons.map((btn, i) => (
+                  <Pressable
+                    key={i}
+                    onPress={() => dismiss(btn)}
+                    style={({ pressed }) => [
+                      styles.btn,
+                      btn.style === "cancel" && styles.cancelBtn,
+                      btn.style === "destructive" && styles.destructiveBtn,
+                      btn.style !== "cancel" &&
+                        btn.style !== "destructive" &&
+                        styles.defaultBtn,
+                      pressed && styles.pressed,
+                      pending.buttons.length > 1 && styles.btnFlex,
                     ]}
                   >
-                    {btn.text}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
+                    <Text
+                      style={[
+                        styles.btnText,
+                        btn.style === "cancel" && styles.cancelText,
+                        btn.style === "destructive" && styles.destructiveText,
+                      ]}
+                    >
+                      {btn.text}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </Pressable>
           </Pressable>
-        </Pressable>
-      </Modal>
-    </>
+        </View>
+      ) : null}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+  },
+  host: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 100000,
+    elevation: 100000,
+  },
   backdrop: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.6)",

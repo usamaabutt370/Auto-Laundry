@@ -16,6 +16,7 @@ import {
   useResponsiveLayout,
   WEB_CONSTRAINED_CONTENT_WIDTH_RATIO,
 } from "@/hooks/use-responsive-layout";
+import { runAfterModalTeardown } from "@/utils/run-after-modal-teardown";
 
 const c = theme.colors;
 const SIDEBAR_WIDTH = 240;
@@ -139,10 +140,12 @@ export function WebSidebarNav({ brandLabel = "Tap2Laundry", items, footerItems =
         style: "destructive",
         onPress: async () => {
           await signOut();
-          if (router.canDismiss()) {
-            router.dismissAll();
-          }
-          router.replace("/(auth)/login");
+          runAfterModalTeardown(() => {
+            if (router.canDismiss()) {
+              router.dismissAll();
+            }
+            router.replace("/(customer)");
+          });
         },
       },
     ]);

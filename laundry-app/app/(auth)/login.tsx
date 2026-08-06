@@ -2,7 +2,8 @@ import { AuthErrorModal, Input, Spacer, ThemedText, ThemedView } from "@/compone
 import { strings } from "@/constants/strings";
 import { theme } from "@/constants/theme";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
-import { useRouter } from "expo-router";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useState } from "react";
 import {
@@ -12,6 +13,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
@@ -19,6 +21,7 @@ import type { CountryCode } from "libphonenumber-js";
 
 export default function LoginScreen() {
   const router = useRouter();
+  const { returnTo } = useLocalSearchParams<{ returnTo?: string }>();
   const s = strings.auth.login;
 
   const [mobileNumber, setMobileNumber] = useState("");
@@ -118,6 +121,21 @@ export default function LoginScreen() {
       //    so index.tsx would see session=null and bounce back to the auth screen.
       if (profile.role === "launderer") {
         router.replace("/(partner)");
+      } else if (returnTo === "order-summary") {
+        // Auth was pushed as a sheet over order-summary — dismiss to resume checkout.
+        if (typeof router.canDismiss === "function" && router.canDismiss()) {
+          router.dismiss();
+        } else if (router.canGoBack()) {
+          router.back();
+        } else {
+          router.replace("/(customer)/order-summary");
+        }
+      } else if (returnTo === "chat") {
+        router.replace("/(customer)/(tabs)/chat");
+      } else if (returnTo === "orders") {
+        router.replace("/(customer)/(tabs)/order");
+      } else if (returnTo === "profile") {
+        router.replace("/(customer)/(tabs)/profile");
       } else {
         router.replace("/(customer)");
       }
@@ -135,17 +153,60 @@ export default function LoginScreen() {
     router.push("/(auth)/reset-password");
   };
   const handleSignUp = () => {
-    router.push("/(auth)/sign-up");
+    router.push({
+      pathname: "/(auth)/sign-up",
+      params: returnTo ? { returnTo } : undefined,
+    });
+  };
+  const handleClose = () => {
+    // Dismiss the auth bottom sheet when presented as a modal.
+    if (typeof router.canDismiss === "function" && router.canDismiss()) {
+      router.dismiss();
+      return;
+    }
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+    if (returnTo === "order-summary") {
+      router.replace("/(customer)/order-summary");
+      return;
+    }
+    if (returnTo === "chat") {
+      router.replace("/(customer)/(tabs)/chat");
+      return;
+    }
+    if (returnTo === "orders") {
+      router.replace("/(customer)/(tabs)/order");
+      return;
+    }
+    if (returnTo === "profile") {
+      router.replace("/(customer)/(tabs)/profile");
+      return;
+    }
+    router.replace("/(customer)");
   };
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       <StatusBar style="light" />
+      <View style={styles.screenBody}>
       <AuthErrorModal
         visible={Boolean(authError)}
         title={authError?.title ?? ""}
         message={authError?.message ?? ""}
         onClose={() => setAuthError(null)}
       />
+      <ThemedView style={styles.header}>
+        <Pressable
+          onPress={handleClose}
+          hitSlop={12}
+          style={({ pressed }) => [styles.closeBtn, pressed && styles.pressed]}
+          accessibilityRole="button"
+          accessibilityLabel="Close"
+        >
+          <MaterialCommunityIcons name="close" size={22} color={theme.colors.white} />
+        </Pressable>
+      </ThemedView>
       <KeyboardAvoidingView
         style={styles.keyboardView}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -171,7 +232,7 @@ export default function LoginScreen() {
             selectedCca2={countryCode}
             selectedCallingCode={callingCode}
             onCountrySelect={(c) => {
-              setCountryCode(c.cca2);
+              setCountryCode(c.cca2 as CountryCode);
               setCallingCode(c.callingCode);
               setErrors((prev) => ({ ...prev, mobileNumber: undefined }));
             }}
@@ -241,6 +302,7 @@ export default function LoginScreen() {
           </ThemedView>
         </ScrollView>
       </KeyboardAvoidingView>
+      </View>
     </SafeAreaView>
   );
 }
@@ -249,6 +311,22 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,
+  },
+  screenBody: {
+    flex: 1,
+  },
+  header: {
+    backgroundColor: "transparent",
+    paddingHorizontal: 16,
+    paddingTop: 4,
+    paddingBottom: 4,
+    alignItems: "flex-end",
+  },
+  closeBtn: {
+    width: 40,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
   },
   keyboardView: {
     flex: 1,

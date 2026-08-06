@@ -6,7 +6,7 @@ import React, {
   useMemo,
   useState,
 } from "react";
-import { Platform } from "react-native";
+import { Platform, View } from "react-native";
 import type { Session } from "@supabase/supabase-js";
 
 import { BlockingLoader } from "@/components/blocking-loader";
@@ -205,8 +205,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider value={value}>
-      {children}
-      <BlockingLoader visible={isSigningOut} message={strings.common.signingOut} />
+      <View style={{ flex: 1 }}>
+        {children}
+        <BlockingLoader visible={isSigningOut} message={strings.common.signingOut} />
+      </View>
     </AuthContext.Provider>
   );
 }

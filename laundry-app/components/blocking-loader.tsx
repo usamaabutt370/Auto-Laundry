@@ -1,4 +1,4 @@
-import { ActivityIndicator, Modal, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 
 import { theme } from "@/constants/theme";
 
@@ -16,19 +16,25 @@ export function BlockingLoader({ visible, message }: BlockingLoaderProps) {
     return null;
   }
 
+  // In-tree overlay (not RN Modal) — avoids iOS ghost touch-blockers after dismiss.
   return (
-    <Modal visible transparent animationType="fade" statusBarTranslucent>
+    <View style={styles.host} pointerEvents="auto">
       <View style={styles.overlay}>
         <View style={styles.card}>
           <ActivityIndicator size="large" color={c.white} />
           {message ? <Text style={styles.message}>{message}</Text> : null}
         </View>
       </View>
-    </Modal>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  host: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 99999,
+    elevation: 99999,
+  },
   overlay: {
     flex: 1,
     alignItems: "center",
