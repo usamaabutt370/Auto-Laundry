@@ -47,6 +47,7 @@ export const ur = {
       mobileNumber: "موبائل نمبر",
       email: "ای میل",
       password: "پاس ورڈ",
+      referralCode: "ریفرل کوڈ (اختیاری)",
       continue: "جاری رکھیں",
       orSignUpWithSocial: "یا سوشل سے سائن اپ کریں",
       haveAccount: "پہلے سے اکاؤنٹ ہے؟",

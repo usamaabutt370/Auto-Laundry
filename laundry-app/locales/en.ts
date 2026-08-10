@@ -49,6 +49,7 @@ export const en = {
       mobileNumber: "Mobile Number",
       email: "Email",
       password: "Password",
+      referralCode: "Referral code (optional)",
       continue: "Continue",
       orSignUpWithSocial: "Or, Sign up with social",
       haveAccount: "Already have an account ?",

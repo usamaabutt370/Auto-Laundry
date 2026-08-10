@@ -1,4 +1,4 @@
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
 import {
   KeyboardAvoidingView,
@@ -7,9 +7,11 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { AuthErrorModal, Input, Spacer, ThemedText, ThemedView } from "@/components";
 import { theme } from "@/constants/theme";
 import { strings } from "@/constants/strings";
@@ -21,6 +23,10 @@ const c = theme.colors;
 
 export default function SignUpScreen() {
   const router = useRouter();
+  const { returnTo, ref: referralParam } = useLocalSearchParams<{
+    returnTo?: string;
+    ref?: string;
+  }>();
   const s = strings.auth.signUpScreen;
 
   const [firstName, setFirstName] = useState("");
@@ -29,12 +35,16 @@ export default function SignUpScreen() {
   const [countryCode, setCountryCode] = useState<CountryCode>("PK");
   const [callingCode, setCallingCode] = useState("92");
   const [password, setPassword] = useState("");
+  const [referralCode, setReferralCode] = useState(
+    typeof referralParam === "string" ? referralParam.trim().toUpperCase() : "",
+  );
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<{
     firstName?: string;
     lastName?: string;
     mobileNumber?: string;
     password?: string;
+    referralCode?: string;
   }>({});
   const [authError, setAuthError] = useState<{ title: string; message: string } | null>(null);
 
@@ -115,7 +125,9 @@ export default function SignUpScreen() {
       const user = data.user;
 
       // 2) Create profile row so phone-login and RLS account checks work.
+      //    Optional referral code creates a pending referrals row (no points yet).
       if (user) {
+        const trimmedReferral = referralCode.trim().toUpperCase();
         const { error: profileError } = await supabase.rpc("bootstrap_user_profile", {
           p_email: generatedEmail,
           p_phone: normalizedPhone,
@@ -123,6 +135,7 @@ export default function SignUpScreen() {
           p_first_name: firstName,
           p_last_name: lastName,
           p_role: "customer",
+          p_referral_code: trimmedReferral.length > 0 ? trimmedReferral : null,
         });
         if (profileError) {
           showAuthError("Profile setup failed", profileError.message);
@@ -130,8 +143,25 @@ export default function SignUpScreen() {
         }
       }
 
-      // Go directly to customer dashboard after signup.
-      router.replace("/(customer)");
+      // Resume prior screen when coming from chat / checkout; otherwise go home.
+      if (returnTo === "order-summary") {
+        // Auth was pushed as a sheet over order-summary — dismiss to resume checkout.
+        if (typeof router.canDismiss === "function" && router.canDismiss()) {
+          router.dismiss();
+        } else if (router.canGoBack()) {
+          router.back();
+        } else {
+          router.replace("/(customer)/order-summary");
+        }
+      } else if (returnTo === "chat") {
+        router.replace("/(customer)/(tabs)/chat");
+      } else if (returnTo === "orders") {
+        router.replace("/(customer)/(tabs)/order");
+      } else if (returnTo === "profile") {
+        router.replace("/(customer)/(tabs)/profile");
+      } else {
+        router.replace("/(customer)");
+      }
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : "Something went wrong. Please try again.";
@@ -140,7 +170,40 @@ export default function SignUpScreen() {
       setIsLoading(false);
     }
   };
-  const handleSignIn = () => router.replace("/(auth)/login");
+  const handleSignIn = () =>
+    router.replace({
+      pathname: "/(auth)/login",
+      params: returnTo ? { returnTo } : undefined,
+    });
+
+  const handleClose = () => {
+    if (typeof router.canDismiss === "function" && router.canDismiss()) {
+      router.dismiss();
+      return;
+    }
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+    if (returnTo === "order-summary") {
+      router.replace("/(customer)/order-summary");
+      return;
+    }
+    if (returnTo === "chat") {
+      router.replace("/(customer)/(tabs)/chat");
+      return;
+    }
+    if (returnTo === "orders") {
+      router.replace("/(customer)/(tabs)/order");
+      return;
+    }
+    if (returnTo === "profile") {
+      router.replace("/(customer)/(tabs)/profile");
+      return;
+    }
+    router.replace("/(customer)");
+  };
+
   const inputProps = {
     borderColor: "rgba(255,255,255,0.5)",
     focusUnderlineColor: c.backgroundLight,
@@ -156,6 +219,17 @@ export default function SignUpScreen() {
         message={authError?.message ?? ""}
         onClose={() => setAuthError(null)}
       />
+      <View style={styles.header}>
+        <Pressable
+          onPress={handleClose}
+          hitSlop={12}
+          style={({ pressed }) => [styles.closeBtn, pressed && styles.pressed]}
+          accessibilityRole="button"
+          accessibilityLabel="Close"
+        >
+          <MaterialCommunityIcons name="close" size={22} color={c.white} />
+        </Pressable>
+      </View>
       <KeyboardAvoidingView
         style={styles.keyboardView}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -223,6 +297,21 @@ export default function SignUpScreen() {
             <Text style={styles.errorText}>{errors.password}</Text>
           )}
           <Spacer.Column numberOfSpaces={1} />
+          <Input
+            placeholder={s.referralCode}
+            value={referralCode}
+            onChangeText={(raw) => {
+              setReferralCode(raw.replace(/[^a-zA-Z0-9]/g, "").toUpperCase().slice(0, 8));
+              setErrors((prev) => ({ ...prev, referralCode: undefined }));
+            }}
+            autoCapitalize="characters"
+            autoCorrect={false}
+            {...inputProps}
+          />
+          {errors.referralCode && (
+            <Text style={styles.errorText}>{errors.referralCode}</Text>
+          )}
+          <Spacer.Column numberOfSpaces={1} />
           <Pressable
             onPress={handleContinue}
             style={({ pressed }) => [
@@ -259,6 +348,18 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: c.background,
+  },
+  header: {
+    paddingHorizontal: 16,
+    paddingTop: 4,
+    paddingBottom: 4,
+    alignItems: "flex-end",
+  },
+  closeBtn: {
+    width: 40,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
   },
   keyboardView: {
     flex: 1,
