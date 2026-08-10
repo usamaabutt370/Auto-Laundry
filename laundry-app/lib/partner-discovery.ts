@@ -213,6 +213,7 @@ export function serviceCategoriesToTypes(
     if (c === "Wash & Fold") out.add("washAndFold");
     if (c === "Dry Cleaning") out.add("dryCleaning");
     if (c === "Tailoring") out.add("tailoring");
+    if (c === "Press") out.add("press");
   }
   return Array.from(out);
 }

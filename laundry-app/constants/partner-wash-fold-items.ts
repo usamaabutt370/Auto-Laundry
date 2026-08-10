@@ -1,16 +1,77 @@
 /** Default Wash & Fold garment/package keys — labels live in partner.onboarding locales. */
 export const PARTNER_WASH_FOLD_GARMENT_KEYS = [
+  "washFoldPairShirtPant",
+  "washFoldPairTshirtTrouser",
+  "washFoldPairShalwarKameez",
+  "washFoldItemBedsheet",
+  "washFoldItemTowel",
+  "washFoldItemSocks",
+  "washFoldItemUndergarment",
+] as const;
+
+/** Press catalog — same pairs/sets as Wash & Fold, without towel/socks/undergarment. */
+export const PARTNER_PRESS_GARMENT_KEYS = [
+  "washFoldPairShirtPant",
+  "washFoldPairTshirtTrouser",
+  "washFoldPairShalwarKameez",
+  "washFoldItemBedsheet",
+] as const;
+
+export const PRESS_EXCLUDED_GARMENT_KEYS = [
+  "washFoldItemTowel",
+  "washFoldItemSocks",
+  "washFoldItemUndergarment",
+] as const;
+
+export const PRESS_EXCLUDED_GARMENT_LABELS = new Set(
+  ["Towel", "Socks", "Undergarment", "تولیہ", "موزے", "زیر جامہ"].map((s) =>
+    s.trim().toLowerCase(),
+  ),
+);
+
+export function isPressExcludedGarmentId(id: string): boolean {
+  return (PRESS_EXCLUDED_GARMENT_KEYS as readonly string[]).includes(id);
+}
+
+export function isPressExcludedGarmentLabel(label: string): boolean {
+  return PRESS_EXCLUDED_GARMENT_LABELS.has(label.trim().toLowerCase());
+}
+
+/** Former per-piece catalog rows — dropped from defaults; still filtered out of UI merges. */
+export const LEGACY_WASH_FOLD_GARMENT_KEYS = [
   "washFoldItemShirt",
   "washFoldItemTshirt",
   "washFoldItemTrouser",
   "washFoldItemShalwar",
   "washFoldItemKameez",
   "washFoldItemDupatta",
-  "washFoldItemBedsheet",
-  "washFoldItemTowel",
-  "washFoldItemSocks",
-  "washFoldItemUndergarment",
 ] as const;
+
+/** English/Urdu labels for legacy singles (hide from customer until live DB is migrated). */
+export const LEGACY_WASH_FOLD_GARMENT_LABELS = new Set(
+  [
+    "Shirt",
+    "T-Shirt",
+    "Trouser",
+    "Shalwar",
+    "Kameez",
+    "Dupatta",
+    "شرٹ",
+    "ٹی شرٹ",
+    "ٹراؤزر",
+    "شلوار",
+    "قمیض",
+    "دوپٹہ",
+  ].map((s) => s.trim().toLowerCase()),
+);
+
+export function isLegacyWashFoldGarmentId(id: string): boolean {
+  return (LEGACY_WASH_FOLD_GARMENT_KEYS as readonly string[]).includes(id);
+}
+
+export function isLegacyWashFoldGarmentLabel(label: string): boolean {
+  return LEGACY_WASH_FOLD_GARMENT_LABELS.has(label.trim().toLowerCase());
+}
 
 export const PARTNER_WASH_FOLD_PACKAGE_KEYS = [
   "washFoldPkg25",
@@ -109,10 +170,18 @@ export function mergeWashFoldCatalog(
   existingPrices: Record<string, string>,
   getLabel: (key: string) => string,
 ): { items: WashFoldCatalogRow[]; prices: Record<string, string> } {
-  const items = [...existingItems];
   const prices = { ...existingPrices };
+  const items: WashFoldCatalogRow[] = [];
 
   const norm = (s: string) => s.trim().toLowerCase();
+
+  for (const row of existingItems) {
+    if (isLegacyWashFoldGarmentId(row.id) || isLegacyWashFoldGarmentLabel(row.label)) {
+      delete prices[row.id];
+      continue;
+    }
+    items.push(row);
+  }
 
   const ensureDefault = (key: string) => {
     const label = getLabel(key);
@@ -141,6 +210,60 @@ export function mergeWashFoldCatalog(
   };
 
   for (const key of PARTNER_WASH_FOLD_GARMENT_KEYS) ensureDefault(key);
+  for (const key of PARTNER_WASH_FOLD_PACKAGE_KEYS) ensureDefault(key);
+
+  return { items, prices };
+}
+
+/** Press defaults (no towel/socks/undergarment); drops those if present from older saves. */
+export function mergePressCatalog(
+  existingItems: WashFoldCatalogRow[],
+  existingPrices: Record<string, string>,
+  getLabel: (key: string) => string,
+): { items: WashFoldCatalogRow[]; prices: Record<string, string> } {
+  const prices = { ...existingPrices };
+  const items: WashFoldCatalogRow[] = [];
+  const norm = (s: string) => s.trim().toLowerCase();
+
+  for (const row of existingItems) {
+    if (isLegacyWashFoldGarmentId(row.id) || isLegacyWashFoldGarmentLabel(row.label)) {
+      delete prices[row.id];
+      continue;
+    }
+    if (isPressExcludedGarmentId(row.id) || isPressExcludedGarmentLabel(row.label)) {
+      delete prices[row.id];
+      continue;
+    }
+    items.push(row);
+  }
+
+  const ensureDefault = (key: string) => {
+    const label = getLabel(key);
+    const n = norm(label);
+    const foundIndex = items.findIndex(
+      (row) => row.id === key || norm(row.label) === n,
+    );
+    if (foundIndex < 0) {
+      items.push({ id: key, label });
+      if (prices[key] === undefined) prices[key] = "";
+      return;
+    }
+    const found = items[foundIndex];
+    if (found.id !== key) {
+      const prevPrice = prices[found.id];
+      items[foundIndex] = { id: key, label };
+      if (prevPrice !== undefined) {
+        prices[key] = prevPrice;
+        delete prices[found.id];
+      } else if (prices[key] === undefined) {
+        prices[key] = "";
+      }
+      return;
+    }
+    if (prices[found.id] === undefined) prices[found.id] = "";
+  };
+
+  for (const key of PARTNER_PRESS_GARMENT_KEYS) ensureDefault(key);
   for (const key of PARTNER_WASH_FOLD_PACKAGE_KEYS) ensureDefault(key);
 
   return { items, prices };

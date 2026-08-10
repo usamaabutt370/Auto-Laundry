@@ -40,6 +40,7 @@ const SERVICE_KEYS: LaundererServiceType[] = [
   "washAndFold",
   "dryCleaning",
   "tailoring",
+  "press",
 ];
 
 interface LaundererDetailViewProps {

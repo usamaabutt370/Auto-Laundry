@@ -58,6 +58,7 @@ export default function TailoringItemizedByUserScreen() {
       ...draft,
       selectedServiceIds: ["tailoring"],
       washFold: null,
+      press: null,
       dryClean: null,
       pickup: null,
       delivery: null,

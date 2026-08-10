@@ -28,7 +28,7 @@ import { allowDecimalOnly } from "@/utils/input-filter";
 const c = theme.colors;
 const fs = theme.fontSize;
 
-const SERVICE_KEYS = ["washAndFold", "dryCleaning", "tailoring"] as const;
+const SERVICE_KEYS = ["washAndFold", "dryCleaning", "tailoring", "press"] as const;
 type ServiceKey = (typeof SERVICE_KEYS)[number];
 
 function getServiceLabel(
@@ -42,6 +42,8 @@ function getServiceLabel(
       return s.categoryDryCleaning;
     case "tailoring":
       return s.categoryTailoring;
+    case "press":
+      return s.categoryPress;
     default:
       return key;
   }
@@ -54,6 +56,7 @@ const CARD_TITLE_KEYS: Record<
   washAndFold: "washAndFoldPricesCardTitle",
   dryCleaning: "dryCleaningPricesCardTitle",
   tailoring: "tailoringPricesCardTitle",
+  press: "pressPricesCardTitle",
 };
 
 export type ServicesScreenMode = "onboarding" | "settings";
@@ -82,6 +85,7 @@ export function PartnerServicesScreen({ mode }: PartnerServicesScreenProps) {
     washAndFoldPricing,
     dryCleaningPricing,
     tailoringPricing,
+    pressPricing,
     pickupDeliveryPricing,
     setPickupDeliveryPricing,
     savePickupDeliveryPricing,
@@ -104,6 +108,7 @@ export function PartnerServicesScreen({ mode }: PartnerServicesScreenProps) {
     washAndFold: washAndFoldPricing,
     dryCleaning: dryCleaningPricing,
     tailoring: tailoringPricing,
+    press: pressPricing,
   };
 
   const hasConfiguredServices = SERVICE_KEYS.some((key) => {

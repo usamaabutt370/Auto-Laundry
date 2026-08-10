@@ -150,7 +150,7 @@ export interface ChatConversationListItem {
   placedAtLabel: string;
 }
 
-type OrderServiceType = "washAndFold" | "dryCleaning" | "tailoring";
+type OrderServiceType = "washAndFold" | "dryCleaning" | "tailoring" | "press";
 
 function serviceTypeLabel(serviceType: OrderServiceType): string {
   switch (serviceType) {
@@ -160,6 +160,8 @@ function serviceTypeLabel(serviceType: OrderServiceType): string {
       return "Dry Cleaning";
     case "tailoring":
       return "Tailoring";
+    case "press":
+      return "Press";
     default:
       return serviceType;
   }

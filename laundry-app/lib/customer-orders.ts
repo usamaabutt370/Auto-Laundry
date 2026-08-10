@@ -125,7 +125,7 @@ type OrderRow = {
 type OrderServiceRow = {
   id?: string;
   order_id: string;
-  service_type: "washAndFold" | "dryCleaning" | "tailoring";
+  service_type: "washAndFold" | "dryCleaning" | "tailoring" | "press";
   instructions?: string;
   estimated_amount?: number | null;
 };
@@ -190,6 +190,8 @@ function serviceTypeLabel(serviceType: OrderServiceRow["service_type"]): string 
       return "Dry Cleaning";
     case "tailoring":
       return "Tailoring";
+    case "press":
+      return "Press";
     default:
       return serviceType;
   }

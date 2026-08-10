@@ -31,8 +31,10 @@ import {
 import {
   dryCleanUnitForItem,
   listPricedDryCleanDefs,
+  listPricedPressDefs,
   listPricedTailoringDefs,
   listPricedWashFoldDefs,
+  pressUnitForItem,
   tailoringUnitForItem,
   washFoldUnitForItem,
 } from "@/lib/customer-order-estimate";
@@ -41,12 +43,13 @@ import { parsePriceDisplay } from "@/utils/parse-price-display";
 
 const c = theme.colors;
 
-type ServiceId = "washAndFold" | "dryCleaning" | "tailoring";
+type ServiceId = "washAndFold" | "dryCleaning" | "tailoring" | "press";
 
 const SERVICE_KEYS: LaundererServiceType[] = [
   "washAndFold",
   "dryCleaning",
   "tailoring",
+  "press",
 ];
 
 export default function PickupServicesScreen() {
@@ -127,6 +130,7 @@ export default function PickupServicesScreen() {
       washAndFold: [],
       dryCleaning: [],
       tailoring: [],
+      press: [],
     };
 
     byService.washAndFold = listPricedWashFoldDefs(partnerServiceRows).map((def) => ({
@@ -159,6 +163,22 @@ export default function PickupServicesScreen() {
         };
       });
 
+    byService.press = listPricedPressDefs(partnerServiceRows)
+      .map((def) => ({
+        def,
+        qty: Math.max(0, draft.press?.itemizedQuantities?.[def.id] ?? 0),
+      }))
+      .filter((item) => item.qty > 0)
+      .map((item) => {
+        const unit = pressUnitForItem(partnerServiceRows, item.def);
+        return {
+          name: item.def.name,
+          qtyLabel:
+            item.def.kind === "package" ? `${item.qty} pkg` : `${item.qty} item(s)`,
+          priceLabel: formatLinePrice(unit.amount, item.qty, unit.priceLabel),
+        };
+      });
+
     byService.tailoring = listPricedTailoringDefs(partnerServiceRows)
       .map((def) => ({
         def,
@@ -177,6 +197,7 @@ export default function PickupServicesScreen() {
     return byService;
   }, [
     draft.dryClean?.itemizedQuantities,
+    draft.press?.itemizedQuantities,
     draft.tailoring?.itemizedQuantities,
     draft.washFold?.itemizedQuantities,
     partnerServiceRows,
@@ -198,6 +219,13 @@ export default function PickupServicesScreen() {
         selectedIds.includes(id) ? selectedIds : [...selectedIds, id],
       );
       router.push("/(customer)/wash-fold-order");
+      return;
+    }
+    if (id === "press") {
+      setSelectedServiceIds(
+        selectedIds.includes(id) ? selectedIds : [...selectedIds, id],
+      );
+      router.push("/(customer)/press-order");
       return;
     }
     if (id === "dryCleaning") {

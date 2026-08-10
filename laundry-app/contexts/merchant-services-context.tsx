@@ -7,7 +7,14 @@ import React, {
   useState,
 } from "react";
 
-import { LEGACY_WASH_FOLD_PRICE_LABELS } from "@/constants/partner-wash-fold-items";
+import {
+  isLegacyDryCleanItemLabel,
+} from "@/constants/dry-clean-items";
+import {
+  isLegacyWashFoldGarmentLabel,
+  isPressExcludedGarmentLabel,
+  LEGACY_WASH_FOLD_PRICE_LABELS,
+} from "@/constants/partner-wash-fold-items";
 import type { ServiceItem } from "@/types/merchant-services";
 import { generateServiceId } from "@/types/merchant-services";
 import { useAuth } from "@/contexts/auth-context";
@@ -25,7 +32,7 @@ export interface ServicePricing {
   rows: ServicePricingRow[];
 }
 
-export type ServicePricingKey = "washAndFold" | "dryCleaning" | "tailoring";
+export type ServicePricingKey = "washAndFold" | "dryCleaning" | "tailoring" | "press";
 
 /** Optional pricing snapshot when persisting before React state has flushed. */
 export type OnboardingServicesSnapshot = Partial<
@@ -55,6 +62,8 @@ interface MerchantServicesContextValue {
   setDryCleaningPricing: (pricing: ServicePricing | null) => void;
   tailoringPricing: ServicePricing | null;
   setTailoringPricing: (pricing: ServicePricing | null) => void;
+  pressPricing: ServicePricing | null;
+  setPressPricing: (pricing: ServicePricing | null) => void;
   /** Persisted item list + prices for service-other so removed/added items persist when navigating back. */
   dryCleaningItemizeState: ItemizeState | null;
   setDryCleaningItemizeState: (state: ItemizeState | null) => void;
@@ -62,6 +71,8 @@ interface MerchantServicesContextValue {
   setTailoringItemizeState: (state: ItemizeState | null) => void;
   washFoldItemizeState: ItemizeState | null;
   setWashFoldItemizeState: (state: ItemizeState | null) => void;
+  pressItemizeState: ItemizeState | null;
+  setPressItemizeState: (state: ItemizeState | null) => void;
   pickupDeliveryPricing: PickupDeliveryPricing;
   setPickupDeliveryPricing: React.Dispatch<React.SetStateAction<PickupDeliveryPricing>>;
   savePickupDeliveryPricing: () => Promise<boolean>;
@@ -100,9 +111,11 @@ export function MerchantServicesProvider({ children }: { children: React.ReactNo
   const [washAndFoldPricing, setWashAndFoldPricing] = useState<ServicePricing | null>(null);
   const [dryCleaningPricing, setDryCleaningPricing] = useState<ServicePricing | null>(null);
   const [tailoringPricing, setTailoringPricing] = useState<ServicePricing | null>(null);
+  const [pressPricing, setPressPricing] = useState<ServicePricing | null>(null);
   const [dryCleaningItemizeState, setDryCleaningItemizeState] = useState<ItemizeState | null>(null);
   const [tailoringItemizeState, setTailoringItemizeState] = useState<ItemizeState | null>(null);
   const [washFoldItemizeState, setWashFoldItemizeState] = useState<ItemizeState | null>(null);
+  const [pressItemizeState, setPressItemizeState] = useState<ItemizeState | null>(null);
   const [pickupDeliveryPricing, setPickupDeliveryPricing] = useState<PickupDeliveryPricing>({
     enabled: false,
     amount: "",
@@ -117,9 +130,11 @@ export function MerchantServicesProvider({ children }: { children: React.ReactNo
       setWashAndFoldPricing(null);
       setDryCleaningPricing(null);
       setTailoringPricing(null);
+      setPressPricing(null);
       setDryCleaningItemizeState(null);
       setTailoringItemizeState(null);
       setWashFoldItemizeState(null);
+      setPressItemizeState(null);
       setIsLoadingServices(false);
       return;
     }
@@ -134,15 +149,18 @@ export function MerchantServicesProvider({ children }: { children: React.ReactNo
       setWashAndFoldPricing(null);
       setDryCleaningPricing(null);
       setTailoringPricing(null);
+      setPressPricing(null);
       setDryCleaningItemizeState(null);
       setTailoringItemizeState(null);
       setWashFoldItemizeState(null);
+      setPressItemizeState(null);
     } else {
       setServices((data ?? []).map(mapRowToServiceItem));
       
       const wafRows: ServicePricingRow[] = [];
       const dcRows: ServicePricingRow[] = [];
       const tailRows: ServicePricingRow[] = [];
+      const pressRows: ServicePricingRow[] = [];
 
       const wafItems: { id: string; label: string }[] = [];
       const wafPrices: Record<string, string> = {};
@@ -150,17 +168,21 @@ export function MerchantServicesProvider({ children }: { children: React.ReactNo
       const dcPrices: Record<string, string> = {};
       const tailItems: {id: string, label: string}[] = [];
       const tailPrices: Record<string, string> = {};
+      const pressItems: { id: string; label: string }[] = [];
+      const pressPrices: Record<string, string> = {};
 
       (data ?? []).forEach(row => {
         if (row.category === "Wash & Fold") {
           const label = row.name.replace("Wash & Fold - ", "").trim();
           if (LEGACY_WASH_FOLD_PRICE_LABELS.has(label)) return;
+          if (isLegacyWashFoldGarmentLabel(label)) return;
           const id = `item_${row.id}`;
           wafRows.push({ label, value: row.price_display });
           wafItems.push({ id, label });
           wafPrices[id] = row.price_display;
         } else if (row.category === "Dry Cleaning") {
-          const label = row.name.replace("Dry Cleaning - ", "");
+          const label = row.name.replace("Dry Cleaning - ", "").trim();
+          if (isLegacyDryCleanItemLabel(label)) return;
           const id = `item_${row.id}`;
           dcRows.push({ label, value: row.price_display });
           dcItems.push({ id, label });
@@ -171,6 +193,15 @@ export function MerchantServicesProvider({ children }: { children: React.ReactNo
           tailRows.push({ label, value: row.price_display });
           tailItems.push({ id, label });
           tailPrices[id] = row.price_display;
+        } else if (row.category === "Press") {
+          const label = row.name.replace("Press - ", "").trim();
+          if (LEGACY_WASH_FOLD_PRICE_LABELS.has(label)) return;
+          if (isLegacyWashFoldGarmentLabel(label)) return;
+          if (isPressExcludedGarmentLabel(label)) return;
+          const id = `item_${row.id}`;
+          pressRows.push({ label, value: row.price_display });
+          pressItems.push({ id, label });
+          pressPrices[id] = row.price_display;
         }
       });
 
@@ -180,6 +211,8 @@ export function MerchantServicesProvider({ children }: { children: React.ReactNo
       setDryCleaningItemizeState(dcRows.length > 0 ? { items: dcItems, prices: dcPrices } : null);
       setTailoringPricing(tailRows.length > 0 ? { rows: tailRows } : null);
       setTailoringItemizeState(tailRows.length > 0 ? { items: tailItems, prices: tailPrices } : null);
+      setPressPricing(pressRows.length > 0 ? { rows: pressRows } : null);
+      setPressItemizeState(pressRows.length > 0 ? { items: pressItems, prices: pressPrices } : null);
     }
 
     const { data: partnerProfileData } = await supabase
@@ -312,6 +345,7 @@ export function MerchantServicesProvider({ children }: { children: React.ReactNo
     const wafPricing = snapshot?.washAndFold ?? washAndFoldPricing;
     const dcPricing = snapshot?.dryCleaning ?? dryCleaningPricing;
     const tailPricing = snapshot?.tailoring ?? tailoringPricing;
+    const pressPricingSnapshot = snapshot?.press ?? pressPricing;
 
     const payload: Array<{
       user_id: string;
@@ -336,6 +370,7 @@ export function MerchantServicesProvider({ children }: { children: React.ReactNo
     appendRows("Wash & Fold", wafPricing?.rows);
     appendRows("Dry Cleaning", dcPricing?.rows);
     appendRows("Tailoring", tailPricing?.rows);
+    appendRows("Press", pressPricingSnapshot?.rows);
 
     if (pickupDeliveryPricing.enabled && pickupDeliveryPricing.amount.trim().length > 0) {
       payload.push({
@@ -399,6 +434,7 @@ export function MerchantServicesProvider({ children }: { children: React.ReactNo
     washAndFoldPricing,
     dryCleaningPricing,
     tailoringPricing,
+    pressPricing,
     pickupDeliveryPricing.enabled,
     pickupDeliveryPricing.amount,
     fetchServices,
@@ -415,12 +451,16 @@ export function MerchantServicesProvider({ children }: { children: React.ReactNo
       setDryCleaningPricing,
       tailoringPricing,
       setTailoringPricing,
+      pressPricing,
+      setPressPricing,
       dryCleaningItemizeState,
       setDryCleaningItemizeState,
       tailoringItemizeState,
       setTailoringItemizeState,
       washFoldItemizeState,
       setWashFoldItemizeState,
+      pressItemizeState,
+      setPressItemizeState,
       pickupDeliveryPricing,
       setPickupDeliveryPricing,
       savePickupDeliveryPricing,
@@ -439,9 +479,11 @@ export function MerchantServicesProvider({ children }: { children: React.ReactNo
       washAndFoldPricing,
       dryCleaningPricing,
       tailoringPricing,
+      pressPricing,
       dryCleaningItemizeState,
       tailoringItemizeState,
       washFoldItemizeState,
+      pressItemizeState,
       pickupDeliveryPricing,
       savePickupDeliveryPricing,
       isSavingPickupDeliveryPricing,
