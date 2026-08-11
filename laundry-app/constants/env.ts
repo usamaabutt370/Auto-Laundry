@@ -9,7 +9,15 @@ const extra = Constants.expoConfig?.extra as
 const publicUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const publicAnon = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
+/** Supabase JS expects project root URL, not `/rest/v1`. */
+function normalizeSupabaseUrl(raw: string): string {
+  const trimmed = raw.trim().replace(/\/+$/, "");
+  return trimmed.replace(/\/rest\/v1$/i, "");
+}
+
+const rawUrl = extra?.supabaseUrl || publicUrl || "";
+
 export const env = {
-  supabaseUrl: extra?.supabaseUrl || publicUrl || "",
+  supabaseUrl: rawUrl ? normalizeSupabaseUrl(rawUrl) : "",
   supabaseAnonKey: extra?.supabaseAnonKey || publicAnon || "",
 };

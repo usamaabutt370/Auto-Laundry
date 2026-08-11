@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { Alert, Modal, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { theme } from "@/constants/theme";
 
@@ -28,7 +28,18 @@ export function showAppAlert(
 ) {
   if (_handler) {
     _handler(title, message, buttons);
+    return;
   }
+  // Provider missing / remounting — native alert so the user still sees something.
+  Alert.alert(
+    title,
+    message,
+    (buttons ?? [{ text: "OK" }]).map((btn) => ({
+      text: btn.text,
+      style: btn.style,
+      onPress: btn.onPress,
+    })),
+  );
 }
 
 /** Mount once at the app root to enable showAppAlert() everywhere. */
