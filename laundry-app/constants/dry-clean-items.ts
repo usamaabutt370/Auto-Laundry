@@ -57,15 +57,38 @@ export function isLegacyDryCleanItemLabel(label: string): boolean {
   return LEGACY_DRY_CLEAN_ITEM_LABELS.has(label.trim().toLowerCase());
 }
 
+/** Garments removed from Dry Cleaning defaults; filtered from saved/DB rows. */
+export const DROPPED_DRY_CLEAN_ITEM_KEYS = [
+  "dryCleaningItemSweater",
+  "dryCleaningItemJacket",
+  "dryCleaningItemRobe",
+] as const;
+
+export const DROPPED_DRY_CLEAN_ITEM_LABELS = new Set(
+  [
+    "Sweater",
+    "Jacket",
+    "Robe",
+    "سویٹر",
+    "جیکٹ",
+    "روب",
+  ].map((s) => s.trim().toLowerCase()),
+);
+
+export function isDroppedDryCleanItemId(id: string): boolean {
+  return (DROPPED_DRY_CLEAN_ITEM_KEYS as readonly string[]).includes(id);
+}
+
+export function isDroppedDryCleanItemLabel(label: string): boolean {
+  return DROPPED_DRY_CLEAN_ITEM_LABELS.has(label.trim().toLowerCase());
+}
+
 /** Default English names — must match partner `Dry Cleaning - {label}` (en onboarding). */
 export const DRY_CLEAN_LABEL_BY_KEY: Record<string, string> = {
   [DRY_CLEAN_SUIT_2_PIECE_ID]: "2-piece Suit",
   [DRY_CLEAN_SUIT_3_PIECE_ID]: "3-piece Suit",
   dryCleaningPairShirtPants: "Shirt and Pant",
-  dryCleaningItemSweater: "Sweater",
   dryCleaningItemCoat: "Coat",
-  dryCleaningItemJacket: "Jacket",
-  dryCleaningItemRobe: "Robe",
   dryCleaningItemBlanket: "Blanket",
 };
 
@@ -89,23 +112,8 @@ export const DRY_CLEAN_ITEM_DEFS: DryCleanItemDef[] = [
     kind: "garment",
   },
   {
-    id: "dryCleaningItemSweater",
-    name: "Sweater",
-    kind: "garment",
-  },
-  {
     id: "dryCleaningItemCoat",
     name: "Coat",
-    kind: "garment",
-  },
-  {
-    id: "dryCleaningItemJacket",
-    name: "Jacket",
-    kind: "garment",
-  },
-  {
-    id: "dryCleaningItemRobe",
-    name: "Robe",
     kind: "garment",
   },
   {
@@ -162,6 +170,10 @@ export function mergeDryCleanCatalog(
 
   for (const row of existingItems) {
     if (isLegacyDryCleanItemId(row.id) || isLegacyDryCleanItemLabel(row.label)) {
+      delete prices[row.id];
+      continue;
+    }
+    if (isDroppedDryCleanItemId(row.id) || isDroppedDryCleanItemLabel(row.label)) {
       delete prices[row.id];
       continue;
     }

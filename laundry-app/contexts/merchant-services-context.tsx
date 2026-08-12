@@ -8,9 +8,14 @@ import React, {
 } from "react";
 
 import {
+  isDroppedDryCleanItemLabel,
   isLegacyDryCleanItemLabel,
 } from "@/constants/dry-clean-items";
 import {
+  isDroppedTailoringItemLabel,
+} from "@/constants/tailoring-items";
+import {
+  isDroppedWashFoldGarmentLabel,
   isLegacyWashFoldGarmentLabel,
   isPressExcludedGarmentLabel,
   LEGACY_WASH_FOLD_PRICE_LABELS,
@@ -176,6 +181,7 @@ export function MerchantServicesProvider({ children }: { children: React.ReactNo
           const label = row.name.replace("Wash & Fold - ", "").trim();
           if (LEGACY_WASH_FOLD_PRICE_LABELS.has(label)) return;
           if (isLegacyWashFoldGarmentLabel(label)) return;
+          if (isDroppedWashFoldGarmentLabel(label)) return;
           const id = `item_${row.id}`;
           wafRows.push({ label, value: row.price_display });
           wafItems.push({ id, label });
@@ -183,12 +189,14 @@ export function MerchantServicesProvider({ children }: { children: React.ReactNo
         } else if (row.category === "Dry Cleaning") {
           const label = row.name.replace("Dry Cleaning - ", "").trim();
           if (isLegacyDryCleanItemLabel(label)) return;
+          if (isDroppedDryCleanItemLabel(label)) return;
           const id = `item_${row.id}`;
           dcRows.push({ label, value: row.price_display });
           dcItems.push({ id, label });
           dcPrices[id] = row.price_display;
         } else if (row.category === "Tailoring") {
-          const label = row.name.replace("Tailoring - ", "");
+          const label = row.name.replace("Tailoring - ", "").trim();
+          if (isDroppedTailoringItemLabel(label)) return;
           const id = `item_${row.id}`;
           tailRows.push({ label, value: row.price_display });
           tailItems.push({ id, label });

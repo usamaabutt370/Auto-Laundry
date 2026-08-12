@@ -161,7 +161,7 @@ function serviceTypeLabel(serviceType: OrderServiceType): string {
     case "tailoring":
       return "Tailoring";
     case "press":
-      return "Press";
+      return "Ironing & Press";
     default:
       return serviceType;
   }

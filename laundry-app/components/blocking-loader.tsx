@@ -1,4 +1,4 @@
-import { ActivityIndicator, Modal, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 
 import { theme } from "@/constants/theme";
 
@@ -10,27 +10,31 @@ type BlockingLoaderProps = {
   message?: string;
 };
 
-/** Full-screen overlay that blocks interaction while an async action runs. */
+/**
+ * Full-screen overlay that blocks interaction while an async action runs.
+ * Uses an absolute View (not RN Modal) so it does not stack with other Modals
+ * and freeze touch handling on iOS after accept/reject.
+ */
 export function BlockingLoader({ visible, message }: BlockingLoaderProps) {
   if (!visible) {
     return null;
   }
 
   return (
-    <Modal visible transparent animationType="fade" statusBarTranslucent>
-      <View style={styles.overlay}>
-        <View style={styles.card}>
-          <ActivityIndicator size="large" color={c.white} />
-          {message ? <Text style={styles.message}>{message}</Text> : null}
-        </View>
+    <View style={styles.root} pointerEvents="auto" accessibilityViewIsModal>
+      <View style={styles.card}>
+        <ActivityIndicator size="large" color={c.white} />
+        {message ? <Text style={styles.message}>{message}</Text> : null}
       </View>
-    </Modal>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
+  root: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 9999,
+    elevation: 9999,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "rgba(0, 0, 0, 0.45)",

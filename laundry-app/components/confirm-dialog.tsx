@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from "react";
-import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { theme } from "@/constants/theme";
 
@@ -22,41 +22,36 @@ type ConfirmDialogViewProps = {
   onClose: (confirmed: boolean) => void;
 };
 
+/** Overlay confirm UI without RN Modal — avoids iOS touch freeze when stacked with loaders. */
 function ConfirmDialogView({ pending, onClose }: ConfirmDialogViewProps) {
   if (!pending) return null;
 
   return (
-    <Modal
-      visible
-      transparent
-      animationType="fade"
-      onRequestClose={() => onClose(false)}
-    >
-      <Pressable style={styles.backdrop} onPress={() => onClose(false)}>
-        <Pressable style={styles.card} onPress={(e) => e.stopPropagation()}>
-          <Text style={styles.title}>{pending.title}</Text>
-          <Text style={styles.message}>{pending.message}</Text>
-          <View style={styles.actions}>
-            <Pressable
-              onPress={() => onClose(false)}
-              style={({ pressed }) => [styles.btn, styles.cancelBtn, pressed && styles.pressed]}
-            >
-              <Text style={styles.cancelText}>{pending.cancelLabel ?? "Cancel"}</Text>
-            </Pressable>
-            <Pressable
-              onPress={() => onClose(true)}
-              style={({ pressed }) => [
-                styles.btn,
-                pending.destructive ? styles.destructiveBtn : styles.confirmBtn,
-                pressed && styles.pressed,
-              ]}
-            >
-              <Text style={styles.confirmText}>{pending.confirmLabel ?? "OK"}</Text>
-            </Pressable>
-          </View>
-        </Pressable>
-      </Pressable>
-    </Modal>
+    <View style={styles.overlay} pointerEvents="auto" accessibilityViewIsModal>
+      <Pressable style={styles.backdrop} onPress={() => onClose(false)} accessibilityRole="button" />
+      <View style={styles.card}>
+        <Text style={styles.title}>{pending.title}</Text>
+        <Text style={styles.message}>{pending.message}</Text>
+        <View style={styles.actions}>
+          <Pressable
+            onPress={() => onClose(false)}
+            style={({ pressed }) => [styles.btn, styles.cancelBtn, pressed && styles.pressed]}
+          >
+            <Text style={styles.cancelText}>{pending.cancelLabel ?? "Cancel"}</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => onClose(true)}
+            style={({ pressed }) => [
+              styles.btn,
+              pending.destructive ? styles.destructiveBtn : styles.confirmBtn,
+              pressed && styles.pressed,
+            ]}
+          >
+            <Text style={styles.confirmText}>{pending.confirmLabel ?? "OK"}</Text>
+          </Pressable>
+        </View>
+      </View>
+    </View>
   );
 }
 
@@ -87,12 +82,17 @@ export function useConfirmDialog() {
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: c.sheetBackdrop,
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 10000,
+    elevation: 10000,
     alignItems: "center",
     justifyContent: "center",
     padding: 24,
+  },
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: c.sheetBackdrop,
   },
   card: {
     width: "100%",
@@ -102,6 +102,7 @@ const styles = StyleSheet.create({
     padding: 24,
     borderWidth: 1,
     borderColor: c.modalBorder,
+    zIndex: 1,
   },
   title: {
     fontSize: 18,

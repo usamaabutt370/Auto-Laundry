@@ -91,7 +91,7 @@ async function fetchOrderAssignmentContext(orderId: string, partnerId: string) {
       case "tailoring":
         return "Tailoring";
       case "press":
-        return "Press";
+        return "Ironing & Press";
       default:
         return "Laundry";
     }

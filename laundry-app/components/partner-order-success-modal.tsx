@@ -1,5 +1,5 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { theme } from "@/constants/theme";
 
@@ -15,67 +15,63 @@ type Props = {
   onClose: () => void;
 };
 
+/** Success overlay without RN Modal — avoids iOS touch freeze after accept/complete. */
 export function PartnerOrderSuccessModal({ payload, onClose }: Props) {
+  if (payload === null) return null;
+
   return (
-    <Modal
-      visible={payload !== null}
-      transparent
-      animationType="fade"
-      onRequestClose={onClose}
-    >
-      <View style={styles.overlay}>
-        <Pressable style={styles.backdrop} onPress={onClose} />
-        <View style={styles.card}>
-          <View style={styles.iconWrap}>
-            <MaterialCommunityIcons name="check-circle" size={52} color="#4ade80" />
-          </View>
-
-          {payload?.type === "accepted" ? (
-            <>
-              <Text style={styles.title}>Order Accepted!</Text>
-              <Text style={styles.message}>
-                You have successfully accepted this order. The customer will be notified.
-              </Text>
-            </>
-          ) : (
-            <>
-              <Text style={styles.title}>Order Completed!</Text>
-              <Text style={styles.message}>
-                Great work! Here's a summary of this order.
-              </Text>
-              <View style={styles.summaryBox}>
-                <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>Credits charged</Text>
-                  <Text style={styles.summaryValue}>
-                    {payload?.charged ?? 0} credits
-                  </Text>
-                </View>
-                <View style={styles.divider} />
-                <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>Remaining balance</Text>
-                  <Text style={[styles.summaryValue, styles.balanceValue]}>
-                    {payload?.balance ?? 0} credits
-                  </Text>
-                </View>
-              </View>
-            </>
-          )}
-
-          <Pressable
-            onPress={onClose}
-            style={({ pressed }) => [styles.closeBtn, pressed && styles.pressed]}
-          >
-            <Text style={styles.closeBtnText}>Done</Text>
-          </Pressable>
+    <View style={styles.overlay} pointerEvents="auto">
+      <Pressable style={styles.backdrop} onPress={onClose} accessibilityRole="button" />
+      <View style={styles.card}>
+        <View style={styles.iconWrap}>
+          <MaterialCommunityIcons name="check-circle" size={52} color="#4ade80" />
         </View>
+
+        {payload.type === "accepted" ? (
+          <>
+            <Text style={styles.title}>Order Accepted!</Text>
+            <Text style={styles.message}>
+              You have successfully accepted this order. The customer will be notified.
+            </Text>
+          </>
+        ) : (
+          <>
+            <Text style={styles.title}>Order Completed!</Text>
+            <Text style={styles.message}>
+              Great work! Here's a summary of this order.
+            </Text>
+            <View style={styles.summaryBox}>
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Credits charged</Text>
+                <Text style={styles.summaryValue}>{payload.charged} credits</Text>
+              </View>
+              <View style={styles.divider} />
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Remaining balance</Text>
+                <Text style={[styles.summaryValue, styles.balanceValue]}>
+                  {payload.balance} credits
+                </Text>
+              </View>
+            </View>
+          </>
+        )}
+
+        <Pressable
+          onPress={onClose}
+          style={({ pressed }) => [styles.closeBtn, pressed && styles.pressed]}
+        >
+          <Text style={styles.closeBtnText}>Done</Text>
+        </Pressable>
       </View>
-    </Modal>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   overlay: {
-    flex: 1,
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 10000,
+    elevation: 10000,
     justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: 24,
@@ -93,6 +89,8 @@ const styles = StyleSheet.create({
     borderColor: "rgba(171, 233, 254, 0.35)",
     padding: 24,
     alignItems: "center",
+    zIndex: 1,
+    elevation: 1,
   },
   iconWrap: {
     marginBottom: 16,

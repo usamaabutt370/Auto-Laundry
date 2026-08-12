@@ -46,11 +46,17 @@ const c = theme.colors;
 type ServiceId = "washAndFold" | "dryCleaning" | "tailoring" | "press";
 
 const SERVICE_KEYS: LaundererServiceType[] = [
+  "press",
   "washAndFold",
   "dryCleaning",
   "tailoring",
-  "press",
 ];
+
+function sortServicesByDisplayOrder(services: ServiceId[]): ServiceId[] {
+  return [...services].sort(
+    (a, b) => SERVICE_KEYS.indexOf(a) - SERVICE_KEYS.indexOf(b),
+  );
+}
 
 export default function PickupServicesScreen() {
   const router = useRouter();
@@ -92,7 +98,7 @@ export default function PickupServicesScreen() {
       )
         .filter((id): id is ServiceId => SERVICE_KEYS.includes(id))
         .filter((id, idx, arr) => arr.indexOf(id) === idx);
-      setPartnerServiceTypes(available);
+      setPartnerServiceTypes(sortServicesByDisplayOrder(available));
       const pickupEnabled = partnerOffersPickupDelivery(profile);
       setPickupDeliveryEnabled(pickupEnabled);
       setPickupFeeLabel(profile?.pickup_delivery_amount?.trim() || null);

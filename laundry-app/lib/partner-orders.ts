@@ -221,7 +221,7 @@ function serviceTypeLabel(serviceType: OrderServiceRow["service_type"]): string 
     case "tailoring":
       return "Tailoring";
     case "press":
-      return "Press";
+      return "Ironing & Press";
     default:
       return serviceType;
   }

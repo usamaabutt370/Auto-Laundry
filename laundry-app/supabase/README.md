@@ -1,10 +1,12 @@
 # Supabase
 
-Migrations live in `migrations/`. Apply them from the **laundry-app** directory:
+Migrations live in `migrations/`. Apply them from the **laundry-app** directory against **dev only** until production is ready:
 
 ```bash
 cd laundry-app && npx supabase db push
 ```
+
+`PROJECT_REF` is the **dev** project. Do not `db push` to live until you explicitly switch the project ref for a production release.
 
 ## If the project link is lost
 

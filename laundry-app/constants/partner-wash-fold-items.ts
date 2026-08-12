@@ -1,40 +1,56 @@
-/** Default Wash & Fold garment/package keys — labels live in partner.onboarding locales. */
+/** Default Wash & Fold garment keys — shalwar/kameez first; no t-shirt/trouser or towel/socks/undergarment. */
 export const PARTNER_WASH_FOLD_GARMENT_KEYS = [
-  "washFoldPairShirtPant",
-  "washFoldPairTshirtTrouser",
   "washFoldPairShalwarKameez",
+  "washFoldPairShirtPant",
   "washFoldItemBedsheet",
+] as const;
+
+/** Garments removed from Wash & Fold and Press defaults; filtered from saved/DB rows. */
+export const DROPPED_WASH_FOLD_GARMENT_KEYS = [
+  "washFoldPairTshirtTrouser",
   "washFoldItemTowel",
   "washFoldItemSocks",
   "washFoldItemUndergarment",
 ] as const;
 
-/** Press catalog — same pairs/sets as Wash & Fold, without towel/socks/undergarment. */
-export const PARTNER_PRESS_GARMENT_KEYS = [
-  "washFoldPairShirtPant",
-  "washFoldPairTshirtTrouser",
-  "washFoldPairShalwarKameez",
-  "washFoldItemBedsheet",
-] as const;
-
-export const PRESS_EXCLUDED_GARMENT_KEYS = [
-  "washFoldItemTowel",
-  "washFoldItemSocks",
-  "washFoldItemUndergarment",
-] as const;
-
-export const PRESS_EXCLUDED_GARMENT_LABELS = new Set(
-  ["Towel", "Socks", "Undergarment", "تولیہ", "موزے", "زیر جامہ"].map((s) =>
-    s.trim().toLowerCase(),
-  ),
+export const DROPPED_WASH_FOLD_GARMENT_LABELS = new Set(
+  [
+    "T-Shirt and Trouser",
+    "Towel",
+    "Socks",
+    "Undergarment",
+    "ٹی شرٹ اور ٹراؤزر",
+    "تولیہ",
+    "موزے",
+    "زیر جامہ",
+  ].map((s) => s.trim().toLowerCase()),
 );
 
+export function isDroppedWashFoldGarmentId(id: string): boolean {
+  return (DROPPED_WASH_FOLD_GARMENT_KEYS as readonly string[]).includes(id);
+}
+
+export function isDroppedWashFoldGarmentLabel(label: string): boolean {
+  return DROPPED_WASH_FOLD_GARMENT_LABELS.has(label.trim().toLowerCase());
+}
+
+/** Press catalog — shalwar/kameez first; no t-shirt/trouser or towel/socks/undergarment. */
+export const PARTNER_PRESS_GARMENT_KEYS = [
+  "washFoldPairShalwarKameez",
+  "washFoldPairShirtPant",
+  "washFoldItemBedsheet",
+] as const;
+
+export const PRESS_EXCLUDED_GARMENT_KEYS = DROPPED_WASH_FOLD_GARMENT_KEYS;
+
+export const PRESS_EXCLUDED_GARMENT_LABELS = DROPPED_WASH_FOLD_GARMENT_LABELS;
+
 export function isPressExcludedGarmentId(id: string): boolean {
-  return (PRESS_EXCLUDED_GARMENT_KEYS as readonly string[]).includes(id);
+  return isDroppedWashFoldGarmentId(id);
 }
 
 export function isPressExcludedGarmentLabel(label: string): boolean {
-  return PRESS_EXCLUDED_GARMENT_LABELS.has(label.trim().toLowerCase());
+  return isDroppedWashFoldGarmentLabel(label);
 }
 
 /** Former per-piece catalog rows — dropped from defaults; still filtered out of UI merges. */
@@ -177,6 +193,10 @@ export function mergeWashFoldCatalog(
 
   for (const row of existingItems) {
     if (isLegacyWashFoldGarmentId(row.id) || isLegacyWashFoldGarmentLabel(row.label)) {
+      delete prices[row.id];
+      continue;
+    }
+    if (isDroppedWashFoldGarmentId(row.id) || isDroppedWashFoldGarmentLabel(row.label)) {
       delete prices[row.id];
       continue;
     }

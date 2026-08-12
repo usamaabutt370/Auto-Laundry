@@ -3,16 +3,23 @@ import {
   DRY_CLEAN_SUIT_2_PIECE_ID,
   DRY_CLEAN_SUIT_3_PIECE_ID,
   getDryCleanDefById,
+  isDroppedDryCleanItemLabel,
   isLegacyDryCleanItemLabel,
   type DryCleanItemDef,
 } from "@/constants/dry-clean-items";
-import { TAILORING_ITEM_DEFS } from "@/constants/tailoring-items";
+import {
+  isDroppedTailoringItemLabel,
+  TAILORING_ITEM_DEFS,
+  TAILORING_ITEM_SHALWAR_KAMEEZ_ID,
+  TAILORING_ITEM_SHIRT_PANT_ID,
+} from "@/constants/tailoring-items";
 import {
   PRESS_ITEM_DEFS,
   WASH_FOLD_ITEM_DEFS,
   type WashFoldItemDef,
 } from "@/constants/wash-fold-items";
 import {
+  isDroppedWashFoldGarmentLabel,
   isLegacyWashFoldGarmentLabel,
   isPressExcludedGarmentLabel,
   isWashFoldPackageLabel,
@@ -83,6 +90,7 @@ function matchDryCleanByDef(
       const label = stripDryCleanPrefix(row.name).toLowerCase();
       if (!label) continue;
       if (isLegacyDryCleanItemLabel(label)) continue;
+      if (isDroppedDryCleanItemLabel(label)) continue;
       const looksLikeSuit = /suit|سوٹ/.test(label);
       const looks2 = /2[\s-]*piece|2[\s-]*پیس/.test(label);
       const looks3 = /3[\s-]*piece|3[\s-]*پیس/.test(label);
@@ -186,6 +194,53 @@ function normalizeGarmentLabel(label: string): string {
 
 function washFoldLabelsMatch(left: string, right: string): boolean {
   return normalizeGarmentLabel(left) === normalizeGarmentLabel(right);
+}
+
+function tailoringLabelCandidates(def: CatalogItemDef): string[] {
+  const set = new Set<string>([def.name.trim()]);
+  for (const lc of MATCH_LOCALES) {
+    const onboarding = getStrings(lc).partner.onboarding as Record<string, string>;
+    const label = onboarding[def.id]?.trim();
+    if (label) set.add(label);
+  }
+  for (const label of [...set]) {
+    set.add(label.replace(/ & /g, " and "));
+    set.add(label.replace(/ and /gi, " & "));
+  }
+  return [...set];
+}
+
+function matchTailoringByDef(
+  rows: PartnerServiceLine[],
+  def: CatalogItemDef,
+): PartnerServiceLine | null {
+  const candidates = tailoringLabelCandidates(def);
+  for (const row of rows) {
+    const label = stripTailoringPrefix(row.name);
+    if (!label || isDroppedTailoringItemLabel(label)) continue;
+    if (
+      candidates.some(
+        (candidate) =>
+          normalizeGarmentLabel(label) === normalizeGarmentLabel(candidate),
+      )
+    ) {
+      return row;
+    }
+  }
+
+  if (def.id === TAILORING_ITEM_SHALWAR_KAMEEZ_ID) {
+    return tailoringRowByLabel(rows, "Dress");
+  }
+  if (def.id === TAILORING_ITEM_SHIRT_PANT_ID) {
+    for (const legacyLabel of ["Shirt", "Pants"]) {
+      const row = tailoringRowByLabel(rows, legacyLabel);
+      if (row && isPositivePrice(parsePriceDisplay(row.price_display))) {
+        return row;
+      }
+    }
+  }
+
+  return null;
 }
 
 function matchTailoringService(
@@ -458,7 +513,7 @@ function tailoringRowForDef(
   return def.id.startsWith("partner_") ||
     !TAILORING_ITEM_DEFS.some((d) => d.id === def.id)
     ? tailoringRowByLabel(rows, def.name)
-    : matchTailoringService(rows, def.name);
+    : matchTailoringByDef(rows, def);
 }
 
 export function dryCleanUnitForItem(
@@ -559,6 +614,7 @@ export function listPricedWashFoldDefs(
     const label = stripWashFoldPrefix(row.name);
     if (!label || LEGACY_WASH_FOLD_PRICE_LABELS.has(label)) continue;
     if (isLegacyWashFoldGarmentLabel(label)) continue;
+    if (isDroppedWashFoldGarmentLabel(label)) continue;
     if (!isPositivePrice(parsePriceDisplay(row.price_display))) continue;
     const key = label.toLowerCase();
     if (seen.has(key)) continue;
@@ -663,6 +719,7 @@ export function listPricedDryCleanDefs(
     const label = stripDryCleanPrefix(row.name);
     if (!label) continue;
     if (isLegacyDryCleanItemLabel(label)) continue;
+    if (isDroppedDryCleanItemLabel(label)) continue;
     // Suit packages are only surfaced via catalog ids (combined Suit card on customer).
     if (/suit|سوٹ/i.test(label) && /[23]\s*-?\s*piece|[23]\s*-?\s*پیس/i.test(label)) {
       continue;
@@ -722,6 +779,7 @@ export function listPricedTailoringDefs(
   for (const row of tailoringRows(services)) {
     const label = stripTailoringPrefix(row.name);
     if (!label) continue;
+    if (isDroppedTailoringItemLabel(label)) continue;
     if (parsePriceDisplay(row.price_display) == null) continue;
     const key = label.toLowerCase();
     if (seen.has(key)) continue;

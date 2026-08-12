@@ -4,7 +4,6 @@ import { useFocusEffect, useLocalSearchParams, useRouter, useNavigation } from "
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Modal,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -221,18 +220,19 @@ export default function PartnerOrderScreen() {
               : order,
           ),
         );
+        // Clear blocking overlay before opening another Modal (success / alert).
+        setActionOrderId(null);
         if (status === "accepted") {
           setSuccessPayload({ type: "accepted" });
         } else {
           showAppAlert("Order rejected", "The order has been rejected.");
         }
       } catch (error) {
+        setActionOrderId(null);
         showAppAlert(
           `Unable to ${status === "accepted" ? "accept" : "reject"} order`,
           error instanceof Error ? error.message : "Please try again.",
         );
-      } finally {
-        setActionOrderId(null);
       }
     },
     [],
@@ -307,14 +307,14 @@ export default function PartnerOrderScreen() {
       setRiderModalVisible(false);
       setPendingAcceptOrderId(null);
       setSelectedRiderId(null);
+      setActionOrderId(null);
       setSuccessPayload({ type: "accepted" });
     } catch (error) {
+      setActionOrderId(null);
       showAppAlert(
         "Unable to accept order",
         error instanceof Error ? error.message : "Please try again.",
       );
-    } finally {
-      setActionOrderId(null);
     }
   }, [pendingAcceptOrderId, s.acceptSuccess, s.selectRiderRequired, selectedRiderId, user?.id]);
 
@@ -360,18 +360,18 @@ export default function PartnerOrderScreen() {
             : order,
         ),
       );
+      setActionOrderId(null);
       setSuccessPayload({
         type: "completed",
         charged: result.charged,
         balance: result.balance,
       });
     } catch (error) {
+      setActionOrderId(null);
       showAppAlert(
         "Unable to complete order",
         error instanceof Error ? error.message : "Please try again.",
       );
-    } finally {
-      setActionOrderId(null);
     }
   }, []);
 
@@ -583,16 +583,11 @@ export default function PartnerOrderScreen() {
         }}
       />
       <BlockingLoader
-        visible={actionOrderId !== null}
+        visible={actionOrderId !== null && !riderModalVisible}
         message={commonStrings.acceptingOrder}
       />
-      <Modal
-        visible={rejectModalVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setRejectModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
+      {rejectModalVisible ? (
+        <View style={styles.modalOverlay} pointerEvents="auto" accessibilityViewIsModal>
           <Pressable style={styles.modalBackdrop} onPress={() => setRejectModalVisible(false)} />
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Reject order</Text>
@@ -649,7 +644,7 @@ export default function PartnerOrderScreen() {
             </View>
           </View>
         </View>
-      </Modal>
+      ) : null}
     </View>
   );
 }
@@ -719,7 +714,9 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   modalOverlay: {
-    flex: 1,
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 10000,
+    elevation: 10000,
     justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: H_PAD,
@@ -733,6 +730,7 @@ const styles = StyleSheet.create({
     backgroundColor: c.blue900,
     borderRadius: 18,
     borderWidth: 1,
+    zIndex: 1,
     borderColor: c.outline,
     padding: 16,
   },

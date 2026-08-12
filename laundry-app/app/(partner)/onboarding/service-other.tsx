@@ -1,6 +1,6 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   KeyboardAvoidingView,
   Modal,
@@ -48,6 +48,11 @@ import {
   getWashFoldPackageDescription,
   isWashFoldCustomPackageId,
 } from "@/constants/partner-wash-fold-items";
+import {
+  isLadiesTailoringItem,
+  mergeTailoringCatalog,
+  PARTNER_TAILORING_ITEM_KEYS,
+} from "@/constants/tailoring-items";
 import { getStrings } from "@/locales";
 import { allowDecimalOnly } from "@/utils/input-filter";
 import { parsePriceDisplay } from "@/utils/parse-price-display";
@@ -58,16 +63,9 @@ const fs = theme.fontSize;
 const ITEMIZE_SERVICE_KEYS = ["washAndFold", "dryCleaning", "tailoring", "press"] as const;
 type ItemizeServiceKey = (typeof ITEMIZE_SERVICE_KEYS)[number];
 
-const TAILORING_ITEM_KEYS = [
-  "tailoringItemPants",
-  "tailoringItemShirt",
-  "tailoringItemSuit",
-  "tailoringItemDress",
-] as const;
-
 const ITEM_KEYS: Record<"dryCleaning" | "tailoring", readonly string[]> = {
   dryCleaning: PARTNER_DRY_CLEANING_ITEM_KEYS,
-  tailoring: TAILORING_ITEM_KEYS,
+  tailoring: PARTNER_TAILORING_ITEM_KEYS,
 };
 
 type WashFoldPriceTab = "items" | "packages";
@@ -273,8 +271,13 @@ export default function ServiceOtherScreen() {
       }
     } else if (serviceKey === "tailoring") {
       if (saved?.items?.length) {
-        setItems(saved.items);
-        setPrices(saved.prices ?? {});
+        const merged = mergeTailoringCatalog(
+          saved.items,
+          saved.prices ?? {},
+          getLabelForKey,
+        );
+        setItems(merged.items);
+        setPrices(merged.prices);
       } else {
         const defaultItems = getDefaultItems("tailoring", getLabelForKey);
         setItems(defaultItems);
@@ -752,7 +755,24 @@ export default function ServiceOtherScreen() {
         ) : (
           <>
             {isDryCleaning ? renderSuitCard() : null}
-            {visibleItems.map(renderItemRow)}
+            {serviceKey === "tailoring" ? (() => {
+              let ladiesHeaderShown = false;
+              return visibleItems.map((item) => {
+                const isLadies = isLadiesTailoringItem(item.id);
+                const showHeader = isLadies && !ladiesHeaderShown;
+                if (isLadies) ladiesHeaderShown = true;
+                return (
+                  <React.Fragment key={item.id}>
+                    {showHeader ? (
+                      <Text style={styles.sectionHeader}>
+                        {(onboardingStrings as Record<string, string>).tailoringLadiesSection ?? "Ladies Stitching"}
+                      </Text>
+                    ) : null}
+                    {renderItemRow(item)}
+                  </React.Fragment>
+                );
+              });
+            })() : visibleItems.map(renderItemRow)}
           </>
         )}
 
@@ -1002,6 +1022,16 @@ const styles = StyleSheet.create({
     fontSize: fs.descText,
     color: "rgba(255,255,255,0.7)",
     lineHeight: 18,
+  },
+  sectionHeader: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "rgba(255,255,255,0.55)",
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+    marginTop: 16,
+    marginBottom: 6,
+    paddingHorizontal: 2,
   },
   itemName: {
     fontSize: fs.smallText,
