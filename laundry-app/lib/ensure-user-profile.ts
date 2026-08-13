@@ -57,6 +57,11 @@ export async function ensureActiveUserProfile(user: User): Promise<EnsureProfile
     };
   }
 
+  const referralFromMeta =
+    typeof user.user_metadata?.referral_code === "string"
+      ? user.user_metadata.referral_code.trim().toUpperCase()
+      : "";
+
   const { error } = await supabase.rpc("bootstrap_user_profile", {
     p_email: email,
     p_phone: phone,
@@ -66,6 +71,7 @@ export async function ensureActiveUserProfile(user: User): Promise<EnsureProfile
     p_last_name:
       typeof user.user_metadata?.last_name === "string" ? user.user_metadata.last_name : null,
     p_role: "customer",
+    p_referral_code: referralFromMeta.length > 0 ? referralFromMeta : null,
   });
 
   if (!error) {

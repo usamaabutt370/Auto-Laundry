@@ -1,5 +1,15 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View, Switch, ActivityIndicator } from "react-native";
+import {
+	Pressable,
+	ScrollView,
+	StyleSheet,
+	Text,
+	View,
+	Switch,
+	ActivityIndicator,
+	Platform,
+	Share,
+} from "react-native";
 import { Linking } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -41,6 +51,7 @@ export default function PartnerProfileMenu() {
 	const [displayName, setDisplayName] = useState<string>("Laundry Captain");
 	const [displayPhone, setDisplayPhone] = useState<string>("");
 	const [creditBalance, setCreditBalance] = useState<number | null>(null);
+	const [referralCode, setReferralCode] = useState<string | null>(null);
 
 	const fetchProfile = useCallback(async () => {
 		if (!isSupabaseConfigured() || !user?.id) return;
@@ -52,7 +63,7 @@ export default function PartnerProfileMenu() {
 				.maybeSingle();
 			const { data: profileData } = await supabase
 				.from("profiles")
-				.select("full_name,first_name,last_name,phone,image_url,updated_at")
+				.select("full_name,first_name,last_name,phone,image_url,updated_at,referral_code")
 				.eq("id", user.id)
 				.maybeSingle<{
 					full_name: string | null;
@@ -61,6 +72,7 @@ export default function PartnerProfileMenu() {
 					phone: string | null;
 					image_url: string | null;
 					updated_at: string | null;
+					referral_code: string | null;
 				}>();
 
 			const resolvedName =
@@ -71,6 +83,8 @@ export default function PartnerProfileMenu() {
 				"Laundry Captain";
 			setDisplayName(resolvedName);
 			setDisplayPhone(profileData?.phone ?? (user?.user_metadata as any)?.phone ?? "");
+			const code = (profileData?.referral_code ?? "").trim().toUpperCase();
+			setReferralCode(code.length > 0 ? code : null);
 
 			if (error || !data) {
 				// Fallback to customer profile image if partner image is missing
@@ -158,6 +172,22 @@ export default function PartnerProfileMenu() {
 		}
 	};
 
+	const handleShareReferralCode = async () => {
+		if (!referralCode) return;
+		try {
+			if (Platform.OS === "web" && typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+				await navigator.clipboard.writeText(referralCode);
+				showAppAlert("Copied", "Referral code copied.");
+				return;
+			}
+			await Share.share({
+				message: `Use my Tap2Laundry referral code: ${referralCode}`,
+			});
+		} catch {
+			// User cancelled the share sheet
+		}
+	};
+
 	const isPartnerSwitchOn = roleSwitchValue !== null ? roleSwitchValue : (user?.user_metadata?.role ?? "launderer") === "launderer";
 
 	const MenuItem = ({ icon, label, onPress }: { icon: string; label: string; onPress?: () => void }) => (
@@ -217,6 +247,29 @@ export default function PartnerProfileMenu() {
 						>
 							<Text style={styles.buyCreditsBtnText}>Buy more credits</Text>
 						</Pressable>
+					</View>
+				) : null}
+
+				{referralCode ? (
+					<View style={styles.referralCard}>
+						<View style={styles.referralRow}>
+							<View style={styles.referralCopy}>
+								<Text style={styles.referralLabel}>Your referral code</Text>
+								<Text style={styles.referralCode}>{referralCode}</Text>
+							</View>
+							<Pressable
+								onPress={() => void handleShareReferralCode()}
+								style={({ pressed }) => [styles.copyBtn, pressed && styles.pressed]}
+								accessibilityRole="button"
+								accessibilityLabel="Copy referral code"
+							>
+								<MaterialCommunityIcons name="content-copy" size={16} color={c.background} />
+								<Text style={styles.copyBtnText}>{Platform.OS === "web" ? "Copy" : "Share"}</Text>
+							</Pressable>
+						</View>
+						<Text style={styles.referralHint}>
+							Share this. You get 500 credits when they become a Laundry Captain and get approved.
+						</Text>
 					</View>
 				) : null}
 
@@ -289,6 +342,30 @@ const styles = StyleSheet.create({
 	creditHint: { fontSize: 12, color: c.blue500, fontWeight: "500", marginTop: 2 },
 	buyCreditsBtn: { paddingHorizontal: 16, paddingVertical: 9, borderRadius: 999, backgroundColor: c.white },
 	buyCreditsBtnText: { fontSize: 13, fontWeight: "700", color: c.background },
+	referralCard: {
+		backgroundColor: c.backgroundDark,
+		borderRadius: 14,
+		paddingHorizontal: 18,
+		paddingVertical: 16,
+		marginTop: 8,
+		borderWidth: 1,
+		borderColor: "rgba(255,255,255,0.08)",
+	},
+	referralRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
+	referralCopy: { flex: 1 },
+	referralLabel: { fontSize: 12, color: c.blue500, fontWeight: "500" },
+	referralCode: { fontSize: 22, fontWeight: "800", color: c.white, letterSpacing: 1.2, marginTop: 4 },
+	referralHint: { fontSize: 12, color: c.blue500, lineHeight: 16, marginTop: 8 },
+	copyBtn: {
+		flexDirection: "row",
+		alignItems: "center",
+		gap: 6,
+		paddingHorizontal: 14,
+		paddingVertical: 9,
+		borderRadius: 999,
+		backgroundColor: c.white,
+	},
+	copyBtnText: { fontSize: 13, fontWeight: "700", color: c.background },
 	divider: { height: 1, backgroundColor: "rgba(255,255,255,0.06)", marginVertical: 16 },
 	menuGroup: { backgroundColor: "transparent", gap: 8 },
 	menuItem: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 14 },

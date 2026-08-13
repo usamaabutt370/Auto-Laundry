@@ -21,6 +21,23 @@ import type { CountryCode } from "libphonenumber-js";
 
 const c = theme.colors;
 
+function referralSetupErrorMessage(message: string): string | null {
+  const lower = message.toLowerCase();
+  if (lower.includes("invalid referral code")) {
+    return "Enter a valid 6–8 character referral code.";
+  }
+  if (lower.includes("referral code not found")) {
+    return "Referral code not found.";
+  }
+  if (lower.includes("your own referral")) {
+    return "You cannot use your own referral code.";
+  }
+  if (lower.includes("already applied")) {
+    return "A referral code is already applied to this account.";
+  }
+  return null;
+}
+
 export default function SignUpScreen() {
   const router = useRouter();
   const { returnTo, ref: referralParam } = useLocalSearchParams<{
@@ -89,6 +106,11 @@ export default function SignUpScreen() {
       nextErrors.mobileNumber = `Enter a valid mobile number for ${countryCode}.`;
     }
 
+    const trimmedReferral = referralCode.trim().toUpperCase();
+    if (trimmedReferral.length > 0 && (trimmedReferral.length < 6 || trimmedReferral.length > 8)) {
+      nextErrors.referralCode = "Enter a valid 6–8 character referral code.";
+    }
+
     if (Object.keys(nextErrors).length > 0) {
       setErrors(nextErrors);
       return;
@@ -113,6 +135,7 @@ export default function SignUpScreen() {
             first_name: firstName,
             last_name: lastName,
             phone: normalizedPhone,
+            referral_code: trimmedReferral.length > 0 ? trimmedReferral : undefined,
           },
         },
       });
@@ -124,10 +147,9 @@ export default function SignUpScreen() {
 
       const user = data.user;
 
-      // 2) Create profile row so phone-login and RLS account checks work.
-      //    Optional referral code creates a pending referrals row (no points yet).
+      // 2) Create customer profile. Optional code creates a pending referral only
+      //    (500 partner credits are paid later when this user is KYC-approved).
       if (user) {
-        const trimmedReferral = referralCode.trim().toUpperCase();
         const { error: profileError } = await supabase.rpc("bootstrap_user_profile", {
           p_email: generatedEmail,
           p_phone: normalizedPhone,
@@ -138,6 +160,12 @@ export default function SignUpScreen() {
           p_referral_code: trimmedReferral.length > 0 ? trimmedReferral : null,
         });
         if (profileError) {
+          const referralMessage = referralSetupErrorMessage(profileError.message);
+          if (referralMessage) {
+            setErrors((prev) => ({ ...prev, referralCode: referralMessage }));
+            showAuthError("Referral code", referralMessage);
+            return;
+          }
           showAuthError("Profile setup failed", profileError.message);
           return;
         }
