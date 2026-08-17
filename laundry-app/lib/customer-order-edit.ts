@@ -114,6 +114,8 @@ export async function fetchCustomerOrderForEdit(
 
   const washFoldQuantities = { ...initialWashFoldQuantities() };
   let washFoldInstructions = "";
+  const pressQuantities = { ...initialWashFoldQuantities() };
+  let pressInstructions = "";
   const dryCleanQuantities: Record<string, number> = {};
   let dryCleanInstructions = "";
   const tailoringQuantities: Record<string, number> = {};
@@ -125,6 +127,11 @@ export async function fetchCustomerOrderForEdit(
       washFoldInstructions = service.instructions?.trim() ?? "";
       for (const item of items) {
         washFoldQuantities[item.item_key] = item.quantity;
+      }
+    } else if (service.service_type === "press") {
+      pressInstructions = service.instructions?.trim() ?? "";
+      for (const item of items) {
+        pressQuantities[item.item_key] = item.quantity;
       }
     } else if (service.service_type === "dryCleaning") {
       dryCleanInstructions = service.instructions?.trim() ?? "";
@@ -148,6 +155,12 @@ export async function fetchCustomerOrderForEdit(
       ? {
           itemizedQuantities: washFoldQuantities,
           itemizedInstructions: washFoldInstructions,
+        }
+      : null,
+    press: selectedServiceIds.includes("press")
+      ? {
+          itemizedQuantities: pressQuantities,
+          itemizedInstructions: pressInstructions,
         }
       : null,
     dryClean: selectedServiceIds.includes("dryCleaning")

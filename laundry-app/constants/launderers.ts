@@ -3,7 +3,7 @@
  * Used by the Pick Up & Delivery list and Laundromat Detailed screens.
  */
 
-export type LaundererServiceType = "washAndFold" | "dryCleaning" | "tailoring";
+export type LaundererServiceType = "washAndFold" | "dryCleaning" | "tailoring" | "press";
 
 export interface Launderer {
   id: string;

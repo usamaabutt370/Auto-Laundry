@@ -2,7 +2,6 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import {
-  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -277,6 +276,7 @@ export default function PartnerOrderDetailScreen() {
       );
       setRiderModalVisible(false);
       setSelectedRiderId(null);
+      setIsConfirming(false);
       showAppAlert("Order accepted", s.acceptSuccess, [
         {
           text: "OK",
@@ -288,12 +288,11 @@ export default function PartnerOrderDetailScreen() {
         },
       ]);
     } catch (error) {
+      setIsConfirming(false);
       showAppAlert(
         "Unable to accept order",
         error instanceof Error ? error.message : "Please try again.",
       );
-    } finally {
-      setIsConfirming(false);
     }
   };
 
@@ -338,6 +337,8 @@ export default function PartnerOrderDetailScreen() {
             }
           : prev,
       );
+      setIsConfirming(false);
+      setIsRejecting(false);
       if (target === "ready") {
         showAppAlert("Order marked ready", "Order is ready for pick up / delivery.");
       } else if (target === "completed") {
@@ -370,6 +371,8 @@ export default function PartnerOrderDetailScreen() {
         showAppAlert("Order rejected", "The order has been rejected.");
       }
     } catch (error) {
+      setIsConfirming(false);
+      setIsRejecting(false);
       const actionLabel =
         target === "accepted"
           ? "accept"
@@ -382,9 +385,6 @@ export default function PartnerOrderDetailScreen() {
         `Unable to ${actionLabel} order`,
         error instanceof Error ? error.message : "Please try again.",
       );
-    } finally {
-      setIsConfirming(false);
-      setIsRejecting(false);
     }
   };
 
@@ -821,16 +821,11 @@ export default function PartnerOrderDetailScreen() {
         }}
       />
       <BlockingLoader
-        visible={isConfirming}
+        visible={isConfirming && !riderModalVisible}
         message={commonStrings.acceptingOrder}
       />
-      <Modal
-        visible={rejectModalVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setRejectModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
+      {rejectModalVisible ? (
+        <View style={styles.modalOverlay} pointerEvents="auto" accessibilityViewIsModal>
           <Pressable style={styles.modalBackdrop} onPress={() => setRejectModalVisible(false)} />
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Reject order</Text>
@@ -887,7 +882,7 @@ export default function PartnerOrderDetailScreen() {
             </View>
           </View>
         </View>
-      </Modal>
+      ) : null}
     </View>
   );
 }
@@ -1255,7 +1250,9 @@ const styles = StyleSheet.create({
     color: c.blue500,
   },
   modalOverlay: {
-    flex: 1,
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 10000,
+    elevation: 10000,
     justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: H_PAD,
@@ -1271,6 +1268,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: c.outline,
     padding: 16,
+    zIndex: 1,
   },
   modalTitle: {
     color: c.white,

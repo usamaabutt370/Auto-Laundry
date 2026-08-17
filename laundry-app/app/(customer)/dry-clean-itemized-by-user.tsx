@@ -3,32 +3,52 @@ import { useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Image } from "expo-image";
-import { AppHeader } from "@/components/app-header";
 
-import { assets } from "@/assets/assets";
+import { AppHeader } from "@/components/app-header";
 import {
   CUSTOMER_ORDER_NOTES_MAX_HEIGHT,
   CustomerItemizedOrderLayout,
   customerOrderFooterStyles,
 } from "@/components/customer-itemized-order-layout";
 import { CustomerLiveEstimateFooter } from "@/components/customer-live-estimate-footer";
-import { initialDryCleanQuantities } from "@/constants/dry-clean-items";
-import { strings } from "@/constants/strings";
+import {
+  DRY_CLEAN_SUIT_2_PIECE_ID,
+  DRY_CLEAN_SUIT_3_PIECE_ID,
+  initialDryCleanQuantities,
+  isDryCleanSuitPackageId,
+  type DryCleanItemDef,
+} from "@/constants/dry-clean-items";
 import { theme } from "@/constants/theme";
 import type { CustomerOrderDraft } from "@/contexts/customer-order-draft-context";
 import { useCustomerOrderDraft } from "@/contexts/customer-order-draft-context";
+import { useLocale } from "@/contexts/locale-context";
 import {
   dryCleanUnitForItem,
   listPricedDryCleanDefs,
+  listPricedDryCleanSuitDefs,
+  partnerHasDryCleaningRates,
 } from "@/lib/customer-order-estimate";
 import { usePartnerOrderEstimate } from "@/hooks/use-partner-order-estimate";
+import { getStrings } from "@/locales";
 import { formatMoney } from "@/utils/format-money";
 
 const c = theme.colors;
 
+type SuitPiece = typeof DRY_CLEAN_SUIT_2_PIECE_ID | typeof DRY_CLEAN_SUIT_3_PIECE_ID;
+
+function packageIncludesForSuit(
+  piece: SuitPiece,
+  s: ReturnType<typeof getStrings>["customer"]["dryCleanItemize"],
+): string {
+  return piece === DRY_CLEAN_SUIT_2_PIECE_ID
+    ? s.suit2PieceIncludes
+    : s.suit3PieceIncludes;
+}
+
 export default function DryCleanItemizedByUserScreen() {
   const router = useRouter();
+  const { locale } = useLocale();
+  const strings = getStrings(locale);
   const {
     draft,
     setDryCleanItemizedQuantities,
@@ -46,6 +66,13 @@ export default function DryCleanItemizedByUserScreen() {
     () => draft.dryClean?.itemizedInstructions ?? "",
   );
 
+  const initialSuitPiece: SuitPiece = (() => {
+    const q2 = draft.dryClean?.itemizedQuantities?.[DRY_CLEAN_SUIT_2_PIECE_ID] ?? 0;
+    const q3 = draft.dryClean?.itemizedQuantities?.[DRY_CLEAN_SUIT_3_PIECE_ID] ?? 0;
+    return q3 > q2 ? DRY_CLEAN_SUIT_3_PIECE_ID : DRY_CLEAN_SUIT_2_PIECE_ID;
+  })();
+  const [suitPiece, setSuitPiece] = useState<SuitPiece>(initialSuitPiece);
+
   useEffect(() => {
     setDryCleanItemizedQuantities(quantities);
   }, [quantities, setDryCleanItemizedQuantities]);
@@ -59,6 +86,7 @@ export default function DryCleanItemizedByUserScreen() {
       ...draft,
       selectedServiceIds: ["dryCleaning"],
       washFold: null,
+      press: null,
       pickup: null,
       delivery: null,
     }),
@@ -77,6 +105,18 @@ export default function DryCleanItemizedByUserScreen() {
     });
   };
 
+  const selectSuitPiece = (piece: SuitPiece) => {
+    if (piece === suitPiece) return;
+    const currentQty = quantities[suitPiece] ?? 0;
+    setSuitPiece(piece);
+    setQuantities((prev) => ({
+      ...prev,
+      [DRY_CLEAN_SUIT_2_PIECE_ID]: 0,
+      [DRY_CLEAN_SUIT_3_PIECE_ID]: 0,
+      [piece]: currentQty,
+    }));
+  };
+
   const handleSave = () => {
     router.back();
   };
@@ -87,9 +127,207 @@ export default function DryCleanItemizedByUserScreen() {
     [services],
   );
 
+  const pricedSuitDefs = useMemo(
+    () => listPricedDryCleanSuitDefs(services),
+    [services],
+  );
+
+  const showSuitCard = useMemo(
+    () => partnerHasDryCleaningRates(services) || pricedSuitDefs.length > 0,
+    [services, pricedSuitDefs.length],
+  );
+
+  const suitOptions = useMemo(() => {
+    const map = new Map<string, DryCleanItemDef>();
+    for (const item of pricedSuitDefs) {
+      map.set(item.id, item);
+    }
+    return map;
+  }, [pricedSuitDefs]);
+
+  const hasSuitRates = pricedSuitDefs.length > 0;
+
+  const activeSuitId: SuitPiece | null = useMemo(() => {
+    if (!hasSuitRates) return null;
+    if (suitOptions.has(suitPiece)) return suitPiece;
+    if (suitOptions.has(DRY_CLEAN_SUIT_2_PIECE_ID)) return DRY_CLEAN_SUIT_2_PIECE_ID;
+    if (suitOptions.has(DRY_CLEAN_SUIT_3_PIECE_ID)) return DRY_CLEAN_SUIT_3_PIECE_ID;
+    return null;
+  }, [hasSuitRates, suitOptions, suitPiece]);
+
+  useEffect(() => {
+    if (activeSuitId && activeSuitId !== suitPiece) {
+      setSuitPiece(activeSuitId);
+    }
+  }, [activeSuitId, suitPiece]);
+
+  const garmentItems = useMemo(
+    () => availableItems.filter((item) => !isDryCleanSuitPackageId(item.id)),
+    [availableItems],
+  );
+
   const hasSelectedItems = useMemo(() => {
     return Object.values(quantities).some((q) => q > 0);
   }, [quantities]);
+
+  const renderGarmentRow = (item: DryCleanItemDef) => {
+    const qty = quantities[item.id] ?? 0;
+    const { amount: unit, priceLabel } = dryCleanUnitForItem(services, item);
+    const lineTotal =
+      unit != null && qty > 0 ? Math.round(unit * qty * 100) / 100 : null;
+
+    return (
+      <View key={item.id} style={styles.itemCard}>
+        <View style={styles.itemLeft}>
+          <Text style={styles.itemName}>{item.name}</Text>
+          <Text style={styles.unitPrice}>
+            {unit != null
+              ? `${formatMoney(currencyPrefix || "", unit)} each · ${priceLabel}`
+              : `Rate: ${priceLabel}`}
+          </Text>
+          {qty > 0 && lineTotal != null ? (
+            <Text style={styles.lineSubtotal}>
+              Subtotal: {formatMoney(currencyPrefix || "", lineTotal)}
+            </Text>
+          ) : null}
+        </View>
+        <View style={styles.stepper}>
+          <Pressable
+            onPress={() => setQty(item.id, -1)}
+            style={styles.stepperBtn}
+            disabled={qty <= 0}
+          >
+            <MaterialCommunityIcons
+              name="minus"
+              size={20}
+              color={qty <= 0 ? "rgba(255,255,255,0.5)" : c.white}
+            />
+          </Pressable>
+          <Text style={styles.stepperValue}>{qty}</Text>
+          <Pressable
+            onPress={() => setQty(item.id, 1)}
+            style={styles.stepperBtn}
+          >
+            <MaterialCommunityIcons name="plus" size={20} color={c.white} />
+          </Pressable>
+        </View>
+      </View>
+    );
+  };
+
+  const renderSuitCard = () => {
+    if (!showSuitCard) return null;
+
+    if (!hasSuitRates || !activeSuitId) {
+      return (
+        <View style={styles.suitCard}>
+          <Text style={styles.itemName}>{s.suitCardTitle}</Text>
+          <Text style={styles.suitHint}>{s.suitRatesNotSet}</Text>
+        </View>
+      );
+    }
+
+    const qty = quantities[activeSuitId] ?? 0;
+    const def = suitOptions.get(activeSuitId);
+    if (!def) return null;
+    const { amount: unit, priceLabel } = dryCleanUnitForItem(services, def);
+    const lineTotal =
+      unit != null && qty > 0 ? Math.round(unit * qty * 100) / 100 : null;
+    const can2 = suitOptions.has(DRY_CLEAN_SUIT_2_PIECE_ID);
+    const can3 = suitOptions.has(DRY_CLEAN_SUIT_3_PIECE_ID);
+
+    return (
+      <View style={styles.suitCard}>
+        <Text style={styles.itemName}>{s.suitCardTitle}</Text>
+
+        <View style={styles.pieceRow}>
+          {can2 ? (
+            <Pressable
+              onPress={() => selectSuitPiece(DRY_CLEAN_SUIT_2_PIECE_ID)}
+              style={[
+                styles.pieceChip,
+                activeSuitId === DRY_CLEAN_SUIT_2_PIECE_ID && styles.pieceChipActive,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.pieceChipLabel,
+                  activeSuitId === DRY_CLEAN_SUIT_2_PIECE_ID &&
+                    styles.pieceChipLabelActive,
+                ]}
+              >
+                {s.piece2}
+              </Text>
+            </Pressable>
+          ) : null}
+          {can3 ? (
+            <Pressable
+              onPress={() => selectSuitPiece(DRY_CLEAN_SUIT_3_PIECE_ID)}
+              style={[
+                styles.pieceChip,
+                activeSuitId === DRY_CLEAN_SUIT_3_PIECE_ID && styles.pieceChipActive,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.pieceChipLabel,
+                  activeSuitId === DRY_CLEAN_SUIT_3_PIECE_ID &&
+                    styles.pieceChipLabelActive,
+                ]}
+              >
+                {s.piece3}
+              </Text>
+            </Pressable>
+          ) : null}
+        </View>
+
+        <View style={styles.suitBodyRow}>
+          <View style={styles.itemLeft}>
+            <Text style={styles.unitPrice}>
+              {unit != null
+                ? `${formatMoney(currencyPrefix || "", unit)} each · ${priceLabel}`
+                : `Rate: ${priceLabel}`}
+            </Text>
+            {qty > 0 ? (
+              <View style={styles.packageBox}>
+                <Text style={styles.packageHeading}>
+                  {s.packageIncludesHeading}
+                </Text>
+                <Text style={styles.packageBody}>
+                  {packageIncludesForSuit(activeSuitId, s)}
+                </Text>
+              </View>
+            ) : null}
+            {qty > 0 && lineTotal != null ? (
+              <Text style={styles.lineSubtotal}>
+                Subtotal: {formatMoney(currencyPrefix || "", lineTotal)}
+              </Text>
+            ) : null}
+          </View>
+          <View style={styles.stepper}>
+            <Pressable
+              onPress={() => setQty(activeSuitId, -1)}
+              style={styles.stepperBtn}
+              disabled={qty <= 0}
+            >
+              <MaterialCommunityIcons
+                name="minus"
+                size={20}
+                color={qty <= 0 ? "rgba(255,255,255,0.5)" : c.white}
+              />
+            </Pressable>
+            <Text style={styles.stepperValue}>{qty}</Text>
+            <Pressable
+              onPress={() => setQty(activeSuitId, 1)}
+              style={styles.stepperBtn}
+            >
+              <MaterialCommunityIcons name="plus" size={20} color={c.white} />
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -133,52 +371,13 @@ export default function DryCleanItemizedByUserScreen() {
           when available.
         </Text>
 
-        {availableItems.map((item) => {
-          const qty = quantities[item.id] ?? 0;
-          const { amount: unit, priceLabel } = dryCleanUnitForItem(services, item);
-          const lineTotal =
-            unit != null && qty > 0 ? Math.round(unit * qty * 100) / 100 : null;
-
-          return (
-            <View key={item.id} style={styles.itemCard}>
-              <View style={styles.itemLeft}>
-                <Text style={styles.itemName}>{item.name}</Text>
-                <Text style={styles.unitPrice}>
-                  {unit != null
-                    ? `${formatMoney(currencyPrefix || "", unit)} each · ${priceLabel}`
-                    : `Rate: ${priceLabel}`}
-                </Text>
-                {qty > 0 && lineTotal != null ? (
-                  <Text style={styles.lineSubtotal}>
-                    Subtotal: {formatMoney(currencyPrefix || "", lineTotal)}
-                  </Text>
-                ) : null}
-              </View>
-              <View style={styles.stepper}>
-                <Pressable
-                  onPress={() => setQty(item.id, -1)}
-                  style={styles.stepperBtn}
-                  disabled={qty <= 0}
-                >
-                  <MaterialCommunityIcons
-                    name="minus"
-                    size={20}
-                    color={qty <= 0 ? "rgba(255,255,255,0.5)" : c.white}
-                  />
-                </Pressable>
-                <Text style={styles.stepperValue}>{qty}</Text>
-                <Pressable
-                  onPress={() => setQty(item.id, 1)}
-                  style={styles.stepperBtn}
-                >
-                  <MaterialCommunityIcons name="plus" size={20} color={c.white} />
-                </Pressable>
-              </View>
-            </View>
-          );
-        })}
+        {renderSuitCard()}
+        {garmentItems.map(renderGarmentRow)}
         {availableItems.length === 0 ? (
-          <Text style={styles.emptyText}>No dry-cleaning item prices have been configured by this Laundry Captain.</Text>
+          <Text style={styles.emptyText}>
+            No dry-cleaning item prices have been configured by this Laundry
+            Captain.
+          </Text>
         ) : null}
 
         <Text style={styles.sectionLabel}>{sDet.instructions}</Text>
@@ -231,6 +430,52 @@ const styles = StyleSheet.create({
     maxHeight: CUSTOMER_ORDER_NOTES_MAX_HEIGHT,
     marginBottom: 12,
   },
+  suitCard: {
+    backgroundColor: c.blue900,
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.15)",
+  },
+  suitHint: {
+    marginTop: 8,
+    fontSize: 13,
+    color: "rgba(255,255,255,0.7)",
+    lineHeight: 18,
+  },
+  pieceRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 12,
+    marginBottom: 10,
+  },
+  pieceChip: {
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.25)",
+    backgroundColor: "rgba(255,255,255,0.06)",
+  },
+  pieceChipActive: {
+    borderColor: c.lightBlue,
+    backgroundColor: "rgba(111, 207, 255, 0.18)",
+  },
+  pieceChipLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "rgba(255,255,255,0.75)",
+  },
+  pieceChipLabelActive: {
+    color: c.white,
+  },
+  suitBodyRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
   itemCard: {
     flexDirection: "row",
     alignItems: "center",
@@ -249,6 +494,28 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "rgba(255,255,255,0.65)",
     marginTop: 4,
+  },
+  packageBox: {
+    marginTop: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    backgroundColor: "rgba(255,255,255,0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
+  },
+  packageHeading: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: c.lightBlue,
+    marginBottom: 4,
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+  },
+  packageBody: {
+    fontSize: 14,
+    color: "rgba(255,255,255,0.85)",
+    lineHeight: 20,
   },
   lineSubtotal: {
     fontSize: 14,

@@ -141,7 +141,7 @@ async function fetchPartnerOrderRow(orderId: string, partnerId: string) {
 
 type OrderServiceRow = {
   id: string;
-  service_type: "washAndFold" | "dryCleaning" | "tailoring";
+  service_type: "washAndFold" | "dryCleaning" | "tailoring" | "press";
   instructions: string;
   estimated_amount: number | null;
   order_service_items?: OrderServiceItemRow[] | null;
@@ -220,6 +220,8 @@ function serviceTypeLabel(serviceType: OrderServiceRow["service_type"]): string 
       return "Dry Cleaning";
     case "tailoring":
       return "Tailoring";
+    case "press":
+      return "Ironing & Press";
     default:
       return serviceType;
   }

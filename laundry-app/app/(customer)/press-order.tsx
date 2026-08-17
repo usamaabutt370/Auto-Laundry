@@ -19,44 +19,44 @@ import type { CustomerOrderDraft } from "@/contexts/customer-order-draft-context
 import { useCustomerOrderDraft } from "@/contexts/customer-order-draft-context";
 import { useLocale } from "@/contexts/locale-context";
 import {
-  initialWashFoldQuantities,
+  initialPressQuantities,
   WASH_FOLD_PACKAGE_DEFS,
 } from "@/constants/wash-fold-items";
 import { usePartnerOrderEstimate } from "@/hooks/use-partner-order-estimate";
 import {
-  listPricedWashFoldDefs,
-  washFoldUnitForItem,
+  listPricedPressDefs,
+  pressUnitForItem,
 } from "@/lib/customer-order-estimate";
 import { getStrings } from "@/locales";
 import { formatMoney } from "@/utils/format-money";
 
 const c = theme.colors;
 
-export default function WashFoldOrderScreen() {
+export default function PressOrderScreen() {
   const router = useRouter();
   const { locale } = useLocale();
-  const s = getStrings(locale).customer.washFoldOrder;
+  const s = getStrings(locale).customer.pressOrder;
   const sDet = getStrings(locale).customer.laundryBagDetail;
   const sLive = getStrings(locale).customer.liveEstimate;
 
-  const { draft, setWashFoldItemizedQuantities } = useCustomerOrderDraft();
+  const { draft, setPressItemizedQuantities } = useCustomerOrderDraft();
 
   const [quantities, setQuantities] = useState<Record<string, number>>(() => ({
-    ...initialWashFoldQuantities(),
-    ...(draft.washFold?.itemizedQuantities ?? {}),
+    ...initialPressQuantities(),
+    ...(draft.press?.itemizedQuantities ?? {}),
   }));
-  const [washFoldTab, setWashFoldTab] = useState<"items" | "packages">("items");
+  const [pressTab, setPressTab] = useState<"items" | "packages">("items");
 
   useEffect(() => {
-    setWashFoldItemizedQuantities(quantities);
-  }, [quantities, setWashFoldItemizedQuantities]);
+    setPressItemizedQuantities(quantities);
+  }, [quantities, setPressItemizedQuantities]);
 
   const washOnlyDraft: CustomerOrderDraft = useMemo(
     () => ({
       ...draft,
-      selectedServiceIds: ["washAndFold"],
+      selectedServiceIds: ["press"],
       dryClean: null,
-      press: null,
+      washFold: null,
       tailoring: null,
       pickup: null,
       delivery: null,
@@ -84,7 +84,7 @@ export default function WashFoldOrderScreen() {
 
   const currencyPrefix = estimate.currencyPrefix;
 
-  const pricedDefs = useMemo(() => listPricedWashFoldDefs(services), [services]);
+  const pricedDefs = useMemo(() => listPricedPressDefs(services), [services]);
 
   const availableGarments = useMemo(
     () => pricedDefs.filter((item) => item.kind === "garment"),
@@ -96,7 +96,7 @@ export default function WashFoldOrderScreen() {
       pricedDefs.filter(
         (item) =>
           item.kind === "package" &&
-          washFoldUnitForItem(services, item).amount != null,
+          pressUnitForItem(services, item).amount != null,
       ),
     [pricedDefs, services],
   );
@@ -133,7 +133,7 @@ export default function WashFoldOrderScreen() {
   const showPackagesTab = availablePackages.length > 0;
   const showWashFoldTabs = showItemsTab && showPackagesTab;
   const effectiveWashFoldTab: "items" | "packages" = showWashFoldTabs
-    ? washFoldTab
+    ? pressTab
     : showPackagesTab
       ? "packages"
       : "items";
@@ -159,9 +159,9 @@ export default function WashFoldOrderScreen() {
   useEffect(() => {
     if (!hasAnyRates) return;
     if (showItemsTab && !showPackagesTab) {
-      setWashFoldTab("items");
+      setPressTab("items");
     } else if (showPackagesTab && !showItemsTab) {
-      setWashFoldTab("packages");
+      setPressTab("packages");
     }
   }, [draft.partnerId, hasAnyRates, showItemsTab, showPackagesTab]);
 
@@ -181,7 +181,7 @@ export default function WashFoldOrderScreen() {
 
   const renderGarmentRow = (def: (typeof pricedDefs)[number]) => {
     const qty = quantities[def.id] ?? 0;
-    const { amount: unit } = washFoldUnitForItem(services, def);
+    const { amount: unit } = pressUnitForItem(services, def);
     const lineTotal =
       unit != null && qty > 0 ? Math.round(unit * qty * 100) / 100 : null;
 
@@ -223,7 +223,7 @@ export default function WashFoldOrderScreen() {
 
   const renderPackageBox = (def: (typeof pricedDefs)[number]) => {
     const selected = (quantities[def.id] ?? 0) > 0;
-    const { amount: unit, priceLabel } = washFoldUnitForItem(services, def);
+    const { amount: unit, priceLabel } = pressUnitForItem(services, def);
     const label = displayName(def);
     const priceDisplay =
       unit != null ? formatMoney(currencyPrefix || "", unit) : priceLabel;
@@ -294,7 +294,7 @@ export default function WashFoldOrderScreen() {
               {showWashFoldTabs ? (
                 <View style={styles.tabRow}>
                   <Pressable
-                    onPress={() => setWashFoldTab("items")}
+                    onPress={() => setPressTab("items")}
                     style={({ pressed }) => [
                       styles.tabBtn,
                       effectiveWashFoldTab === "items" && styles.tabBtnActive,
@@ -318,7 +318,7 @@ export default function WashFoldOrderScreen() {
                     ) : null}
                   </Pressable>
                   <Pressable
-                    onPress={() => setWashFoldTab("packages")}
+                    onPress={() => setPressTab("packages")}
                     style={({ pressed }) => [
                       styles.tabBtn,
                       effectiveWashFoldTab === "packages" && styles.tabBtnActive,

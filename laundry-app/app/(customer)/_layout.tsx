@@ -28,6 +28,7 @@ export default function CustomerLayout() {
           <Stack.Screen name="tailoring-itemized-by-user" />
           <Stack.Screen name="laundry-bags" />
           <Stack.Screen name="wash-fold-order" />
+          <Stack.Screen name="press-order" />
           <Stack.Screen name="laundry-bag-detail" />
           <Stack.Screen name="schedule-pickup" />
           <Stack.Screen name="schedule-delivery" />

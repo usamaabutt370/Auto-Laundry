@@ -2,8 +2,10 @@ import type { CustomerOrderDraft, CustomerServiceId } from "@/contexts/customer-
 import {
   dryCleanUnitForItem,
   listPricedDryCleanDefs,
+  listPricedPressDefs,
   listPricedTailoringDefs,
   listPricedWashFoldDefs,
+  pressUnitForItem,
   tailoringUnitForItem,
   washFoldUnitForItem,
   type OrderEstimateResult,
@@ -29,6 +31,12 @@ function totalItemCountForService(
       0,
     );
   }
+  if (serviceType === "press") {
+    return Object.values(draft.press?.itemizedQuantities ?? {}).reduce(
+      (acc, qty) => acc + Math.max(0, qty),
+      0,
+    );
+  }
   if (serviceType === "dryCleaning") {
     return Object.values(draft.dryClean?.itemizedQuantities ?? {}).reduce(
       (acc, qty) => acc + Math.max(0, qty),
@@ -48,6 +56,9 @@ function instructionsForService(
   if (serviceType === "washAndFold") {
     return draft.washFold?.itemizedInstructions?.trim() ?? "";
   }
+  if (serviceType === "press") {
+    return draft.press?.itemizedInstructions?.trim() ?? "";
+  }
   if (serviceType === "dryCleaning") {
     return draft.dryClean?.itemizedInstructions?.trim() ?? "";
   }
@@ -61,6 +72,9 @@ function estimatedAmountForService(
 ): number | null {
   if (serviceType === "washAndFold") {
     return sumEstimateByPrefix(estimate, "wash_fold");
+  }
+  if (serviceType === "press") {
+    return sumEstimateByPrefix(estimate, "press_");
   }
   if (serviceType === "dryCleaning") {
     return sumEstimateByPrefix(estimate, "dry_");
@@ -139,6 +153,26 @@ export function buildOrderServiceItemRows(
       itemPayload.push({
         order_service_id: dryServiceId,
         service_type: "dryCleaning",
+        item_key: def.id,
+        item_name: def.name,
+        quantity,
+        unit_price_display: unit.priceLabel === "—" ? null : unit.priceLabel,
+        unit_price_amount: unit.amount,
+        line_total_amount:
+          unit.amount != null ? Math.round(unit.amount * quantity * 100) / 100 : null,
+      });
+    }
+  }
+
+  const pressServiceId = byType.get("press");
+  if (pressServiceId && draft.press) {
+    for (const def of listPricedPressDefs(services)) {
+      const quantity = draft.press.itemizedQuantities[def.id] ?? 0;
+      if (quantity <= 0) continue;
+      const unit = pressUnitForItem(services, def);
+      itemPayload.push({
+        order_service_id: pressServiceId,
+        service_type: "press",
         item_key: def.id,
         item_name: def.name,
         quantity,

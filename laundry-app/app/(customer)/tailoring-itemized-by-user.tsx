@@ -1,6 +1,6 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Image } from "expo-image";
@@ -13,21 +13,25 @@ import {
 } from "@/components/customer-itemized-order-layout";
 import { CustomerLiveEstimateFooter } from "@/components/customer-live-estimate-footer";
 import { strings } from "@/constants/strings";
-import { initialTailoringQuantities } from "@/constants/tailoring-items";
+import { initialTailoringQuantities, isLadiesTailoringItem } from "@/constants/tailoring-items";
 import { theme } from "@/constants/theme";
 import type { CustomerOrderDraft } from "@/contexts/customer-order-draft-context";
 import { useCustomerOrderDraft } from "@/contexts/customer-order-draft-context";
+import { useLocale } from "@/contexts/locale-context";
 import { usePartnerOrderEstimate } from "@/hooks/use-partner-order-estimate";
 import {
   listPricedTailoringDefs,
   tailoringUnitForItem,
 } from "@/lib/customer-order-estimate";
+import { getStrings } from "@/locales";
 import { formatMoney } from "@/utils/format-money";
 
 const c = theme.colors;
 
 export default function TailoringItemizedByUserScreen() {
   const router = useRouter();
+  const { locale } = useLocale();
+  const onboardingStrings = getStrings(locale).partner.onboarding;
   const {
     draft,
     setTailoringItemizedQuantities,
@@ -58,6 +62,7 @@ export default function TailoringItemizedByUserScreen() {
       ...draft,
       selectedServiceIds: ["tailoring"],
       washFold: null,
+      press: null,
       dryClean: null,
       pickup: null,
       delivery: null,
@@ -86,6 +91,11 @@ export default function TailoringItemizedByUserScreen() {
     () => listPricedTailoringDefs(services),
     [services],
   );
+
+  const displayName = (item: { id: string; name: string }) => {
+    const onboarding = onboardingStrings as Record<string, string>;
+    return onboarding[item.id]?.trim() || item.name;
+  };
 
   const hasSelectedItems = useMemo(() => {
     return Object.values(quantities).some((q) => q > 0);
@@ -133,16 +143,26 @@ export default function TailoringItemizedByUserScreen() {
           when available.
         </Text>
 
-        {availableItems.map((item) => {
+        {(() => {
+          let ladiesHeaderShown = false;
+          return availableItems.map((item) => {
           const qty = quantities[item.id] ?? 0;
           const { amount: unit, priceLabel } = tailoringUnitForItem(services, item);
           const lineTotal =
             unit != null && qty > 0 ? Math.round(unit * qty * 100) / 100 : null;
+          const isLadies = isLadiesTailoringItem(item.id);
+          const showHeader = isLadies && !ladiesHeaderShown;
+          if (isLadies) ladiesHeaderShown = true;
+          const ladiesLabel = (onboardingStrings as Record<string, string>).tailoringLadiesSection ?? "Ladies Stitching";
 
           return (
-            <View key={item.id} style={styles.itemCard}>
+            <React.Fragment key={item.id}>
+              {showHeader ? (
+                <Text style={styles.sectionHeader}>{ladiesLabel}</Text>
+              ) : null}
+            <View style={styles.itemCard}>
               <View style={styles.itemLeft}>
-                <Text style={styles.itemName}>{item.name}</Text>
+                <Text style={styles.itemName}>{displayName(item)}</Text>
                 <Text style={styles.unitPrice}>
                   {unit != null
                     ? `${formatMoney(currencyPrefix || "", unit)} each · ${priceLabel}`
@@ -175,8 +195,9 @@ export default function TailoringItemizedByUserScreen() {
                 </Pressable>
               </View>
             </View>
+            </React.Fragment>
           );
-        })}
+        })})()}
         {availableItems.length === 0 ? (
           <Text style={styles.emptyText}>No tailoring item prices have been configured by this Laundry Captain.</Text>
         ) : null}
@@ -210,6 +231,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 8,
     paddingBottom: 24,
+  },
+  sectionHeader: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "rgba(255,255,255,0.55)",
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+    marginTop: 16,
+    marginBottom: 6,
+    paddingHorizontal: 2,
   },
   sectionLabel: {
     fontSize: 13,
