@@ -1,0 +1,7 @@
+# reactivate-account is called from sign-up before the user has a session.
+[functions.reactivate-account]
+verify_jwt = false
+
+# JWT is validated inside the function via auth.getUser(); avoids gateway errors on stale tokens.
+[functions.delete-account]
+verify_jwt = false
