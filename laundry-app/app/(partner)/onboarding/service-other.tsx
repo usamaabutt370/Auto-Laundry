@@ -1,6 +1,6 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   KeyboardAvoidingView,
   Modal,
@@ -31,14 +31,28 @@ import type {
 } from "@/contexts/merchant-services-context";
 import { useMerchantServices } from "@/contexts/merchant-services-context";
 import {
+  DRY_CLEAN_SUIT_2_PIECE_ID,
+  DRY_CLEAN_SUIT_3_PIECE_ID,
+  isDryCleanSuitPackageId,
+  mergeDryCleanCatalog,
+  PARTNER_DRY_CLEANING_ITEM_KEYS,
+} from "@/constants/dry-clean-items";
+import {
   isWashFoldPackageItem,
   isWashFoldPackageItemId,
+  mergePressCatalog,
   mergeWashFoldCatalog,
+  PARTNER_PRESS_GARMENT_KEYS,
   PARTNER_WASH_FOLD_GARMENT_KEYS,
   PARTNER_WASH_FOLD_PACKAGE_KEYS,
   getWashFoldPackageDescription,
   isWashFoldCustomPackageId,
 } from "@/constants/partner-wash-fold-items";
+import {
+  isLadiesTailoringItem,
+  mergeTailoringCatalog,
+  PARTNER_TAILORING_ITEM_KEYS,
+} from "@/constants/tailoring-items";
 import { getStrings } from "@/locales";
 import { allowDecimalOnly } from "@/utils/input-filter";
 import { parsePriceDisplay } from "@/utils/parse-price-display";
@@ -46,40 +60,38 @@ import { parsePriceDisplay } from "@/utils/parse-price-display";
 const c = theme.colors;
 const fs = theme.fontSize;
 
-const ITEMIZE_SERVICE_KEYS = ["washAndFold", "dryCleaning", "tailoring"] as const;
+const ITEMIZE_SERVICE_KEYS = ["washAndFold", "dryCleaning", "tailoring", "press"] as const;
 type ItemizeServiceKey = (typeof ITEMIZE_SERVICE_KEYS)[number];
 
-const DRY_CLEANING_ITEM_KEYS = [
-  "dryCleaningItemSuit",
-  "dryCleaningItemShirt",
-  "dryCleaningItemPants",
-  "dryCleaningItemDress",
-  "dryCleaningItemSweater",
-  "dryCleaningItemCoat",
-  "dryCleaningItemJacket",
-  "dryCleaningItemTie",
-  "dryCleaningItemRobe",
-  "dryCleaningItemBlanket",
-] as const;
-
-const TAILORING_ITEM_KEYS = [
-  "tailoringItemPants",
-  "tailoringItemShirt",
-  "tailoringItemSuit",
-  "tailoringItemDress",
-] as const;
-
-const ITEM_KEYS: Record<Exclude<ItemizeServiceKey, "washAndFold">, readonly string[]> = {
-  dryCleaning: DRY_CLEANING_ITEM_KEYS,
-  tailoring: TAILORING_ITEM_KEYS,
+const ITEM_KEYS: Record<"dryCleaning" | "tailoring", readonly string[]> = {
+  dryCleaning: PARTNER_DRY_CLEANING_ITEM_KEYS,
+  tailoring: PARTNER_TAILORING_ITEM_KEYS,
 };
 
 type WashFoldPriceTab = "items" | "packages";
+
+function isWashFoldLikeService(key: ItemizeServiceKey | null): boolean {
+  return key === "washAndFold" || key === "press";
+}
 
 function buildWashFoldDefaultItems(
   getLabel: (key: string) => string,
 ): ServiceItemRow[] {
   const garments = PARTNER_WASH_FOLD_GARMENT_KEYS.map((key) => ({
+    id: key,
+    label: getLabel(key),
+  }));
+  const packages = PARTNER_WASH_FOLD_PACKAGE_KEYS.map((key) => ({
+    id: key,
+    label: getLabel(key),
+  }));
+  return [...garments, ...packages];
+}
+
+function buildPressDefaultItems(
+  getLabel: (key: string) => string,
+): ServiceItemRow[] {
+  const garments = PARTNER_PRESS_GARMENT_KEYS.map((key) => ({
     id: key,
     label: getLabel(key),
   }));
@@ -96,7 +108,7 @@ export interface ServiceItemRow {
 }
 
 function getDefaultItems(
-  serviceKey: Exclude<ItemizeServiceKey, "washAndFold">,
+  serviceKey: "dryCleaning" | "tailoring",
   getLabel: (key: string) => string,
 ): ServiceItemRow[] {
   return ITEM_KEYS[serviceKey].map((key) => ({
@@ -116,6 +128,8 @@ function getServiceLabel(
       return s.categoryDryCleaning;
     case "tailoring":
       return s.categoryTailoring;
+    case "press":
+      return s.categoryPress;
     default:
       return key;
   }
@@ -153,12 +167,15 @@ export default function ServiceOtherScreen() {
     setWashAndFoldPricing,
     setDryCleaningPricing,
     setTailoringPricing,
+    setPressPricing,
     washFoldItemizeState,
     setWashFoldItemizeState,
     dryCleaningItemizeState,
     setDryCleaningItemizeState,
     tailoringItemizeState,
     setTailoringItemizeState,
+    pressItemizeState,
+    setPressItemizeState,
     submitOnboardingServices,
     isSubmittingOnboardingServices,
   } = useMerchantServices();
@@ -179,20 +196,22 @@ export default function ServiceOtherScreen() {
   const [editItemPrice, setEditItemPrice] = useState("");
   const [washFoldTab, setWashFoldTab] = useState<WashFoldPriceTab>("items");
 
-  const isWashFold = serviceKey === "washAndFold";
-  const showHeaderAddButton = !isWashFold || washFoldTab === "items";
+  const isWashFoldLike = isWashFoldLikeService(serviceKey);
+  const showHeaderAddButton = !isWashFoldLike || washFoldTab === "items";
 
   useEffect(() => {
     if (serviceKey == null) return;
     const saved =
       serviceKey === "washAndFold"
         ? washFoldItemizeState
-        : serviceKey === "dryCleaning"
-          ? dryCleaningItemizeState
-          : tailoringItemizeState;
+        : serviceKey === "press"
+          ? pressItemizeState
+          : serviceKey === "dryCleaning"
+            ? dryCleaningItemizeState
+            : tailoringItemizeState;
     const getLabelForKey = (key: string) => getItemLabel(onboardingStrings, key);
 
-    if (serviceKey === "washAndFold") {
+    if (isWashFoldLikeService(serviceKey)) {
       let legacyPerItem =
         washAndFoldPricing?.rows.find(
           (row) =>
@@ -201,11 +220,14 @@ export default function ServiceOtherScreen() {
         )?.value?.trim() ?? "";
 
       if (saved?.items?.length) {
-        const merged = mergeWashFoldCatalog(
-          saved.items,
-          saved.prices ?? {},
-          getLabelForKey,
-        );
+        const merged =
+          serviceKey === "press"
+            ? mergePressCatalog(saved.items, saved.prices ?? {}, getLabelForKey)
+            : mergeWashFoldCatalog(
+                saved.items,
+                saved.prices ?? {},
+                getLabelForKey,
+              );
         setItems(merged.items);
         const nextPrices = { ...merged.prices };
         for (const row of merged.items) {
@@ -215,7 +237,10 @@ export default function ServiceOtherScreen() {
         }
         setPrices(nextPrices);
       } else {
-        const defaultItems = buildWashFoldDefaultItems(getLabelForKey);
+        const defaultItems =
+          serviceKey === "press"
+            ? buildPressDefaultItems(getLabelForKey)
+            : buildWashFoldDefaultItems(getLabelForKey);
         const initialPrices: Record<string, string> = {};
         defaultItems.forEach((item) => {
           initialPrices[item.id] = isWashFoldPackageItemId(item.id)
@@ -226,17 +251,42 @@ export default function ServiceOtherScreen() {
         setPrices(initialPrices);
       }
       setWashFoldTab("items");
-    } else if (saved?.items?.length) {
-      setItems(saved.items);
-      setPrices(saved.prices ?? {});
-    } else {
-      const defaultItems = getDefaultItems(serviceKey, getLabelForKey);
-      setItems(defaultItems);
-      const initialPrices: Record<string, string> = {};
-      defaultItems.forEach((item) => {
-        initialPrices[item.id] = "";
-      });
-      setPrices(initialPrices);
+    } else if (serviceKey === "dryCleaning") {
+      if (saved?.items?.length) {
+        const merged = mergeDryCleanCatalog(
+          saved.items,
+          saved.prices ?? {},
+          getLabelForKey,
+        );
+        setItems(merged.items);
+        setPrices(merged.prices);
+      } else {
+        const defaultItems = getDefaultItems("dryCleaning", getLabelForKey);
+        setItems(defaultItems);
+        const initialPrices: Record<string, string> = {};
+        defaultItems.forEach((item) => {
+          initialPrices[item.id] = "";
+        });
+        setPrices(initialPrices);
+      }
+    } else if (serviceKey === "tailoring") {
+      if (saved?.items?.length) {
+        const merged = mergeTailoringCatalog(
+          saved.items,
+          saved.prices ?? {},
+          getLabelForKey,
+        );
+        setItems(merged.items);
+        setPrices(merged.prices);
+      } else {
+        const defaultItems = getDefaultItems("tailoring", getLabelForKey);
+        setItems(defaultItems);
+        const initialPrices: Record<string, string> = {};
+        defaultItems.forEach((item) => {
+          initialPrices[item.id] = "";
+        });
+        setPrices(initialPrices);
+      }
     }
     // Only reset when switching service; use saved state if present so removals persist
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -293,16 +343,41 @@ export default function ServiceOtherScreen() {
     closeEditModal();
   };
 
-  const pricedRows: ServicePricingRow[] = items
-    .map((item) => ({
-      label: item.label,
-      value: prices[item.id]?.trim() ?? "",
-    }))
-    .filter((row) => {
-      if (!row.value.length) return false;
-      const amount = parsePriceDisplay(row.value);
-      return amount != null && amount > 0;
-    });
+  const pricedRows: ServicePricingRow[] = (() => {
+    const rows = items
+      .map((item) => ({
+        label: item.label,
+        value: prices[item.id]?.trim() ?? "",
+      }))
+      .filter((row) => {
+        if (!row.value.length) return false;
+        const amount = parsePriceDisplay(row.value);
+        return amount != null && amount > 0;
+      });
+
+    // Suit card writes prices by fixed ids — always include them even if items[] drifted.
+    if (serviceKey === "dryCleaning") {
+      const getLabelForKey = (key: string) =>
+        getItemLabel(onboardingStrings, key);
+      for (const suitId of [
+        DRY_CLEAN_SUIT_2_PIECE_ID,
+        DRY_CLEAN_SUIT_3_PIECE_ID,
+      ] as const) {
+        const value = prices[suitId]?.trim() ?? "";
+        if (!value.length) continue;
+        const amount = parsePriceDisplay(value);
+        if (amount == null || amount <= 0) continue;
+        const label =
+          items.find((item) => item.id === suitId)?.label ??
+          getLabelForKey(suitId);
+        const already = rows.some(
+          (row) => row.label.trim().toLowerCase() === label.trim().toLowerCase(),
+        );
+        if (!already) rows.push({ label, value });
+      }
+    }
+    return rows;
+  })();
 
   const canContinue = serviceKey != null && pricedRows.length > 0;
 
@@ -314,6 +389,9 @@ export default function ServiceOtherScreen() {
     if (key === "washAndFold") {
       setWashAndFoldPricing(pricingWithRows);
       setWashFoldItemizeState(itemize);
+    } else if (key === "press") {
+      setPressPricing(pricingWithRows);
+      setPressItemizeState(itemize);
     } else if (key === "dryCleaning") {
       setDryCleaningPricing(pricingWithRows);
       setDryCleaningItemizeState(itemize);
@@ -341,6 +419,9 @@ export default function ServiceOtherScreen() {
       if (serviceKey === "washAndFold") {
         setWashAndFoldPricing(null);
         setWashFoldItemizeState(itemize);
+      } else if (serviceKey === "press") {
+        setPressPricing(null);
+        setPressItemizeState(itemize);
       } else if (serviceKey === "dryCleaning") {
         setDryCleaningPricing(null);
         setDryCleaningItemizeState(itemize);
@@ -369,6 +450,9 @@ export default function ServiceOtherScreen() {
       if (serviceKey === "washAndFold") {
         setWashAndFoldPricing(null);
         setWashFoldItemizeState(null);
+      } else if (serviceKey === "press") {
+        setPressPricing(null);
+        setPressItemizeState(null);
       } else if (serviceKey === "dryCleaning") {
         setDryCleaningPricing(null);
         setDryCleaningItemizeState(null);
@@ -390,6 +474,8 @@ export default function ServiceOtherScreen() {
       if (!ok) return;
     } else if (serviceKey === "washAndFold") {
       setWashFoldItemizeState(itemize);
+    } else if (serviceKey === "press") {
+      setPressItemizeState(itemize);
     } else if (serviceKey === "dryCleaning") {
       setDryCleaningItemizeState(itemize);
     } else if (serviceKey === "tailoring") {
@@ -411,17 +497,23 @@ export default function ServiceOtherScreen() {
   const serviceName = getServiceLabel(settingsStrings, serviceKey);
   const title = serviceName;
 
-  const garmentItems = isWashFold
+  const garmentItems = isWashFoldLike
     ? items.filter((item) => !isWashFoldPackageItem(item))
     : items;
-  const packageItems = isWashFold
+  const packageItems = isWashFoldLike
     ? items.filter((item) => isWashFoldPackageItem(item))
     : [];
-  const visibleItems = isWashFold
+  const isDryCleaning = serviceKey === "dryCleaning";
+  const dryCleanGarmentItems = isDryCleaning
+    ? items.filter((item) => !isDryCleanSuitPackageId(item.id))
+    : [];
+  const visibleItems = isWashFoldLike
     ? washFoldTab === "packages"
       ? packageItems
       : garmentItems
-    : items;
+    : isDryCleaning
+      ? dryCleanGarmentItems
+      : items;
   const pricedGarmentCount = garmentItems.filter(
     (item) => (prices[item.id]?.trim() ?? "").length > 0,
   ).length;
@@ -462,6 +554,63 @@ export default function ServiceOtherScreen() {
         onRemove={isCustomPackage ? () => removeItem(item.id) : undefined}
         removeAccessibilityLabel={`Remove ${item.label}`}
       />
+    );
+  };
+
+  const renderSuitCard = () => {
+    const suit2Label =
+      items.find((i) => i.id === DRY_CLEAN_SUIT_2_PIECE_ID)?.label ??
+      getItemLabel(onboardingStrings, DRY_CLEAN_SUIT_2_PIECE_ID);
+    const suit3Label =
+      items.find((i) => i.id === DRY_CLEAN_SUIT_3_PIECE_ID)?.label ??
+      getItemLabel(onboardingStrings, DRY_CLEAN_SUIT_3_PIECE_ID);
+
+    return (
+      <View style={styles.suitCard}>
+        <Text style={styles.suitCardTitle}>
+          {onboardingStrings.dryCleaningSuitCardTitle}
+        </Text>
+
+        <View style={styles.suitPriceRow}>
+          <Text style={styles.suitPriceLabel} numberOfLines={2}>
+            {onboardingStrings.dryCleaningSuit2PiecePriceLabel}
+          </Text>
+          <TextInput
+            style={styles.priceInput}
+            placeholder={onboardingStrings.itemizePricePlaceholder}
+            placeholderTextColor={c.blue500}
+            value={prices[DRY_CLEAN_SUIT_2_PIECE_ID] ?? ""}
+            onChangeText={(text) => setPrice(DRY_CLEAN_SUIT_2_PIECE_ID, text)}
+            keyboardType="decimal-pad"
+            editable
+            {...(Platform.OS === "android" && { includeFontPadding: false })}
+            accessibilityLabel={`${suit2Label} price`}
+          />
+        </View>
+        <Text style={styles.packageIncludes}>
+          {onboardingStrings.dryCleaningSuit2PieceIncludes}
+        </Text>
+
+        <View style={[styles.suitPriceRow, styles.suitPriceRowSpaced]}>
+          <Text style={styles.suitPriceLabel} numberOfLines={2}>
+            {onboardingStrings.dryCleaningSuit3PiecePriceLabel}
+          </Text>
+          <TextInput
+            style={styles.priceInput}
+            placeholder={onboardingStrings.itemizePricePlaceholder}
+            placeholderTextColor={c.blue500}
+            value={prices[DRY_CLEAN_SUIT_3_PIECE_ID] ?? ""}
+            onChangeText={(text) => setPrice(DRY_CLEAN_SUIT_3_PIECE_ID, text)}
+            keyboardType="decimal-pad"
+            editable
+            {...(Platform.OS === "android" && { includeFontPadding: false })}
+            accessibilityLabel={`${suit3Label} price`}
+          />
+        </View>
+        <Text style={styles.packageIncludes}>
+          {onboardingStrings.dryCleaningSuit3PieceIncludes}
+        </Text>
+      </View>
     );
   };
 
@@ -540,7 +689,7 @@ export default function ServiceOtherScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-        {isWashFold ? (
+        {isWashFoldLike ? (
           <>
             <View style={styles.tabRow}>
               <Pressable
@@ -599,12 +748,32 @@ export default function ServiceOtherScreen() {
             </Text>
           </>
         ) : null}
-        {isWashFold && washFoldTab === "packages" ? (
+        {isWashFoldLike && washFoldTab === "packages" ? (
           <WashFoldPackageGrid>
             {packageItems.map(renderPackageBox)}
           </WashFoldPackageGrid>
         ) : (
-          visibleItems.map(renderItemRow)
+          <>
+            {isDryCleaning ? renderSuitCard() : null}
+            {serviceKey === "tailoring" ? (() => {
+              let ladiesHeaderShown = false;
+              return visibleItems.map((item) => {
+                const isLadies = isLadiesTailoringItem(item.id);
+                const showHeader = isLadies && !ladiesHeaderShown;
+                if (isLadies) ladiesHeaderShown = true;
+                return (
+                  <React.Fragment key={item.id}>
+                    {showHeader ? (
+                      <Text style={styles.sectionHeader}>
+                        {(onboardingStrings as Record<string, string>).tailoringLadiesSection ?? "Ladies Stitching"}
+                      </Text>
+                    ) : null}
+                    {renderItemRow(item)}
+                  </React.Fragment>
+                );
+              });
+            })() : visibleItems.map(renderItemRow)}
+          </>
         )}
 
         <AppButton
@@ -805,6 +974,9 @@ const styles = StyleSheet.create({
   pressed: {
     opacity: 0.85,
   },
+  cardColumn: {
+    marginBottom: 12,
+  },
   card: {
     flexDirection: "row",
     alignItems: "center",
@@ -815,6 +987,51 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 16,
     marginBottom: 12,
+  },
+  suitCard: {
+    backgroundColor: c.blue900,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: c.outline,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    marginBottom: 12,
+  },
+  suitCardTitle: {
+    fontSize: fs.smallText,
+    fontWeight: "700",
+    color: c.white,
+    marginBottom: 12,
+  },
+  suitPriceRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  suitPriceRowSpaced: {
+    marginTop: 14,
+  },
+  suitPriceLabel: {
+    flex: 1,
+    marginRight: 12,
+    fontSize: fs.descText,
+    fontWeight: "500",
+    color: c.white,
+  },
+  packageIncludes: {
+    marginTop: 8,
+    fontSize: fs.descText,
+    color: "rgba(255,255,255,0.7)",
+    lineHeight: 18,
+  },
+  sectionHeader: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "rgba(255,255,255,0.55)",
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+    marginTop: 16,
+    marginBottom: 6,
+    paddingHorizontal: 2,
   },
   itemName: {
     fontSize: fs.smallText,

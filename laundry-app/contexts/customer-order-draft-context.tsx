@@ -7,7 +7,7 @@ import React, {
   useState,
 } from "react";
 
-export type CustomerServiceId = "washAndFold" | "dryCleaning" | "tailoring";
+export type CustomerServiceId = "washAndFold" | "dryCleaning" | "tailoring" | "press";
 
 export type CustomerOrderDraft = {
   partnerId: string | null;
@@ -19,6 +19,10 @@ export type CustomerOrderDraft = {
     itemizedInstructions: string;
   } | null;
   dryClean: {
+    itemizedQuantities: Record<string, number>;
+    itemizedInstructions: string;
+  } | null;
+  press: {
     itemizedQuantities: Record<string, number>;
     itemizedInstructions: string;
   } | null;
@@ -47,6 +51,7 @@ const emptyDraft = (): CustomerOrderDraft => ({
   selectedServiceIds: [],
   washFold: null,
   dryClean: null,
+  press: null,
   pickup: null,
   delivery: null,
   tailoring: null,
@@ -63,6 +68,8 @@ type Value = {
   setWashFoldItemizedInstructions: (instructions: string) => void;
   setDryCleanItemizedQuantities: (quantities: Record<string, number>) => void;
   setDryCleanItemizedInstructions: (instructions: string) => void;
+  setPressItemizedQuantities: (quantities: Record<string, number>) => void;
+  setPressItemizedInstructions: (instructions: string) => void;
   setTailoringItemizedQuantities: (quantities: Record<string, number>) => void;
   setTailoringItemizedInstructions: (instructions: string) => void;
   setPickupSchedule: (slot: CustomerOrderDraft["pickup"]) => void;
@@ -106,6 +113,7 @@ export function CustomerOrderDraftProvider({
         selectedServiceIds: [],
         washFold: null,
         dryClean: null,
+        press: null,
         tailoring: null,
         pickup: null,
         delivery: null,
@@ -178,6 +186,29 @@ export function CustomerOrderDraftProvider({
     });
   }, []);
 
+  const setPressItemizedQuantities = useCallback(
+    (quantities: Record<string, number>) => {
+      setDraft((p) => ({
+        ...p,
+        press: {
+          itemizedQuantities: quantities,
+          itemizedInstructions: p.press?.itemizedInstructions ?? "",
+        },
+      }));
+    },
+    [],
+  );
+
+  const setPressItemizedInstructions = useCallback((instructions: string) => {
+    setDraft((p) => {
+      const pr = p.press ?? {
+        itemizedQuantities: {},
+        itemizedInstructions: "",
+      };
+      return { ...p, press: { ...pr, itemizedInstructions: instructions } };
+    });
+  }, []);
+
   const setTailoringItemizedQuantities = useCallback(
     (quantities: Record<string, number>) => {
       setDraft((p) => ({
@@ -234,6 +265,8 @@ export function CustomerOrderDraftProvider({
       setWashFoldItemizedInstructions,
       setDryCleanItemizedQuantities,
       setDryCleanItemizedInstructions,
+      setPressItemizedQuantities,
+      setPressItemizedInstructions,
       setTailoringItemizedQuantities,
       setTailoringItemizedInstructions,
       setPickupSchedule,
@@ -252,6 +285,8 @@ export function CustomerOrderDraftProvider({
       setWashFoldItemizedInstructions,
       setDryCleanItemizedQuantities,
       setDryCleanItemizedInstructions,
+      setPressItemizedQuantities,
+      setPressItemizedInstructions,
       setTailoringItemizedQuantities,
       setTailoringItemizedInstructions,
       setPickupSchedule,

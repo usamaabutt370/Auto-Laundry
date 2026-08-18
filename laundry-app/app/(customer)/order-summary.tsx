@@ -2,6 +2,7 @@ import { useRouter } from "expo-router";
 import { useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Modal,
   Pressable,
   ScrollView,
@@ -73,6 +74,7 @@ export default function OrderSummaryScreen() {
   const { draft, editingOrderId, resetDraft } = useCustomerOrderDraft();
   const [submitting, setSubmitting] = useState(false);
   const [submittedOrderId, setSubmittedOrderId] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [signInPromptVisible, setSignInPromptVisible] = useState(false);
   const isEditing = Boolean(editingOrderId);
   const s = strings.customer.orderSummary;
@@ -85,57 +87,80 @@ export default function OrderSummaryScreen() {
   );
 
   const handleSubmitOrder = async () => {
+    const fail = (title: string, message: string) => {
+      setSubmitError(message);
+      showAppAlert(title, message);
+      // Native alert as hard fallback — custom Modal alerts can fail silently on some builds.
+      Alert.alert(title, message);
+    };
+
     if (!user?.id) {
       setSignInPromptVisible(true);
       return;
     }
     if (!draft.partnerId) {
-      showAppAlert("No Laundry Captain selected", "Please select a Laundry Captain first.");
+      fail("No Laundry Captain selected", "Please select a Laundry Captain first.");
       return;
     }
     if (draft.selectedServiceIds.length === 0) {
-      showAppAlert("No services selected", "Please select at least one service.");
+      fail("No services selected", "Please select at least one service.");
       return;
     }
+    setSubmitError(null);
     setSubmitting(true);
-    if (isEditing && editingOrderId) {
-      const result = await updateCustomerOrder({
-        customerId: user.id,
-        orderId: editingOrderId,
-        draft,
-        estimate,
-        services,
-      });
-      setSubmitting(false);
-      if (!result.ok) {
-        showAppAlert("Unable to save changes", result.error);
+    try {
+      if (isEditing && editingOrderId) {
+        const result = await updateCustomerOrder({
+          customerId: user.id,
+          orderId: editingOrderId,
+          draft,
+          estimate,
+          services,
+        });
+        if (!result.ok) {
+          fail("Unable to save changes", result.error || "Unknown error while saving.");
+          return;
+        }
+        const savedOrderId = editingOrderId;
+        setSubmittedOrderId(null);
+        resetDraft();
+        showAppAlert(s.orderUpdated, s.orderUpdatedMessage, [
+          {
+            text: "OK",
+            onPress: () =>
+              router.replace({
+                pathname: "/(customer)/order-detail",
+                params: { orderId: savedOrderId },
+              }),
+          },
+        ]);
         return;
       }
-      const savedOrderId = editingOrderId;
-      resetDraft();
-      showAppAlert(s.orderUpdated, s.orderUpdatedMessage, [
-        {
-          text: "OK",
-          onPress: () => goToSubmittedOrderDetail(router, savedOrderId),
-        },
-      ]);
-      return;
-    }
 
-    const result = await submitCustomerOrder({
-      customerId: user.id,
-      draft,
-      estimate,
-      profile,
-      services,
-    });
-    setSubmitting(false);
-    if (!result.ok) {
-      showAppAlert("Unable to submit order", result.error);
-      return;
+      const result = await submitCustomerOrder({
+        customerId: user.id,
+        draft,
+        estimate,
+        profile,
+        services,
+      });
+      if (!result.ok) {
+        const message = result.error || "Unknown error while submitting.";
+        console.warn("[order-summary] submit failed", message);
+        fail("Unable to submit order", message);
+        return;
+      }
+      console.log("[order-summary] submit ok", result.orderId);
+      setSubmittedOrderId(result.orderId);
+      resetDraft();
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Something went wrong while submitting.";
+      console.warn("[order-summary] submit threw", err);
+      fail("Unable to submit order", message);
+    } finally {
+      setSubmitting(false);
     }
-    resetDraft();
-    setSubmittedOrderId(result.orderId);
   };
 
   const handleSubmittedOrderContinue = () => {
@@ -292,6 +317,7 @@ export default function OrderSummaryScreen() {
       </ScrollView>
 
       <SafeAreaView style={styles.footer} edges={["bottom"]}>
+        {submitError ? <Text style={styles.submitError}>{submitError}</Text> : null}
         <Pressable
           onPress={handleSubmitOrder}
           disabled={!draft.partnerId || loading || Boolean(error) || submitting}
@@ -439,6 +465,13 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 8,
     backgroundColor: c.background,
+  },
+  submitError: {
+    color: "#FFB3B3",
+    fontSize: 13,
+    lineHeight: 18,
+    marginBottom: 10,
+    textAlign: "center",
   },
   submitBtn: {
     backgroundColor: c.backgroundLight,

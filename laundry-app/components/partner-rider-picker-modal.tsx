@@ -1,5 +1,5 @@
 import { Image } from "expo-image";
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { theme } from "@/constants/theme";
 import type { PartnerRider } from "@/lib/partner-riders";
@@ -25,6 +25,7 @@ type PartnerRiderPickerModalProps = {
   onClose: () => void;
 };
 
+/** Rider picker overlay without RN Modal — avoids iOS touch freeze after accept. */
 export function PartnerRiderPickerModal({
   visible,
   riders,
@@ -45,98 +46,97 @@ export function PartnerRiderPickerModal({
   if (!visible) return null;
 
   return (
-    <Modal
-      visible
-      transparent
-      animationType="fade"
-      onRequestClose={confirming ? undefined : onClose}
-    >
-      <View style={styles.overlay}>
-        <Pressable style={styles.backdrop} onPress={confirming ? undefined : onClose} />
-        <View style={styles.card}>
-          <Text style={styles.title}>{title}</Text>
-          <Text style={styles.subtitle}>{subtitle}</Text>
+    <View style={styles.overlay} pointerEvents="auto" accessibilityViewIsModal>
+      <Pressable
+        style={styles.backdrop}
+        onPress={confirming ? undefined : onClose}
+        accessibilityRole="button"
+      />
+      <View style={styles.card}>
+        <Text style={styles.title}>{title}</Text>
+        <Text style={styles.subtitle}>{subtitle}</Text>
 
-          {loading ? (
-            <View style={styles.loadingWrap}>
-              <ActivityIndicator color={c.white} />
-              <Text style={styles.loadingText}>{loadingLabel}</Text>
-            </View>
-          ) : riders.length === 0 ? (
-            <Text style={styles.emptyText}>{emptyLabel}</Text>
-          ) : (
-            <ScrollView style={styles.list} contentContainerStyle={styles.listContent}>
-              {riders.map((rider) => {
-                const selected = selectedRiderId === rider.id;
-                return (
-                  <Pressable
-                    key={rider.id}
-                    onPress={() => onSelectRider(rider.id)}
-                    style={({ pressed }) => [
-                      styles.riderOption,
-                      selected && styles.riderOptionSelected,
-                      pressed && styles.pressed,
-                    ]}
-                  >
-                    <Image
-                      source={{ uri: rider.photoUrl }}
-                      style={styles.riderPhoto}
-                      contentFit="cover"
-                      accessibilityLabel={`${rider.name} photo`}
-                    />
-                    <View style={styles.riderTextWrap}>
-                      <Text style={styles.riderName}>{rider.name}</Text>
-                      <Text style={styles.riderPhone}>{rider.phone}</Text>
-                    </View>
-                    <View style={[styles.radio, selected && styles.radioSelected]}>
-                      {selected ? <View style={styles.radioDot} /> : null}
-                    </View>
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
-          )}
-
-          <View style={styles.actions}>
-            <Pressable
-              onPress={onClose}
-              disabled={confirming}
-              style={({ pressed }) => [
-                styles.cancelBtn,
-                confirming && styles.confirmBtnDisabled,
-                pressed && !confirming && styles.pressed,
-              ]}
-            >
-              <Text style={styles.cancelText}>{cancelLabel}</Text>
-            </Pressable>
-            <Pressable
-              onPress={onConfirm}
-              disabled={loading || confirming || riders.length === 0}
-              style={({ pressed }) => [
-                styles.confirmBtn,
-                (loading || confirming || riders.length === 0) && styles.confirmBtnDisabled,
-                pressed && !loading && !confirming && riders.length > 0 && styles.pressed,
-              ]}
-            >
-              {confirming ? (
-                <View style={styles.confirmingRow}>
-                  <ActivityIndicator color={c.background} size="small" />
-                  <Text style={styles.confirmText}>{confirmingLabel}</Text>
-                </View>
-              ) : (
-                <Text style={styles.confirmText}>{confirmLabel}</Text>
-              )}
-            </Pressable>
+        {loading ? (
+          <View style={styles.loadingWrap}>
+            <ActivityIndicator color={c.white} />
+            <Text style={styles.loadingText}>{loadingLabel}</Text>
           </View>
+        ) : riders.length === 0 ? (
+          <Text style={styles.emptyText}>{emptyLabel}</Text>
+        ) : (
+          <ScrollView style={styles.list} contentContainerStyle={styles.listContent}>
+            {riders.map((rider) => {
+              const selected = selectedRiderId === rider.id;
+              return (
+                <Pressable
+                  key={rider.id}
+                  onPress={() => onSelectRider(rider.id)}
+                  style={({ pressed }) => [
+                    styles.riderOption,
+                    selected && styles.riderOptionSelected,
+                    pressed && styles.pressed,
+                  ]}
+                >
+                  <Image
+                    source={{ uri: rider.photoUrl }}
+                    style={styles.riderPhoto}
+                    contentFit="cover"
+                    accessibilityLabel={`${rider.name} photo`}
+                  />
+                  <View style={styles.riderTextWrap}>
+                    <Text style={styles.riderName}>{rider.name}</Text>
+                    <Text style={styles.riderPhone}>{rider.phone}</Text>
+                  </View>
+                  <View style={[styles.radio, selected && styles.radioSelected]}>
+                    {selected ? <View style={styles.radioDot} /> : null}
+                  </View>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        )}
+
+        <View style={styles.actions}>
+          <Pressable
+            onPress={onClose}
+            disabled={confirming}
+            style={({ pressed }) => [
+              styles.cancelBtn,
+              confirming && styles.confirmBtnDisabled,
+              pressed && !confirming && styles.pressed,
+            ]}
+          >
+            <Text style={styles.cancelText}>{cancelLabel}</Text>
+          </Pressable>
+          <Pressable
+            onPress={onConfirm}
+            disabled={loading || confirming || riders.length === 0}
+            style={({ pressed }) => [
+              styles.confirmBtn,
+              (loading || confirming || riders.length === 0) && styles.confirmBtnDisabled,
+              pressed && !loading && !confirming && riders.length > 0 && styles.pressed,
+            ]}
+          >
+            {confirming ? (
+              <View style={styles.confirmingRow}>
+                <ActivityIndicator color={c.background} size="small" />
+                <Text style={styles.confirmText}>{confirmingLabel}</Text>
+              </View>
+            ) : (
+              <Text style={styles.confirmText}>{confirmLabel}</Text>
+            )}
+          </Pressable>
         </View>
       </View>
-    </Modal>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   overlay: {
-    flex: 1,
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 10000,
+    elevation: 10000,
     justifyContent: "center",
     paddingHorizontal: 24,
   },
@@ -154,6 +154,7 @@ const styles = StyleSheet.create({
     width: "100%",
     maxWidth: 480,
     alignSelf: "center",
+    zIndex: 1,
   },
   title: {
     fontSize: fs.smallTitle,

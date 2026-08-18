@@ -90,9 +90,13 @@ export default function LoginScreen() {
       // 1) Look up email AND role by phone number from profiles.
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
-        .select("email, role")
+        .select("email, role, is_deleted")
         .eq("phone", normalizedPhone)
-        .maybeSingle<{ email: string | null; role: string | null }>();
+        .maybeSingle<{
+          email: string | null;
+          role: string | null;
+          is_deleted: boolean | null;
+        }>();
 
       if (profileError) {
         throw profileError;
@@ -101,6 +105,14 @@ export default function LoginScreen() {
         showAuthError(
           "Account not found",
           "We couldn't find an account with that phone number. Please check it or sign up first.",
+        );
+        return;
+      }
+
+      if (profile.is_deleted) {
+        showAuthError(
+          "Account deleted",
+          "Your account was deleted. Please sign up again with the same phone number to restore your account.",
         );
         return;
       }

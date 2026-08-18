@@ -29,6 +29,7 @@ const fs = theme.fontSize;
 const CATEGORY_KEYS = [
   "dryCleaning",
   "washAndFold",
+  "press",
   "tailoring",
   "other",
 ] as const;
@@ -43,6 +44,8 @@ function getCategoryLabel(
       return s.categoryDryCleaning;
     case "washAndFold":
       return s.categoryWashAndFold;
+    case "press":
+      return s.categoryPress;
     case "tailoring":
       return s.categoryTailoring;
     case "other":

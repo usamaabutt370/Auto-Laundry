@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { theme } from "@/constants/theme";
 
@@ -28,7 +28,18 @@ export function showAppAlert(
 ) {
   if (_handler) {
     _handler(title, message, buttons);
+    return;
   }
+  // Provider missing / remounting — native alert so the user still sees something.
+  Alert.alert(
+    title,
+    message,
+    (buttons ?? [{ text: "OK" }]).map((btn) => ({
+      text: btn.text,
+      style: btn.style,
+      onPress: btn.onPress,
+    })),
+  );
 }
 
 /** Mount once at the app root to enable showAppAlert() everywhere. */
@@ -46,59 +57,50 @@ export function AppAlertProvider({ children }: { children: React.ReactNode }) {
 
   const dismiss = (btn?: AppAlertButton) => {
     setPending(null);
-    // In-tree overlay — next tick is enough before navigation actions.
-    if (btn?.onPress) {
-      const action = btn.onPress;
-      setTimeout(action, 0);
-    }
+    btn?.onPress?.();
   };
 
   return (
     <View style={styles.root}>
       {children}
-      {pending !== null ? (
-        <View style={styles.host} pointerEvents="box-none">
-          <Pressable style={styles.backdrop} onPress={() => dismiss()}>
-            <Pressable style={styles.card} onPress={(e) => e.stopPropagation()}>
-              {pending.title ? <Text style={styles.title}>{pending.title}</Text> : null}
-              {pending.message ? (
-                <Text style={styles.message}>{pending.message}</Text>
-              ) : null}
-              <View
-                style={[
-                  styles.actions,
-                  pending.buttons.length > 1 ? styles.actionsRow : styles.actionsColumn,
-                ]}
-              >
-                {pending.buttons.map((btn, i) => (
-                  <Pressable
-                    key={i}
-                    onPress={() => dismiss(btn)}
-                    style={({ pressed }) => [
-                      styles.btn,
-                      btn.style === "cancel" && styles.cancelBtn,
-                      btn.style === "destructive" && styles.destructiveBtn,
-                      btn.style !== "cancel" &&
-                        btn.style !== "destructive" &&
-                        styles.defaultBtn,
-                      pressed && styles.pressed,
-                      pending.buttons.length > 1 && styles.btnFlex,
+      {pending ? (
+        <View style={styles.overlay} pointerEvents="auto" accessibilityViewIsModal>
+          <Pressable style={styles.backdrop} onPress={() => dismiss()} accessibilityRole="button" />
+          <View style={styles.card}>
+            {pending.title ? <Text style={styles.title}>{pending.title}</Text> : null}
+            {pending.message ? <Text style={styles.message}>{pending.message}</Text> : null}
+            <View
+              style={[
+                styles.actions,
+                pending.buttons.length > 1 ? styles.actionsRow : styles.actionsColumn,
+              ]}
+            >
+              {pending.buttons.map((btn, i) => (
+                <Pressable
+                  key={i}
+                  onPress={() => dismiss(btn)}
+                  style={({ pressed }) => [
+                    styles.btn,
+                    btn.style === "cancel" && styles.cancelBtn,
+                    btn.style === "destructive" && styles.destructiveBtn,
+                    btn.style !== "cancel" && btn.style !== "destructive" && styles.defaultBtn,
+                    pressed && styles.pressed,
+                    pending.buttons.length > 1 && styles.btnFlex,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.btnText,
+                      btn.style === "cancel" && styles.cancelText,
+                      btn.style === "destructive" && styles.destructiveText,
                     ]}
                   >
-                    <Text
-                      style={[
-                        styles.btnText,
-                        btn.style === "cancel" && styles.cancelText,
-                        btn.style === "destructive" && styles.destructiveText,
-                      ]}
-                    >
-                      {btn.text}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-            </Pressable>
-          </Pressable>
+                    {btn.text}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
         </View>
       ) : null}
     </View>
@@ -109,29 +111,33 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
   },
-  host: {
+  overlay: {
     ...StyleSheet.absoluteFillObject,
-    zIndex: 100000,
-    elevation: 100000,
-  },
-  backdrop: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.6)",
+    zIndex: 20000,
+    elevation: 20000,
     alignItems: "center",
     justifyContent: "center",
-    padding: 24,
+    paddingHorizontal: 28,
+  },
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0, 0, 0, 0.55)",
   },
   card: {
     width: "100%",
-    maxWidth: 400,
-    backgroundColor: c.blue900,
+    maxWidth: 360,
     borderRadius: 16,
-    padding: 24,
+    backgroundColor: c.blue900,
     borderWidth: 1,
     borderColor: "rgba(171, 233, 254, 0.35)",
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 14,
+    zIndex: 1,
+    elevation: 1,
   },
   title: {
-    fontSize: 17,
+    fontSize: 18,
     fontWeight: "700",
     color: c.white,
     marginBottom: 8,
@@ -139,11 +145,11 @@ const styles = StyleSheet.create({
   message: {
     fontSize: 15,
     color: "rgba(255,255,255,0.8)",
-    lineHeight: 22,
-    marginBottom: 20,
+    lineHeight: 21,
+    marginBottom: 16,
   },
   actions: {
-    gap: 10,
+    gap: 8,
   },
   actionsRow: {
     flexDirection: "row",
@@ -153,19 +159,21 @@ const styles = StyleSheet.create({
     flexDirection: "column",
   },
   btn: {
-    paddingVertical: 11,
-    paddingHorizontal: 18,
-    borderRadius: 10,
+    borderRadius: 999,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     alignItems: "center",
   },
   btnFlex: {
     flex: 1,
   },
   defaultBtn: {
-    backgroundColor: c.lightBlue,
+    backgroundColor: c.outline,
   },
   cancelBtn: {
-    backgroundColor: "rgba(255,255,255,0.1)",
+    backgroundColor: "transparent",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.25)",
   },
   destructiveBtn: {
     backgroundColor: "#D9534F",
@@ -173,16 +181,15 @@ const styles = StyleSheet.create({
   btnText: {
     fontSize: 15,
     fontWeight: "700",
-    color: c.white,
+    color: c.background,
   },
   cancelText: {
-    color: "rgba(255,255,255,0.75)",
-    fontWeight: "600",
+    color: c.white,
   },
   destructiveText: {
     color: c.white,
   },
   pressed: {
-    opacity: 0.8,
+    opacity: 0.85,
   },
 });

@@ -13,6 +13,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter, useFocusEffect } from "expo-router";
 import { useIsFocused } from "@react-navigation/native";
 
+import { DeleteAccountButton } from "@/components/delete-account-button";
 import { theme } from "@/constants/theme";
 import { useAuth } from "@/contexts/auth-context";
 import { useLocale } from "@/contexts/locale-context";
@@ -329,6 +330,11 @@ export default function CustomerProfileMenu() {
 						onPress={() => router.push("/(customer)/recurring")}
 					/>
 					<MenuItem
+						icon="cog-outline"
+						label="Settings"
+						onPress={() => router.push("/(customer)/settings")}
+					/>
+					<MenuItem
 						icon="help-circle-outline"
 						label="FAQs"
 						onPress={() => router.push("/(customer)/faq")}
@@ -368,30 +374,34 @@ export default function CustomerProfileMenu() {
 					<>
 						<View style={styles.divider} />
 
-						<Pressable
-							style={({ pressed }) => [styles.signOutBtn, pressed && styles.pressed]}
-							onPress={() => {
-								showAppAlert("Sign out", "Are you sure you want to sign out?", [
-									{ text: "Cancel", style: "cancel" },
-									{
-										text: "Sign out",
-										style: "destructive",
-										onPress: async () => {
-											await signOut();
-											runAfterModalTeardown(() => {
-												if (router.canDismiss && router.canDismiss()) {
-													router.dismissAll && router.dismissAll();
-												}
-												router.replace("/(customer)");
-											});
+						<View style={styles.accountActionsRow}>
+							<Pressable
+								style={({ pressed }) => [styles.signOutBtn, pressed && styles.pressed]}
+								onPress={() => {
+									showAppAlert("Sign out", "Are you sure you want to sign out?", [
+										{ text: "Cancel", style: "cancel" },
+										{
+											text: "Sign out",
+											style: "destructive",
+											onPress: async () => {
+												await signOut();
+												runAfterModalTeardown(() => {
+													if (router.canDismiss && router.canDismiss()) {
+														router.dismissAll && router.dismissAll();
+													}
+													router.replace("/(customer)");
+												});
+											},
 										},
-									},
-								]);
-							}}
-						>
-							<MaterialCommunityIcons name="logout" size={18} color={c.white} />
-							<Text style={styles.signOutLabel}>Sign out</Text>
-						</Pressable>
+									]);
+								}}
+							>
+								<MaterialCommunityIcons name="logout" size={16} color={c.white} />
+								<Text style={styles.signOutLabel}>Sign out</Text>
+							</Pressable>
+
+							<DeleteAccountButton />
+						</View>
 					</>
 				) : null}
 			</ScrollView>
@@ -402,7 +412,7 @@ export default function CustomerProfileMenu() {
 
 const styles = StyleSheet.create({
 	container: { flex: 1, backgroundColor: c.background },
-	content: { padding: 20, paddingBottom: 40 },
+	content: { padding: 20, paddingBottom: 120 },
 	contentWeb: { paddingTop: 0 },
 	guestPromo: {
 		marginBottom: 8,
@@ -502,12 +512,13 @@ const styles = StyleSheet.create({
 		borderColor: "rgba(255,255,255,0.1)",
 	},
 	editPillText: { fontSize: 13, color: c.blue500, fontWeight: "500" },
+	accountActionsRow: { flexDirection: "row", justifyContent: "center", gap: 12, marginTop: 4 },
 	divider: {
 		height: 1,
 		backgroundColor: "rgba(255,255,255,0.06)",
 		marginVertical: 16,
 	},
-	menuGroup: { backgroundColor: "transparent", gap: 4 },
+	menuGroup: { backgroundColor: "transparent", gap: 8 },
 	menuItem: {
 		flexDirection: "row",
 		alignItems: "center",
@@ -539,10 +550,9 @@ const styles = StyleSheet.create({
 		backgroundColor: c.backgroundDark,
 		borderRadius: 12,
 		paddingVertical: 14,
-		marginTop: 4,
-		marginBottom: 8,
+		paddingHorizontal: 20,
 		borderWidth: 1,
 		borderColor: "rgba(255,255,255,0.12)",
 	},
-	signOutLabel: { fontSize: 16, fontWeight: "700", color: c.white },
+	signOutLabel: { fontSize: 15, fontWeight: "700", color: c.white },
 });

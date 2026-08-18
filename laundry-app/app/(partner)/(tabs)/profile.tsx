@@ -7,7 +7,6 @@ import { useRouter, useFocusEffect } from "expo-router";
 import { useIsFocused } from "@react-navigation/native";
 
 import { theme } from "@/constants/theme";
-import { strings } from "@/constants/strings";
 import { useAuth } from "@/contexts/auth-context";
 import { avatarUrlWithCacheBuster } from "@/lib/avatar";
 import { subscribeProfileAvatarUpdated } from "@/lib/profile-avatar-refresh";
@@ -15,7 +14,7 @@ import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { awardWelcomeCredits } from "@/lib/partner-credits";
 import { showAppAlert } from "@/components/app-alert";
 import { AvatarImage } from "@/components/avatar-image";
-import { AppHeader } from "@/components/app-header";
+import { DeleteAccountButton } from "@/components/delete-account-button";
 import { WebHeaderSpacer } from "@/components/web-header-spacer";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { useSuppressWebScreenHeader } from "@/hooks/use-suppress-web-screen-header";
@@ -169,14 +168,8 @@ export default function PartnerProfileMenu() {
 	);
 
 	return (
-		<View style={styles.container}>
-			{!isWeb ? (
-				<SafeAreaView edges={["top"]}>
-					<AppHeader title={strings.tabs.partner.profile} />
-				</SafeAreaView>
-			) : (
-				<WebHeaderSpacer />
-			)}
+		<SafeAreaView style={styles.container} edges={isWeb ? [] : ["top"]}>
+			{isWeb ? <WebHeaderSpacer /> : null}
 			<ScrollView
 				contentContainerStyle={[styles.content, isWeb && styles.contentWeb]}
 				showsVerticalScrollIndicator={false}
@@ -244,41 +237,45 @@ export default function PartnerProfileMenu() {
 				</View>
 				<View style={styles.divider} />
 
-				<Pressable
-					style={({ pressed }) => [styles.signOutBtn, pressed && styles.pressed]}
-					onPress={() => {
-						showAppAlert("Sign out", "Are you sure you want to sign out?", [
-							{ text: "Cancel", style: "cancel" },
-							{
-								text: "Sign out",
-								style: "destructive",
-								onPress: async () => {
-									await signOut();
-									runAfterModalTeardown(() => {
-										if (router.canDismiss && router.canDismiss()) {
-											router.dismissAll && router.dismissAll();
-										}
-										router.replace("/(customer)");
-									});
+				<View style={styles.accountActionsRow}>
+					<Pressable
+						style={({ pressed }) => [styles.signOutBtn, pressed && styles.pressed]}
+						onPress={() => {
+							showAppAlert("Sign out", "Are you sure you want to sign out?", [
+								{ text: "Cancel", style: "cancel" },
+								{
+									text: "Sign out",
+									style: "destructive",
+									onPress: async () => {
+										await signOut();
+										runAfterModalTeardown(() => {
+											if (router.canDismiss && router.canDismiss()) {
+												router.dismissAll && router.dismissAll();
+											}
+											router.replace("/(customer)");
+										});
+									},
 								},
-							},
-						]);
-					}}
-				>
-					<MaterialCommunityIcons name="logout" size={18} color={c.white} />
-					<Text style={styles.signOutLabel}>Sign out</Text>
-				</Pressable>
+							]);
+						}}
+					>
+						<MaterialCommunityIcons name="logout" size={16} color={c.white} />
+						<Text style={styles.signOutLabel}>Sign out</Text>
+					</Pressable>
+
+					<DeleteAccountButton />
+				</View>
 
 			</ScrollView>
-		</View>
+		</SafeAreaView>
 	);
 }
 
 const styles = StyleSheet.create({
 	container: { flex: 1, backgroundColor: c.background },
-	content: { padding: 20 },
+	content: { padding: 20, paddingBottom: 120 },
 	contentWeb: { paddingTop: 0 },
-	profileCard: { alignItems: "center", paddingVertical: 20, marginBottom: 8 },
+	profileCard: { alignItems: "center", paddingTop: 4, paddingBottom: 20, marginBottom: 8 },
 	profileCardWeb: { paddingTop: 0 },
 	avatarWrap: { width: 80, height: 80, borderRadius: 40, overflow: "visible", marginBottom: 12 },
 	avatar: { width: 80, height: 80, borderRadius: 40, borderWidth: 2, borderColor: c.blue600 },
@@ -292,6 +289,7 @@ const styles = StyleSheet.create({
 	creditHint: { fontSize: 12, color: c.blue500, fontWeight: "500", marginTop: 2 },
 	buyCreditsBtn: { paddingHorizontal: 16, paddingVertical: 9, borderRadius: 999, backgroundColor: c.white },
 	buyCreditsBtnText: { fontSize: 13, fontWeight: "700", color: c.background },
+	accountActionsRow: { flexDirection: "row", justifyContent: "center", gap: 12, marginTop: 4 },
 	divider: { height: 1, backgroundColor: "rgba(255,255,255,0.06)", marginVertical: 16 },
 	menuGroup: { backgroundColor: "transparent", gap: 8 },
 	menuItem: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 14 },
@@ -302,6 +300,6 @@ const styles = StyleSheet.create({
 	roleLabel: { fontSize: 17, color: c.white, fontWeight: "700", flex: 1 },
 	switchWrap: { transform: [{ scale: 1.02 }] },
 	roleHint: { fontSize: 13, color: c.blue500, lineHeight: 18, marginTop: 8 },
-	signOutBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: c.backgroundDark, borderRadius: 12, paddingVertical: 14, marginTop: 4, marginBottom: 8, borderWidth: 1, borderColor: "rgba(255,255,255,0.12)" },
-	signOutLabel: { fontSize: 16, fontWeight: "700", color: c.white },
+	signOutBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: c.backgroundDark, borderRadius: 12, paddingVertical: 14, paddingHorizontal: 20, borderWidth: 1, borderColor: "rgba(255,255,255,0.12)" },
+	signOutLabel: { fontSize: 15, fontWeight: "700", color: c.white },
 });

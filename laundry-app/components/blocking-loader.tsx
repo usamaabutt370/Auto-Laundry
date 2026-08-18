@@ -10,33 +10,31 @@ type BlockingLoaderProps = {
   message?: string;
 };
 
-/** Full-screen overlay that blocks interaction while an async action runs. */
+/**
+ * Full-screen overlay that blocks interaction while an async action runs.
+ * Uses an absolute View (not RN Modal) so it does not stack with other Modals
+ * and freeze touch handling on iOS after accept/reject.
+ */
 export function BlockingLoader({ visible, message }: BlockingLoaderProps) {
   if (!visible) {
     return null;
   }
 
-  // In-tree overlay (not RN Modal) — avoids iOS ghost touch-blockers after dismiss.
   return (
-    <View style={styles.host} pointerEvents="auto">
-      <View style={styles.overlay}>
-        <View style={styles.card}>
-          <ActivityIndicator size="large" color={c.white} />
-          {message ? <Text style={styles.message}>{message}</Text> : null}
-        </View>
+    <View style={styles.root} pointerEvents="auto" accessibilityViewIsModal>
+      <View style={styles.card}>
+        <ActivityIndicator size="large" color={c.white} />
+        {message ? <Text style={styles.message}>{message}</Text> : null}
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  host: {
+  root: {
     ...StyleSheet.absoluteFillObject,
-    zIndex: 99999,
-    elevation: 99999,
-  },
-  overlay: {
-    flex: 1,
+    zIndex: 9999,
+    elevation: 9999,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "rgba(0, 0, 0, 0.45)",
