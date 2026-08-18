@@ -19,6 +19,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { showAppAlert } from "@/components/app-alert";
 import { AppHeader } from "@/components/app-header";
+import { GuestSignInPrompt } from "@/components/guest-sign-in-prompt";
 import { WebHeaderSpacer } from "@/components/web-header-spacer";
 import { useConfirmDialog } from "@/components/confirm-dialog";
 import { PartnerNameWithBadge } from "@/components/partner-name-with-badge";
@@ -253,12 +254,20 @@ export default function CustomerOrderScreen() {
       ) : (
         <WebHeaderSpacer />
       )}
-      {!isWeb ? <Text style={styles.hint}>{s.liveHint}</Text> : null}
+      {!isWeb && user?.id ? <Text style={styles.hint}>{s.liveHint}</Text> : null}
       {!user?.id ? (
-        <View style={styles.center}>
-          <MaterialCommunityIcons name="account-outline" size={48} color={c.blue500} />
-          <Text style={styles.muted}>{s.signIn}</Text>
-        </View>
+        <GuestSignInPrompt
+          variant="orders"
+          title={s.signInTitle}
+          subtitle={s.signInSubtitle}
+          buttonLabel={s.logIn}
+          onPressLogin={() =>
+            router.push({
+              pathname: "/(auth)/login",
+              params: { returnTo: "orders" },
+            })
+          }
+        />
       ) : loading && orders.length === 0 ? (
         <View style={styles.center}>
           <ActivityIndicator color={c.white} />
@@ -456,8 +465,9 @@ export default function CustomerOrderScreen() {
           })}
         </ScrollView>
       )}
+      {feedbackVisible ? (
       <Modal
-        visible={feedbackVisible}
+        visible
         transparent
         animationType="fade"
         onRequestClose={dismissAllFeedback}
@@ -546,6 +556,7 @@ export default function CustomerOrderScreen() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+      ) : null}
     </View>
   );
 }

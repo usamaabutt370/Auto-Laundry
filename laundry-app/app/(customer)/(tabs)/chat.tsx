@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AppHeader } from "@/components/app-header";
+import { GuestSignInPrompt } from "@/components/guest-sign-in-prompt";
 import { WebHeaderSpacer } from "@/components/web-header-spacer";
 import { PartnerNameWithBadge } from "@/components/partner-name-with-badge";
 import { theme } from "@/constants/theme";
@@ -122,10 +123,18 @@ export default function CustomerChatScreen() {
         <WebHeaderSpacer />
       )}
       {!user?.id ? (
-        <View style={styles.center}>
-          <MaterialCommunityIcons name="account-outline" size={48} color={c.blue500} />
-          <Text style={styles.muted}>{s.signIn}</Text>
-        </View>
+        <GuestSignInPrompt
+          variant="chat"
+          title={s.signInTitle}
+          subtitle={s.signInSubtitle}
+          buttonLabel={s.logIn}
+          onPressLogin={() =>
+            router.push({
+              pathname: "/(auth)/login",
+              params: { returnTo: "chat" },
+            })
+          }
+        />
       ) : loading && items.length === 0 ? (
         <View style={styles.center}>
           <ActivityIndicator color={c.white} />

@@ -355,6 +355,9 @@ export const en = {
       liveHint: "Status updates when your Laundry Captain acts on the order.",
       empty: "You don't have any orders yet.",
       signIn: "Sign in to see your orders.",
+      signInTitle: "Log in to view orders",
+      signInSubtitle: "Please sign in to your account",
+      logIn: "Log in",
       loading: "Loading orders…",
       error: "Couldn't load orders.",
       retry: "Retry",
@@ -382,9 +385,22 @@ export const en = {
     chatTab: {
       empty: "You don't have any chats yet.",
       signIn: "Sign in to see your chats.",
+      signInTitle: "Log in to view chats",
+      signInSubtitle: "Please sign in to your account",
+      logIn: "Log in",
       loading: "Loading chats…",
       error: "Couldn't load chats.",
       retry: "Retry",
+    },
+    profileTab: {
+      guestTitle: "Get the full experience",
+      guestSubtitle:
+        "Track orders, chat with your Laundry Captain, and manage your account.",
+      logIn: "Log in",
+      signUp: "Sign up",
+      settings: "Settings",
+      faq: "FAQs",
+      contactSupport: "Contact & Support",
     },
     explore: {
       title: "Explore",
@@ -477,9 +493,22 @@ export const en = {
     chatTab: {
       empty: "You don't have any chats yet.",
       signIn: "Sign in to see your chats.",
+      signInTitle: "Log in to view chats",
+      signInSubtitle: "Please sign in to your account",
+      logIn: "Log in",
       loading: "Loading chats…",
       error: "Couldn't load chats.",
       retry: "Retry",
+    },
+    profileTab: {
+      guestTitle: "Get the full experience",
+      guestSubtitle:
+        "Track orders, chat with your Laundry Captain, and manage your account.",
+      logIn: "Log in",
+      signUp: "Sign up",
+      settings: "Settings",
+      faq: "FAQs",
+      contactSupport: "Contact & Support",
     },
     order: {
       title: "Orders",

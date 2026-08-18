@@ -78,6 +78,15 @@ export default function CustomerOrderDetailScreen() {
 
   const orderId = typeof params.orderId === "string" ? params.orderId : "";
 
+  const handleBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+    // After submit we replace onto order-detail with an empty stack — fall back to Orders.
+    router.replace("/(customer)/(tabs)/order");
+  };
+
   useEffect(() => {
     let cancelled = false;
     if (!user?.id || !orderId) {
@@ -161,7 +170,7 @@ export default function CustomerOrderDetailScreen() {
             setIsDeleting(true);
             try {
               await deleteCustomerOrder(order.id);
-              router.back();
+              handleBack();
             } catch (e) {
               showAppAlert("Error", e instanceof Error ? e.message : "Could not delete order.");
             } finally {
@@ -234,7 +243,7 @@ export default function CustomerOrderDetailScreen() {
     <View style={styles.container}>
       <SafeAreaView style={styles.safeTop} edges={["top"]}>
         <View style={styles.headerRow}>
-          <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.backBtn, pressed && styles.pressed]}>
+          <Pressable onPress={handleBack} style={({ pressed }) => [styles.backBtn, pressed && styles.pressed]}>
             <MaterialCommunityIcons name="arrow-left" size={24} color={c.white} />
           </Pressable>
           <Text style={styles.headerTitle}>Order detail</Text>
@@ -474,9 +483,9 @@ export default function CustomerOrderDetailScreen() {
           </ScrollView>
         </>
       )}
-      {order?.displayStatus === "completed" && feedbackChecked ? (
+      {order?.displayStatus === "completed" && feedbackChecked && feedbackVisible ? (
         <Modal
-          visible={feedbackVisible}
+          visible
           transparent
           animationType="fade"
           onRequestClose={() => setFeedbackVisible(false)}

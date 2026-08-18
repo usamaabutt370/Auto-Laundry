@@ -100,7 +100,7 @@ export default function OnboardingScreen() {
 
   const handleGetStarted = async () => {
     await setCompleted();
-    router.replace("/(auth)");
+    router.replace("/(customer)");
   };
 
   const handleSkip = () => {

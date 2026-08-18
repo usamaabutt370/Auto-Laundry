@@ -18,6 +18,7 @@ import { DeleteAccountButton } from "@/components/delete-account-button";
 import { WebHeaderSpacer } from "@/components/web-header-spacer";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { useSuppressWebScreenHeader } from "@/hooks/use-suppress-web-screen-header";
+import { runAfterModalTeardown } from "@/utils/run-after-modal-teardown";
 
 const c = theme.colors;
 const WHATSAPP_PHONE = "923004639943";
@@ -247,10 +248,12 @@ export default function PartnerProfileMenu() {
 									style: "destructive",
 									onPress: async () => {
 										await signOut();
-										if (router.canDismiss && router.canDismiss()) {
-											router.dismissAll && router.dismissAll();
-										}
-										router.replace("/(auth)/login");
+										runAfterModalTeardown(() => {
+											if (router.canDismiss && router.canDismiss()) {
+												router.dismissAll && router.dismissAll();
+											}
+											router.replace("/(customer)");
+										});
 									},
 								},
 							]);

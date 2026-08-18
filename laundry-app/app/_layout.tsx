@@ -12,6 +12,7 @@ import { FcmNotificationRouter } from "@/components/chat/fcm-notification-router
 import { WebAppShell } from "@/components/web-shells";
 import { strings } from "@/constants/strings";
 import { AuthProvider } from "@/contexts/auth-context";
+import { CustomerOrderDraftProvider } from "@/contexts/customer-order-draft-context";
 import { LocaleProvider } from "@/contexts/locale-context";
 import { theme } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
@@ -28,6 +29,7 @@ export default function RootLayout() {
       <KeyboardProvider>
         <AuthProvider>
           <LocaleProvider>
+            <CustomerOrderDraftProvider>
             <AppAlertProvider>
             <WebAppShell>
               <FcmNotificationRouter />
@@ -41,7 +43,17 @@ export default function RootLayout() {
               >
                 <Stack.Screen name="index" />
                 <Stack.Screen name="(onboarding)" />
-                <Stack.Screen name="(auth)" />
+                <Stack.Screen
+                  name="(auth)"
+                  options={{
+                    presentation: "modal",
+                    animation: "slide_from_bottom",
+                    gestureEnabled: true,
+                    ...(Platform.OS === "ios"
+                      ? { gestureDirection: "vertical" as const }
+                      : {}),
+                  }}
+                />
                 <Stack.Screen name="(customer)" />
                 <Stack.Screen name="(partner)" />
                 <Stack.Screen
@@ -52,6 +64,7 @@ export default function RootLayout() {
               <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
             </WebAppShell>
             </AppAlertProvider>
+            </CustomerOrderDraftProvider>
           </LocaleProvider>
         </AuthProvider>
       </KeyboardProvider>

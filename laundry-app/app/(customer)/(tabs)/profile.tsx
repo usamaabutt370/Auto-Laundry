@@ -1,5 +1,13 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View, Switch, ActivityIndicator } from "react-native";
+import {
+	Pressable,
+	ScrollView,
+	StyleSheet,
+	Text,
+	View,
+	Switch,
+	ActivityIndicator,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter, useFocusEffect } from "expo-router";
@@ -8,6 +16,7 @@ import { useIsFocused } from "@react-navigation/native";
 import { DeleteAccountButton } from "@/components/delete-account-button";
 import { theme } from "@/constants/theme";
 import { useAuth } from "@/contexts/auth-context";
+import { useLocale } from "@/contexts/locale-context";
 import { avatarUrlWithCacheBuster } from "@/lib/avatar";
 import { subscribeProfileAvatarUpdated } from "@/lib/profile-avatar-refresh";
 import { fetchPartnerOnboardingRequest } from "@/lib/partner-onboarding-request";
@@ -18,12 +27,16 @@ import { WebHeaderSpacer } from "@/components/web-header-spacer";
 import { useConfirmDialog } from "@/components/confirm-dialog";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { useSuppressWebScreenHeader } from "@/hooks/use-suppress-web-screen-header";
+import { runAfterModalTeardown } from "@/utils/run-after-modal-teardown";
+import { getStrings } from "@/locales";
 
 const c = theme.colors;
 
 export default function CustomerProfileMenu() {
 	const router = useRouter();
 	const { user, signOut, refreshRole } = useAuth();
+	const { locale } = useLocale();
+	const s = getStrings(locale).customer.profileTab;
 	const { confirm, dialog: confirmDialog } = useConfirmDialog();
 	const { isWeb } = useResponsiveLayout();
 	const isFocused = useIsFocused();
@@ -58,8 +71,11 @@ export default function CustomerProfileMenu() {
 				}>();
 
 			if (error || !data) {
-				// fallback to any avatar in user metadata
-				setAvatarUri((currentUser.user_metadata as any)?.avatar_url ?? (currentUser.user_metadata as any)?.picture ?? undefined);
+				setAvatarUri(
+					(currentUser.user_metadata as any)?.avatar_url ??
+						(currentUser.user_metadata as any)?.picture ??
+						undefined,
+				);
 				return;
 			}
 			const resolvedName =
@@ -83,7 +99,7 @@ export default function CustomerProfileMenu() {
 	useFocusEffect(
 		useCallback(() => {
 			fetchProfile();
-		}, [fetchProfile])
+		}, [fetchProfile]),
 	);
 
 	useEffect(() => {
@@ -123,7 +139,8 @@ export default function CustomerProfileMenu() {
 				setRoleSwitchValue(true);
 				const confirmed = await confirm({
 					title: "Become a Laundry Captain",
-					message: "Are you sure you want to become a Laundry Captain? You will be asked to provide your business details.",
+					message:
+						"Are you sure you want to become a Laundry Captain? You will be asked to provide your business details.",
 					confirmLabel: "Confirm",
 					cancelLabel: "Cancel",
 				});
@@ -153,7 +170,10 @@ export default function CustomerProfileMenu() {
 				.eq("id", user.id);
 			if (error) throw error;
 			await refreshRole();
-			let destination: "/(partner)" | "/(partner)/onboarding?from=role_switch&returnTo=customer_profile" | "/(customer)" = value ? "/(partner)" : "/(customer)";
+			let destination:
+				| "/(partner)"
+				| "/(partner)/onboarding?from=role_switch&returnTo=customer_profile"
+				| "/(customer)" = value ? "/(partner)" : "/(customer)";
 			if (value) {
 				const { data: onboardingRequest, error: onboardingError } =
 					await fetchPartnerOnboardingRequest(user.id);
@@ -166,7 +186,8 @@ export default function CustomerProfileMenu() {
 						.maybeSingle();
 					if (partnerProfileError) throw partnerProfileError;
 					if (!partnerProfile) {
-						destination = "/(partner)/onboarding?from=role_switch&returnTo=customer_profile";
+						destination =
+							"/(partner)/onboarding?from=role_switch&returnTo=customer_profile";
 					}
 				}
 			}
@@ -182,15 +203,100 @@ export default function CustomerProfileMenu() {
 		}
 	};
 
+	const isPartnerSwitchOn =
+		roleSwitchValue !== null
+			? roleSwitchValue
+			: (user?.user_metadata?.role ?? "customer") === "launderer";
 
-	const isPartnerSwitchOn = roleSwitchValue !== null ? roleSwitchValue : (user?.user_metadata?.role ?? "customer") === "launderer";
-
-	const MenuItem = ({ icon, label, onPress }: { icon: string; label: string; onPress?: () => void }) => (
-		<Pressable style={({ pressed }) => [styles.menuItem, pressed && styles.pressed]} onPress={onPress}>
+	const MenuItem = ({
+		icon,
+		label,
+		onPress,
+	}: {
+		icon: string;
+		label: string;
+		onPress?: () => void;
+	}) => (
+		<Pressable
+			style={({ pressed }) => [styles.menuItem, pressed && styles.pressed]}
+			onPress={onPress}
+		>
 			<MaterialCommunityIcons name={icon as any} size={22} color={c.backgroundLight} />
 			<Text style={styles.menuLabel}>{label}</Text>
+			<MaterialCommunityIcons name="chevron-right" size={20} color="rgba(255,255,255,0.45)" />
 		</Pressable>
 	);
+
+	if (!user?.id) {
+		return (
+			<SafeAreaView style={styles.container} edges={isWeb ? [] : ["top"]}>
+				{isWeb ? <WebHeaderSpacer /> : null}
+				<ScrollView
+					contentContainerStyle={[styles.content, isWeb && styles.contentWeb]}
+					showsVerticalScrollIndicator={false}
+				>
+					<View style={styles.guestPromo}>
+						<Text style={styles.guestTitle}>{s.guestTitle}</Text>
+						<Text style={styles.guestSubtitle}>{s.guestSubtitle}</Text>
+						<View style={styles.guestActions}>
+							<Pressable
+								onPress={() =>
+									router.push({
+										pathname: "/(auth)/login",
+										params: { returnTo: "profile" },
+									})
+								}
+								style={({ pressed }) => [
+									styles.guestPrimaryBtn,
+									pressed && styles.pressed,
+								]}
+								accessibilityRole="button"
+								accessibilityLabel={s.logIn}
+							>
+								<MaterialCommunityIcons name="key-variant" size={18} color={c.white} />
+								<Text style={styles.guestPrimaryLabel}>{s.logIn}</Text>
+							</Pressable>
+							<Pressable
+								onPress={() =>
+									router.push({
+										pathname: "/(auth)/sign-up",
+										params: { returnTo: "profile" },
+									})
+								}
+								style={({ pressed }) => [
+									styles.guestSecondaryBtn,
+									pressed && styles.pressed,
+								]}
+								accessibilityRole="button"
+								accessibilityLabel={s.signUp}
+							>
+								<MaterialCommunityIcons
+									name="account-outline"
+									size={18}
+									color={c.white}
+								/>
+								<Text style={styles.guestSecondaryLabel}>{s.signUp}</Text>
+							</Pressable>
+						</View>
+					</View>
+
+					<View style={styles.divider} />
+					<View style={styles.menuGroup}>
+						<MenuItem
+							icon="help-circle-outline"
+							label={s.faq}
+							onPress={() => router.push("/(customer)/faq")}
+						/>
+						<MenuItem
+							icon="headphones"
+							label={s.contactSupport}
+							onPress={() => router.push("/(customer)/contact-support")}
+						/>
+					</View>
+				</ScrollView>
+			</SafeAreaView>
+		);
+	}
 
 	return (
 		<SafeAreaView style={styles.container} edges={isWeb ? [] : ["top"]}>
@@ -216,18 +322,34 @@ export default function CustomerProfileMenu() {
 					</View>
 				</Pressable>
 
-
-
-
 				<View style={styles.divider} />
 				<View style={styles.menuGroup}>
-
-					<MenuItem icon="cog-outline" label="Settings" onPress={() => router.push("/(customer)/settings")} />
-					<MenuItem icon="help-circle-outline" label="FAQs" onPress={() => router.push("/(customer)/faq")} />
-					<MenuItem icon="headphones" label="Contact & Support" onPress={() => router.push("/(customer)/contact-support")} />
+					<MenuItem
+						icon="calendar-sync-outline"
+						label="Recurring options"
+						onPress={() => router.push("/(customer)/recurring")}
+					/>
+					<MenuItem
+						icon="cog-outline"
+						label="Settings"
+						onPress={() => router.push("/(customer)/settings")}
+					/>
+					<MenuItem
+						icon="help-circle-outline"
+						label="FAQs"
+						onPress={() => router.push("/(customer)/faq")}
+					/>
+					<MenuItem
+						icon="headphones"
+						label="Contact & Support"
+						onPress={() => router.push("/(customer)/contact-support")}
+					/>
 				</View>
 				<View style={styles.roleCard}>
-					<Pressable style={({ pressed }) => [styles.roleRow, pressed && styles.pressed]} onPress={() => !isUpdatingRole && handleRoleToggle(!isPartnerSwitchOn)}>
+					<Pressable
+						style={({ pressed }) => [styles.roleRow, pressed && styles.pressed]}
+						onPress={() => !isUpdatingRole && handleRoleToggle(!isPartnerSwitchOn)}
+					>
 						<Text style={styles.roleLabel}>Become a Laundry Captain</Text>
 						<View style={styles.switchWrap}>
 							{isUpdatingRole ? (
@@ -241,11 +363,12 @@ export default function CustomerProfileMenu() {
 									thumbColor={c.white}
 									ios_backgroundColor={c.backgroundLight}
 								/>
-							)
-							}
+							)}
 						</View>
 					</Pressable>
-					<Text style={styles.roleHint}>Offer laundry services and manage orders as a Laundry Captain.</Text>
+					<Text style={styles.roleHint}>
+						Offer laundry services and manage orders as a Laundry Captain.
+					</Text>
 				</View>
 				{!isWeb ? (
 					<>
@@ -262,10 +385,12 @@ export default function CustomerProfileMenu() {
 											style: "destructive",
 											onPress: async () => {
 												await signOut();
-												if (router.canDismiss && router.canDismiss()) {
-													router.dismissAll && router.dismissAll();
-												}
-												router.replace("/(auth)/login");
+												runAfterModalTeardown(() => {
+													if (router.canDismiss && router.canDismiss()) {
+														router.dismissAll && router.dismissAll();
+													}
+													router.replace("/(customer)");
+												});
 											},
 										},
 									]);
@@ -279,7 +404,6 @@ export default function CustomerProfileMenu() {
 						</View>
 					</>
 				) : null}
-
 			</ScrollView>
 			{confirmDialog}
 		</SafeAreaView>
@@ -290,26 +414,145 @@ const styles = StyleSheet.create({
 	container: { flex: 1, backgroundColor: c.background },
 	content: { padding: 20, paddingBottom: 120 },
 	contentWeb: { paddingTop: 0 },
+	guestPromo: {
+		marginBottom: 8,
+		marginTop: 8,
+	},
+	guestTitle: {
+		fontSize: 24,
+		fontWeight: "700",
+		color: c.white,
+		marginBottom: 8,
+	},
+	guestSubtitle: {
+		fontSize: 15,
+		lineHeight: 22,
+		color: "rgba(255,255,255,0.72)",
+		marginBottom: 20,
+	},
+	guestActions: {
+		flexDirection: "row",
+		gap: 10,
+	},
+	guestPrimaryBtn: {
+		flex: 1,
+		flexDirection: "row",
+		alignItems: "center",
+		justifyContent: "center",
+		gap: 8,
+		backgroundColor: c.lightBlue,
+		borderRadius: 999,
+		paddingVertical: 14,
+		borderWidth: 1,
+		borderColor: c.filledButtonBorder,
+	},
+	guestPrimaryLabel: {
+		color: c.white,
+		fontSize: 15,
+		fontWeight: "700",
+	},
+	guestSecondaryBtn: {
+		flex: 1,
+		flexDirection: "row",
+		alignItems: "center",
+		justifyContent: "center",
+		gap: 8,
+		backgroundColor: "rgba(255,255,255,0.12)",
+		borderRadius: 999,
+		paddingVertical: 14,
+		borderWidth: 1,
+		borderColor: "rgba(255,255,255,0.2)",
+	},
+	guestSecondaryLabel: {
+		color: c.white,
+		fontSize: 15,
+		fontWeight: "700",
+	},
 	profileCard: { alignItems: "center", paddingVertical: 20, marginBottom: 8 },
 	profileCardWeb: { paddingTop: 0 },
-	avatarWrap: { width: 80, height: 80, borderRadius: 40, overflow: "visible", marginBottom: 12 },
-	avatar: { width: 80, height: 80, borderRadius: 40, borderWidth: 2, borderColor: c.blue600 },
-	editBadge: { position: "absolute", bottom: 0, right: 0, width: 24, height: 24, borderRadius: 12, backgroundColor: c.backgroundLight, borderWidth: 1.5, borderColor: c.background, alignItems: "center", justifyContent: "center" },
+	avatarWrap: {
+		width: 80,
+		height: 80,
+		borderRadius: 40,
+		overflow: "visible",
+		marginBottom: 12,
+	},
+	avatar: {
+		width: 80,
+		height: 80,
+		borderRadius: 40,
+		borderWidth: 2,
+		borderColor: c.blue600,
+	},
+	editBadge: {
+		position: "absolute",
+		bottom: 0,
+		right: 0,
+		width: 24,
+		height: 24,
+		borderRadius: 12,
+		backgroundColor: c.backgroundLight,
+		borderWidth: 1.5,
+		borderColor: c.background,
+		alignItems: "center",
+		justifyContent: "center",
+	},
 	name: { fontSize: 20, fontWeight: "700", color: c.white, textAlign: "center" },
 	phone: { fontSize: 14, color: c.blue500, marginTop: 4, textAlign: "center" },
-	editPill: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 10, paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.07)", borderWidth: 1, borderColor: "rgba(255,255,255,0.1)" },
+	editPill: {
+		flexDirection: "row",
+		alignItems: "center",
+		gap: 4,
+		marginTop: 10,
+		paddingHorizontal: 14,
+		paddingVertical: 6,
+		borderRadius: 20,
+		backgroundColor: "rgba(255,255,255,0.07)",
+		borderWidth: 1,
+		borderColor: "rgba(255,255,255,0.1)",
+	},
 	editPillText: { fontSize: 13, color: c.blue500, fontWeight: "500" },
 	accountActionsRow: { flexDirection: "row", justifyContent: "center", gap: 12, marginTop: 4 },
-	divider: { height: 1, backgroundColor: "rgba(255,255,255,0.06)", marginVertical: 16 },
+	divider: {
+		height: 1,
+		backgroundColor: "rgba(255,255,255,0.06)",
+		marginVertical: 16,
+	},
 	menuGroup: { backgroundColor: "transparent", gap: 8 },
-	menuItem: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 14 },
-	menuLabel: { color: c.white, fontSize: 16, fontWeight: "600" },
+	menuItem: {
+		flexDirection: "row",
+		alignItems: "center",
+		gap: 12,
+		paddingVertical: 14,
+	},
+	menuLabel: { color: c.white, fontSize: 16, fontWeight: "600", flex: 1 },
 	pressed: { opacity: 0.7 },
-	roleCard: { marginTop: 8, paddingTop: 12, borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.06)", marginBottom: 12 },
-	roleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+	roleCard: {
+		marginTop: 8,
+		paddingTop: 12,
+		borderTopWidth: 1,
+		borderTopColor: "rgba(255,255,255,0.06)",
+		marginBottom: 12,
+	},
+	roleRow: {
+		flexDirection: "row",
+		alignItems: "center",
+		justifyContent: "space-between",
+	},
 	roleLabel: { fontSize: 17, color: c.white, fontWeight: "700", flex: 1 },
 	switchWrap: { transform: [{ scale: 1.02 }] },
 	roleHint: { fontSize: 13, color: c.blue500, lineHeight: 18, marginTop: 8 },
-	signOutBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: c.backgroundDark, borderRadius: 12, paddingVertical: 14, paddingHorizontal: 20, borderWidth: 1, borderColor: "rgba(255,255,255,0.12)" },
+	signOutBtn: {
+		flexDirection: "row",
+		alignItems: "center",
+		justifyContent: "center",
+		gap: 8,
+		backgroundColor: c.backgroundDark,
+		borderRadius: 12,
+		paddingVertical: 14,
+		paddingHorizontal: 20,
+		borderWidth: 1,
+		borderColor: "rgba(255,255,255,0.12)",
+	},
 	signOutLabel: { fontSize: 15, fontWeight: "700", color: c.white },
 });

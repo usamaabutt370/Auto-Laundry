@@ -6,8 +6,8 @@ import { useAuth } from "@/contexts/auth-context";
 import { useOnboardingComplete } from "@/hooks/use-onboarding-complete";
 
 /**
- * Root entry: redirects to onboarding, auth, or app based on state.
- * Flow: onboarding (first time, iOS only) → auth → customer/partner.
+ * Root entry: redirects to onboarding or app based on state.
+ * Flow: onboarding (first time, native) → customer home (login deferred).
  */
 export default function IndexScreen() {
   const { hasCompleted: onboardingComplete } = useOnboardingComplete();
@@ -32,15 +32,11 @@ export default function IndexScreen() {
     return <Redirect href="/(onboarding)" />;
   }
 
-  if (!isAuthenticated) {
-    return <Redirect href="/(auth)" />;
-  }
-
-  if (role === "launderer") {
+  if (isAuthenticated && role === "launderer") {
     return <Redirect href="/(partner)" />;
   }
 
-  // Default to customer when logged in (role can be null until backend returns it)
+  // After onboarding (or when logged in as customer), go to home
   return <Redirect href="/(customer)" />;
 }
 

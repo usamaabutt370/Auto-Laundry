@@ -1,6 +1,15 @@
 import { theme } from "@/constants/theme";
 import React, { useMemo, useState } from "react";
-import { Platform, Pressable, StatusBar, StyleSheet, Text, type TextStyle, type ViewStyle } from "react-native";
+import {
+  Platform,
+  Pressable,
+  StatusBar,
+  StyleSheet,
+  Text,
+  View,
+  type TextStyle,
+  type ViewStyle,
+} from "react-native";
 import CountryPicker, {
   type Country,
   type CountryCode,
@@ -63,34 +72,39 @@ export function CountryCodePicker({
   };
 
   return (
-    <Pressable
-      onPress={() => setIsVisible(true)}
-      style={({ pressed }) => [styles.container, pressed && styles.pressed]}
-    >
-      <CountryPicker
-        countryCode={selectedCca2}
-        withFilter
-        withFlag
-        withCallingCode
-        withEmoji
-        onSelect={handleSelect}
-        onClose={() => setIsVisible(false)}
-        visible={isVisible}
-        containerButtonStyle={styles.pickerButton}
-        closeButtonStyle={modalHeaderStyles.closeButton}
-        closeButtonImageStyle={styles.closeButtonImage}
-        filterProps={{ style: modalHeaderStyles.filter }}
-        modalProps={{
-          statusBarTranslucent: false,
-        }}
-        theme={{
-          ...DARK_THEME,
-          backgroundColor: theme.colors.blue900,
-          onBackgroundTextColor: theme.colors.white,
-        }}
-      />
-      <Text style={styles.callingCodeText}>+{selectedCallingCode}</Text>
-    </Pressable>
+    <>
+      <Pressable
+        onPress={() => setIsVisible(true)}
+        style={({ pressed }) => [styles.container, pressed && styles.pressed]}
+      >
+        <Text style={styles.flagPlaceholder}>{selectedCca2}</Text>
+        <Text style={styles.callingCodeText}>+{selectedCallingCode}</Text>
+      </Pressable>
+      {isVisible ? (
+        <CountryPicker
+          countryCode={selectedCca2}
+          withFilter
+          withFlag
+          withCallingCode
+          withEmoji
+          onSelect={handleSelect}
+          onClose={() => setIsVisible(false)}
+          visible
+          renderFlagButton={() => null}
+          closeButtonStyle={modalHeaderStyles.closeButton}
+          closeButtonImageStyle={styles.closeButtonImage}
+          filterProps={{ style: modalHeaderStyles.filter }}
+          modalProps={{
+            statusBarTranslucent: false,
+          }}
+          theme={{
+            ...DARK_THEME,
+            backgroundColor: theme.colors.blue900,
+            onBackgroundTextColor: theme.colors.white,
+          }}
+        />
+      ) : null}
+    </>
   );
 }
 
@@ -101,6 +115,13 @@ const styles = StyleSheet.create({
     height: "100%",
   },
   pickerButton: {
+    marginRight: 4,
+  },
+  flagPlaceholder: {
+    color: theme.colors.white,
+    fontSize: 13,
+    fontWeight: "700",
+    minWidth: 28,
     marginRight: 4,
   },
   closeButtonImage: {
