@@ -23,6 +23,10 @@
   },
   "submit": {
     "production": {
+      "android": {
+        "serviceAccountKeyPath": "credentials/android/play-service-account.json",
+        "track": "internal"
+      },
       "ios": {
         "ascApiKeyPath": "credentials/ios/AuthKey_S93LGR68H7.p8",
         "ascApiKeyId": "S93LGR68H7",
