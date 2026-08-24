@@ -15,6 +15,7 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": false,
+      "requireFullScreen": true,
       "bundleIdentifier": "com.autolaundry.app",
       "icon": "./assets/icons/appstore.png",
       "entitlements": {
