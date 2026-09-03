@@ -1,9 +1,9 @@
 export const assets = {
   onboarding: {
     // slide1: require("./images/top-facilities-image.png"),
-    slide1: require("./images/first-onboarding-img.png"),
-    slide2: require("./images/second-onboarding-img.jpg"),
-    slide3: require("./images/third-onboarding-img.jpg"),
+    slide1: require("./images/first-onboarding-img.jpg"),
+    slide2: require("./images/second-onboarding-img.png"),
+    slide3: require("./images/third-onboarding-img.png"),
   },
   hero: {
     laundryCare: require("./images/heroimage2.jpg"),
@@ -30,6 +30,7 @@ export const assets = {
     menu_icon: require("./icons/menu-icon.png"),
     clock_icon: require("./icons/clock-icon.png"),
     info_icon_fill: require("./icons/info-icon-fill.png"),
+    arrow_right_icon: require("./icons/right-arrow.png"),
   },
   images: {
     profile_placeholder: require("./images/profile-placeholder.png"),

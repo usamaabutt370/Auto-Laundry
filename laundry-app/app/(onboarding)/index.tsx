@@ -2,61 +2,159 @@ import { useRouter } from "expo-router";
 import { useRef, useState } from "react";
 import {
   Dimensions,
-  NativeSyntheticEvent,
+  Image,
   NativeScrollEvent,
+  NativeSyntheticEvent,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
-  Image,
 } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
-import { Spacer, ThemedText, ThemedView } from "@/components";
 import { strings } from "@/constants/strings";
 import { useOnboardingComplete } from "@/hooks/use-onboarding-complete";
-import { theme } from "@/constants/theme";
 import { assets } from "@/assets/assets";
-import { IconSymbol } from "@/components/ui/icon-symbol";
+import { GradientText } from "@/components/gradient-text";
 
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 const TOTAL_SLIDES = 3;
 
-/** Slide 1 */
-function Slide1Intro() {
-  const s = strings.onboarding.slide1;
-  return (
-    <ThemedView style={styles.slide}>
+const textColors = {
+  heading: "#FFFFFF",
+  body: "#FFFFFF",
+  skip: "#FFFFFF",
+  headingAccentBlue: "#1677FF",
+  headingAccentGreen: "#7ED321",
+  secondary: "#E5E7EB",
+  muted: "#6B7280",
+};
 
-      <ThemedText style={styles.title}>{s.title}</ThemedText>
-      <Spacer.Column numberOfSpaces={5} />
-      <ThemedText style={styles.subtitle}>{s.subtitle1}</ThemedText>
-      <ThemedText style={styles.subtitle}>{s.subtitle2}</ThemedText>
-      <ThemedText style={styles.subtitle}>{s.subtitle3}</ThemedText>
-      <Spacer.Column numberOfSpaces={5} />
-      <ThemedView style={styles.imageContainer}>
-        <Image source={assets.onboarding.slide1} style={styles.image} />
-      </ThemedView>
-    </ThemedView>
+
+function SlideHeading({
+  before,
+  accentBlue,
+  accentGreen,
+}: {
+  before: string;
+  accentBlue: string;
+  accentGreen: string;
+}) {
+  return (
+    <View style={styles.headingWrap}>
+      {/* Line 1 — plain white */}
+      <Text style={[styles.heading, { color: textColors.heading }]}>
+        {before}
+      </Text>
+      {/* Line 2 — blue → green gradient */}
+      <GradientText
+        colors={[textColors.headingAccentBlue, textColors.headingAccentGreen]}
+        locations={[0, 1]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={styles.heading}
+      >
+        {`${accentBlue}${accentGreen}`}
+      </GradientText>
+    </View>
   );
 }
 
-/** Slide 2 */
+function ProgressSegments({ currentIndex }: { currentIndex: number }) {
+  return (
+    <View style={styles.progressRow}>
+      {Array.from({ length: TOTAL_SLIDES }).map((_, i) =>
+        i === currentIndex ? (
+          <LinearGradient
+            key={i}
+            colors={[ textColors.headingAccentBlue, textColors.headingAccentGreen]}
+            locations={[0, 0.7, 1]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.progressSegment}
+          />
+        ) : (
+          <View
+            key={i}
+            style={[styles.progressSegment, styles.progressSegmentInactive]}
+          />
+        )
+      )}
+    </View>
+  );
+}
+
+/** Slide 1 — full-bleed hero matching design */
+function Slide1Intro() {
+  const s = strings.onboarding.slide1;
+  return (
+    <View style={styles.slide}>
+      <Image
+        source={assets.onboarding.slide1}
+        style={styles.backgroundImage}
+        resizeMode="cover"
+      />
+      <LinearGradient
+        colors={[
+          "transparent",
+          "rgba(0,0,0,0.15)",
+          "rgba(0,0,0,0.72)",
+          "rgba(0,0,0,0.92)",
+        ]}
+        locations={[0.5, 0.65, 0.82, 1]}
+        style={styles.gradient}
+      />
+      <SafeAreaView style={styles.slideSafe} edges={["bottom"]}>
+        <View style={styles.copyBlock}>
+          <SlideHeading
+            before={s.titleBefore}
+            accentBlue={s.titleAccentBlue}
+            accentGreen={s.titleAccentGreen}
+          />
+          <Text style={styles.body}>
+            <Text style={styles.bodyBase}>{s.subtitle1}</Text>
+            <Text style={styles.bodyAccent}>{s.bodyAccent}</Text>
+            <Text style={styles.bodyBase}>{s.bodyAfter}</Text>
+          </Text>
+        </View>
+      </SafeAreaView>
+    </View>
+  );
+}
+
+/** Slide 2 — same shell, existing copy until redesigned */
 function Slide2Placeholder() {
   const s = strings.onboarding.slide2;
   return (
-    <ThemedView style={styles.slide}>
-      <ThemedText style={styles.title}>{s.title}</ThemedText>
-      <Spacer.Column numberOfSpaces={5} />
-      <ThemedText style={styles.subtitle}>{s.subtitle1}</ThemedText>
-      <ThemedText style={styles.subtitle}>{s.subtitle2}</ThemedText>
-      <ThemedText style={styles.subtitle}>{s.subtitle3}</ThemedText>
-      <Spacer.Column numberOfSpaces={5} />
-      <ThemedView style={styles.imageContainer}>
-        <Image source={assets.onboarding.slide2} style={styles.image} />
-      </ThemedView>
-    </ThemedView>
+    <View style={styles.slide}>
+      <Image
+        source={assets.onboarding.slide2}
+        style={styles.backgroundImage}
+        resizeMode="cover"
+      />
+      <LinearGradient
+        colors={[
+          "transparent",
+          "rgba(0,0,0,0.15)",
+          "rgba(0,0,0,0.72)",
+          "rgba(0,0,0,0.92)",
+        ]}
+        locations={[0.5, 0.65, 0.82, 1]}
+        style={styles.gradient}
+      />
+      <SafeAreaView style={styles.slideSafe} edges={["bottom"]}>
+        <View style={styles.copyBlock}>
+          <SlideHeading
+            before={s.titleBefore}
+            accentBlue={s.titleAccentBlue}
+            accentGreen={s.titleAccentGreen}
+          />
+          <Text style={styles.bodyBase}>{s.subtitle1}</Text>
+        </View>
+      </SafeAreaView>
+    </View>
   );
 }
 
@@ -64,17 +162,33 @@ function Slide2Placeholder() {
 function Slide3GetStarted() {
   const s = strings.onboarding.slide3;
   return (
-    <ThemedView style={styles.slide}>
-      <ThemedText style={styles.title}>{s.title}</ThemedText>
-      <Spacer.Column numberOfSpaces={5} />
-      <ThemedText style={styles.subtitle}>{s.subtitle}</ThemedText>
-      <ThemedText style={styles.subtitle}>{s.subtitle2}</ThemedText>
-      <ThemedText style={styles.subtitle}>{s.subtitle3}</ThemedText>
-      <Spacer.Column numberOfSpaces={5} />
-      <ThemedView style={styles.imageContainer}>
-        <Image source={assets.onboarding.slide3} style={styles.image} />
-      </ThemedView>
-    </ThemedView>
+    <View style={styles.slide}>
+      <Image
+        source={assets.onboarding.slide3}
+        style={styles.backgroundImage}
+        resizeMode="cover"
+      />
+      <LinearGradient
+        colors={[
+          "transparent",
+          "rgba(0,0,0,0.15)",
+          "rgba(0,0,0,0.72)",
+          "rgba(0,0,0,0.92)",
+        ]}
+        locations={[0.5, 0.65, 0.82, 1]}
+        style={styles.gradient}
+      />
+      <SafeAreaView style={styles.slideSafe} edges={["bottom"]}>
+        <View style={styles.copyBlock}>
+          <SlideHeading
+            before={s.titleBefore}
+            accentBlue={s.titleAccentBlue}
+            accentGreen={s.titleAccentGreen}
+          />
+          <Text style={styles.bodyBase}>{s.subtitle1}</Text>
+        </View>
+      </SafeAreaView>
+    </View>
   );
 }
 
@@ -90,14 +204,6 @@ export default function OnboardingScreen() {
     setCurrentIndex(index);
   };
 
-  const goToNextSlide = () => {
-    const next = currentIndex + 1;
-    if (next < TOTAL_SLIDES) {
-      scrollRef.current?.scrollTo({ x: next * SCREEN_WIDTH, animated: true });
-      setCurrentIndex(next);
-    }
-  };
-
   const handleGetStarted = async () => {
     await setCompleted();
     router.replace("/(customer)");
@@ -108,17 +214,20 @@ export default function OnboardingScreen() {
   };
 
   const handleNext = () => {
-    if (currentIndex < TOTAL_SLIDES - 1) {
-      goToNextSlide();
+    const next = currentIndex + 1;
+    if (next < TOTAL_SLIDES) {
+      scrollRef.current?.scrollTo({ x: next * SCREEN_WIDTH, animated: true });
+      setCurrentIndex(next);
     } else {
       handleGetStarted();
     }
   };
 
   const s = strings.onboarding;
+  const isLast = currentIndex === TOTAL_SLIDES - 1;
 
   return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
+    <View style={styles.container}>
       <StatusBar style="dark" />
       <ScrollView
         ref={scrollRef}
@@ -134,144 +243,200 @@ export default function OnboardingScreen() {
         <Slide3GetStarted />
       </ScrollView>
 
-      <View style={styles.dots}>
-          {Array.from({ length: TOTAL_SLIDES }).map((_, i) => (
-            <View
-              key={i}
-              style={[
-                styles.dot,
-                i === currentIndex ? styles.dotActive : styles.dotInactive,
-              ]}
-            />
-          ))}
+      <LinearGradient
+        colors={[
+          "rgba(0,0,0,0.72)",
+          "rgba(0,0,0,0.45)",
+          "rgba(0,0,0,0.25)",
+          "transparent",
+        ]}
+        locations={[0, 0.35, 0.65, 1]}
+        style={styles.topGradient}
+        pointerEvents="none"
+      />
+
+      <SafeAreaView style={styles.topChrome} edges={["top"]} pointerEvents="box-none">
+        <View style={styles.topBar}>
+          <ProgressSegments currentIndex={currentIndex} />
+          <Pressable
+            onPress={handleSkip}
+            style={({ pressed }) => [styles.skipButton, pressed && styles.pressed]}
+            accessibilityRole="button"
+            accessibilityLabel={s.skip}
+            hitSlop={12}
+          >
+            <Text style={styles.skipText}>{s.skip}</Text>
+          </Pressable>
         </View>
+      </SafeAreaView>
 
-      <View style={styles.bottomBar}>
-        <Pressable
-          onPress={handleSkip}
-          style={({ pressed }) => [
-            styles.skipButton,
-            pressed && styles.pressed,
-          ]}
-          accessibilityRole="button"
-          accessibilityLabel={s.skip}
-        >
-          <Text style={styles.skipText}>{s.skip}</Text>
-        </Pressable>
-
-        <Pressable
-          onPress={handleNext}
-          style={({ pressed }) => [
-            styles.nextButton,
-            pressed && styles.pressed,
-          ]}
-          accessibilityRole="button"
-          accessibilityLabel={
-            currentIndex < TOTAL_SLIDES - 1
-              ? strings.onboarding.slide1.next
-              : strings.onboarding.slide3.next
-          }
-        >
-          <IconSymbol
-            name="chevron.right"
-            size={20}
-            color={theme.colors.white}
-          />
-        </Pressable>
-      </View>
-    </SafeAreaView>
+      {isLast && (
+        <SafeAreaView style={styles.bottomCtaWrap} edges={["bottom"]}>
+          <Pressable
+            onPress={handleNext}
+            style={({ pressed }) => [
+              styles.getStartedButton,
+              pressed && styles.pressed,
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel={s.slide3.next}
+          >
+            <Image source={assets.icons.arrow_right_icon} style={styles.getStartedIcon} />
+          </Pressable>
+        </SafeAreaView>
+      )}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
-  },
-  imageContainer: {
-    height: 400,
-    width: '100%',
-    backgroundColor: "transparent",
-  },
-  image: {
-    width: 320,
-    height: 400,
-    resizeMode: "contain",
-    alignSelf: "center",
+    backgroundColor: "#000",
   },
   scroll: {
-    flexGrow: 1,
+    flex: 1,
   },
   slide: {
     width: SCREEN_WIDTH,
+    height: SCREEN_HEIGHT,
+    overflow: "hidden",
+  },
+  backgroundImage: {
+    ...StyleSheet.absoluteFillObject,
+    width: SCREEN_WIDTH,
+    height: SCREEN_HEIGHT,
+  },
+  gradient: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  slideSafe: {
     flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 80,
-    justifyContent: "flex-start",
-    backgroundColor: theme.colors.background,
+    justifyContent: "flex-end",
   },
-  title: {
-    fontSize: 30,
+  copyBlock: {
+    paddingHorizontal: 20,
+    paddingBottom: 30,
+  },
+  stepNumber: {
+    fontSize: 16,
     fontWeight: "700",
-    color: theme.colors.white,
-    textAlign: "center",
-    backgroundColor: "transparent",
+    color: textColors.headingAccentBlue,
+    marginBottom: 8,
+    letterSpacing: 0.3,
+  },
+  headingWrap: {
+    marginBottom: 10,
+  },
+  heading: {
+    fontSize: 35,
     lineHeight: 40,
+    fontFamily: "Poppins-Bold",
   },
-  subtitle: {
-    fontSize: 20,
-    color: theme.colors.white,
-    lineHeight: 30,
-    textAlign: "center",
-    backgroundColor: "transparent",
+  headingBase: {
+    color: textColors.heading,
   },
-  bottomBar: {
+  headingBlue: {
+    color: textColors.headingAccentBlue,
+  },
+  headingGreen: {
+    color: textColors.headingAccentGreen,
+  },
+  body: {
+    fontSize: 14,
+    lineHeight: 24,
+    maxWidth: 340,
+  },
+  bodyBase: {
+    color: textColors.body,
+    fontSize: 16,
+    lineHeight: 24,
+    fontFamily: "Poppins-Regular",
+  },
+  bodyAccent: {
+    color: textColors.headingAccentGreen,
+    fontSize: 16,
+    lineHeight: 24,
+    fontFamily: "Poppins-SemiBold",
+  },
+  topChrome: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+  },
+  topGradient: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: SCREEN_HEIGHT * 0.22,
+  },
+  topBar: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 20,
-    backgroundColor: "transparent",
-    marginBottom: 50,
+    paddingTop: 0,
+    marginTop: -8,
+  },
+  progressRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    marginRight: 16,
+  },
+  progressSegment: {
+    width: 50,
+    height: 5,
+    borderRadius: 100,
+  },
+  progressSegmentInactive: {
+    backgroundColor: "rgba(229, 231, 235, 0.65)",
   },
   skipButton: {
-    padding: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
   },
   skipText: {
-    fontSize: 16,
-    color: theme.colors.white,
-    fontWeight: "500",
+    fontSize: 13,
+    fontFamily: "Poppins-Bold",
+    color: textColors.skip,
+    letterSpacing: 1.4,
+    textShadowColor: "rgba(0,0,0,0.35)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
   pressed: {
-    opacity: 0.8,
+    opacity: 0.75,
   },
-  dots: {
+  bottomCtaWrap: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: 24,
+    paddingBottom: 8,
+  },
+  getStartedButton: {
+    height: 56,
+    width: 56,
+    backgroundColor: textColors.headingAccentBlue,
+    borderRadius: 100,
+    alignItems: "center",
+    alignSelf: "flex-end",
+    justifyContent: "center",
     flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
     gap: 10,
-    marginBottom: 50,
   },
-  dot: {
-    borderRadius: 100,
+  getStartedText: {
+    color: textColors.heading,
+    fontSize: 16,
+    fontWeight: "700",
   },
-  dotActive: {
-    width: 30,
-    height: 10,
-    backgroundColor: theme.colors.white,
-    borderWidth: 2,
-    borderColor: theme.colors.white,
-  },
-  dotInactive: {
-    width: 8,
-    height: 8,
-    backgroundColor: theme.colors.backgroundLight,
-  },
-  nextButton: {
-    width: 45,
-    height: 45,
-    borderRadius: 100,
-    backgroundColor: theme.colors.backgroundLight,
-    alignItems: "center",
-    justifyContent: "center",
+  getStartedIcon: {
+    width: 24,
+    height: 24,
+    tintColor: "#FFFFFF",
   },
 });

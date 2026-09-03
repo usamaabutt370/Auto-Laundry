@@ -13,4 +13,6 @@ export type { LanguageSelectorProps } from "./language-selector";
 export { ServicePricingCard } from "./service-pricing-card";
 export type { ServicePricingCardProps } from "./service-pricing-card";
 export { AuthErrorModal } from "./auth-error-modal";
+export { GradientText } from "./gradient-text";
+export type { GradientTextProps } from "./gradient-text";
 export { LaundererDetailView } from "./launderer-detail-view";
