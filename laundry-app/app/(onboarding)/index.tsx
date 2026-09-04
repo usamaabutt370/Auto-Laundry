@@ -1,5 +1,5 @@
 import { useRouter } from "expo-router";
-import { useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Dimensions,
   Image,
@@ -21,6 +21,7 @@ import { GradientText } from "@/components/gradient-text";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 const TOTAL_SLIDES = 3;
+const AUTO_ADVANCE_MS = 3000;
 
 const textColors = {
   heading: "#FFFFFF",
@@ -195,7 +196,9 @@ function Slide3GetStarted() {
 export default function OnboardingScreen() {
   const router = useRouter();
   const scrollRef = useRef<ScrollView>(null);
+  const completingRef = useRef(false);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
   const { setCompleted } = useOnboardingComplete();
 
   const handleScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
@@ -204,27 +207,37 @@ export default function OnboardingScreen() {
     setCurrentIndex(index);
   };
 
-  const handleGetStarted = async () => {
+  const finishOnboarding = useCallback(async () => {
+    if (completingRef.current) return;
+    completingRef.current = true;
     await setCompleted();
     router.replace("/(customer)");
-  };
+  }, [router, setCompleted]);
+
+  const goToSlide = useCallback((index: number) => {
+    scrollRef.current?.scrollTo({ x: index * SCREEN_WIDTH, animated: true });
+    setCurrentIndex(index);
+  }, []);
+
+  useEffect(() => {
+    if (isPaused || completingRef.current) return;
+
+    const timer = setTimeout(() => {
+      if (currentIndex < TOTAL_SLIDES - 1) {
+        goToSlide(currentIndex + 1);
+      } else {
+        void finishOnboarding();
+      }
+    }, AUTO_ADVANCE_MS);
+
+    return () => clearTimeout(timer);
+  }, [currentIndex, isPaused, finishOnboarding, goToSlide]);
 
   const handleSkip = () => {
-    handleGetStarted();
-  };
-
-  const handleNext = () => {
-    const next = currentIndex + 1;
-    if (next < TOTAL_SLIDES) {
-      scrollRef.current?.scrollTo({ x: next * SCREEN_WIDTH, animated: true });
-      setCurrentIndex(next);
-    } else {
-      handleGetStarted();
-    }
+    void finishOnboarding();
   };
 
   const s = strings.onboarding;
-  const isLast = currentIndex === TOTAL_SLIDES - 1;
 
   return (
     <View style={styles.container}>
@@ -234,7 +247,18 @@ export default function OnboardingScreen() {
         horizontal
         pagingEnabled
         showsHorizontalScrollIndicator={false}
-        onMomentumScrollEnd={handleScroll}
+        onScrollBeginDrag={() => setIsPaused(true)}
+        onScrollEndDrag={(e) => {
+          const velocity = e.nativeEvent.velocity?.x ?? 0;
+          if (Math.abs(velocity) < 0.1) {
+            setIsPaused(false);
+            handleScroll(e);
+          }
+        }}
+        onMomentumScrollEnd={(e) => {
+          setIsPaused(false);
+          handleScroll(e);
+        }}
         bounces={false}
         style={styles.scroll}
       >
@@ -269,22 +293,6 @@ export default function OnboardingScreen() {
           </Pressable>
         </View>
       </SafeAreaView>
-
-      {isLast && (
-        <SafeAreaView style={styles.bottomCtaWrap} edges={["bottom"]}>
-          <Pressable
-            onPress={handleNext}
-            style={({ pressed }) => [
-              styles.getStartedButton,
-              pressed && styles.pressed,
-            ]}
-            accessibilityRole="button"
-            accessibilityLabel={s.slide3.next}
-          >
-            <Image source={assets.icons.arrow_right_icon} style={styles.getStartedIcon} />
-          </Pressable>
-        </SafeAreaView>
-      )}
     </View>
   );
 }
@@ -409,34 +417,5 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.75,
-  },
-  bottomCtaWrap: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    paddingHorizontal: 24,
-    paddingBottom: 8,
-  },
-  getStartedButton: {
-    height: 56,
-    width: 56,
-    backgroundColor: textColors.headingAccentBlue,
-    borderRadius: 100,
-    alignItems: "center",
-    alignSelf: "flex-end",
-    justifyContent: "center",
-    flexDirection: "row",
-    gap: 10,
-  },
-  getStartedText: {
-    color: textColors.heading,
-    fontSize: 16,
-    fontWeight: "700",
-  },
-  getStartedIcon: {
-    width: 24,
-    height: 24,
-    tintColor: "#FFFFFF",
   },
 });
