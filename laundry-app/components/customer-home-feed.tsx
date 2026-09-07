@@ -335,8 +335,8 @@ export function CustomerHomeFeed({
             badge={s.dealLaundry}
             pct={20}
             code="T2L20"
-            image={assets.onboarding.slide1}
-            tone='teal'
+            image={assets.images.home_deal_laundry}
+            tone="teal"
             cardWidth={recCardWidth}
             onPress={() => onPressCategory("washAndFold")}
             strings={s}
@@ -345,7 +345,7 @@ export function CustomerHomeFeed({
             badge={s.dealIroning}
             pct={15}
             code="PRESS15"
-            image={assets.images.schedule_pickup}
+            image={assets.images.home_deal_ironing}
             tone="purple"
             cardWidth={recCardWidth}
             onPress={() => onPressCategory("press")}
@@ -355,7 +355,7 @@ export function CustomerHomeFeed({
             badge={s.dealTailoring}
             pct={10}
             code="STCH10"
-            image={assets.onboarding.slide3}
+            image={assets.images.home_deal_tailoring}
             tone="pink"
             cardWidth={recCardWidth}
             onPress={() => onPressCategory("tailoring")}
@@ -542,7 +542,7 @@ function DealCard({
         <Text style={styles.dealSub} numberOfLines={1}>
           {s.dealFirstOrder}
         </Text>
-        <Image source={image} style={styles.dealImage} contentFit="cover" />
+        <Image source={image} style={styles.dealImage} contentFit="contain" />
         <View style={styles.codeRow}>
           <View style={[styles.codeGift, { backgroundColor: colors.accent }]}>
             <MaterialCommunityIcons name="gift-outline" size={13} color="#FFFFFF" />
@@ -1058,7 +1058,7 @@ const styles = StyleSheet.create({
   },
   dealImage: {
     width: "100%",
-    height: 64,
+    height: 80,
     borderRadius: 10,
     marginTop: 8,
   },
