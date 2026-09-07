@@ -7,6 +7,12 @@ export type DeviceLocationResult = {
   status: DeviceLocationStatus;
 };
 
+/** City center — used when the iOS Simulator snaps back to Apple's San Francisco default. */
+export const LAHORE_CITY: Coordinates = {
+  latitude: 31.5204,
+  longitude: 74.3587,
+};
+
 let locationPromptSettled = false;
 let resolveLocationPromptSettled: (() => void) | null = null;
 const locationPromptSettledPromise = new Promise<void>((resolve) => {
@@ -47,6 +53,22 @@ function toCoordinates(
   return { latitude, longitude };
 }
 
+/** Apple Park / San Francisco — the Simulator resets here on rebuild and reboot. */
+function isAppleSimulatorDefault(coords: Coordinates): boolean {
+  return (
+    coords.latitude >= 37.0 &&
+    coords.latitude <= 38.3 &&
+    coords.longitude >= -122.8 &&
+    coords.longitude <= -121.4
+  );
+}
+
+function resolveCoords(coords: Coordinates | null): Coordinates | null {
+  if (!coords) return null;
+  if (__DEV__ && isAppleSimulatorDefault(coords)) return LAHORE_CITY;
+  return coords;
+}
+
 /**
  * Requests foreground location permission and returns device coordinates when available.
  * Returns null when permission is denied or location cannot be resolved.
@@ -76,15 +98,15 @@ export async function getDeviceCoordinatesWithStatus(): Promise<DeviceLocationRe
       return { coords: null, status: "denied" };
     }
 
-    const lastKnown = await Location.getLastKnownPositionAsync();
-    const lastKnownCoords = toCoordinates(lastKnown);
-    if (lastKnownCoords) return { coords: lastKnownCoords, status: "granted" };
-
     const current = await Location.getCurrentPositionAsync({
       accuracy: Location.Accuracy.Balanced,
     });
-    const currentCoords = toCoordinates(current);
+    const currentCoords = resolveCoords(toCoordinates(current));
     if (currentCoords) return { coords: currentCoords, status: "granted" };
+
+    const lastKnown = await Location.getLastKnownPositionAsync();
+    const lastKnownCoords = resolveCoords(toCoordinates(lastKnown));
+    if (lastKnownCoords) return { coords: lastKnownCoords, status: "granted" };
     return { coords: null, status: "unavailable" };
   } catch {
     markLocationPromptSettled();

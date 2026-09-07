@@ -1,4 +1,5 @@
-import { Image, StyleSheet, Text, View } from "react-native";
+import { Image } from "expo-image";
+import { StyleSheet, Text, View } from "react-native";
 import { theme } from "@/constants/theme";
 
 const c = theme.colors;
@@ -19,37 +20,40 @@ type Props = {
 
 export function AvatarImage({ uri, name, size = 80, style }: Props) {
   const borderRadius = size / 2;
-
-  if (uri) {
-    return (
-      <Image
-        key={uri}
-        source={{ uri }}
-        style={[{ width: size, height: size, borderRadius }, style]}
-        resizeMode="cover"
-      />
-    );
-  }
-
   const initials = getInitials(name ?? "");
 
   return (
     <View
       style={[
-        styles.initialsWrap,
-        { width: size, height: size, borderRadius },
+        { width: size, height: size, borderRadius, overflow: "hidden" },
         style,
       ]}
     >
-      <Text style={[styles.initialsText, { fontSize: size * 0.35 }]}>
-        {initials}
-      </Text>
+      <View
+        style={[
+          styles.initialsWrap,
+          { width: size, height: size, borderRadius },
+        ]}
+      >
+        <Text style={[styles.initialsText, { fontSize: size * 0.35 }]}>
+          {initials}
+        </Text>
+      </View>
+      {uri ? (
+        <Image
+          key={uri}
+          source={{ uri }}
+          style={[StyleSheet.absoluteFill, { borderRadius }]}
+          contentFit="cover"
+        />
+      ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   initialsWrap: {
+    ...StyleSheet.absoluteFillObject,
     backgroundColor: c.backgroundDark,
     alignItems: "center",
     justifyContent: "center",

@@ -9,6 +9,7 @@ type PartnerNameWithBadgeProps = {
   containerStyle?: StyleProp<ViewStyle>;
   numberOfLines?: number;
   badgeSize?: number;
+  badgeColor?: string;
 };
 
 export function PartnerNameWithBadge({
@@ -18,13 +19,14 @@ export function PartnerNameWithBadge({
   containerStyle,
   numberOfLines = 1,
   badgeSize = 12,
+  badgeColor,
 }: PartnerNameWithBadgeProps) {
   return (
     <View style={[styles.row, containerStyle]}>
       <Text style={[styles.name, nameStyle]} numberOfLines={numberOfLines}>
         {name}
       </Text>
-      {verified ? <PartnerVerifiedBadge size={badgeSize} /> : null}
+      {verified ? <PartnerVerifiedBadge size={badgeSize} color={badgeColor} /> : null}
     </View>
   );
 }

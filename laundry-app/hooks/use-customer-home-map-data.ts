@@ -216,6 +216,8 @@ export function useCustomerHomeMapData() {
 
   return {
     userCoordinates,
+    partners,
+    partnerCoordinates,
     loadingPartners,
     mapMarkers,
     markerById,

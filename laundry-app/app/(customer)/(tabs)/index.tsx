@@ -1,32 +1,44 @@
 import { useRouter, useFocusEffect } from "expo-router";
-import { useCallback } from "react";
-import { Image } from "expo-image";
-import { getTabBarBottomInset } from "@/components/bottom-tab-bar";
-import { CustomerHomeMap } from "@/components/customer-home-map";
-import { CustomerHomeMapOverlays } from "@/components/customer-home-map-overlays";
-import { ThemedText } from "@/components/themed-text";
-import { strings } from "@/constants/strings";
-import { theme } from "@/constants/theme";
-import { assets } from "@/assets/assets";
-import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
-import { useCustomerHomeMapData } from "@/hooks/use-customer-home-map-data";
-import { Platform, Pressable, StyleSheet, View } from "react-native";
+import { useCallback, useState } from "react";
+import { StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-const c = theme.colors;
+import { getTabBarBottomInset } from "@/components/bottom-tab-bar";
+import {
+  CustomerHomeFeed,
+  HomeFiltersMapFab,
+  HomeFiltersSheet,
+  type FulfillmentFilter,
+  type HomeServiceId,
+} from "@/components/customer-home-feed";
+import { CustomerHomeMap } from "@/components/customer-home-map";
+import { CustomerHomeMapOverlays } from "@/components/customer-home-map-overlays";
+import { strings } from "@/constants/strings";
+import { useCustomerOrderDraft } from "@/contexts/customer-order-draft-context";
+import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
+import {
+  useCustomerHomeMapData,
+  type PartnerMapMarker,
+} from "@/hooks/use-customer-home-map-data";
 
 export default function CustomerHomeScreen() {
   const router = useRouter();
   const s = strings.customer.home;
   const insets = useSafeAreaInsets();
   const { hideBottomTabBar, isWebDesktop } = useResponsiveLayout();
+  const { setPickupDeliveryRequested, setSelectedServiceIds } = useCustomerOrderDraft();
   const tabBarInset = getTabBarBottomInset(Math.max(insets.bottom, 8), hideBottomTabBar);
-  const serviceCardHeight = 160;
   const showWebTopNav = isWebDesktop;
-  const mapBottomInset = showWebTopNav ? 0 : tabBarInset + serviceCardHeight;
-  const recenterBottomOffset = showWebTopNav ? Math.max(insets.bottom, 24) : tabBarInset + 162;
   const mapData = useCustomerHomeMapData();
   const partnerSheetOpen = mapData.selectedPartner != null;
+
+  const [viewMode, setViewMode] = useState<"feed" | "map">("feed");
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [fulfillmentFilter, setFulfillmentFilter] = useState<FulfillmentFilter>("all");
+
+  const fabBottom = showWebTopNav ? Math.max(insets.bottom, 24) : tabBarInset + 16;
+  const mapBottomInset = showWebTopNav ? 72 : tabBarInset + 72;
+  const recenterBottomOffset = showWebTopNav ? Math.max(insets.bottom, 24) + 64 : tabBarInset + 80;
 
   useFocusEffect(
     useCallback(() => {
@@ -36,104 +48,102 @@ export default function CustomerHomeScreen() {
     }, [mapData.setSelectedPartnerId]),
   );
 
-  const goToPickLaunderer = (mode: "dropoff" | "pickupDelivery") => {
+  const goToPickLaunderer = (
+    mode: "dropoff" | "pickupDelivery",
+    service?: HomeServiceId,
+  ) => {
     router.push({
       pathname: "/(customer)/pick-launderer",
-      params: { mode },
+      params: service ? { mode, service } : { mode },
     });
   };
 
-  const serviceButtons = (
-    <>
-      <Pressable
-        onPress={() => goToPickLaunderer("dropoff")}
-        style={({ pressed }) => [
-          showWebTopNav ? styles.webServiceBtn : styles.serviceBtn,
-          pressed && styles.pressed,
-        ]}
-      >
-        <Image
-          source={assets.icons.dropoff_icon}
-          style={showWebTopNav ? styles.webServiceBtnIcon : styles.serviceBtnIcon}
-        />
-        <ThemedText style={showWebTopNav ? styles.webServiceBtnText : styles.serviceBtnText}>
-          {s.dropOff}
-        </ThemedText>
-      </Pressable>
-      <Pressable
-        onPress={() => goToPickLaunderer("pickupDelivery")}
-        style={({ pressed }) => [
-          showWebTopNav ? styles.webServiceBtn : styles.serviceBtn,
-          pressed && styles.pressed,
-        ]}
-      >
-        <Image
-          source={assets.icons.scooter_icon}
-          style={showWebTopNav ? styles.webServiceBtnIcon : styles.serviceBtnIcon}
-        />
-        <ThemedText style={showWebTopNav ? styles.webServiceBtnText : styles.serviceBtnText}>
-          {s.pickUpDelivery}
-        </ThemedText>
-      </Pressable>
-    </>
-  );
+  const handleCategory = (service: HomeServiceId) => {
+    const wantsPickup = fulfillmentFilter !== "dropoff";
+    setPickupDeliveryRequested(wantsPickup);
+    setSelectedServiceIds([service]);
+    goToPickLaunderer(wantsPickup ? "pickupDelivery" : "dropoff", service);
+  };
+
+  const handlePartner = (partner: PartnerMapMarker) => {
+    router.push({
+      pathname: "/(customer)/launderer-detail",
+      params: { id: partner.id, mode: partner.fulfillmentMode },
+    });
+  };
+
+  const handleSeeAll = () => {
+    goToPickLaunderer(fulfillmentFilter === "dropoff" ? "dropoff" : "pickupDelivery");
+  };
+
+  const handleFilters = () => {
+    setFiltersOpen(true);
+  };
 
   return (
     <View style={styles.container}>
-      <CustomerHomeMap
-        strings={s}
-        onPartnerPress={(partnerId, mode) =>
-          router.push({
-            pathname: "/(customer)/launderer-detail",
-            params: { id: partnerId, mode },
-          })
-        }
-        recenterBottomOffset={recenterBottomOffset}
-        mapBottomInset={mapBottomInset}
-        mapData={mapData}
-        partnerSheetHost="screen"
-      />
-
-      {showWebTopNav ? (
-        <View
-          style={[styles.webTopNav, { paddingTop: insets.top + 16 }]}
-          pointerEvents="box-none"
-        >
-          <View style={styles.webTopNavButtons}>{serviceButtons}</View>
-        </View>
+      {viewMode === "map" ? (
+        <>
+          <CustomerHomeMap
+            strings={s}
+            onPartnerPress={(partnerId, mode) =>
+              router.push({
+                pathname: "/(customer)/launderer-detail",
+                params: { id: partnerId, mode },
+              })
+            }
+            recenterBottomOffset={recenterBottomOffset}
+            mapBottomInset={mapBottomInset}
+            mapData={mapData}
+            partnerSheetHost="screen"
+          />
+          <CustomerHomeMapOverlays
+            strings={s}
+            loadingPartners={mapData.loadingPartners}
+            recenterBottomOffset={recenterBottomOffset}
+            mapBottomInset={mapBottomInset}
+            onRecenter={() => {}}
+            selectedPartner={mapData.selectedPartner}
+            selectedPartnerPrimaryImage={mapData.selectedPartnerPrimaryImage}
+            selectedPartnerUpdatedLabel={mapData.selectedPartnerUpdatedLabel}
+            onClosePartner={() => mapData.setSelectedPartnerId(null)}
+            onPartnerPress={(partnerId, mode) =>
+              router.push({
+                pathname: "/(customer)/launderer-detail",
+                params: { id: partnerId, mode },
+              })
+            }
+            showMapChrome={false}
+            showPartnerSheet
+          />
+        </>
       ) : (
-        <View
-          style={[
-            styles.serviceCard,
-            { bottom: tabBarInset, paddingBottom: 24 },
-          ]}
-          pointerEvents={partnerSheetOpen ? "none" : "auto"}
-        >
-          <ThemedText style={styles.serviceCardTitle}>{s.chooseService}</ThemedText>
-          <View style={[styles.serviceButtons, styles.serviceButtonsWithMargin]}>
-            {serviceButtons}
-          </View>
-        </View>
+        <CustomerHomeFeed
+          mapData={mapData}
+          fulfillmentFilter={fulfillmentFilter}
+          bottomInset={tabBarInset}
+          onPressCategory={handleCategory}
+          onPressPartner={handlePartner}
+          onSeeAll={handleSeeAll}
+          onPressNotifications={() => router.push("/(customer)/(tabs)/chat")}
+          onPressProfile={() => router.push("/(customer)/(tabs)/profile")}
+        />
       )}
 
-      <CustomerHomeMapOverlays
-        strings={s}
-        loadingPartners={mapData.loadingPartners}
-        recenterBottomOffset={recenterBottomOffset}
-        mapBottomInset={mapBottomInset}
-        onRecenter={() => {}}
-        selectedPartner={mapData.selectedPartner}
-        selectedPartnerPrimaryImage={mapData.selectedPartnerPrimaryImage}
-        selectedPartnerUpdatedLabel={mapData.selectedPartnerUpdatedLabel}
-        onClosePartner={() => mapData.setSelectedPartnerId(null)}
-        onPartnerPress={(partnerId, mode) =>
-          router.push({
-            pathname: "/(customer)/launderer-detail",
-            params: { id: partnerId, mode },
-          })
-        }
-        showMapChrome={false}
-        showPartnerSheet
+      <View pointerEvents={partnerSheetOpen ? "none" : "box-none"} style={StyleSheet.absoluteFill}>
+        <HomeFiltersMapFab
+          viewMode={viewMode}
+          bottom={fabBottom}
+          onFilters={handleFilters}
+          onMap={() => setViewMode((mode) => (mode === "map" ? "feed" : "map"))}
+        />
+      </View>
+
+      <HomeFiltersSheet
+        visible={filtersOpen}
+        value={fulfillmentFilter}
+        onChange={setFulfillmentFilter}
+        onClose={() => setFiltersOpen(false)}
       />
     </View>
   );
@@ -142,98 +152,6 @@ export default function CustomerHomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: c.background,
-  },
-  pressed: {
-    opacity: 0.7,
-  },
-  serviceCard: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    backgroundColor: c.background,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingHorizontal: 24,
-    paddingTop: 24,
-    paddingBottom: 24,
-    minHeight: 160,
-  },
-  serviceCardTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: c.white,
-    textAlign: "center",
-    marginBottom: 20,
-  },
-  serviceButtons: {
-    flexDirection: "row",
-    gap: 16,
-  },
-  serviceButtonsWithMargin: {
-    marginBottom: 16,
-  },
-  serviceBtn: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: Platform.OS === "android" ? 6 : 7,
-    height: 56,
-    borderRadius: 14,
-    backgroundColor: c.background,
-    borderWidth: 1,
-    borderColor: c.white,
-    paddingHorizontal: Platform.OS === "android" ? 4 : 0,
-  },
-  serviceBtnIcon: {
-    width: Platform.OS === "android" ? 22 : 28,
-    height: Platform.OS === "android" ? 22 : 28,
-    tintColor: c.white,
-  },
-  serviceBtnText: {
-    fontSize: Platform.OS === "android" ? 13 : 14,
-    fontWeight: "600",
-    color: c.white,
-    flexShrink: 1,
-  },
-  webTopNav: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    alignItems: "center",
-    paddingHorizontal: 24,
-    paddingBottom: 12,
-    zIndex: 100,
-  },
-  webTopNavButtons: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  webServiceBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    height: 44,
-    paddingHorizontal: 18,
-    borderRadius: 8,
-    backgroundColor: c.background,
-    borderWidth: 1,
-    borderColor: c.lightBlue,
-  },
-  webServiceBtnIcon: {
-    width: 20,
-    height: 20,
-    tintColor: c.white,
-  },
-  webServiceBtnText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: c.white,
+    backgroundColor: "#F7F8FA",
   },
 });

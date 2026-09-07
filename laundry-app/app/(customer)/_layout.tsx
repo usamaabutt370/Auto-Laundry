@@ -33,11 +33,11 @@ export default function CustomerLayout() {
         <Stack.Screen name="order-summary" />
         <Stack.Screen name="order-detail" />
         <Stack.Screen name="chat/[orderId]" />
+        <Stack.Screen name="pick-launderer" />
         <Stack.Screen
-          name="pick-launderer"
+          name="launderer-detail"
           options={{ presentation: "modal", animation: "slide_from_bottom" }}
         />
-        <Stack.Screen name="launderer-detail" />
       </Stack>
     </WebAreaShell>
   );

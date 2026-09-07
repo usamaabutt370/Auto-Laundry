@@ -1,6 +1,7 @@
 import type { LaundererServiceType } from "@/constants/launderers";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { parsePriceDisplay } from "@/utils/parse-price-display";
+import { bestOfferForCategories } from "@/utils/partner-offers";
 
 export type PartnerPublicRow = {
   id: string;
@@ -13,6 +14,10 @@ export type PartnerPublicRow = {
   image_url: string | null;
   business_images: string[] | null;
   updated_at: string | null;
+  ratingAvg: number | null;
+  ratingCount: number;
+  offerPercent: number | null;
+  offerCode: string | null;
 };
 
 export type PartnerDetailRow = PartnerPublicRow & {
@@ -54,8 +59,66 @@ function toMapMarker(
     image_url: row.image_url,
     business_images: row.business_images,
     updated_at: row.updated_at,
+    ratingAvg: row.ratingAvg ?? null,
+    ratingCount: row.ratingCount ?? 0,
+    offerPercent: row.offerPercent ?? null,
+    offerCode: row.offerCode ?? null,
     fulfillmentMode: amount.length > 0 ? "pickupDelivery" : "dropoff",
   };
+}
+
+function withDiscoveryDefaults<T extends PartnerPublicRow>(row: T): T {
+  return {
+    ...row,
+    ratingAvg: row.ratingAvg ?? null,
+    ratingCount: row.ratingCount ?? 0,
+    offerPercent: row.offerPercent ?? null,
+    offerCode: row.offerCode ?? null,
+  };
+}
+
+async function attachDiscoveryExtras<T extends PartnerPublicRow>(rows: T[]): Promise<T[]> {
+  if (!supabase || rows.length === 0) {
+    return rows.map((row) => withDiscoveryDefaults(row));
+  }
+  const ids = rows.map((row) => row.id);
+  const [ratingsResult, servicesResult] = await Promise.all([
+    supabase.rpc("partner_rating_stats", { partner_ids: ids }),
+    supabase.from("partner_services").select("user_id, category").in("user_id", ids),
+  ]);
+
+  const ratingById = new Map<string, { avg: number; count: number }>();
+  for (const row of (ratingsResult.data ?? []) as Array<{
+    partner_id?: string;
+    avg_rating?: number | string;
+    review_count?: number;
+  }>) {
+    if (!row.partner_id) continue;
+    ratingById.set(row.partner_id, {
+      avg: Number(row.avg_rating),
+      count: Number(row.review_count) || 0,
+    });
+  }
+
+  const categoriesById = new Map<string, string[]>();
+  for (const row of (servicesResult.data ?? []) as Array<{ user_id?: string; category?: string | null }>) {
+    if (!row.user_id) continue;
+    const list = categoriesById.get(row.user_id) ?? [];
+    list.push(row.category ?? "");
+    categoriesById.set(row.user_id, list);
+  }
+
+  return rows.map((row) => {
+    const rating = ratingById.get(row.id);
+    const offer = bestOfferForCategories(categoriesById.get(row.id) ?? []);
+    return {
+      ...row,
+      ratingAvg: rating && Number.isFinite(rating.avg) ? rating.avg : null,
+      ratingCount: rating?.count ?? 0,
+      offerPercent: offer?.percent ?? null,
+      offerCode: offer?.code ?? null,
+    };
+  });
 }
 
 /** Single-query partner fetch for the customer home map. */
@@ -82,7 +145,7 @@ export async function fetchMapPartners(): Promise<{
     .map((row) => toMapMarker(row as PartnerPublicRow & { pickup_delivery_amount?: string | null }))
     .filter((row): row is PartnerMapMarkerRow => row != null);
 
-  return { data: rows, error: null };
+  return { data: await attachDiscoveryExtras(rows), error: null };
 }
 
 export function partnerOffersPickupDelivery(
@@ -120,7 +183,7 @@ export async function fetchPickupPartners(): Promise<{
   const rows = (data ?? []).filter(
     (r) => typeof r.business_name === "string" && r.business_name.trim().length > 0
   ) as PartnerPublicRow[];
-  return { data: rows, error: null };
+  return { data: await attachDiscoveryExtras(rows), error: null };
 }
 
 /** Partners filtered by fulfillment mode for customer home buttons. */
@@ -158,7 +221,7 @@ export async function fetchPartnersByFulfillmentMode(
     const amount = typeof r.pickup_delivery_amount === "string" ? r.pickup_delivery_amount.trim() : "";
     return mode === "pickupDelivery" ? amount.length > 0 : amount.length === 0;
   }) as PartnerPublicRow[];
-  return { data: rows, error: null };
+  return { data: await attachDiscoveryExtras(rows), error: null };
 }
 
 export async function fetchPartnerDetail(partnerId: string): Promise<{
@@ -194,8 +257,19 @@ export async function fetchPartnerDetail(partnerId: string): Promise<{
     return { profile, services: [], error: sErr.message };
   }
 
+  const [enriched] = await attachDiscoveryExtras([
+    withDiscoveryDefaults(profile as PartnerPublicRow),
+  ]);
+  const offer = bestOfferForCategories((serviceRows ?? []).map((row) => row.category));
+
   return {
-    profile,
+    profile: {
+      ...(profile as PartnerDetailRow),
+      ratingAvg: enriched?.ratingAvg ?? null,
+      ratingCount: enriched?.ratingCount ?? 0,
+      offerPercent: offer?.percent ?? enriched?.offerPercent ?? null,
+      offerCode: offer?.code ?? enriched?.offerCode ?? null,
+    },
     services: (serviceRows ?? []) as PartnerServiceLine[],
     error: null,
   };

@@ -60,7 +60,7 @@ function sortServicesByDisplayOrder(services: ServiceId[]): ServiceId[] {
 
 export default function PickupServicesScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ mode?: string }>();
+  const params = useLocalSearchParams<{ mode?: string; service?: string }>();
   const prefersPickupDelivery = params.mode === "pickupDelivery";
   const insets = useSafeAreaInsets();
   const { draft, editingOrderId, setPickupDeliveryRequested, setSelectedServiceIds } =
@@ -217,6 +217,21 @@ export default function PickupServicesScreen() {
       setSelectedServiceIds(next);
     }
   }, [selectedIds, servicesToShow, setSelectedServiceIds]);
+
+  useEffect(() => {
+    if (isEditing || selectedIds.length > 0 || servicesToShow.length === 0) return;
+    const requested = params.service;
+    if (
+      requested === "washAndFold" ||
+      requested === "press" ||
+      requested === "tailoring" ||
+      requested === "dryCleaning"
+    ) {
+      if (servicesToShow.includes(requested)) {
+        setSelectedServiceIds([requested]);
+      }
+    }
+  }, [isEditing, params.service, selectedIds.length, servicesToShow, setSelectedServiceIds]);
 
   const toggle = (id: ServiceId) => {
     if (!servicesToShow.includes(id)) return;
