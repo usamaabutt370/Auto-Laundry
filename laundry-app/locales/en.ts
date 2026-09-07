@@ -141,7 +141,7 @@ export const en = {
       trustTitleBefore: "Quality you can ",
       trustTitleAccent: "trust",
       trustBody: "Verified providers, on-time service and 100% satisfaction.",
-      recommended: "Recommended near you",
+      recommended: "Service Providers near you",
       seeAll: "See all",
       deals: "Deals of the day",
       filters: "Filters",
@@ -242,6 +242,8 @@ export const en = {
         "No top rated providers nearby yet. Ratings appear after customers leave reviews.",
       emptyOffers:
         "No offers are available from nearby providers right now. Try All to see everyone.",
+      emptyService:
+        "No nearby providers offer this service yet. Try another category or browse See all.",
       emptySearch: "No providers match that name. Try a different search.",
       retry: "Retry",
       reassignSuccessTitle: "Order reassigned",
@@ -787,6 +789,8 @@ export const en = {
       pickupDeliveryAmountPlaceholder: "Enter pickup and delivery amount",
       pickupDeliveryAmountRequired:
         "Enter the pickup and delivery amount before continuing.",
+      homeServiceRequired:
+        "Add prices for Laundry, Ironing, or Tailoring before submitting. Customers use these to find you.",
       confirm: "Confirm",
       next: "Next",
       complete: "Complete",

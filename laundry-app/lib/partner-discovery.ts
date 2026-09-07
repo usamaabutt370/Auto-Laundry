@@ -3,6 +3,8 @@ import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { parsePriceDisplay } from "@/utils/parse-price-display";
 import { bestOfferForCategories } from "@/utils/partner-offers";
 
+export type PartnerFulfillmentMode = "dropoff" | "pickupDelivery";
+
 export type PartnerPublicRow = {
   id: string;
   business_name: string;
@@ -18,6 +20,8 @@ export type PartnerPublicRow = {
   ratingCount: number;
   offerPercent: number | null;
   offerCode: string | null;
+  serviceTypes: LaundererServiceType[];
+  fulfillmentMode?: PartnerFulfillmentMode;
 };
 
 export type PartnerDetailRow = PartnerPublicRow & {
@@ -31,8 +35,6 @@ export type PartnerServiceLine = {
   price_display: string;
   category: string | null;
 };
-
-export type PartnerFulfillmentMode = "dropoff" | "pickupDelivery";
 
 export type PartnerMapMarkerRow = PartnerPublicRow & {
   fulfillmentMode: PartnerFulfillmentMode;
@@ -63,6 +65,7 @@ function toMapMarker(
     ratingCount: row.ratingCount ?? 0,
     offerPercent: row.offerPercent ?? null,
     offerCode: row.offerCode ?? null,
+    serviceTypes: row.serviceTypes ?? [],
     fulfillmentMode: amount.length > 0 ? "pickupDelivery" : "dropoff",
   };
 }
@@ -74,6 +77,7 @@ function withDiscoveryDefaults<T extends PartnerPublicRow>(row: T): T {
     ratingCount: row.ratingCount ?? 0,
     offerPercent: row.offerPercent ?? null,
     offerCode: row.offerCode ?? null,
+    serviceTypes: row.serviceTypes ?? [],
   };
 }
 
@@ -84,7 +88,7 @@ async function attachDiscoveryExtras<T extends PartnerPublicRow>(rows: T[]): Pro
   const ids = rows.map((row) => row.id);
   const [ratingsResult, servicesResult] = await Promise.all([
     supabase.rpc("partner_rating_stats", { partner_ids: ids }),
-    supabase.from("partner_services").select("user_id, category").in("user_id", ids),
+    supabase.from("partner_services").select("user_id, category, price_display").in("user_id", ids),
   ]);
 
   const ratingById = new Map<string, { avg: number; count: number }>();
@@ -101,22 +105,32 @@ async function attachDiscoveryExtras<T extends PartnerPublicRow>(rows: T[]): Pro
   }
 
   const categoriesById = new Map<string, string[]>();
-  for (const row of (servicesResult.data ?? []) as Array<{ user_id?: string; category?: string | null }>) {
+  const pricesById = new Map<string, string[]>();
+  for (const row of (servicesResult.data ?? []) as Array<{
+    user_id?: string;
+    category?: string | null;
+    price_display?: string | null;
+  }>) {
     if (!row.user_id) continue;
-    const list = categoriesById.get(row.user_id) ?? [];
-    list.push(row.category ?? "");
-    categoriesById.set(row.user_id, list);
+    const categories = categoriesById.get(row.user_id) ?? [];
+    const prices = pricesById.get(row.user_id) ?? [];
+    categories.push(row.category ?? "");
+    prices.push(row.price_display ?? "");
+    categoriesById.set(row.user_id, categories);
+    pricesById.set(row.user_id, prices);
   }
 
   return rows.map((row) => {
     const rating = ratingById.get(row.id);
-    const offer = bestOfferForCategories(categoriesById.get(row.id) ?? []);
+    const categories = categoriesById.get(row.id) ?? [];
+    const offer = bestOfferForCategories(categories);
     return {
       ...row,
       ratingAvg: rating && Number.isFinite(rating.avg) ? rating.avg : null,
       ratingCount: rating?.count ?? 0,
       offerPercent: offer?.percent ?? null,
       offerCode: offer?.code ?? null,
+      serviceTypes: serviceCategoriesToTypes(categories, pricesById.get(row.id)),
     };
   });
 }

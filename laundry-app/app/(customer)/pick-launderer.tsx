@@ -21,6 +21,7 @@ import { PartnerNameWithBadge } from "@/components/partner-name-with-badge";
 import {
   applyProviderFilters,
   DEFAULT_PROVIDER_FILTERS,
+  isServiceCategory,
   OPEN_PROVIDER_FILTERS,
   ProviderFiltersSheet,
   type ProviderFilters,
@@ -32,6 +33,7 @@ import { useCustomerOrderDraft } from "@/contexts/customer-order-draft-context";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { avatarUrlWithCacheBuster } from "@/lib/avatar";
 import {
+  fetchMapPartners,
   fetchPartnersByFulfillmentMode,
   type PartnerFulfillmentMode,
   type PartnerPublicRow,
@@ -236,7 +238,10 @@ export default function PickLaundererScreen() {
   const [chip, setChip] = useState<ProviderChip>("all");
   const [favorites, setFavorites] = useState<Record<string, boolean>>({});
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [appliedFilters, setAppliedFilters] = useState<ProviderFilters>(OPEN_PROVIDER_FILTERS);
+  const [appliedFilters, setAppliedFilters] = useState<ProviderFilters>(() => ({
+    ...OPEN_PROVIDER_FILTERS,
+    categories: isServiceCategory(params.service) ? [params.service] : [],
+  }));
   const [locationLabel, setLocationLabel] = useState(s.locationFallback);
   const geocodeCacheRef = useRef<Map<string, Coordinates | null>>(new Map());
   const columns = isWebDesktop ? 3 : 2;
@@ -260,10 +265,14 @@ export default function PickLaundererScreen() {
     { id: "offers", label: s.filterOffers, icon: "tag-outline" },
   ];
 
+  const serviceFilter = isServiceCategory(params.service) ? params.service : undefined;
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const { data, error: err } = await fetchPartnersByFulfillmentMode(fulfillmentMode);
+    const { data, error: err } = serviceFilter
+      ? await fetchMapPartners()
+      : await fetchPartnersByFulfillmentMode(fulfillmentMode);
     if (err) {
       setError(err);
       setPartners([]);
@@ -271,10 +280,19 @@ export default function PickLaundererScreen() {
       setPartners(data ?? []);
     }
     setLoading(false);
-  }, [fulfillmentMode]);
+  }, [fulfillmentMode, serviceFilter]);
 
   useEffect(() => {
-    load();
+    if (!serviceFilter) return;
+    setAppliedFilters((prev) =>
+      prev.categories.length === 1 && prev.categories[0] === serviceFilter
+        ? prev
+        : { ...prev, categories: [serviceFilter] },
+    );
+  }, [serviceFilter]);
+
+  useEffect(() => {
+    void load();
   }, [load]);
 
   useEffect(() => {
@@ -448,7 +466,9 @@ export default function PickLaundererScreen() {
         ? s.emptyTopRated
         : chip === "offers" || appliedFilters.offers
           ? s.emptyOffers
-          : s.emptyList;
+          : appliedFilters.categories.length > 0
+            ? s.emptyService
+            : s.emptyList;
 
   const matchCount = useCallback(
     (filters: ProviderFilters) => {
@@ -480,7 +500,7 @@ export default function PickLaundererScreen() {
         params: {
           id: partner.id,
           name: partner.business_name ?? "",
-          mode: fulfillmentMode,
+          mode: partner.fulfillmentMode ?? fulfillmentMode,
           ...(typeof params.service === "string"
             ? { service: params.service }
             : appliedFilters.categories[0]
@@ -531,7 +551,12 @@ export default function PickLaundererScreen() {
                   key={item.id}
                   onPress={() => {
                     setChip(item.id);
-                    if (item.id === "all") setAppliedFilters(OPEN_PROVIDER_FILTERS);
+                    if (item.id === "all") {
+                      setAppliedFilters({
+                        ...OPEN_PROVIDER_FILTERS,
+                        categories: serviceFilter ? [serviceFilter] : [],
+                      });
+                    }
                     if (item.id === "open") {
                       setAppliedFilters((prev) => ({
                         ...prev,

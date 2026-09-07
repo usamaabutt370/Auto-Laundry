@@ -46,6 +46,10 @@ export const PRICE_STOPS = [0, 500, 1000, 2500, 5000];
 export type ServiceCategory = "washAndFold" | "press" | "tailoring";
 export type MinRating = 0 | 3 | 4 | 4.5;
 
+export function isServiceCategory(value: string | undefined): value is ServiceCategory {
+  return value === "washAndFold" || value === "press" || value === "tailoring";
+}
+
 export type ProviderFilters = {
   categories: ServiceCategory[];
   maxDistanceKm: number;
@@ -105,6 +109,10 @@ export function applyProviderFilters(
       return false;
     }
     if (filters.offers && !partnerHasActiveOffer(partner.offerPercent)) return false;
+    if (filters.categories.length > 0) {
+      const types = partner.serviceTypes ?? [];
+      if (!filters.categories.some((category) => types.includes(category))) return false;
+    }
     return true;
   });
 }

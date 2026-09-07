@@ -249,7 +249,7 @@ export function CustomerHomeFeed({
           <CategoryCard
             title={s.categoryIroning}
             subtitle={s.categoryIroningSub}
-            image={assets.images.schedule_pickup}
+            image={assets.images.home_category_ironing}
             icon="iron"
             accent={HOME_UI.mapGreen}
             onPress={() => onPressCategory("press")}
@@ -257,7 +257,7 @@ export function CustomerHomeFeed({
           <CategoryCard
             title={s.categoryTailoring}
             subtitle={s.categoryTailoringSub}
-            image={assets.onboarding.slide3}
+            image={assets.images.home_category_tailoring}
             icon="scissors-cutting"
             accent={HOME_UI.purple}
             onPress={() => onPressCategory("tailoring")}
