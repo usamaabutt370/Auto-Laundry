@@ -1,9 +1,9 @@
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { BottomTabBarButtonProps } from "@react-navigation/bottom-tabs";
 import { PlatformPressable } from "@react-navigation/elements";
-import { Image, type ImageSource } from "expo-image";
 import { Tabs } from "expo-router";
-import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
+import type { ComponentProps } from "react";
 import {
   StyleSheet,
   Text,
@@ -16,15 +16,15 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { TabBarColors } from "@/constants/theme";
 
-export const TAB_BAR_HEIGHT = 64;
-export const TAB_ICON_SIZE = 23;
+export const TAB_BAR_HEIGHT = 75;
+export const TAB_ICON_SIZE = 32;
 
 const TAB_BAR_SHADOW: ViewStyle = {
   shadowColor: TabBarColors.shadow,
-  shadowOffset: { width: 0, height: -4 },
-  shadowOpacity: 0.35,
-  shadowRadius: 16,
-  elevation: 12,
+  shadowOffset: { width: 0, height: -2 },
+  shadowOpacity: 1,
+  shadowRadius: 8,
+  elevation: 8,
 };
 
 export function BottomTabBarBackground() {
@@ -36,62 +36,34 @@ export function BottomTabBarBackground() {
         TAB_BAR_SHADOW,
       ]}
     >
-      <LinearGradient
-        colors={[
-          TabBarColors.gradientStart,
-          TabBarColors.gradientMid,
-          TabBarColors.gradientEnd,
-          TabBarColors.gradientAccent,
-        ]}
-        locations={[0, 0.35, 0.72, 1]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={StyleSheet.absoluteFill}
-      />
-      <LinearGradient
-        colors={["transparent", TabBarColors.frostOverlay]}
-        start={{ x: 0.5, y: 0 }}
-        end={{ x: 0.5, y: 1 }}
-        style={StyleSheet.absoluteFill}
-      />
-      <LinearGradient
-        colors={[TabBarColors.shineOverlay, "transparent"]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0.6, y: 0.55 }}
-        style={styles.shineSweep}
-      />
       <View style={styles.topHighlight} />
     </View>
   );
 }
 
-export function BottomTabBarButton(props: BottomTabBarButtonProps) {
-  const selected = props.accessibilityState?.selected ?? false;
+export function BottomTabBarButton({
+  children,
+  style,
+  onPressIn,
+  accessibilityState,
+  ...rest
+}: BottomTabBarButtonProps) {
+  const focused = Boolean(accessibilityState?.selected);
 
   return (
     <PlatformPressable
-      {...props}
-      style={[props.style, styles.tabButton]}
+      {...rest}
+      accessibilityState={accessibilityState}
+      style={[style, styles.tabButton]}
       onPressIn={(ev) => {
         if (process.env.EXPO_OS === "ios") {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         }
-        props.onPressIn?.(ev);
+        onPressIn?.(ev);
       }}
     >
-      {selected ? (
-        <>
-          <View style={styles.activeGlow} />
-          <LinearGradient
-            colors={[TabBarColors.activePillStart, TabBarColors.activePillEnd]}
-            start={{ x: 0.5, y: 0 }}
-            end={{ x: 0.5, y: 1 }}
-            style={styles.activePill}
-          />
-          <View style={styles.activePillBorder} />
-        </>
-      ) : null}
-      {props.children}
+      {focused ? <View style={styles.tabGlow} pointerEvents="none" /> : null}
+      {children}
     </PlatformPressable>
   );
 }
@@ -108,7 +80,7 @@ function BottomTabBarLabel({
       <Text
         style={[
           styles.label,
-          { color: TabBarColors.activeTint },
+          { color: focused ? TabBarColors.activeTint : TabBarColors.inactiveTint },
           focused ? styles.labelActive : null,
         ]}
       >
@@ -144,11 +116,13 @@ export function getBottomTabScreenOptions(tabBarBottom: number) {
       left: 0,
       right: 0,
       height: TAB_BAR_HEIGHT + tabBarBottom,
-      backgroundColor: "transparent",
-      borderTopWidth: 0,
+      paddingBottom: tabBarBottom,
+      backgroundColor: TabBarColors.background,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: TabBarColors.border,
       elevation: 0,
       shadowOpacity: 0,
-      overflow: "hidden" as const,
+      overflow: "visible" as const,
     },
     tabBarBackground: () => <BottomTabBarBackground />,
     tabBarLabel: ({
@@ -163,19 +137,20 @@ export function getBottomTabScreenOptions(tabBarBottom: number) {
     ),
     tabBarLabelStyle: {
       fontSize: 11,
-      fontWeight: "600" as const,
-      letterSpacing: 0.35,
+      fontFamily: "Poppins-SemiBold",
+      letterSpacing: 0.2,
     },
     tabBarIconStyle: {
-      width: TAB_ICON_SIZE + 4,
-      height: TAB_ICON_SIZE + 4,
+      width: 44,
+      height: 32,
       overflow: "visible" as const,
-      marginBottom: 1,
+      marginBottom: 2,
     },
     tabBarItemStyle: {
       paddingTop: 8,
       paddingBottom: 6,
       backgroundColor: "transparent",
+      overflow: "visible" as const,
     },
     ...webHeaderSuppression,
     tabBarButton: BottomTabBarButton,
@@ -208,28 +183,27 @@ export function getBottomTabScreenOptionsForPlatform(
   };
 }
 
+export type TabIconName = ComponentProps<typeof MaterialCommunityIcons>["name"];
+
 export type AppTabItem = {
   name: string;
   title: string;
-  icon: ImageSource;
-  /** Compensate for artwork padding inside the PNG (home icon needs a slight boost). */
-  iconScale?: number;
+  icon: TabIconName;
+  focusedIcon?: TabIconName;
 };
 
-/** Home/dashboard asset has extra internal padding vs order/chat/profile icons. */
-export const HOME_TAB_ICON_SCALE = 1.34;
-
-function renderTabIcon(icon: ImageSource, color: string, iconScale = 1) {
+function renderTabIcon(
+  icon: TabIconName,
+  focusedIcon: TabIconName | undefined,
+  color: string,
+  focused: boolean,
+) {
   return (
     <View style={styles.tabIconSlot}>
-      <Image
-        source={icon}
-        style={[
-          bottomTabIconStyle,
-          iconScale !== 1 ? { transform: [{ scale: iconScale }] } : null,
-          { tintColor: color },
-        ]}
-        contentFit="contain"
+      <MaterialCommunityIcons
+        name={focused ? focusedIcon ?? icon : icon}
+        size={TAB_ICON_SIZE}
+        color={color}
       />
     </View>
   );
@@ -249,7 +223,8 @@ export function AppTabsLayout({ tabs, hideTabBar = false }: { tabs: AppTabItem[]
           options={{
             title: tab.title,
             headerShown: false,
-            tabBarIcon: ({ color }) => renderTabIcon(tab.icon, color, tab.iconScale),
+            tabBarIcon: ({ color, focused }) =>
+              renderTabIcon(tab.icon, tab.focusedIcon, color, focused),
           }}
         />
       ))}
@@ -259,53 +234,34 @@ export function AppTabsLayout({ tabs, hideTabBar = false }: { tabs: AppTabItem[]
 
 const styles = StyleSheet.create({
   backgroundShell: {
-    overflow: "hidden",
-  },
-  shineSweep: {
-    ...StyleSheet.absoluteFillObject,
-    width: "70%",
-    height: "55%",
+    backgroundColor: TabBarColors.background,
   },
   topHighlight: {
     position: "absolute",
     top: 0,
     left: 0,
     right: 0,
-    height: 1,
-    backgroundColor: TabBarColors.topHighlight,
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: TabBarColors.border,
   },
   tabButton: {
     position: "relative",
     overflow: "visible",
+    alignItems: "center",
+    justifyContent: "center",
   },
-  activeGlow: {
+  tabGlow: {
     position: "absolute",
     top: 2,
-    left: "50%",
-    marginLeft: -26,
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 58,
+    height: 58,
+    borderRadius: 29,
     backgroundColor: TabBarColors.activeGlow,
-    opacity: 0.9,
-  },
-  activePill: {
-    position: "absolute",
-    top: 2,
-    bottom: 2,
-    left: 4,
-    right: 4,
-    borderRadius: 8,
-  },
-  activePillBorder: {
-    position: "absolute",
-    top: 2,
-    bottom: 2,
-    left: 4,
-    right: 4,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: TabBarColors.activePillBorder,
+    shadowColor: "#12B886",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.22,
+    shadowRadius: 10,
+    elevation: 3,
   },
   labelWrap: {
     alignItems: "center",
@@ -314,13 +270,11 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 10,
-    fontWeight: "500",
-    letterSpacing: 0.35,
-    textTransform: "uppercase",
+    fontFamily: "Poppins-SemiBold",
+    letterSpacing: 0.1,
   } satisfies TextStyle,
   labelActive: {
-    fontWeight: "700",
-    letterSpacing: 0.5,
+    fontFamily: "Poppins-Bold",
   } satisfies TextStyle,
   activeDot: {
     width: 4,
@@ -338,15 +292,10 @@ const styles = StyleSheet.create({
     transform: [{ scale: 0.5 }],
   },
   tabIconSlot: {
-    width: TAB_ICON_SIZE,
-    height: TAB_ICON_SIZE,
+    width: 44,
+    height: 32,
     alignItems: "center",
     justifyContent: "center",
     overflow: "visible",
   },
 });
-
-export const bottomTabIconStyle = {
-  width: TAB_ICON_SIZE,
-  height: TAB_ICON_SIZE,
-};

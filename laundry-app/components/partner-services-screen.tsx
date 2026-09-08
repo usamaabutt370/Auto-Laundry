@@ -115,6 +115,10 @@ export function PartnerServicesScreen({ mode }: PartnerServicesScreenProps) {
     const pricing = pricingByKey[key];
     return pricing?.rows != null && pricing.rows.length > 0;
   });
+  const hasHomeServices = (["washAndFold", "press", "tailoring"] as const).some((key) => {
+    const pricing = pricingByKey[key];
+    return pricing?.rows != null && pricing.rows.length > 0;
+  });
 
   const normalizedPickupAmount = (pickupDeliveryPricing.amount ?? "").trim();
   const hasPickupAmount = normalizedPickupAmount.length > 0;
@@ -180,6 +184,11 @@ export function PartnerServicesScreen({ mode }: PartnerServicesScreenProps) {
       return;
     }
 
+    if (!hasHomeServices) {
+      showAppAlert("Required", onboardingStrings.homeServiceRequired);
+      return;
+    }
+
     setIsSubmittingRequest(true);
     try {
       const resolvedUserId =
@@ -197,6 +206,11 @@ export function PartnerServicesScreen({ mode }: PartnerServicesScreenProps) {
           "Error",
           persistedServiceResult.error ?? "Could not save services before submitting KYC.",
         );
+        return;
+      }
+
+      if (!hasHomeServices) {
+        showAppAlert("Required", onboardingStrings.homeServiceRequired);
         return;
       }
 
@@ -238,6 +252,12 @@ export function PartnerServicesScreen({ mode }: PartnerServicesScreenProps) {
         .filter((item) => item.name.length > 0 && item.priceDisplay.length > 0);
 
       const serviceLines = dbServiceLines.length > 0 ? dbServiceLines : memoryServiceLines;
+
+      const HOME_SERVICE_CATEGORIES = new Set(["Wash & Fold", "Press", "Tailoring"]);
+      if (!serviceLines.some((item) => HOME_SERVICE_CATEGORIES.has(item.category))) {
+        showAppAlert("Required", onboardingStrings.homeServiceRequired);
+        return;
+      }
 
       if (serviceLines.length === 0) {
         showAppAlert("Error", "Please add at least one service before submitting.");

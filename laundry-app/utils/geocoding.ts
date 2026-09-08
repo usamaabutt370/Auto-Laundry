@@ -56,3 +56,35 @@ export async function getCoordinatesWithFallback(
 ): Promise<Coordinates | null> {
   return getCoordinatesFromOpenStreetMap(address);
 }
+
+/** Reverse-geocode a short "City, Country" label for the home header. */
+export async function getPlaceLabelFromCoordinates(
+  coords: Coordinates,
+): Promise<string | null> {
+  try {
+    const url =
+      "https://nominatim.openstreetmap.org/reverse" +
+      `?format=jsonv2&lat=${coords.latitude}&lon=${coords.longitude}` +
+      "&zoom=10&addressdetails=1&accept-language=en";
+    const response = await fetch(url);
+    if (!response.ok) return null;
+    const data = (await response.json()) as {
+      address?: {
+        city?: string;
+        town?: string;
+        village?: string;
+        county?: string;
+        state?: string;
+        country?: string;
+      };
+    };
+    const address = data.address ?? {};
+    const city =
+      address.city || address.town || address.village || address.county || address.state;
+    const country = address.country;
+    if (city && country) return `${city}, ${country}`;
+    return city || country || null;
+  } catch {
+    return null;
+  }
+}

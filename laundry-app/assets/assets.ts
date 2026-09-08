@@ -37,5 +37,10 @@ export const assets = {
     schedule_pickup: require("./images/schedule-pickup-image.png"),
     delivery: require("./images/delivery-image.png"),
     top_facilities: require("./images/top-facilities-image.png"),
+    home_category_ironing: require("./images/home-category-ironing.jpg"),
+    home_category_tailoring: require("./images/home-category-tailoring.jpg"),
+    home_deal_laundry: require("./images/home-deal-laundry.jpg"),
+    home_deal_ironing: require("./images/home-deal-ironing.jpg"),
+    home_deal_tailoring: require("./images/home-deal-tailoring.jpg"),
   },
 };

@@ -1,5 +1,4 @@
-import { AppTabsLayout, HOME_TAB_ICON_SCALE, type AppTabItem } from "@/components/bottom-tab-bar";
-import { assets } from "@/assets/assets";
+import { AppTabsLayout, type AppTabItem } from "@/components/bottom-tab-bar";
 import { strings } from "@/constants/strings";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 
@@ -7,23 +6,26 @@ const partnerTabs: AppTabItem[] = [
   {
     name: "index",
     title: strings.tabs.partner.dashboard,
-    icon: assets.icons.home_icon,
-    iconScale: HOME_TAB_ICON_SCALE,
+    icon: "home-outline",
+    focusedIcon: "home",
   },
   {
     name: "order",
     title: strings.tabs.partner.orders,
-    icon: assets.icons.order_icon,
+    icon: "clipboard-text-outline",
+    focusedIcon: "clipboard-text",
   },
   {
     name: "chat",
     title: strings.tabs.partner.chat,
-    icon: assets.icons.msg_icon,
+    icon: "chat-outline",
+    focusedIcon: "chat",
   },
   {
     name: "profile",
     title: strings.tabs.partner.profile,
-    icon: assets.icons.profile_icon,
+    icon: "account-outline",
+    focusedIcon: "account",
   },
 ];
 

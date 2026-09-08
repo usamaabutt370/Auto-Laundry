@@ -7,15 +7,20 @@ const c = theme.colors;
 
 type PartnerVerifiedBadgeProps = {
   size?: number;
+  color?: string;
   style?: StyleProp<ViewStyle>;
 };
 
-export function PartnerVerifiedBadge({ size = 12, style }: PartnerVerifiedBadgeProps) {
+export function PartnerVerifiedBadge({
+  size = 12,
+  color = c.outline,
+  style,
+}: PartnerVerifiedBadgeProps) {
   return (
     <MaterialCommunityIcons
       name="check-decagram"
       size={size}
-      color={c.outline}
+      color={color}
       style={style}
       accessibilityLabel="Verified partner"
     />
