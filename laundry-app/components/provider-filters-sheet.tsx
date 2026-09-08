@@ -732,7 +732,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontFamily: "Poppins-Bold",
-    color: PURPLE,
+    color: TEXT,
   },
   subtitle: {
     marginTop: 2,

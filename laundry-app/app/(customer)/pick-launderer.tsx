@@ -573,6 +573,7 @@ export default function PickLaundererScreen() {
     () => ({
       userCoordinates,
       loadingPartners: loading,
+      partners: filteredPartners.map(toMapPartner),
       mapMarkers,
       setSelectedPartnerId,
       selectedPartner,
@@ -581,7 +582,7 @@ export default function PickLaundererScreen() {
         : null,
       selectedPartnerPrimaryImage: getPartnerPrimaryImage(selectedPartner),
     }),
-    [loading, mapMarkers, selectedPartner, userCoordinates],
+    [filteredPartners, loading, mapMarkers, selectedPartner, toMapPartner, userCoordinates],
   );
 
   const emptyMessage = searchQuery.trim()

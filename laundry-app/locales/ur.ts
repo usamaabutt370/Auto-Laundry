@@ -144,6 +144,7 @@ export const ur = {
       deals: "آج کے ڈیلز",
       filters: "فلٹرز",
       map: "نقشہ",
+      mapCardView: "دیکھیں",
       kmAway: "{km} کلومیٹر دور",
       ratingWithCount: "{avg} ({count})",
       fromPrice: "{price} سے",

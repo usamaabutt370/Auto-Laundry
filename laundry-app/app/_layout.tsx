@@ -9,9 +9,6 @@ import "react-native-reanimated";
 import { useFonts } from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
-
-SplashScreen.preventAutoHideAsync();
-
 import { AppAlertProvider } from "@/components/app-alert";
 import { FcmNotificationRouter } from "@/components/chat/fcm-notification-router";
 import { WebAppShell } from "@/components/web-shells";
@@ -21,6 +18,7 @@ import { CustomerOrderDraftProvider } from "@/contexts/customer-order-draft-cont
 import { LocaleProvider } from "@/contexts/locale-context";
 import { theme } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+SplashScreen.preventAutoHideAsync();
 
 export const unstable_settings = {
   initialRouteName: "index",

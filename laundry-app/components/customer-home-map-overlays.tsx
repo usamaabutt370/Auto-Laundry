@@ -1,30 +1,44 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 import { Image } from "expo-image";
-import { ActivityIndicator, Linking, Pressable, StyleSheet, Text, View } from "react-native";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  ActivityIndicator,
+  FlatList,
+  Pressable,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+} from "react-native";
 
 import { assets } from "@/assets/assets";
 import { PartnerNameWithBadge } from "@/components/partner-name-with-badge";
-import { StarRating } from "@/components/star-rating";
 import { strings } from "@/constants/strings";
+import {
+  getPartnerPrimaryImage,
+  type PartnerMapMarker,
+} from "@/hooks/use-customer-home-map-data";
 import { usePartnerVerified } from "@/hooks/use-partner-verified";
-import type { PartnerMapMarker } from "@/hooks/use-customer-home-map-data";
+import type { Coordinates } from "@/utils/geocoding";
 import { getPartnerOpenStatus } from "@/utils/partner-hours";
-import { partnerHasActiveOffer } from "@/utils/partner-offers";
+import { isPartnerTopRated } from "@/utils/partner-offers";
 
 const UI = {
   text: "#111827",
   muted: "#6B7280",
   card: "#FFFFFF",
   bg: "#F7F8FA",
-  purple: "#2C1B6E",
+  purple: "#5B4DFF",
   teal: "#12B886",
-  price: "#0F9F6E",
-  backBg: "#EEF2F6",
   openBg: "#ECFDF5",
   openText: "#047857",
+  star: "#F5B301",
   chipBorder: "#E5E7EB",
-  shadow: "rgba(17, 24, 39, 0.12)",
+  shadow: "rgba(17, 24, 39, 0.14)",
+  handle: "#D1D5DB",
+  verified: "#2563EB",
 };
 
 type HomeStrings = {
@@ -41,81 +55,270 @@ type Props = {
   loadingPartners: boolean;
   recenterBottomOffset: number;
   mapBottomInset: number;
+  userCoordinates: Coordinates | null;
   onRecenter: () => void;
   selectedPartner: PartnerMapMarker | null;
-  selectedPartnerPrimaryImage: string | null;
-  selectedPartnerUpdatedLabel: string | null;
+  partners: PartnerMapMarker[];
+  mapMarkers: { id: string }[];
+  onSelectPartner: (id: string) => void;
   onClosePartner: () => void;
   onPartnerPress: (partnerId: string, mode: "dropoff" | "pickupDelivery") => void;
   showMapChrome?: boolean;
   showPartnerSheet?: boolean;
 };
 
+function fill(template: string, vars: Record<string, string | number>) {
+  return Object.entries(vars).reduce(
+    (acc, [key, value]) => acc.replaceAll(`{${key}}`, String(value)),
+    template,
+  );
+}
+
+function toRadians(value: number) {
+  return (value * Math.PI) / 180;
+}
+
+function distanceKm(from: Coordinates, to: Coordinates) {
+  const earthRadiusKm = 6371;
+  const dLat = toRadians(to.latitude - from.latitude);
+  const dLon = toRadians(to.longitude - from.longitude);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRadians(from.latitude)) *
+      Math.cos(toRadians(to.latitude)) *
+      Math.sin(dLon / 2) ** 2;
+  return 2 * earthRadiusKm * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function formatKm(km: number) {
+  if (km < 1) return Math.max(0.1, km).toFixed(1);
+  return km.toFixed(1);
+}
+
+function formatRatingAvg(value: number): string {
+  if (Number.isInteger(value)) return String(value);
+  return value.toFixed(1).replace(/\.0$/, "");
+}
+
+function serviceLine(partner: PartnerMapMarker, home: typeof strings.customer.home) {
+  const types = new Set(partner.serviceTypes ?? []);
+  if (types.has("washAndFold") || types.has("dryCleaning")) {
+    return { icon: "washing-machine" as const, label: `${home.tagLaundry} • ${home.tagWashFold}` };
+  }
+  if (types.has("press")) {
+    return { icon: "iron" as const, label: home.categoryIroning };
+  }
+  if (types.has("tailoring")) {
+    return { icon: "scissors-cutting" as const, label: home.categoryTailoring };
+  }
+  return { icon: "washing-machine" as const, label: `${home.tagLaundry} • ${home.tagWashFold}` };
+}
+
+function MapPartnerPreviewCard({
+  partner,
+  userCoordinates,
+  favorited,
+  onToggleFavorite,
+  onClosePartner,
+  onPartnerPress,
+}: {
+  partner: PartnerMapMarker;
+  userCoordinates: Coordinates | null;
+  favorited: boolean;
+  onToggleFavorite: () => void;
+  onClosePartner: () => void;
+  onPartnerPress: (partnerId: string, mode: "dropoff" | "pickupDelivery") => void;
+}) {
+  const sHome = strings.customer.home;
+  const sList = strings.customer.pickLaunderer;
+  const partnerVerified = usePartnerVerified(partner.id);
+  const imageUrl = getPartnerPrimaryImage(partner);
+  const openStatus = getPartnerOpenStatus(partner.available_time);
+  const openLabel =
+    openStatus === "open"
+      ? sList.featureOpenNow
+      : openStatus === "closed"
+        ? sList.closed
+        : sList.hoursUnknown;
+  const topRated = isPartnerTopRated(partner.ratingAvg, partner.ratingCount);
+  const service = serviceLine(partner, sHome);
+  const ratingLabel = fill(sHome.ratingWithCount, {
+    avg: formatRatingAvg(partner.ratingAvg ?? 1),
+    count: partner.ratingCount ?? 1,
+  });
+  const partnerCoords =
+    Number.isFinite(partner.latitude) && Number.isFinite(partner.longitude)
+      ? {
+          latitude: Number(partner.latitude),
+          longitude: Number(partner.longitude),
+        }
+      : null;
+  const km =
+    userCoordinates && partnerCoords ? distanceKm(userCoordinates, partnerCoords) : null;
+  const distanceLabel =
+    km != null && Number.isFinite(km) ? fill(sHome.kmAway, { km: formatKm(km) }) : "—";
+
+  return (
+    <View style={styles.partnerSheet}>
+      <View style={styles.handle} />
+      <View style={styles.cardRow}>
+        <View style={styles.media}>
+          {imageUrl ? (
+            <Image source={{ uri: imageUrl }} style={styles.mediaImage} contentFit="cover" />
+          ) : (
+            <Image source={assets.onboarding.slide2} style={styles.mediaImage} contentFit="cover" />
+          )}
+          {topRated ? (
+            <View style={styles.topRatedBadge}>
+              <Text style={styles.topRatedText}>{sHome.badgeTopRated}</Text>
+            </View>
+          ) : null}
+        </View>
+
+        <View style={styles.infoCol}>
+          <View style={styles.titleRow}>
+            <PartnerNameWithBadge
+              name={partner.business_name.trim()}
+              verified={partnerVerified}
+              nameStyle={styles.title}
+              containerStyle={styles.titleName}
+              badgeSize={14}
+              badgeColor={UI.verified}
+              numberOfLines={1}
+            />
+            <Pressable
+              onPress={onToggleFavorite}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel={favorited ? sHome.unfavorite : sHome.favorite}
+            >
+              <MaterialCommunityIcons
+                name={favorited ? "heart" : "heart-outline"}
+                size={20}
+                color={favorited ? "#E11D48" : UI.purple}
+              />
+            </Pressable>
+          </View>
+
+          <View style={styles.metaRow}>
+            <MaterialCommunityIcons name="star" size={14} color={UI.star} />
+            <Text style={styles.metaText}>{ratingLabel}</Text>
+            <Text style={styles.dot}>•</Text>
+            <MaterialCommunityIcons name="map-marker" size={13} color={UI.purple} />
+            <Text style={styles.metaText} numberOfLines={1}>
+              {distanceLabel}
+            </Text>
+          </View>
+
+          <View style={styles.metaRow}>
+            <MaterialCommunityIcons name={service.icon} size={14} color={UI.verified} />
+            <Text style={styles.serviceText} numberOfLines={1}>
+              {service.label}
+            </Text>
+          </View>
+
+          <View style={styles.footerRow}>
+            <View
+              style={[
+                styles.openPill,
+                openStatus === "closed" && styles.openPillClosed,
+                openStatus === "unknown" && styles.openPillMuted,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.openPillText,
+                  openStatus === "closed" && styles.openPillTextClosed,
+                  openStatus === "unknown" && styles.openPillTextMuted,
+                ]}
+              >
+                {openLabel}
+              </Text>
+            </View>
+            <Pressable
+              onPress={() => {
+                onClosePartner();
+                onPartnerPress(partner.id, partner.fulfillmentMode);
+              }}
+              style={({ pressed }) => [styles.viewBtn, pressed && styles.pressed]}
+              accessibilityRole="button"
+              accessibilityLabel={sHome.mapCardView}
+            >
+              <Text style={styles.viewBtnText}>{sHome.mapCardView}</Text>
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    </View>
+  );
+}
+
 export function CustomerHomeMapOverlays({
   strings: overlayStrings,
   loadingPartners,
   recenterBottomOffset,
   mapBottomInset,
+  userCoordinates,
   onRecenter,
   selectedPartner,
-  selectedPartnerPrimaryImage,
-  selectedPartnerUpdatedLabel: _selectedPartnerUpdatedLabel,
+  partners = [],
+  mapMarkers = [],
+  onSelectPartner,
   onClosePartner,
   onPartnerPress,
   showMapChrome = true,
   showPartnerSheet = true,
 }: Props) {
-  const sList = strings.customer.pickLaunderer;
-  const partnerVerified = usePartnerVerified(selectedPartner?.id);
-  const partnerSheetBottom =
-    mapBottomInset > 0 ? mapBottomInset + 12 : Math.max(12, recenterBottomOffset - 58);
+  const listRef = useRef<FlatList<PartnerMapMarker>>(null);
+  const pagingFromSwipeRef = useRef(false);
+  const pagerReadyRef = useRef(false);
+  const { width: pageWidth } = useWindowDimensions();
+  const [favorites, setFavorites] = useState<Record<string, boolean>>({});
+  const cardVisible = Boolean(showPartnerSheet && selectedPartner);
+  const cardBottom = Math.max(mapBottomInset, 10);
+  const fabBottom = cardVisible ? cardBottom + 168 : recenterBottomOffset;
 
-  const openStatus = selectedPartner
-    ? getPartnerOpenStatus(selectedPartner.available_time)
-    : "unknown";
-  const openLabel =
-    openStatus === "open"
-      ? sList.openNow
-      : openStatus === "closed"
-        ? sList.closed
-        : sList.hoursUnknown;
-  const hasOffer = selectedPartner
-    ? partnerHasActiveOffer(selectedPartner.offerPercent)
-    : false;
-  const phone = selectedPartner?.phone_number?.trim() ?? "";
-  const detailRows = selectedPartner
-    ? (
-        [
-          phone
-            ? {
-                icon: "phone-outline" as const,
-                text: phone,
-                onPress: () => {
-                  void Linking.openURL(`tel:${phone}`);
-                },
-              }
-            : null,
-          selectedPartner.available_time?.trim()
-            ? { icon: "clock-outline" as const, text: selectedPartner.available_time.trim() }
-            : null,
-          selectedPartner.address?.trim()
-            ? {
-                icon: "map-marker-outline" as const,
-                text: selectedPartner.address.trim(),
-                lines: 2,
-              }
-            : null,
-        ] as (
-          | {
-              icon: "phone-outline" | "clock-outline" | "map-marker-outline";
-              text: string;
-              onPress?: () => void;
-              lines?: number;
-            }
-          | null
-        )[]
-      ).filter((row): row is NonNullable<typeof row> => row != null)
-    : [];
+  const browsePartners = useMemo(() => {
+    const markerIds = new Set(mapMarkers.map((marker) => marker.id));
+    const listed = partners.filter((partner) => markerIds.has(partner.id));
+    if (selectedPartner && !listed.some((partner) => partner.id === selectedPartner.id)) {
+      return [selectedPartner, ...listed];
+    }
+    return listed.length > 0 ? listed : selectedPartner ? [selectedPartner] : [];
+  }, [mapMarkers, partners, selectedPartner]);
+
+  const selectedIndex = Math.max(
+    0,
+    browsePartners.findIndex((partner) => partner.id === selectedPartner?.id),
+  );
+
+  useEffect(() => {
+    if (!cardVisible || browsePartners.length === 0) {
+      pagerReadyRef.current = false;
+      return;
+    }
+    const index = browsePartners.findIndex((partner) => partner.id === selectedPartner?.id);
+    if (index < 0) return;
+    if (pagingFromSwipeRef.current) {
+      pagingFromSwipeRef.current = false;
+      return;
+    }
+    const animated = pagerReadyRef.current;
+    pagerReadyRef.current = true;
+    const frame = requestAnimationFrame(() => {
+      listRef.current?.scrollToIndex({ index, animated });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [browsePartners, cardVisible, selectedPartner?.id]);
+
+  function handlePageChange(event: NativeSyntheticEvent<NativeScrollEvent>) {
+    if (pageWidth <= 0) return;
+    const index = Math.round(event.nativeEvent.contentOffset.x / pageWidth);
+    const next = browsePartners[index];
+    if (!next || next.id === selectedPartner?.id) return;
+    pagingFromSwipeRef.current = true;
+    onSelectPartner(next.id);
+  }
 
   return (
     <>
@@ -130,7 +333,7 @@ export function CustomerHomeMapOverlays({
           onPress={onRecenter}
           style={({ pressed }) => [
             styles.recenterBtn,
-            { bottom: recenterBottomOffset },
+            { bottom: fabBottom },
             pressed && styles.pressed,
           ]}
           accessibilityRole="button"
@@ -140,161 +343,58 @@ export function CustomerHomeMapOverlays({
         </Pressable>
       ) : null}
 
-      {showPartnerSheet && selectedPartner ? (
+      {cardVisible && selectedPartner ? (
         <View style={styles.modalOverlay} pointerEvents="box-none">
           <Pressable
             style={styles.sheetBackdrop}
             onPress={onClosePartner}
             accessibilityRole="button"
+            accessibilityLabel={overlayStrings.closePartnerDetails}
           />
-          <View
-            style={[styles.partnerSheetWrap, { bottom: partnerSheetBottom }]}
-            pointerEvents="box-none"
-          >
-            <View style={styles.partnerSheet}>
-              <Pressable
-                onPress={onClosePartner}
-                style={({ pressed }) => [styles.partnerSheetClose, pressed && styles.pressed]}
-                accessibilityRole="button"
-                accessibilityLabel={overlayStrings.closePartnerDetails}
-              >
-                <MaterialCommunityIcons name="close" size={16} color={UI.text} />
-              </Pressable>
-
-              <View style={styles.partnerSheetTop}>
-                <View style={styles.partnerSheetMediaCol}>
-                  {selectedPartnerPrimaryImage ? (
-                    <Image
-                      source={{ uri: selectedPartnerPrimaryImage }}
-                      style={styles.partnerSheetImage}
-                      contentFit="cover"
-                    />
-                  ) : (
-                    <Image
-                      source={assets.onboarding.slide2}
-                      style={styles.partnerSheetImage}
-                      contentFit="cover"
-                    />
-                  )}
-                  <View
-                    style={[
-                      styles.openBadge,
-                      openStatus === "closed" && styles.openBadgeClosed,
-                      openStatus === "unknown" && styles.openBadgeMuted,
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.openBadgeText,
-                        openStatus === "closed" && styles.openBadgeTextClosed,
-                        openStatus === "unknown" && styles.openBadgeTextMuted,
-                      ]}
-                    >
-                      {openLabel}
-                    </Text>
-                  </View>
-                  {hasOffer ? (
-                    <View style={styles.offerBadge}>
-                      <Text style={styles.offerBadgeText}>
-                        {sList.percentOff.replace(
-                          "{pct}",
-                          String(selectedPartner.offerPercent ?? 0),
-                        )}
-                      </Text>
-                    </View>
-                  ) : null}
-                </View>
-
-                <View style={styles.partnerSheetContentCol}>
-                  <PartnerNameWithBadge
-                    name={selectedPartner.business_name.trim()}
-                    verified={partnerVerified}
-                    nameStyle={styles.partnerSheetTitle}
-                    badgeSize={14}
-                    badgeColor={UI.teal}
-                    numberOfLines={2}
-                  />
-                  <StarRating
-                    value={(selectedPartner.ratingCount ?? 0) > 0 ? selectedPartner.ratingAvg : 0}
-                    size={14}
-                  />
-                  <View style={styles.modePill}>
-                    <Text style={styles.modePillText}>
-                      {selectedPartner.fulfillmentMode === "pickupDelivery"
-                        ? overlayStrings.pickUpDelivery
-                        : overlayStrings.dropOff}
-                    </Text>
-                  </View>
-                  {typeof selectedPartner.minPrice === "number" ? (
-                    <Text style={styles.fromPriceRow} numberOfLines={1}>
-                      <Text style={styles.fromLabel}>{sList.fromLabel} </Text>
-                      <Text style={styles.price}>Rs {Math.round(selectedPartner.minPrice)}</Text>
-                    </Text>
-                  ) : (
-                    <Text style={styles.seePrices}>{sList.seePrices}</Text>
-                  )}
-                </View>
-              </View>
-
-              {detailRows.length > 0 ? (
-                <View style={styles.detailsCard}>
-                  {detailRows.map((row, index) => {
-                    const content = (
-                      <>
-                        <View style={styles.iconWell}>
-                          <MaterialCommunityIcons name={row.icon} size={16} color={UI.purple} />
-                        </View>
-                        <Text style={styles.detailText} numberOfLines={row.lines ?? 1}>
-                          {row.text}
-                        </Text>
-                      </>
-                    );
-                    const rowStyle = [
-                      styles.detailRow,
-                      index === detailRows.length - 1 && styles.detailRowLast,
-                    ];
-                    if (row.onPress) {
-                      return (
-                        <Pressable
-                          key={row.icon}
-                          onPress={row.onPress}
-                          style={({ pressed }) => [...rowStyle, pressed && styles.pressed]}
-                        >
-                          {content}
-                        </Pressable>
-                      );
+          <View style={[styles.partnerSheetWrap, { bottom: cardBottom }]}>
+            <FlatList
+              ref={listRef}
+              data={browsePartners}
+              keyExtractor={(item) => item.id}
+              style={{ width: pageWidth }}
+              horizontal
+              windowSize={5}
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              bounces={browsePartners.length > 1}
+              scrollEnabled={browsePartners.length > 1}
+              decelerationRate="fast"
+              initialScrollIndex={selectedIndex}
+              getItemLayout={(_, index) => ({
+                length: pageWidth,
+                offset: pageWidth * index,
+                index,
+              })}
+              onMomentumScrollEnd={handlePageChange}
+              onScrollToIndexFailed={({ index }) => {
+                setTimeout(() => {
+                  listRef.current?.scrollToIndex({ index, animated: false });
+                }, 50);
+              }}
+              extraData={selectedPartner.id}
+              renderItem={({ item }) => (
+                <View style={[styles.partnerSheetPage, { width: pageWidth }]}>
+                  <MapPartnerPreviewCard
+                    partner={item}
+                    userCoordinates={userCoordinates}
+                    favorited={Boolean(favorites[item.id])}
+                    onToggleFavorite={() =>
+                      setFavorites((prev) => ({
+                        ...prev,
+                        [item.id]: !prev[item.id],
+                      }))
                     }
-                    return (
-                      <View key={row.icon} style={rowStyle}>
-                        {content}
-                      </View>
-                    );
-                  })}
+                    onClosePartner={onClosePartner}
+                    onPartnerPress={onPartnerPress}
+                  />
                 </View>
-              ) : null}
-
-              <Pressable
-                onPress={() => {
-                  onClosePartner();
-                  onPartnerPress(selectedPartner.id, selectedPartner.fulfillmentMode);
-                }}
-                style={({ pressed }) => [styles.actionWrap, pressed && styles.pressed]}
-                accessibilityRole="button"
-                accessibilityLabel={overlayStrings.viewPartnerDetails}
-              >
-                <LinearGradient
-                  colors={["#6A26FF", "#0095FF", "#20D5AB"]}
-                  start={{ x: 0, y: 0.5 }}
-                  end={{ x: 1, y: 0.5 }}
-                  style={styles.partnerSheetAction}
-                >
-                  <Text style={styles.partnerSheetActionText}>
-                    {overlayStrings.viewPartnerDetails}
-                  </Text>
-                  <MaterialCommunityIcons name="chevron-right" size={18} color="#FFFFFF" />
-                </LinearGradient>
-              </Pressable>
-            </View>
+              )}
+            />
           </View>
         </View>
       ) : null}
@@ -351,184 +451,144 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: 0,
     right: 0,
-    alignItems: "center",
-    paddingHorizontal: 16,
     zIndex: 310,
   },
+  partnerSheetPage: {
+    paddingHorizontal: 12,
+  },
   partnerSheet: {
-    width: "100%",
-    maxWidth: 380,
     backgroundColor: UI.card,
     borderRadius: 22,
-    padding: 14,
-    paddingTop: 16,
+    paddingHorizontal: 12,
+    paddingTop: 8,
+    paddingBottom: 12,
     shadowColor: UI.shadow,
     shadowOpacity: 1,
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 8 },
-    elevation: 8,
+    elevation: 10,
   },
-  partnerSheetClose: {
-    position: "absolute",
-    top: 12,
-    right: 12,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: UI.backBg,
-    zIndex: 2,
+  handle: {
+    alignSelf: "center",
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: UI.handle,
+    marginBottom: 10,
   },
-  partnerSheetTop: {
+  cardRow: {
     flexDirection: "row",
     alignItems: "stretch",
     gap: 12,
-    paddingRight: 28,
   },
-  partnerSheetMediaCol: {
-    width: 108,
-    minHeight: 128,
+  media: {
+    width: 92,
+    height: 108,
     borderRadius: 16,
     overflow: "hidden",
     backgroundColor: UI.bg,
     flexShrink: 0,
-    position: "relative",
   },
-  partnerSheetImage: {
+  mediaImage: {
     ...StyleSheet.absoluteFillObject,
   },
-  openBadge: {
+  topRatedBadge: {
     position: "absolute",
     top: 8,
     left: 8,
     backgroundColor: UI.openBg,
-    borderRadius: 999,
-    paddingHorizontal: 8,
+    borderRadius: 8,
+    paddingHorizontal: 7,
     paddingVertical: 3,
   },
-  openBadgeMuted: {
-    backgroundColor: "rgba(17, 24, 39, 0.55)",
-  },
-  openBadgeClosed: {
-    backgroundColor: "#FEE2E2",
-  },
-  openBadgeText: {
+  topRatedText: {
     fontSize: 10,
     color: UI.openText,
     fontFamily: "Poppins-SemiBold",
   },
-  openBadgeTextMuted: {
-    color: "#FFFFFF",
-  },
-  openBadgeTextClosed: {
-    color: "#B91C1C",
-  },
-  offerBadge: {
-    position: "absolute",
-    bottom: 8,
-    left: 8,
-    backgroundColor: "#FCE7F3",
-    borderRadius: 999,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-  },
-  offerBadgeText: {
-    fontSize: 10,
-    color: "#BE185D",
-    fontFamily: "Poppins-SemiBold",
-    textAlign: "center",
-  },
-  partnerSheetContentCol: {
+  infoCol: {
     flex: 1,
     minWidth: 0,
-    gap: 6,
-    justifyContent: "center",
+    justifyContent: "space-between",
   },
-  partnerSheetTitle: {
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  titleName: {
+    flex: 1,
+  },
+  title: {
     color: UI.text,
     fontSize: 16,
     fontFamily: "Poppins-Bold",
+    flexShrink: 1,
   },
-  modePill: {
-    alignSelf: "flex-start",
+  metaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    minWidth: 0,
+  },
+  metaText: {
+    fontSize: 12,
+    color: UI.muted,
+    fontFamily: "Poppins-Regular",
+    flexShrink: 1,
+  },
+  dot: {
+    fontSize: 12,
+    color: UI.muted,
+    marginHorizontal: 2,
+  },
+  serviceText: {
+    fontSize: 12,
+    color: "#6366F1",
+    fontFamily: "Poppins-Medium",
+    flexShrink: 1,
+  },
+  footerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+    marginTop: 2,
+  },
+  openPill: {
     backgroundColor: UI.openBg,
     borderRadius: 999,
     paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingVertical: 5,
   },
-  modePillText: {
+  openPillClosed: {
+    backgroundColor: "#FEE2E2",
+  },
+  openPillMuted: {
+    backgroundColor: "#F3F4F6",
+  },
+  openPillText: {
     fontSize: 11,
     color: UI.openText,
     fontFamily: "Poppins-SemiBold",
   },
-  fromPriceRow: {
-    marginTop: 2,
+  openPillTextClosed: {
+    color: "#B91C1C",
   },
-  fromLabel: {
-    fontSize: 12,
+  openPillTextMuted: {
     color: UI.muted,
-    fontFamily: "Poppins-Regular",
   },
-  price: {
-    fontSize: 13,
-    fontFamily: "Poppins-Bold",
-    color: UI.price,
-  },
-  seePrices: {
-    fontSize: 12,
-    fontFamily: "Poppins-SemiBold",
-    color: UI.teal,
-  },
-  detailsCard: {
-    marginTop: 12,
-    backgroundColor: UI.bg,
-    borderRadius: 16,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-  detailRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
+  viewBtn: {
+    backgroundColor: "#D1FAE5",
+    borderRadius: 12,
+    paddingHorizontal: 18,
     paddingVertical: 8,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: UI.chipBorder,
-  },
-  detailRowLast: {
-    borderBottomWidth: 0,
-  },
-  iconWell: {
-    width: 30,
-    height: 30,
-    borderRadius: 9,
-    backgroundColor: UI.card,
+    minWidth: 72,
     alignItems: "center",
-    justifyContent: "center",
   },
-  detailText: {
-    flex: 1,
-    fontSize: 13,
-    color: UI.text,
-    fontFamily: "Poppins-Regular",
-  },
-  actionWrap: {
-    marginTop: 12,
-    borderRadius: 14,
-    overflow: "hidden",
-  },
-  partnerSheetAction: {
-    borderRadius: 14,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 4,
-    paddingVertical: 13,
-    paddingHorizontal: 14,
-  },
-  partnerSheetActionText: {
-    color: "#FFFFFF",
+  viewBtnText: {
     fontSize: 14,
+    color: UI.openText,
     fontFamily: "Poppins-Bold",
   },
 });

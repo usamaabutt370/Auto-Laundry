@@ -13,7 +13,7 @@ import {
 } from "@/hooks/use-customer-home-map-data";
 import { type Coordinates } from "@/utils/geocoding";
 
-const DEFAULT_ZOOM = 8;
+const SEARCH_RADIUS_M = 5000;
 
 type HomeStrings = {
   dropOff: string;
@@ -27,6 +27,7 @@ type HomeStrings = {
 export type CustomerHomeMapViewData = {
   userCoordinates: Coordinates | null;
   loadingPartners: boolean;
+  partners: PartnerMapMarker[];
   mapMarkers: CustomerMapMarker[];
   setSelectedPartnerId: (id: string | null) => void;
   selectedPartner: PartnerMapMarker | null;
@@ -55,18 +56,15 @@ export function CustomerHomeMap({
   const {
     userCoordinates,
     loadingPartners,
+    partners,
     mapMarkers,
     setSelectedPartnerId,
     selectedPartner,
-    selectedPartnerUpdatedLabel,
-    selectedPartnerPrimaryImage,
   } = mapData;
 
   const mapHtml = useMemo(() => {
     const markersJson = JSON.stringify(mapMarkers);
     const userJson = JSON.stringify(userCoordinates);
-    const dropOffLabel = JSON.stringify(strings.dropOff);
-    const pickupLabel = JSON.stringify(strings.pickUpDelivery);
     const zoomControlBottomOffset = Math.max(16, recenterBottomOffset + 52);
 
     return `<!DOCTYPE html>
@@ -102,10 +100,6 @@ export function CustomerHomeMap({
     const defaultCenter = [31.365, 74.2143];
     let map = null;
     const partnerPoints = [];
-
-    function labelForMode(mode) {
-      return mode === 'pickupDelivery' ? ${pickupLabel} : ${dropOffLabel};
-    }
 
     function escapeHtml(value) {
       return String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
@@ -144,13 +138,12 @@ export function CustomerHomeMap({
       });
 
       if (user && Number.isFinite(user.latitude) && Number.isFinite(user.longitude)) {
-        L.circleMarker([user.latitude, user.longitude], { radius: 8, color: '#0B84FF', fillColor: '#0B84FF', fillOpacity: 0.95 }).addTo(map).bindPopup('Your location');
+        L.circleMarker([user.latitude, user.longitude], { radius: 8, color: '#0B84FF', fillColor: '#0B84FF', fillOpacity: 0.95 }).addTo(map);
       }
 
       markers.forEach(function(item) {
         const icon = L.divIcon({ html: markerHtml(item), className: 'partner-marker-icon', iconSize: [48, 58], iconAnchor: [24, 54], popupAnchor: [0, -50] });
         const m = L.marker([item.latitude, item.longitude], { icon }).addTo(map);
-        m.bindPopup(item.name + ' (' + labelForMode(item.mode) + ')');
         m.on('click', function() {
           const payload = JSON.stringify({ type: 'partner-press', partnerId: item.id, mode: item.mode });
           if (window.ReactNativeWebView?.postMessage) window.ReactNativeWebView.postMessage(payload);
@@ -160,32 +153,35 @@ export function CustomerHomeMap({
       });
     }
 
+    function fitRadius(lat, lng) {
+      map.fitBounds(L.latLng(lat, lng).toBounds(${SEARCH_RADIUS_M * 2}), {
+        padding: [28, 28],
+        maxZoom: 15
+      });
+    }
+
     function fitAll() {
       if (!map) return;
       map.invalidateSize({ animate: false, pan: false });
-      if (partnerPoints.length > 1 && isLocalCluster(partnerPoints)) {
-        map.fitBounds(L.latLngBounds(partnerPoints), { padding: [72, 72], maxZoom: 13 });
-        return;
-      }
-      if (partnerPoints.length === 1) {
-        map.setView(partnerPoints[0], 12);
-        return;
-      }
       if (user && Number.isFinite(user.latitude) && Number.isFinite(user.longitude)) {
-        map.setView([user.latitude, user.longitude], 11);
+        fitRadius(user.latitude, user.longitude);
         return;
       }
-      map.setView(defaultCenter, ${DEFAULT_ZOOM});
+      fitRadius(defaultCenter[0], defaultCenter[1]);
     }
 
     window.__fitAll = function() { bootMap(); fitAll(); };
+    window.__panTo = function(lat, lng) {
+      if (!map || !Number.isFinite(lat) || !Number.isFinite(lng)) return;
+      map.panTo([lat, lng]);
+    };
     window.__fitAll();
     requestAnimationFrame(function() { window.__fitAll(); });
     setTimeout(function() { window.__fitAll(); }, 250);
   </script>
 </body>
 </html>`;
-  }, [mapMarkers, recenterBottomOffset, strings.dropOff, strings.pickUpDelivery, userCoordinates]);
+  }, [mapMarkers, recenterBottomOffset, userCoordinates]);
 
   const focusMap = useCallback(() => {
     mapRef.current?.fitAll();
@@ -196,6 +192,14 @@ export function CustomerHomeMap({
     const timers = [0, 200, 500].map((delay) => setTimeout(() => focusMap(), delay));
     return () => timers.forEach(clearTimeout);
   }, [focusMap, loadingPartners, mapMarkers]);
+
+  useEffect(() => {
+    const partnerId = selectedPartner?.id;
+    if (!partnerId) return;
+    const marker = mapMarkers.find((item) => item.id === partnerId);
+    if (!marker) return;
+    mapRef.current?.panTo(marker.latitude, marker.longitude);
+  }, [mapMarkers, selectedPartner?.id]);
 
   return (
     <View style={styles.mapRoot}>
@@ -227,10 +231,12 @@ export function CustomerHomeMap({
         loadingPartners={loadingPartners}
         recenterBottomOffset={recenterBottomOffset}
         mapBottomInset={mapBottomInset}
+        userCoordinates={userCoordinates}
         onRecenter={focusMap}
         selectedPartner={selectedPartner}
-        selectedPartnerPrimaryImage={selectedPartnerPrimaryImage}
-        selectedPartnerUpdatedLabel={selectedPartnerUpdatedLabel}
+        partners={partners}
+        mapMarkers={mapMarkers}
+        onSelectPartner={setSelectedPartnerId}
         onClosePartner={() => setSelectedPartnerId(null)}
         onPartnerPress={onPartnerPress}
         showMapChrome

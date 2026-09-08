@@ -145,6 +145,7 @@ export const en = {
       deals: "Deals of the day",
       filters: "Filters",
       map: "Map",
+      mapCardView: "View",
       kmAway: "{km} km away",
       ratingWithCount: "{avg} ({count})",
       fromPrice: "From {price}",
