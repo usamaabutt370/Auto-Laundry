@@ -12,7 +12,7 @@ import {
   Text,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 
 import { assets } from "@/assets/assets";
@@ -29,6 +29,7 @@ import { usePartnerVerified } from "@/hooks/use-partner-verified";
 import { StarRating } from "@/components/star-rating";
 import { getPartnerOpenStatus } from "@/utils/partner-hours";
 import { partnerHasActiveOffer } from "@/utils/partner-offers";
+import { parsePriceDisplay } from "@/utils/parse-price-display";
 
 const UI = {
   bg: "#F7F8FA",
@@ -50,12 +51,24 @@ const HERO_IMAGE_HEIGHT_MOBILE = 220;
 const HERO_IMAGE_HEIGHT_WEB = 450;
 const VERIFIED_BADGE = "#12B886";
 
-const SERVICE_KEYS: LaundererServiceType[] = [
-  "washAndFold",
-  "dryCleaning",
-  "tailoring",
-  "press",
-];
+const SERVICE_CATEGORY: Record<LaundererServiceType, string> = {
+  washAndFold: "Wash & Fold",
+  dryCleaning: "Dry Cleaning",
+  tailoring: "Tailoring",
+  press: "Press",
+};
+const SERVICE_KEYS = Object.keys(SERVICE_CATEGORY) as LaundererServiceType[];
+
+function formatRs(amount: number): string {
+  if (Number.isInteger(amount)) return `Rs ${amount}`;
+  return `Rs ${amount.toFixed(2).replace(/\.00$/, "")}`;
+}
+
+function serviceItemLabel(name: string, category: string): string {
+  const trimmed = name.trim();
+  const prefix = `${category} - `;
+  return trimmed.startsWith(prefix) ? trimmed.slice(prefix.length) : trimmed;
+}
 
 interface LaundererDetailViewProps {
   partnerId: string;
@@ -70,11 +83,16 @@ export function LaundererDetailView({
   initialName,
   onBack,
   onSelect,
+  isModal = false,
 }: LaundererDetailViewProps) {
   const s = strings.customer.laundererDetail;
   const sList = strings.customer.pickLaunderer;
   const sServices = strings.customer.pickupServices;
   const { isWeb } = useResponsiveLayout();
+  const insets = useSafeAreaInsets();
+  // iOS modal/page sheets often report a 0 bottom inset, so the home indicator
+  // covers a sticky footer unless we keep a minimum pad.
+  const footerBottomPad = Math.max(insets.bottom, isModal ? 28 : 12);
   const heroImageHeight = isWeb ? HERO_IMAGE_HEIGHT_WEB : HERO_IMAGE_HEIGHT_MOBILE;
 
   const [loading, setLoading] = useState(true);
@@ -88,6 +106,9 @@ export function LaundererDetailView({
   const partnerVerified = usePartnerVerified(partnerId);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [heroWidth, setHeroWidth] = useState(0);
+  const [expandedPriceKeys, setExpandedPriceKeys] = useState<Set<LaundererServiceType>>(
+    () => new Set(),
+  );
   const heroScrollRef = useRef<ScrollView | null>(null);
 
   const load = useCallback(async () => {
@@ -113,10 +134,29 @@ export function LaundererDetailView({
   const serviceTypes = useMemo(
     () =>
       serviceCategoriesToTypes(
-        services.map((row) => row.category).filter(Boolean) as string[],
+        services.map((row) => row.category),
+        services.map((row) => row.price_display),
       ),
     [services],
   );
+
+  const pricedGroups = useMemo(() => {
+    return SERVICE_KEYS.flatMap((key) => {
+      const category = SERVICE_CATEGORY[key];
+      const items = services.flatMap((row) => {
+        if ((row.category ?? "").trim() !== category) return [];
+        const amount = parsePriceDisplay(row.price_display);
+        if (amount == null || amount <= 0) return [];
+        return [
+          {
+            label: serviceItemLabel(row.name, category) || row.name,
+            price: formatRs(amount),
+          },
+        ];
+      });
+      return items.length > 0 ? [{ key, title: sServices[key], items }] : [];
+    });
+  }, [sServices, services]);
 
   const businessImageUris = useMemo(
     () =>
@@ -144,7 +184,17 @@ export function LaundererDetailView({
 
   useEffect(() => {
     setActiveImageIndex(0);
+    setExpandedPriceKeys(new Set());
   }, [profile?.id]);
+
+  const togglePriceGroup = (key: LaundererServiceType) => {
+    setExpandedPriceKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
 
   const handleSelect = () => {
     if (partnerId) {
@@ -170,14 +220,7 @@ export function LaundererDetailView({
   const renderHeader = () => (
     <SafeAreaView edges={["top"]} style={styles.headerSafe}>
       <View style={styles.headerRow}>
-        <Pressable
-          onPress={onBack}
-          style={styles.backBtn}
-          accessibilityRole="button"
-          accessibilityLabel="Go back"
-        >
-          <MaterialCommunityIcons name="chevron-left" size={24} color={UI.text} />
-        </Pressable>
+        <View style={styles.headerSide} />
         <View style={styles.headerCenter}>
           <PartnerNameWithBadge
             name={displayName}
@@ -187,7 +230,14 @@ export function LaundererDetailView({
             badgeColor={VERIFIED_BADGE}
           />
         </View>
-        <View style={styles.headerSpacer} />
+        <Pressable
+          onPress={onBack}
+          style={styles.closeBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Close"
+        >
+          <MaterialCommunityIcons name="close" size={22} color={UI.text} />
+        </Pressable>
       </View>
     </SafeAreaView>
   );
@@ -383,11 +433,60 @@ export function LaundererDetailView({
                 ))}
               </View>
             ) : null}
+
+            {pricedGroups.length > 0 ? (
+              <View style={styles.pricesBlock}>
+                <Text style={styles.pricesTitle}>{s.pricesTitle}</Text>
+                {pricedGroups.map((group) => {
+                  const expanded = expandedPriceKeys.has(group.key);
+                  return (
+                    <View
+                      key={group.key}
+                      style={[styles.priceGroup, !expanded && styles.priceGroupCollapsed]}
+                    >
+                      <Pressable
+                        onPress={() => togglePriceGroup(group.key)}
+                        style={({ pressed }) => [
+                          styles.priceGroupHeader,
+                          pressed && styles.pressed,
+                        ]}
+                        accessibilityRole="button"
+                        accessibilityState={{ expanded }}
+                        accessibilityLabel={group.title}
+                      >
+                        <Text style={styles.priceGroupTitle}>{group.title}</Text>
+                        <MaterialCommunityIcons
+                          name={expanded ? "chevron-up" : "chevron-down"}
+                          size={22}
+                          color={UI.muted}
+                        />
+                      </Pressable>
+                      {expanded
+                        ? group.items.map((item, index) => (
+                            <View
+                              key={`${group.key}-${item.label}-${index}`}
+                              style={[
+                                styles.priceRow,
+                                index === group.items.length - 1 && styles.priceRowLast,
+                              ]}
+                            >
+                              <Text style={styles.priceItemLabel} numberOfLines={2}>
+                                {item.label}
+                              </Text>
+                              <Text style={styles.priceItemValue}>{item.price}</Text>
+                            </View>
+                          ))
+                        : null}
+                    </View>
+                  );
+                })}
+              </View>
+            ) : null}
           </View>
         </View>
       </ScrollView>
 
-      <SafeAreaView style={styles.footer} edges={["bottom"]}>
+      <View style={[styles.footer, { paddingBottom: footerBottomPad }]}>
         <Pressable
           onPress={handleSelect}
           style={({ pressed }) => [styles.selectWrap, pressed && styles.pressed]}
@@ -401,7 +500,7 @@ export function LaundererDetailView({
             <Text style={styles.selectLabel}>{s.select}</Text>
           </LinearGradient>
         </Pressable>
-      </SafeAreaView>
+      </View>
     </View>
   );
 }
@@ -455,11 +554,11 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     gap: 10,
   },
-  backBtn: {
-    width: 36,
-    height: 36,
+  closeBtn: {
+    width: 20,
+    height: 20,
     borderRadius: 18,
-    backgroundColor: UI.backBg,
+    backgroundColor: UI.iconWell,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -468,12 +567,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   headerTitle: {
-    fontSize: 17,
+    fontSize:20,
     color: UI.text,
     fontFamily: "Poppins-Bold",
     textAlign: "center",
+    marginVertical : 10,
   },
-  headerSpacer: {
+  headerSide: {
     width: 36,
   },
   pressed: { opacity: 0.85 },
@@ -648,9 +748,63 @@ const styles = StyleSheet.create({
     color: UI.openText,
     fontFamily: "Poppins-SemiBold",
   },
+  pricesBlock: {
+    marginTop: 18,
+    gap: 12,
+  },
+  pricesTitle: {
+    fontSize: 16,
+    fontFamily: "Poppins-Bold",
+    color: UI.text,
+  },
+  priceGroup: {
+    backgroundColor: UI.bg,
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingTop: 4,
+    paddingBottom: 6,
+  },
+  priceGroupCollapsed: {
+    paddingBottom: 4,
+  },
+  priceGroupHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    paddingVertical: 10,
+  },
+  priceGroupTitle: {
+    flex: 1,
+    fontSize: 13,
+    fontFamily: "Poppins-SemiBold",
+    color: UI.text,
+  },
+  priceRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: UI.chipBorder,
+  },
+  priceRowLast: {
+    borderBottomWidth: 0,
+  },
+  priceItemLabel: {
+    flex: 1,
+    fontSize: 13,
+    color: UI.text,
+    fontFamily: "Poppins-Regular",
+  },
+  priceItemValue: {
+    fontSize: 13,
+    fontFamily: "Poppins-Bold",
+    color: UI.teal,
+  },
   footer: {
     paddingTop: 12,
-    paddingBottom: 8,
     paddingHorizontal: 16,
     backgroundColor: UI.bg,
   },

@@ -7,7 +7,11 @@ import {
   type MapHtmlSurfaceHandle,
 } from "@/components/map-html-surface";
 import type { WebViewMessageEvent } from "react-native-webview";
-import { type CustomerHomeMapData } from "@/hooks/use-customer-home-map-data";
+import {
+  type CustomerMapMarker,
+  type PartnerMapMarker,
+} from "@/hooks/use-customer-home-map-data";
+import { type Coordinates } from "@/utils/geocoding";
 
 const DEFAULT_ZOOM = 8;
 
@@ -20,12 +24,22 @@ type HomeStrings = {
   updatedPrefix: string;
 };
 
+export type CustomerHomeMapViewData = {
+  userCoordinates: Coordinates | null;
+  loadingPartners: boolean;
+  mapMarkers: CustomerMapMarker[];
+  setSelectedPartnerId: (id: string | null) => void;
+  selectedPartner: PartnerMapMarker | null;
+  selectedPartnerUpdatedLabel: string | null;
+  selectedPartnerPrimaryImage: string | null;
+};
+
 type Props = {
   strings: HomeStrings;
   onPartnerPress: (partnerId: string, mode: "dropoff" | "pickupDelivery") => void;
   recenterBottomOffset: number;
   mapBottomInset?: number;
-  mapData: CustomerHomeMapData;
+  mapData: CustomerHomeMapViewData;
   partnerSheetHost?: "map" | "screen";
 };
 
@@ -228,6 +242,6 @@ export function CustomerHomeMap({
 
 const styles = StyleSheet.create({
   mapRoot: {
-    ...StyleSheet.absoluteFillObject,
+    flex: 1,
   },
 });

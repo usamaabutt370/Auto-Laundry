@@ -5,7 +5,6 @@ import { StatusBar } from "expo-status-bar";
 import { useCallback, useEffect, useMemo, useState, type ComponentProps } from "react";
 import {
   ActivityIndicator,
-  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -17,8 +16,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { assets } from "@/assets/assets";
 import { AvatarImage } from "@/components/avatar-image";
+import { GradientText } from "@/components/gradient-text";
 import { PartnerNameWithBadge } from "@/components/partner-name-with-badge";
-import { StarRating } from "@/components/star-rating";
 import { strings } from "@/constants/strings";
 import { useAuth } from "@/contexts/auth-context";
 import {
@@ -46,7 +45,6 @@ const HOME_UI = {
   blue: "#2F6BFF",
   green: "#00A86B",
   mapGreen: "#12B886",
-  filterPurple: "#4A3AFF",
   star: "#F5B301",
   badgeTopRated: "#0F766E",
   badgeFast: "#2563EB",
@@ -118,10 +116,15 @@ function formatKm(km: number) {
   return km.toFixed(1);
 }
 
+function formatRatingAvg(value: number): string {
+  if (Number.isInteger(value)) return String(value);
+  return value.toFixed(1).replace(/\.0$/, "");
+}
+
 const BADGES = [
-  { key: "top" as const, bg: HOME_UI.badgeTopRated },
-  { key: "fast" as const, bg: HOME_UI.badgeFast },
-  { key: "trusted" as const, bg: HOME_UI.badgeTrusted },
+  { key: "top" as const, bg: HOME_UI.badgeTopRated + "90" },
+  { key: "fast" as const, bg: HOME_UI.badgeFast + "90" },
+  { key: "trusted" as const, bg: HOME_UI.badgeTrusted + "90" },
 ];
 
 type Props = {
@@ -131,7 +134,6 @@ type Props = {
   onPressCategory: (service: HomeServiceId) => void;
   onPressPartner: (partner: PartnerMapMarker) => void;
   onSeeAll: () => void;
-  onPressNotifications: () => void;
   onPressProfile: () => void;
 };
 
@@ -142,14 +144,14 @@ export function CustomerHomeFeed({
   onPressCategory,
   onPressPartner,
   onSeeAll,
-  onPressNotifications,
   onPressProfile,
 }: Props) {
   const s = strings.customer.home;
   const { width: windowWidth } = useWindowDimensions();
-  const recCardWidth = (windowWidth - SCREEN_PAD * 2 - CARD_GAP * 2) / 3;
+  const categoryCardWidth = (windowWidth - SCREEN_PAD * 2 - CARD_GAP) / 2.2;
+  const recCardWidth = categoryCardWidth;
   const { firstName, avatarUri } = useHomeProfile(s.guestName);
-  const [locationLabel, setLocationLabel] = useState(s.locationFallback);
+  const [locationLabel, setLocationLabel] = useState<string>(s.locationFallback);
   const [favorites, setFavorites] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
@@ -194,15 +196,22 @@ export function CustomerHomeFeed({
       <StatusBar style="dark" />
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.scroll, { paddingBottom: bottomInset + 88 }]}
+        contentContainerStyle={[styles.scroll, { paddingBottom: bottomInset + 20 }]}
       >
         <View style={styles.header}>
           <View style={styles.headerText}>
-            <Text style={styles.greeting} numberOfLines={1}>
-              <Text style={styles.greetingLead}>{greeting} </Text>
-              <Text style={styles.greetingName}>{firstName}! </Text>
-              <Text>👋</Text>
-            </Text>
+            <View style={styles.greetingRow}>
+              <GradientText
+                colors={["#5a11f6", "#005aec", "#00a473"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.greeting}
+                accessibilityLabel={`${greeting} ${firstName}!`}
+              >
+                {`${greeting} ${firstName}!`}
+              </GradientText>
+              <Text style={styles.greetingEmoji}> 👋</Text>
+            </View>
             <Pressable style={styles.locationRow} hitSlop={8}>
               <MaterialCommunityIcons name="map-marker" size={16} color={HOME_UI.purple} />
               <Text style={styles.locationText} numberOfLines={1}>
@@ -212,15 +221,6 @@ export function CustomerHomeFeed({
             </Pressable>
           </View>
           <View style={styles.headerActions}>
-            <Pressable
-              onPress={onPressNotifications}
-              style={styles.iconBtn}
-              accessibilityRole="button"
-              accessibilityLabel={s.notifications}
-            >
-              <MaterialCommunityIcons name="bell-outline" size={22} color={HOME_UI.text} />
-              <View style={styles.notifDot} />
-            </Pressable>
             <Pressable
               onPress={onPressProfile}
               accessibilityRole="button"
@@ -237,22 +237,21 @@ export function CustomerHomeFeed({
         </View>
 
         <Text style={styles.sectionTitle}>{s.whatDoYouNeed}</Text>
-        <View style={styles.categoryRow}>
+        <ScrollView
+          horizontal
+          nestedScrollEnabled
+          showsHorizontalScrollIndicator={false}
+          style={styles.hScroll}
+          contentContainerStyle={styles.categoryList}
+        >
           <CategoryCard
             title={s.categoryLaundry}
             subtitle={s.categoryLaundrySub}
             image={assets.onboarding.slide1}
             icon="tshirt-crew"
             accent={HOME_UI.blue}
+            width={categoryCardWidth}
             onPress={() => onPressCategory("washAndFold")}
-          />
-          <CategoryCard
-            title={s.categoryIroning}
-            subtitle={s.categoryIroningSub}
-            image={assets.images.home_category_ironing}
-            icon="iron"
-            accent={HOME_UI.mapGreen}
-            onPress={() => onPressCategory("press")}
           />
           <CategoryCard
             title={s.categoryTailoring}
@@ -260,9 +259,20 @@ export function CustomerHomeFeed({
             image={assets.images.home_category_tailoring}
             icon="scissors-cutting"
             accent={HOME_UI.purple}
+            width={categoryCardWidth}
             onPress={() => onPressCategory("tailoring")}
           />
-        </View>
+          <CategoryCard
+            title={s.categoryIroning}
+            subtitle={s.categoryIroningSub}
+            image={assets.images.home_category_ironing}
+            icon="iron"
+            accent={HOME_UI.mapGreen}
+            width={categoryCardWidth}
+            onPress={() => onPressCategory("press")}
+          />
+
+        </ScrollView>
 
         <View style={styles.trustCard}>
           <View style={styles.trustBadge}>
@@ -393,6 +403,7 @@ function CategoryCard({
   image,
   icon,
   accent,
+  width,
   onPress,
 }: {
   title: string;
@@ -400,26 +411,29 @@ function CategoryCard({
   image: number;
   icon: ComponentProps<typeof MaterialCommunityIcons>["name"];
   accent: string;
+  width: number;
   onPress: () => void;
 }) {
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [styles.categoryCard, pressed && styles.pressed]}>
-      <View style={styles.categoryImageWrap}>
-        <Image source={image} style={styles.categoryImage} contentFit="cover" />
-      </View>
-      <View style={[styles.categoryIcon, { backgroundColor: accent }]}>
-        <MaterialCommunityIcons name={icon} size={16} color="#FFFFFF" />
-      </View>
-      <View style={styles.categoryBody}>
-        <Text style={styles.categoryTitle}>{title}</Text>
-        <Text style={styles.categorySub} numberOfLines={2}>
-          {subtitle}
-        </Text>
-        <View style={[styles.categoryArrow, { backgroundColor: accent }]}>
-          <MaterialCommunityIcons name="arrow-right" size={14} color="#FFFFFF" />
+    <View style={[styles.hCardShadowHost, { width }]} collapsable={false}>
+      <Pressable
+        onPress={onPress}
+        style={({ pressed }) => [styles.categoryCard, pressed && styles.pressed]}
+      >
+        <View style={styles.categoryImageWrap}>
+          <Image source={image} style={styles.categoryImage} contentFit="cover" />
         </View>
-      </View>
-    </Pressable>
+        <View style={[styles.categoryIcon, { backgroundColor: accent }]}>
+          <MaterialCommunityIcons name={icon} size={16} color="#FFFFFF" />
+        </View>
+        <View style={styles.categoryBody}>
+          <Text style={styles.categoryTitle}>{title}</Text>
+          <Text style={styles.categorySub} numberOfLines={2}>
+            {subtitle}
+          </Text>
+        </View>
+      </Pressable>
+    </View>
   );
 }
 
@@ -473,7 +487,7 @@ function RecommendedCard({
           >
             <MaterialCommunityIcons
               name={favorited ? "heart" : "heart-outline"}
-              size={12}
+              size={15}
               color={favorited ? "#E11D48" : "#FFFFFF"}
             />
           </Pressable>
@@ -485,19 +499,39 @@ function RecommendedCard({
             nameStyle={styles.recName}
             badgeSize={10}
           />
-          <StarRating value={(partner.ratingCount ?? 0) > 0 ? partner.ratingAvg : 0} size={11} />
-          <Text style={styles.recMetaMuted} numberOfLines={1}>
-            {distanceLabel}
-          </Text>
+          <View style={styles.recMeta}>
+            <MaterialCommunityIcons
+              name="star"
+              size={12}
+              color={(partner.ratingCount ?? 0) > 0 ? HOME_UI.star : "#E5E7EB"}
+            />
+            <Text style={styles.recMetaMuted} numberOfLines={1}>
+              {(partner.ratingCount ?? 0) > 0
+                ? fill(s.ratingWithCount, {
+                    avg: formatRatingAvg(partner.ratingAvg ?? 0),
+                    count: partner.ratingCount ?? 0,
+                  })
+                : "—"}
+              {" • "}
+              {distanceLabel}
+            </Text>
+          </View>
           <View style={styles.tagRow}>
             <MaterialCommunityIcons name="tshirt-crew-outline" size={11} color={HOME_UI.blue} />
             <Text style={styles.tagText} numberOfLines={1}>
               {pickup ? s.tagWashFold : s.tagLaundry}
             </Text>
           </View>
-          <Text style={styles.price} numberOfLines={1}>
-            {s.seePrices}
-          </Text>
+          {typeof partner.minPrice === "number" ? (
+            <Text style={styles.fromPriceRow} numberOfLines={1}>
+              <Text style={styles.fromLabel}>{s.fromLabel} </Text>
+              <Text style={styles.price}>Rs {Math.round(partner.minPrice)}</Text>
+            </Text>
+          ) : (
+            <Text style={styles.price} numberOfLines={1}>
+              {s.seePrices}
+            </Text>
+          )}
         </View>
       </Pressable>
     </View>
@@ -536,13 +570,17 @@ function DealCard({
             {badge}
           </Text>
         </View>
+        <View style={styles.dealContent}>
         <Text style={styles.dealOff} numberOfLines={1}>
           {fill(s.dealOff, { pct })}
         </Text>
         <Text style={styles.dealSub} numberOfLines={1}>
           {s.dealFirstOrder}
         </Text>
-        <Image source={image} style={styles.dealImage} contentFit="contain" />
+        </View>
+        <View style={styles.dealImageWrap}>
+        <Image source={image} style={styles.dealImage}  />
+        </View>
         <View style={styles.codeRow}>
           <View style={[styles.codeGift, { backgroundColor: colors.accent }]}>
             <MaterialCommunityIcons name="gift-outline" size={13} color="#FFFFFF" />
@@ -555,94 +593,6 @@ function DealCard({
         </View>
       </Pressable>
     </View>
-  );
-}
-
-export function HomeFiltersMapFab({
-  viewMode,
-  bottom,
-  onFilters,
-  onMap,
-}: {
-  viewMode: "feed" | "map";
-  bottom: number;
-  onFilters: () => void;
-  onMap: () => void;
-}) {
-  const s = strings.customer.home;
-  return (
-    <View style={[styles.fabWrap, { bottom }]} pointerEvents="box-none">
-      <View style={styles.fab}>
-        <Pressable
-          onPress={onFilters}
-          style={[styles.fabHalf, styles.fabFilters, viewMode === "feed" && styles.fabHalfActive]}
-          accessibilityRole="button"
-          accessibilityLabel={s.filters}
-        >
-          <MaterialCommunityIcons name="tune-variant" size={18} color="#FFFFFF" />
-          <Text style={styles.fabLabel}>{s.filters}</Text>
-        </Pressable>
-        <View style={styles.fabDivider} />
-        <Pressable
-          onPress={onMap}
-          style={[styles.fabHalf, styles.fabMap, viewMode === "map" && styles.fabHalfActive]}
-          accessibilityRole="button"
-          accessibilityLabel={s.map}
-        >
-          <MaterialCommunityIcons name="map-marker" size={18} color="#FFFFFF" />
-          <Text style={styles.fabLabel}>{s.map}</Text>
-        </Pressable>
-      </View>
-    </View>
-  );
-}
-
-export function HomeFiltersSheet({
-  visible,
-  value,
-  onChange,
-  onClose,
-}: {
-  visible: boolean;
-  value: FulfillmentFilter;
-  onChange: (next: FulfillmentFilter) => void;
-  onClose: () => void;
-}) {
-  const s = strings.customer.home;
-  const options: { id: FulfillmentFilter; label: string }[] = [
-    { id: "all", label: s.filterAll },
-    { id: "pickupDelivery", label: s.pickUpDelivery },
-    { id: "dropoff", label: s.dropOff },
-  ];
-
-  return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={styles.sheetBackdrop} onPress={onClose}>
-        <Pressable style={styles.sheet} onPress={() => {}}>
-          <Text style={styles.sheetTitle}>{s.filterTitle}</Text>
-          <Text style={styles.sheetHint}>{s.filterFulfillment}</Text>
-          <View style={styles.sheetOptions}>
-            {options.map((option) => {
-              const selected = option.id === value;
-              return (
-                <Pressable
-                  key={option.id}
-                  onPress={() => onChange(option.id)}
-                  style={[styles.sheetChip, selected && styles.sheetChipOn]}
-                >
-                  <Text style={[styles.sheetChipText, selected && styles.sheetChipTextOn]}>
-                    {option.label}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-          <Pressable onPress={onClose} style={styles.sheetDone}>
-            <Text style={styles.sheetDoneText}>{s.filterDone}</Text>
-          </Pressable>
-        </Pressable>
-      </Pressable>
-    </Modal>
   );
 }
 
@@ -729,26 +679,26 @@ const styles = StyleSheet.create({
     marginHorizontal: -6,
   },
   header: {
-    // backgroundColor: "blue",
     flexDirection: "row",
-    // alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 22,
-    // gap: 12,
+    marginBottom: 15,
   },
   headerText: {
     flex: 1,
+  },
+  greetingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexShrink: 1,
   },
   greeting: {
     fontSize: 18,
     lineHeight: 30,
     fontFamily: "Poppins-Bold",
   },
-  greetingLead: {
-    color: HOME_UI.purple,
-  },
-  greetingName: {
-    color: HOME_UI.blue,
+  greetingEmoji: {
+    fontSize: 18,
+    lineHeight: 30,
   },
   locationRow: {
     flexDirection: "row",
@@ -765,40 +715,19 @@ const styles = StyleSheet.create({
   headerActions: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    // backgroundColor: "red",
-  },
-  iconBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 21,
-    backgroundColor: HOME_UI.card,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: HOME_UI.border,
-  },
-  notifDot: {
-    position: "absolute",
-    top: 0,
-    right: 5,
-    width: 10,
-    height: 10,
-    borderRadius: 4,
-    backgroundColor: HOME_UI.purple,
   },
   avatar: {
     borderWidth: 2,
     borderColor: "#FFFFFF",
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontFamily: "Poppins-Bold",
     color: HOME_UI.text,
     marginBottom: 12,
   },
   sectionTitleNoMargin: {
-    fontSize: 18,
+    fontSize: 20,
     fontFamily: "Poppins-Bold",
     color: HOME_UI.text,
     flex: 1,
@@ -807,8 +736,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginTop: 22,
-    marginBottom: 12,
+    marginTop: 12,
+    marginBottom: 8,
     gap: 12,
   },
   seeAllBtn: {
@@ -821,20 +750,19 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: "Poppins-SemiBold",
   },
-  categoryRow: {
-    flexDirection: "row",
+  categoryList: {
     gap: CARD_GAP,
-    overflow: "visible",
-    paddingBottom: 4,
+    paddingHorizontal: 6,
+    paddingTop: 4,
+    paddingBottom: 20,
   },
   categoryCard: {
-    flex: 1,
     backgroundColor: HOME_UI.card,
     borderRadius: 18,
-    ...CARD_SHADOW,
+    overflow: "hidden",
   },
   categoryImageWrap: {
-    height: 92,
+    height: 120,
     overflow: "hidden",
     borderTopLeftRadius: 18,
     borderTopRightRadius: 18,
@@ -842,10 +770,11 @@ const styles = StyleSheet.create({
   categoryImage: {
     width: "100%",
     height: "100%",
+    resizeMode: "contain",
   },
   categoryIcon: {
     position: "absolute",
-    top: 78,
+    top: 110,
     left: 10,
     width: 28,
     height: 28,
@@ -857,22 +786,17 @@ const styles = StyleSheet.create({
   },
   categoryBody: {
     paddingHorizontal: 10,
-    paddingTop: 18,
-    paddingBottom: 12,
-    minHeight: 86,
+    paddingVertical: 12,
   },
   categoryTitle: {
-    fontSize: 13,
+    fontSize: 15,
     fontFamily: "Poppins-Bold",
     color: HOME_UI.text,
   },
   categorySub: {
-    fontSize: 10,
-    lineHeight: 14,
-    color: HOME_UI.muted,
+    fontSize: 12,
+    color: HOME_UI.text,
     fontFamily: "Poppins-Regular",
-    marginTop: 2,
-    paddingRight: 22,
   },
   categoryArrow: {
     position: "absolute",
@@ -885,8 +809,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   trustCard: {
-    marginTop: 18,
-    backgroundColor: HOME_UI.trustBg,
+    backgroundColor: HOME_UI.border,
     borderRadius: 18,
     padding: 14,
     flexDirection: "row",
@@ -904,6 +827,7 @@ const styles = StyleSheet.create({
   },
   trustCopy: {
     flex: 1,
+    backgroundColor: "transparent",
   },
   trustTitle: {
     fontSize: 15,
@@ -915,7 +839,7 @@ const styles = StyleSheet.create({
   },
   trustBody: {
     marginTop: 2,
-    fontSize: 11,
+    fontSize: 12,
     lineHeight: 16,
     color: HOME_UI.muted,
     fontFamily: "Poppins-Regular",
@@ -937,8 +861,8 @@ const styles = StyleSheet.create({
   recommendedList: {
     gap: CARD_GAP,
     paddingHorizontal: 6,
-    paddingTop: 8,
-    paddingBottom: 18,
+    // paddingTop: 8,
+    // paddingBottom: 18,
   },
   hCardShadowHost: {
     backgroundColor: HOME_UI.card,
@@ -962,16 +886,16 @@ const styles = StyleSheet.create({
   },
   recBadge: {
     position: "absolute",
-    top: 6,
-    left: 6,
+    top: 10,
+    left: 10,
     maxWidth: "68%",
-    paddingHorizontal: 6,
+    paddingHorizontal:10,
     paddingVertical: 2,
-    borderRadius: 999,
+    borderRadius: 50,
   },
   recBadgeText: {
     color: "#FFFFFF",
-    fontSize: 8,
+    fontSize: 11,
     fontFamily: "Poppins-SemiBold",
   },
   heartBtn: {
@@ -992,7 +916,7 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   recName: {
-    fontSize: 11,
+    fontSize: 13,
     fontFamily: "Poppins-SemiBold",
     color: HOME_UI.text,
   },
@@ -1007,7 +931,8 @@ const styles = StyleSheet.create({
     fontFamily: "Poppins-Regular",
   },
   recMetaMuted: {
-    fontSize: 9,
+    flex: 1,
+    fontSize: 11,
     color: HOME_UI.muted,
     fontFamily: "Poppins-Regular",
   },
@@ -1018,7 +943,15 @@ const styles = StyleSheet.create({
   },
   tagText: {
     flex: 1,
-    fontSize: 9,
+    fontSize: 11,
+    color: HOME_UI.text,
+    fontFamily: "Poppins-Regular",
+  },
+  fromPriceRow: {
+    marginTop: 1,
+  },
+  fromLabel: {
+    fontSize: 11,
     color: HOME_UI.muted,
     fontFamily: "Poppins-Regular",
   },
@@ -1026,7 +959,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontFamily: "Poppins-Bold",
     color: HOME_UI.green,
-    marginTop: 1,
   },
   dealCard: {
     backgroundColor: HOME_UI.card,
@@ -1042,25 +974,38 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   dealBadgeText: {
-    fontSize: 8,
+    fontSize:11,
     fontFamily: "Poppins-SemiBold",
+  },
+  dealContent: {
+    flex: 1,
+    paddingHorizontal: 8,
+    backgroundColor: "transparent",
   },
   dealOff: {
     marginTop: 6,
-    fontSize: 14,
+    fontSize: 15,
     fontFamily: "Poppins-Bold",
     color: HOME_UI.text,
   },
   dealSub: {
-    fontSize: 9,
+    fontSize: 11,
     color: HOME_UI.muted,
     fontFamily: "Poppins-Regular",
   },
-  dealImage: {
-    width: "100%",
+  dealImageWrap: {
     height: 80,
+    overflow: "hidden",
     borderRadius: 10,
     marginTop: 8,
+    backgroundColor: "green",
+    alignContent: "center",
+    justifyContent: "center",
+  },
+  dealImage: {
+    width: "100%",
+    height: "100%",
+    resizeMode: "cover",
   },
   codeRow: {
     flexDirection: "row",
@@ -1089,107 +1034,5 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.88,
-  },
-  fabWrap: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    alignItems: "center",
-    pointerEvents: "box-none",
-  },
-  fab: {
-    flexDirection: "row",
-    height: 52,
-    borderRadius: 26,
-    overflow: "hidden",
-    shadowColor: "rgba(17, 24, 39, 0.25)",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 1,
-    shadowRadius: 16,
-    elevation: 8,
-  },
-  fabHalf: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    paddingHorizontal: 22,
-  },
-  fabHalfActive: {
-    opacity: 1,
-  },
-  fabFilters: {
-    backgroundColor: HOME_UI.filterPurple,
-  },
-  fabMap: {
-    backgroundColor: HOME_UI.mapGreen,
-  },
-  fabDivider: {
-    width: 1,
-    backgroundColor: "rgba(255,255,255,0.55)",
-  },
-  fabLabel: {
-    color: "#FFFFFF",
-    fontSize: 14,
-    fontFamily: "Poppins-SemiBold",
-  },
-  sheetBackdrop: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.35)",
-    justifyContent: "flex-end",
-  },
-  sheet: {
-    backgroundColor: HOME_UI.card,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 24,
-    paddingBottom: 36,
-  },
-  sheetTitle: {
-    fontSize: 20,
-    fontFamily: "Poppins-Bold",
-    color: HOME_UI.text,
-  },
-  sheetHint: {
-    marginTop: 6,
-    marginBottom: 16,
-    color: HOME_UI.muted,
-    fontFamily: "Poppins-Regular",
-  },
-  sheetOptions: {
-    gap: 10,
-  },
-  sheetChip: {
-    borderWidth: 1,
-    borderColor: HOME_UI.border,
-    borderRadius: 14,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    backgroundColor: HOME_UI.bg,
-  },
-  sheetChipOn: {
-    borderColor: HOME_UI.purple,
-    backgroundColor: "#EEF2FF",
-  },
-  sheetChipText: {
-    fontFamily: "Poppins-SemiBold",
-    color: HOME_UI.text,
-    fontSize: 15,
-  },
-  sheetChipTextOn: {
-    color: HOME_UI.purple,
-  },
-  sheetDone: {
-    marginTop: 18,
-    height: 52,
-    borderRadius: 16,
-    backgroundColor: HOME_UI.purple,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  sheetDoneText: {
-    color: "#FFFFFF",
-    fontFamily: "Poppins-Bold",
-    fontSize: 16,
   },
 });

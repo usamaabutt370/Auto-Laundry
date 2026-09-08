@@ -74,6 +74,6 @@ export default function LaundererDetailScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F7F8FA",
+    backgroundColor: "green",
   },
 });

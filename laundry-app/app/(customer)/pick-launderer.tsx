@@ -13,18 +13,19 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 
+import { FiltersMapFab } from "@/components/filters-map-fab";
 import { AvatarImage } from "@/components/avatar-image";
 import { PartnerNameWithBadge } from "@/components/partner-name-with-badge";
 import {
   applyProviderFilters,
-  DEFAULT_PROVIDER_FILTERS,
   isServiceCategory,
   OPEN_PROVIDER_FILTERS,
   ProviderFiltersSheet,
   type ProviderFilters,
+  type ProviderSheetPane,
 } from "@/components/provider-filters-sheet";
 import { assets } from "@/assets/assets";
 import { strings } from "@/constants/strings";
@@ -32,6 +33,7 @@ import { useAuth } from "@/contexts/auth-context";
 import { useCustomerOrderDraft } from "@/contexts/customer-order-draft-context";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { avatarUrlWithCacheBuster } from "@/lib/avatar";
+import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import {
   fetchMapPartners,
   fetchPartnersByFulfillmentMode,
@@ -39,6 +41,12 @@ import {
   type PartnerPublicRow,
 } from "@/lib/partner-discovery";
 import { getCoordinatesWithFallback, getPlaceLabelFromCoordinates, type Coordinates } from "@/utils/geocoding";
+import {
+  formatPartnerUpdatedAt,
+  getPartnerPrimaryImage,
+  type CustomerMapMarker,
+  type PartnerMapMarker,
+} from "@/hooks/use-customer-home-map-data";
 import { getDeviceCoordinatesWithStatus } from "@/utils/device-location";
 import { StarRating } from "@/components/star-rating";
 import { getPartnerOpenStatus, isPartnerOpenNow } from "@/utils/partner-hours";
@@ -198,14 +206,20 @@ function LaundererCard({
                 openStatus === "closed" && styles.openPillTextClosed,
                 openStatus === "unknown" && styles.openPillTextMuted,
               ]}
-              numberOfLines={1}
             >
               {openLabel}
             </Text>
           </View>
-          <Text style={styles.price} numberOfLines={1}>
-            {s.seePrices}
-          </Text>
+          {typeof partner.minPrice === "number" ? (
+            <Text style={styles.fromPriceRow} numberOfLines={1}>
+              <Text style={styles.fromLabel}>{s.fromLabel} </Text>
+              <Text style={styles.price}>Rs {Math.round(partner.minPrice)}</Text>
+            </Text>
+          ) : (
+            <Text style={styles.price} numberOfLines={1}>
+              {s.seePrices}
+            </Text>
+          )}
         </View>
       </View>
     </Pressable>
@@ -218,6 +232,7 @@ export default function PickLaundererScreen() {
   const params = useLocalSearchParams<{ reorderOrderId?: string; mode?: string; service?: string }>();
   const s = strings.customer.pickLaunderer;
   const { isWebDesktop } = useResponsiveLayout();
+  const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { width: windowWidth } = useWindowDimensions();
   const reorderOrderId = typeof params.reorderOrderId === "string" ? params.reorderOrderId : "";
@@ -229,27 +244,28 @@ export default function PickLaundererScreen() {
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [userCoordinates, setUserCoordinates] = useState<Coordinates | null>(null);
-  const [locationState, setLocationState] = useState<
-    "idle" | "loading" | "granted" | "denied" | "unavailable"
-  >("idle");
   const [partnerCoordinates, setPartnerCoordinates] = useState<Record<string, Coordinates | null>>(
     {}
   );
   const [chip, setChip] = useState<ProviderChip>("all");
   const [favorites, setFavorites] = useState<Record<string, boolean>>({});
-  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [sheetPane, setSheetPane] = useState<ProviderSheetPane | null>(null);
+  const [selectedPartnerId, setSelectedPartnerId] = useState<string | null>(null);
   const [appliedFilters, setAppliedFilters] = useState<ProviderFilters>(() => ({
     ...OPEN_PROVIDER_FILTERS,
     categories: isServiceCategory(params.service) ? [params.service] : [],
   }));
-  const [locationLabel, setLocationLabel] = useState(s.locationFallback);
+  const [locationLabel, setLocationLabel] = useState<string>(s.locationFallback);
   const geocodeCacheRef = useRef<Map<string, Coordinates | null>>(new Map());
   const columns = isWebDesktop ? 3 : 2;
   const cardWidth = (windowWidth - H_PAD * 2 - CARD_GAP * (columns - 1)) / columns;
   const headerTitle = isReassignMode ? s.reassignTitle : s.serviceProviders;
-  const avatarUri =
-    (user?.user_metadata?.avatar_url as string | undefined) ||
-    (user?.user_metadata?.picture as string | undefined);
+  const [avatarUri, setAvatarUri] = useState<string | undefined>(
+    () =>
+      (user?.user_metadata?.avatar_url as string | undefined) ||
+      (user?.user_metadata?.picture as string | undefined) ||
+      (user?.user_metadata?.image_url as string | undefined),
+  );
   const avatarName =
     (user?.user_metadata?.first_name as string | undefined) ||
     (user?.user_metadata?.full_name as string | undefined) ||
@@ -296,16 +312,39 @@ export default function PickLaundererScreen() {
   }, [load]);
 
   useEffect(() => {
+    let cancelled = false;
+    const metadataAvatar =
+      (typeof user?.user_metadata?.avatar_url === "string" && user.user_metadata.avatar_url.trim()) ||
+      (typeof user?.user_metadata?.picture === "string" && user.user_metadata.picture.trim()) ||
+      (typeof user?.user_metadata?.image_url === "string" && user.user_metadata.image_url.trim()) ||
+      undefined;
+    if (metadataAvatar) setAvatarUri(metadataAvatar);
+    if (!isSupabaseConfigured() || !user?.id || !supabase) return;
+    void (async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("image_url,updated_at")
+        .eq("id", user.id)
+        .maybeSingle<{ image_url: string | null; updated_at: string | null }>();
+      if (cancelled) return;
+      setAvatarUri(
+        avatarUrlWithCacheBuster(data?.image_url, data?.updated_at) ?? metadataAvatar,
+      );
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
+  useEffect(() => {
     if (editingOrderId && !isReassignMode) {
       router.replace("/(customer)/pickup-services");
     }
   }, [editingOrderId, isReassignMode, router]);
 
   const resolveUserLocation = useCallback(async () => {
-    setLocationState("loading");
     const result = await getDeviceCoordinatesWithStatus();
     setUserCoordinates(result.coords);
-    setLocationState(result.status);
   }, []);
 
   useEffect(() => {
@@ -314,7 +353,6 @@ export default function PickLaundererScreen() {
       const result = await getDeviceCoordinatesWithStatus();
       if (cancelled) return;
       setUserCoordinates(result.coords);
-      setLocationState(result.status);
     })();
     return () => {
       cancelled = true;
@@ -455,8 +493,96 @@ export default function PickLaundererScreen() {
     if (chip === "offers") {
       list = list.filter((partner) => partnerHasActiveOffer(partner.offerPercent));
     }
-    return list;
+    return [...list].sort((a, b) => {
+      const aKm = partnerDistanceKm[a.id];
+      const bKm = partnerDistanceKm[b.id];
+      const aVal = typeof aKm === "number" && Number.isFinite(aKm) ? aKm : Number.POSITIVE_INFINITY;
+      const bVal = typeof bKm === "number" && Number.isFinite(bKm) ? bKm : Number.POSITIVE_INFINITY;
+      return aVal - bVal;
+    });
   }, [appliedFilters, chip, partnerDistanceKm, partners, searchQuery]);
+
+  const toMapPartner = useCallback(
+    (partner: PartnerPublicRow): PartnerMapMarker => ({
+      ...partner,
+      fulfillmentMode: partner.fulfillmentMode ?? fulfillmentMode,
+    }),
+    [fulfillmentMode],
+  );
+
+  const mapMarkers = useMemo<CustomerMapMarker[]>(() => {
+    const markers = filteredPartners.flatMap((partner) => {
+      const coords = partnerCoordinates[partner.id];
+      if (!coords) return [];
+      const mapped = toMapPartner(partner);
+      return [
+        {
+          id: partner.id,
+          name: partner.business_name.trim(),
+          mode: mapped.fulfillmentMode,
+          latitude: coords.latitude,
+          longitude: coords.longitude,
+          imageUrl: getPartnerPrimaryImage(mapped),
+          initial: partner.business_name.trim().charAt(0).toUpperCase() || "P",
+        },
+      ];
+    });
+
+    const groups = new Map<string, CustomerMapMarker[]>();
+    for (const marker of markers) {
+      const key = `${marker.latitude.toFixed(6)},${marker.longitude.toFixed(6)}`;
+      const list = groups.get(key) ?? [];
+      list.push(marker);
+      groups.set(key, list);
+    }
+
+    const out: CustomerMapMarker[] = [];
+    for (const grouped of groups.values()) {
+      const count = grouped.length;
+      for (let i = 0; i < count; i += 1) {
+        const marker = grouped[i];
+        if (count === 1) {
+          out.push(marker);
+          continue;
+        }
+        const angle = (2 * Math.PI * i) / count;
+        const radiusDegrees = 0.00018;
+        out.push({
+          ...marker,
+          latitude: marker.latitude + Math.sin(angle) * radiusDegrees,
+          longitude: marker.longitude + Math.cos(angle) * radiusDegrees,
+        });
+      }
+    }
+    return out;
+  }, [filteredPartners, partnerCoordinates, toMapPartner]);
+
+  const selectedPartner = useMemo(() => {
+    if (!selectedPartnerId) return null;
+    const partner = filteredPartners.find((row) => row.id === selectedPartnerId);
+    return partner ? toMapPartner(partner) : null;
+  }, [filteredPartners, selectedPartnerId, toMapPartner]);
+
+  useEffect(() => {
+    if (selectedPartnerId && !selectedPartner) {
+      setSelectedPartnerId(null);
+    }
+  }, [selectedPartner, selectedPartnerId]);
+
+  const mapData = useMemo(
+    () => ({
+      userCoordinates,
+      loadingPartners: loading,
+      mapMarkers,
+      setSelectedPartnerId,
+      selectedPartner,
+      selectedPartnerUpdatedLabel: selectedPartner
+        ? formatPartnerUpdatedAt(selectedPartner.updated_at)
+        : null,
+      selectedPartnerPrimaryImage: getPartnerPrimaryImage(selectedPartner),
+    }),
+    [loading, mapMarkers, selectedPartner, userCoordinates],
+  );
 
   const emptyMessage = searchQuery.trim()
     ? s.emptySearch
@@ -490,7 +616,7 @@ export default function PickLaundererScreen() {
     else if (next.topRated) setChip("rated");
     else if (next.offers) setChip("offers");
     else setChip("all");
-    setFiltersOpen(false);
+    setSheetPane(null);
   };
 
   const handlePartnerPress = useCallback(
@@ -511,6 +637,20 @@ export default function PickLaundererScreen() {
       });
     },
     [appliedFilters.categories, fulfillmentMode, isReassignMode, params.service, reorderOrderId, router],
+  );
+
+  const closeSheet = useCallback(() => {
+    setSelectedPartnerId(null);
+    setSheetPane(null);
+  }, []);
+
+  const handleMapPartnerPress = useCallback(
+    (partnerId: string) => {
+      const partner = filteredPartners.find((row) => row.id === partnerId);
+      closeSheet();
+      if (partner) void handlePartnerPress(partner);
+    },
+    [closeSheet, filteredPartners, handlePartnerPress],
   );
 
   return (
@@ -598,14 +738,6 @@ export default function PickLaundererScreen() {
               );
             })}
           </ScrollView>
-          <Pressable
-            style={({ pressed }) => [styles.filterIconBtn, pressed && styles.pressed]}
-            accessibilityRole="button"
-            accessibilityLabel={s.filters}
-            onPress={() => setFiltersOpen(true)}
-          >
-            <MaterialCommunityIcons name="tune-variant" size={16} color={UI.text} />
-          </Pressable>
         </View>
 
         <View style={styles.addressWrap}>
@@ -620,76 +752,69 @@ export default function PickLaundererScreen() {
             returnKeyType="done"
           />
         </View>
-        <View style={styles.locationInfoRow}>
-          <View style={styles.locationInfoTextWrap}>
-            <Text style={styles.locationInfoText}>
-              {locationState === "loading"
-                ? "Detecting your location..."
-                : locationState === "granted"
-                  ? "Showing distance from your current location."
-                  : locationState === "denied"
-                    ? "Location permission is off. Distance may show as — km."
-                    : locationState === "unavailable"
-                      ? "Unable to detect location right now. Distance may show as — km."
-                      : "Use your location to see accurate distance."}
-            </Text>
-          </View>
-          <Pressable
-            onPress={() => void resolveUserLocation()}
-            style={({ pressed }) => [styles.locationCtaBtn, pressed && styles.pressed]}
-          >
-            <Text style={styles.locationCtaText}>
-              {locationState === "granted" ? "Refresh" : "Use my location"}
-            </Text>
-          </Pressable>
-        </View>
       </SafeAreaView>
 
-      {loading ? (
-        <View style={styles.centerBlock}>
-          <ActivityIndicator color={UI.teal} size="small" />
-        </View>
-      ) : error ? (
-        <View style={styles.centerBlock}>
-          <Text style={styles.errorText}>{error}</Text>
-          <Pressable onPress={load} style={styles.retryBtn}>
-            <Text style={styles.retryText}>{s.retry}</Text>
-          </Pressable>
-        </View>
-      ) : filteredPartners.length === 0 ? (
-        <View style={styles.centerBlock}>
-          <Text style={styles.emptyText}>{emptyMessage}</Text>
-        </View>
-      ) : (
-        <ScrollView
-          style={styles.scroll}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          {filteredPartners.map((partner) => (
-            <View key={partner.id} style={{ width: cardWidth }}>
-              <LaundererCard
-                partner={partner}
-                distanceLabel={partnerDistanceLabels[partner.id] ?? PARTNER_DISTANCE_PLACEHOLDER}
-                onPress={() => void handlePartnerPress(partner)}
-                favorited={Boolean(favorites[partner.id])}
-                onToggleFavorite={() =>
-                  setFavorites((prev) => ({ ...prev, [partner.id]: !prev[partner.id] }))
-                }
-                isPickup={fulfillmentMode === "pickupDelivery"}
-              />
-            </View>
-          ))}
-        </ScrollView>
-      )}
+      <View style={styles.body}>
+        {loading ? (
+          <View style={styles.centerBlock}>
+            <ActivityIndicator color={UI.teal} size="small" />
+          </View>
+        ) : error ? (
+          <View style={styles.centerBlock}>
+            <Text style={styles.errorText}>{error}</Text>
+            <Pressable onPress={load} style={styles.retryBtn}>
+              <Text style={styles.retryText}>{s.retry}</Text>
+            </Pressable>
+          </View>
+        ) : filteredPartners.length === 0 ? (
+          <View style={styles.centerBlock}>
+            <Text style={styles.emptyText}>{emptyMessage}</Text>
+          </View>
+        ) : (
+          <ScrollView
+            style={styles.scroll}
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+          >
+            {filteredPartners.map((partner) => (
+              <View key={partner.id} style={{ width: cardWidth }}>
+                <LaundererCard
+                  partner={partner}
+                  distanceLabel={partnerDistanceLabels[partner.id] ?? PARTNER_DISTANCE_PLACEHOLDER}
+                  onPress={() => void handlePartnerPress(partner)}
+                  favorited={Boolean(favorites[partner.id])}
+                  onToggleFavorite={() =>
+                    setFavorites((prev) => ({ ...prev, [partner.id]: !prev[partner.id] }))
+                  }
+                  isPickup={fulfillmentMode === "pickupDelivery"}
+                />
+              </View>
+            ))}
+          </ScrollView>
+        )}
+      </View>
+
+      <FiltersMapFab
+        viewMode="list"
+        bottom={Math.max(insets.bottom, 12) + 12}
+        onFilters={() => setSheetPane("filters")}
+        onMap={() => setSheetPane("map")}
+        filtersLabel={s.filters}
+        mapLabel={s.map}
+        listLabel={s.list}
+      />
+
       <ProviderFiltersSheet
-        visible={filtersOpen}
+        visible={sheetPane != null}
+        pane={sheetPane ?? "filters"}
         value={appliedFilters}
         locationLabel={locationLabel}
         matchCount={matchCount}
-        onClose={() => setFiltersOpen(false)}
+        onClose={closeSheet}
         onApply={applyFilters}
         onChangeLocation={() => void resolveUserLocation()}
+        mapData={mapData}
+        onPartnerPress={handleMapPartnerPress}
       />
     </KeyboardAvoidingView>
   );
@@ -740,6 +865,9 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: "#FFFFFF",
   },
+  body: {
+    flex: 1,
+  },
   chipBar: {
     flexDirection: "row",
     alignItems: "center",
@@ -777,16 +905,6 @@ const styles = StyleSheet.create({
   chipTextSelected: {
     color: "#FFFFFF",
   },
-  filterIconBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    backgroundColor: UI.card,
-    borderWidth: 1,
-    borderColor: UI.chipBorder,
-    alignItems: "center",
-    justifyContent: "center",
-  },
   addressWrap: {
     flexDirection: "row",
     alignItems: "center",
@@ -807,7 +925,7 @@ const styles = StyleSheet.create({
     ...Platform.select({
       web: {
         borderWidth: 0,
-        outlineStyle: "none",
+        outlineWidth: 0,
         backgroundColor: "transparent",
       },
     }),
@@ -816,7 +934,7 @@ const styles = StyleSheet.create({
   scroll: { flex: 1 },
   scrollContent: {
     paddingHorizontal: H_PAD,
-    paddingBottom: 40,
+    paddingBottom: 96,
     flexDirection: "row",
     flexWrap: "wrap",
     gap: CARD_GAP,
@@ -847,34 +965,6 @@ const styles = StyleSheet.create({
     color: UI.teal,
     fontSize: 15,
     fontWeight: "600",
-  },
-  locationInfoRow: {
-    marginTop: 8,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  locationInfoTextWrap: {
-    flex: 1,
-  },
-  locationInfoText: {
-    color: UI.muted,
-    fontSize: 12,
-    lineHeight: 16,
-    fontFamily: "Poppins-Regular",
-  },
-  locationCtaBtn: {
-    borderWidth: 1,
-    borderColor: UI.teal,
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    backgroundColor: UI.card,
-  },
-  locationCtaText: {
-    color: UI.teal,
-    fontSize: 12,
-    fontFamily: "Poppins-Bold",
   },
   card: {
     backgroundColor: UI.card,
@@ -946,7 +1036,7 @@ const styles = StyleSheet.create({
     fontFamily: "Poppins-SemiBold",
   },
   cardBody: {
-    paddingHorizontal: 10,
+    paddingHorizontal: 8,
     paddingTop: 10,
     paddingBottom: 12,
     gap: 4,
@@ -965,15 +1055,15 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: 6,
+    gap: 4,
     marginTop: 4,
   },
   openPill: {
     backgroundColor: UI.openBg,
-    paddingHorizontal: 8,
+    paddingHorizontal: 6,
     paddingVertical: 4,
     borderRadius: 999,
-    flexShrink: 1,
+    flexShrink: 0,
   },
   openPillMuted: {
     backgroundColor: "#F3F4F6",
@@ -985,12 +1075,23 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: UI.openText,
     fontFamily: "Poppins-SemiBold",
+    flexShrink: 0,
   },
   openPillTextMuted: {
     color: UI.muted,
   },
   openPillTextClosed: {
     color: "#B91C1C",
+  },
+  fromPriceRow: {
+    flexShrink: 1,
+    minWidth: 0,
+    textAlign: "right",
+  },
+  fromLabel: {
+    fontSize: 11,
+    color: UI.muted,
+    fontFamily: "Poppins-Regular",
   },
   price: {
     fontSize: 12,

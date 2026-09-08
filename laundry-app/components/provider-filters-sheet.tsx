@@ -25,6 +25,7 @@ import Animated, {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { strings } from "@/constants/strings";
+import { CustomerHomeMap, type CustomerHomeMapViewData } from "@/components/customer-home-map";
 import type { PartnerPublicRow } from "@/lib/partner-discovery";
 import { isPartnerOpenNow } from "@/utils/partner-hours";
 import { isPartnerTopRated, partnerHasActiveOffer } from "@/utils/partner-offers";
@@ -117,28 +118,37 @@ export function applyProviderFilters(
   });
 }
 
+export type ProviderSheetPane = "filters" | "map";
+
 type Props = {
   visible: boolean;
+  pane: ProviderSheetPane;
   value: ProviderFilters;
   locationLabel: string;
   matchCount: (filters: ProviderFilters) => number;
   onClose: () => void;
   onApply: (next: ProviderFilters) => void;
   onChangeLocation: () => void;
+  mapData?: CustomerHomeMapViewData;
+  onPartnerPress?: (partnerId: string, mode: "dropoff" | "pickupDelivery") => void;
 };
 
 export function ProviderFiltersSheet({
   visible,
+  pane,
   value,
   locationLabel,
   matchCount,
   onClose,
   onApply,
   onChangeLocation,
+  mapData,
+  onPartnerPress,
 }: Props) {
   const s = strings.customer.pickLaunderer;
   const insets = useSafeAreaInsets();
   const [draft, setDraft] = useState<ProviderFilters>(value);
+  const showMap = pane === "map";
 
   useEffect(() => {
     if (!visible) return;
@@ -195,18 +205,37 @@ export function ProviderFiltersSheet({
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <GestureHandlerRootView style={styles.overlay}>
         <Pressable style={styles.backdrop} onPress={onClose} />
-        <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 12) }]}>
+        <View
+          style={[
+            styles.sheet,
+            showMap && styles.sheetFill,
+            !showMap && { paddingBottom: Math.max(insets.bottom, 12) },
+          ]}
+        >
           <View style={styles.handle} />
           <View style={styles.headerRow}>
             <View style={styles.headerText}>
-              <Text style={styles.title}>{s.filters}</Text>
-              <Text style={styles.subtitle}>{s.filtersSubtitle}</Text>
+              <Text style={styles.title}>{showMap ? s.map : s.filters}</Text>
+              <Text style={styles.subtitle}>{showMap ? s.mapSubtitle : s.filtersSubtitle}</Text>
             </View>
             <Pressable onPress={onClose} style={styles.closeBtn} accessibilityRole="button">
               <MaterialCommunityIcons name="close" size={16} color={PURPLE} />
             </Pressable>
           </View>
 
+          {showMap && mapData ? (
+            <View style={styles.mapFill}>
+              <CustomerHomeMap
+                strings={strings.customer.home}
+                mapData={mapData}
+                onPartnerPress={onPartnerPress ?? (() => {})}
+                recenterBottomOffset={Math.max(insets.bottom, 12) + 16}
+                mapBottomInset={Math.max(insets.bottom, 12)}
+                partnerSheetHost="map"
+              />
+            </View>
+          ) : (
+            <>
           <ScrollView
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.body}
@@ -385,6 +414,8 @@ export function ProviderFiltersSheet({
               </LinearGradient>
             </Pressable>
           </View>
+            </>
+          )}
         </View>
       </GestureHandlerRootView>
     </Modal>
@@ -675,6 +706,10 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     maxHeight: "92%",
+    overflow: "hidden",
+  },
+  sheetFill: {
+    height: "92%",
   },
   handle: {
     alignSelf: "center",
@@ -712,6 +747,11 @@ const styles = StyleSheet.create({
     backgroundColor: CARD_BG,
     alignItems: "center",
     justifyContent: "center",
+  },
+  mapFill: {
+    flex: 1,
+    overflow: "hidden",
+    backgroundColor: CARD_BG,
   },
   body: {
     paddingHorizontal: 20,

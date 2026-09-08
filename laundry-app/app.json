@@ -13,6 +13,11 @@
     "scheme": "laundryapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "androidNavigationBar": {
+      "backgroundColor": "#FFFFFF",
+      "barStyle": "dark-content",
+      "enforceContrast": false
+    },
     "ios": {
       "supportsTablet": false,
       "requireFullScreen": true,

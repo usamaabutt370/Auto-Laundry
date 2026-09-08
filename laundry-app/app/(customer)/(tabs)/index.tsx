@@ -6,14 +6,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { getTabBarBottomInset } from "@/components/bottom-tab-bar";
 import {
   CustomerHomeFeed,
-  HomeFiltersMapFab,
-  HomeFiltersSheet,
   type FulfillmentFilter,
   type HomeServiceId,
 } from "@/components/customer-home-feed";
-import { CustomerHomeMap } from "@/components/customer-home-map";
-import { CustomerHomeMapOverlays } from "@/components/customer-home-map-overlays";
-import { strings } from "@/constants/strings";
 import { useCustomerOrderDraft } from "@/contexts/customer-order-draft-context";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import {
@@ -23,22 +18,12 @@ import {
 
 export default function CustomerHomeScreen() {
   const router = useRouter();
-  const s = strings.customer.home;
   const insets = useSafeAreaInsets();
-  const { hideBottomTabBar, isWebDesktop } = useResponsiveLayout();
+  const { hideBottomTabBar } = useResponsiveLayout();
   const { setPickupDeliveryRequested, setSelectedServiceIds } = useCustomerOrderDraft();
   const tabBarInset = getTabBarBottomInset(Math.max(insets.bottom, 8), hideBottomTabBar);
-  const showWebTopNav = isWebDesktop;
   const mapData = useCustomerHomeMapData();
-  const partnerSheetOpen = mapData.selectedPartner != null;
-
-  const [viewMode, setViewMode] = useState<"feed" | "map">("feed");
-  const [filtersOpen, setFiltersOpen] = useState(false);
-  const [fulfillmentFilter, setFulfillmentFilter] = useState<FulfillmentFilter>("all");
-
-  const fabBottom = showWebTopNav ? Math.max(insets.bottom, 24) : tabBarInset + 16;
-  const mapBottomInset = showWebTopNav ? 72 : tabBarInset + 72;
-  const recenterBottomOffset = showWebTopNav ? Math.max(insets.bottom, 24) + 64 : tabBarInset + 80;
+  const [fulfillmentFilter] = useState<FulfillmentFilter>("all");
 
   useFocusEffect(
     useCallback(() => {
@@ -76,74 +61,16 @@ export default function CustomerHomeScreen() {
     goToPickLaunderer(fulfillmentFilter === "dropoff" ? "dropoff" : "pickupDelivery");
   };
 
-  const handleFilters = () => {
-    setFiltersOpen(true);
-  };
-
   return (
     <View style={styles.container}>
-      {viewMode === "map" ? (
-        <>
-          <CustomerHomeMap
-            strings={s}
-            onPartnerPress={(partnerId, mode) =>
-              router.push({
-                pathname: "/(customer)/launderer-detail",
-                params: { id: partnerId, mode },
-              })
-            }
-            recenterBottomOffset={recenterBottomOffset}
-            mapBottomInset={mapBottomInset}
-            mapData={mapData}
-            partnerSheetHost="screen"
-          />
-          <CustomerHomeMapOverlays
-            strings={s}
-            loadingPartners={mapData.loadingPartners}
-            recenterBottomOffset={recenterBottomOffset}
-            mapBottomInset={mapBottomInset}
-            onRecenter={() => {}}
-            selectedPartner={mapData.selectedPartner}
-            selectedPartnerPrimaryImage={mapData.selectedPartnerPrimaryImage}
-            selectedPartnerUpdatedLabel={mapData.selectedPartnerUpdatedLabel}
-            onClosePartner={() => mapData.setSelectedPartnerId(null)}
-            onPartnerPress={(partnerId, mode) =>
-              router.push({
-                pathname: "/(customer)/launderer-detail",
-                params: { id: partnerId, mode },
-              })
-            }
-            showMapChrome={false}
-            showPartnerSheet
-          />
-        </>
-      ) : (
-        <CustomerHomeFeed
-          mapData={mapData}
-          fulfillmentFilter={fulfillmentFilter}
-          bottomInset={tabBarInset}
-          onPressCategory={handleCategory}
-          onPressPartner={handlePartner}
-          onSeeAll={handleSeeAll}
-          onPressNotifications={() => router.push("/(customer)/(tabs)/chat")}
-          onPressProfile={() => router.push("/(customer)/(tabs)/profile")}
-        />
-      )}
-
-      <View pointerEvents={partnerSheetOpen ? "none" : "box-none"} style={StyleSheet.absoluteFill}>
-        <HomeFiltersMapFab
-          viewMode={viewMode}
-          bottom={fabBottom}
-          onFilters={handleFilters}
-          onMap={() => setViewMode((mode) => (mode === "map" ? "feed" : "map"))}
-        />
-      </View>
-
-      <HomeFiltersSheet
-        visible={filtersOpen}
-        value={fulfillmentFilter}
-        onChange={setFulfillmentFilter}
-        onClose={() => setFiltersOpen(false)}
+      <CustomerHomeFeed
+        mapData={mapData}
+        fulfillmentFilter={fulfillmentFilter}
+        bottomInset={tabBarInset}
+        onPressCategory={handleCategory}
+        onPressPartner={handlePartner}
+        onSeeAll={handleSeeAll}
+        onPressProfile={() => router.push("/(customer)/(tabs)/profile")}
       />
     </View>
   );

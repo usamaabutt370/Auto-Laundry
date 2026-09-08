@@ -36,7 +36,16 @@ export default function CustomerLayout() {
         <Stack.Screen name="pick-launderer" />
         <Stack.Screen
           name="launderer-detail"
-          options={{ presentation: "modal", animation: "slide_from_bottom" }}
+          options={{
+            presentation: "modal",
+            animation: "slide_from_bottom",
+            // iOS page sheets default to a mid-height detent; lock to full height
+            // so the sticky Select footer is visible without dragging the sheet up.
+            gestureEnabled: true,
+            sheetAllowedDetents: [1],
+            sheetInitialDetentIndex: 0,
+            sheetGrabberVisible: true,
+          }}
         />
       </Stack>
     </WebAreaShell>

@@ -21,6 +21,7 @@ type Props = {
 export function AvatarImage({ uri, name, size = 80, style }: Props) {
   const borderRadius = size / 2;
   const initials = getInitials(name ?? "");
+  const fontSize = Math.round(size * 0.4);
 
   return (
     <View
@@ -29,13 +30,18 @@ export function AvatarImage({ uri, name, size = 80, style }: Props) {
         style,
       ]}
     >
-      <View
-        style={[
-          styles.initialsWrap,
-          { width: size, height: size, borderRadius },
-        ]}
-      >
-        <Text style={[styles.initialsText, { fontSize: size * 0.35 }]}>
+      <View style={[styles.initialsWrap, { borderRadius }]}>
+        <Text
+          style={[
+            styles.initialsText,
+            {
+              fontSize,
+              lineHeight: fontSize,
+              width: size,
+              textAlign: "center",
+            },
+          ]}
+        >
           {initials}
         </Text>
       </View>
@@ -57,12 +63,12 @@ const styles = StyleSheet.create({
     backgroundColor: c.backgroundDark,
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 2,
-    borderColor: c.blue600,
   },
   initialsText: {
     color: c.white,
+    fontFamily: "Poppins-Bold",
     fontWeight: "700",
-    letterSpacing: 1,
+    includeFontPadding: false,
+    textAlignVertical: "center",
   },
 });

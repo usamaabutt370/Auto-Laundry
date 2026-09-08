@@ -48,7 +48,7 @@ export function getPartnerPrimaryImage(partner: PartnerMapMarker | null): string
     (item): item is string => typeof item === "string" && item.trim().length > 0,
   );
   if (businessImage) return businessImage.trim();
-  return avatarUrlWithCacheBuster(partner.image_url, partner.updated_at);
+  return avatarUrlWithCacheBuster(partner.image_url, partner.updated_at) ?? null;
 }
 
 export function useCustomerHomeMapData() {

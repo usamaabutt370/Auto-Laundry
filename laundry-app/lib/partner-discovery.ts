@@ -21,6 +21,7 @@ export type PartnerPublicRow = {
   offerPercent: number | null;
   offerCode: string | null;
   serviceTypes: LaundererServiceType[];
+  minPrice: number | null;
   fulfillmentMode?: PartnerFulfillmentMode;
 };
 
@@ -66,6 +67,7 @@ function toMapMarker(
     offerPercent: row.offerPercent ?? null,
     offerCode: row.offerCode ?? null,
     serviceTypes: row.serviceTypes ?? [],
+    minPrice: row.minPrice ?? null,
     fulfillmentMode: amount.length > 0 ? "pickupDelivery" : "dropoff",
   };
 }
@@ -78,6 +80,7 @@ function withDiscoveryDefaults<T extends PartnerPublicRow>(row: T): T {
     offerPercent: row.offerPercent ?? null,
     offerCode: row.offerCode ?? null,
     serviceTypes: row.serviceTypes ?? [],
+    minPrice: row.minPrice ?? null,
   };
 }
 
@@ -122,17 +125,31 @@ async function attachDiscoveryExtras<T extends PartnerPublicRow>(rows: T[]): Pro
 
   return rows.map((row) => {
     const rating = ratingById.get(row.id);
+    const reviewCount = rating?.count ?? 0;
+    const reviewAvg = rating && Number.isFinite(rating.avg) ? rating.avg : null;
     const categories = categoriesById.get(row.id) ?? [];
     const offer = bestOfferForCategories(categories);
     return {
       ...row,
-      ratingAvg: rating && Number.isFinite(rating.avg) ? rating.avg : null,
-      ratingCount: rating?.count ?? 0,
+      ratingAvg: reviewCount > 0 && reviewAvg != null ? reviewAvg : 1,
+      ratingCount: reviewCount > 0 ? reviewCount : 1,
       offerPercent: offer?.percent ?? null,
       offerCode: offer?.code ?? null,
       serviceTypes: serviceCategoriesToTypes(categories, pricesById.get(row.id)),
+      minPrice: minPricedService(categories, pricesById.get(row.id) ?? []),
     };
   });
+}
+
+function minPricedService(categories: string[], prices: string[]): number | null {
+  let min = Number.POSITIVE_INFINITY;
+  for (let i = 0; i < prices.length; i++) {
+    if ((categories[i] ?? "").trim() === "Pickup & Delivery") continue;
+    const amount = parsePriceDisplay(prices[i] ?? "");
+    if (amount == null || amount <= 0) continue;
+    if (amount < min) min = amount;
+  }
+  return Number.isFinite(min) ? min : null;
 }
 
 /** Single-query partner fetch for the customer home map. */
@@ -283,6 +300,7 @@ export async function fetchPartnerDetail(partnerId: string): Promise<{
       ratingCount: enriched?.ratingCount ?? 0,
       offerPercent: offer?.percent ?? enriched?.offerPercent ?? null,
       offerCode: offer?.code ?? enriched?.offerCode ?? null,
+      minPrice: enriched?.minPrice ?? null,
     },
     services: (serviceRows ?? []) as PartnerServiceLine[],
     error: null,
