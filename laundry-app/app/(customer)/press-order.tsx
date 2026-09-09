@@ -1,20 +1,16 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { AppHeader } from "@/components/app-header";
-import {
-  CustomerItemizedOrderLayout,
-  customerOrderFooterStyles,
-} from "@/components/customer-itemized-order-layout";
+import { CustomerItemizedOrderLayout } from "@/components/customer-itemized-order-layout";
 import { CustomerLiveEstimateFooter } from "@/components/customer-live-estimate-footer";
 import {
   WashFoldPackageBox,
   WashFoldPackageGrid,
 } from "@/components/wash-fold-package-box";
-import { theme } from "@/constants/theme";
 import type { CustomerOrderDraft } from "@/contexts/customer-order-draft-context";
 import { useCustomerOrderDraft } from "@/contexts/customer-order-draft-context";
 import { useLocale } from "@/contexts/locale-context";
@@ -30,7 +26,17 @@ import {
 import { getStrings } from "@/locales";
 import { formatMoney } from "@/utils/format-money";
 
-const c = theme.colors;
+const UI = {
+  bg: "#F7F8FA",
+  card: "#FFFFFF",
+  text: "#111827",
+  muted: "#6B7280",
+  teal: "#12B886",
+  backBg: "#EEF2F6",
+  openBg: "#ECFDF5",
+  chipBorder: "#E5E7EB",
+  shadow: "rgba(17, 24, 39, 0.08)",
+};
 
 export default function PressOrderScreen() {
   const router = useRouter();
@@ -209,12 +215,12 @@ export default function PressOrderScreen() {
             <MaterialCommunityIcons
               name="minus"
               size={20}
-              color={qty <= 0 ? "rgba(255,255,255,0.5)" : c.white}
+              color={qty <= 0 ? "#D1D5DB" : UI.text}
             />
           </Pressable>
           <Text style={styles.stepperValue}>{qty}</Text>
           <Pressable onPress={() => setQty(def.id, 1)} style={styles.stepperBtn}>
-            <MaterialCommunityIcons name="plus" size={20} color={c.white} />
+            <MaterialCommunityIcons name="plus" size={20} color={UI.teal} />
           </Pressable>
         </View>
       </View>
@@ -237,6 +243,7 @@ export default function PressOrderScreen() {
         priceDisplay={priceDisplay}
         selected={selected}
         onPress={() => togglePackage(def.id)}
+        appearance="light"
         accessibilityLabel={`${label}, ${priceDisplay}`}
       />
     );
@@ -244,21 +251,31 @@ export default function PressOrderScreen() {
 
   return (
     <View style={styles.container}>
-      <SafeAreaView edges={["top"]}>
-        <AppHeader
-          title={s.title}
-          leftIcon="arrow-left"
-          onLeftPress={() => router.back()}
-          leftAccessibilityLabel="Go back"
-        />
+      <SafeAreaView edges={["top"]} style={styles.headerSafe}>
+        <View style={styles.headerRow}>
+          <View style={styles.headerSide} />
+          <Text style={styles.headerTitle} numberOfLines={1}>
+            {s.title}
+          </Text>
+          <Pressable
+            onPress={() => router.back()}
+            style={styles.closeBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Close"
+          >
+            <MaterialCommunityIcons name="close" size={20} color={UI.text} />
+          </Pressable>
+        </View>
       </SafeAreaView>
 
       <CustomerItemizedOrderLayout
+        appearance="light"
         scrollContentStyle={styles.scrollContent}
         footer={
           <>
             {hasSelectedItems ? (
               <CustomerLiveEstimateFooter
+                appearance="light"
                 strings={sLive}
                 partnerId={draft.partnerId}
                 partnerName={draft.partnerName}
@@ -269,12 +286,18 @@ export default function PressOrderScreen() {
             ) : null}
             <Pressable
               onPress={() => router.back()}
-              style={({ pressed }) => [
-                customerOrderFooterStyles.actionBtn,
-                pressed && styles.pressed,
-              ]}
+              style={({ pressed }) => [styles.confirmWrap, pressed && styles.pressed]}
+              accessibilityRole="button"
+              accessibilityLabel={sDet.save}
             >
-              <Text style={customerOrderFooterStyles.actionLabel}>{sDet.save}</Text>
+              <LinearGradient
+                colors={["#4A3AFF", "#12B886"]}
+                start={{ x: 0, y: 0.5 }}
+                end={{ x: 1, y: 0.5 }}
+                style={styles.confirmBtn}
+              >
+                <Text style={styles.confirmLabel}>{sDet.save}</Text>
+              </LinearGradient>
             </Pressable>
           </>
         }
@@ -365,11 +388,35 @@ export default function PressOrderScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: c.background },
-  pressed: { opacity: 0.8 },
+  container: { flex: 1, backgroundColor: UI.bg },
+  headerSafe: { backgroundColor: UI.bg },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 15,
+    gap: 10,
+  },
+  headerTitle: {
+    flex: 1,
+    fontSize: 18,
+    color: UI.text,
+    fontFamily: "Poppins-Bold",
+    textAlign: "center",
+  },
+  headerSide: { width: 36 },
+  closeBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: UI.backBg,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  pressed: { opacity: 0.85 },
   scrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 4,
+    paddingHorizontal: 16,
+    paddingTop: 8,
     paddingBottom: 16,
   },
   listSection: {
@@ -389,64 +436,75 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 10,
     borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: "rgba(255,255,255,0.35)",
-    backgroundColor: "rgba(0,0,0,0.12)",
+    borderWidth: 1,
+    borderColor: UI.chipBorder,
+    backgroundColor: UI.card,
   },
   tabBtnActive: {
-    backgroundColor: c.white,
-    borderColor: c.white,
+    backgroundColor: UI.openBg,
+    borderColor: UI.teal,
   },
   tabLabel: {
     fontSize: 15,
-    fontWeight: "700",
-    color: "rgba(255,255,255,0.9)",
+    fontFamily: "Poppins-SemiBold",
+    color: UI.muted,
   },
   tabLabelActive: {
-    color: c.themeBlack,
+    color: UI.text,
   },
   tabBadge: {
     minWidth: 22,
     height: 22,
     borderRadius: 11,
     paddingHorizontal: 6,
-    backgroundColor: c.lightBlue,
+    backgroundColor: UI.teal,
     alignItems: "center",
     justifyContent: "center",
   },
   tabBadgeText: {
     fontSize: 12,
-    fontWeight: "700",
-    color: c.white,
+    fontFamily: "Poppins-Bold",
+    color: "#FFFFFF",
   },
   itemCard: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: c.blue900,
-    borderRadius: 14,
+    backgroundColor: UI.card,
+    borderRadius: 16,
     paddingVertical: 14,
     paddingHorizontal: 14,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.15)",
+    borderColor: UI.chipBorder,
+    shadowColor: UI.shadow,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 10,
+    elevation: 2,
   },
   itemLeft: { flex: 1, paddingRight: 12 },
-  itemName: { fontSize: 16, fontWeight: "700", color: c.white },
+  itemName: {
+    fontSize: 16,
+    fontFamily: "Poppins-SemiBold",
+    color: UI.text,
+  },
   unitPrice: {
     fontSize: 13,
-    color: "rgba(255,255,255,0.65)",
+    fontFamily: "Poppins-Regular",
+    color: UI.muted,
     marginTop: 2,
   },
   lineSubtotal: {
     fontSize: 14,
-    fontWeight: "700",
-    color: c.lightBlue,
+    fontFamily: "Poppins-Bold",
+    color: UI.teal,
     marginTop: 4,
   },
   emptyText: {
-    color: "rgba(255,255,255,0.75)",
+    color: UI.muted,
     fontSize: 14,
+    fontFamily: "Poppins-Regular",
     marginBottom: 12,
     textAlign: "center",
     paddingVertical: 24,
@@ -456,15 +514,32 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: "rgba(255,255,255,0.2)",
+    backgroundColor: UI.backBg,
     alignItems: "center",
     justifyContent: "center",
   },
   stepperValue: {
     fontSize: 17,
-    fontWeight: "700",
-    color: c.white,
+    fontFamily: "Poppins-Bold",
+    color: UI.text,
     minWidth: 28,
     textAlign: "center",
+  },
+  confirmWrap: {
+    marginTop: 8,
+    marginBottom: 8,
+    borderRadius: 16,
+    overflow: "hidden",
+  },
+  confirmBtn: {
+    borderRadius: 16,
+    paddingVertical: 16,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  confirmLabel: {
+    fontSize: 16,
+    fontFamily: "Poppins-Bold",
+    color: "#FFFFFF",
   },
 });

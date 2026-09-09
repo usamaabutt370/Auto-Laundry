@@ -41,6 +41,7 @@ type Props = {
   children: ReactNode;
   footer: ReactNode;
   scrollContentStyle?: StyleProp<ViewStyle>;
+  appearance?: "dark" | "light";
 };
 
 /**
@@ -51,7 +52,9 @@ export function CustomerItemizedOrderLayout({
   children,
   footer,
   scrollContentStyle,
+  appearance = "dark",
 }: Props) {
+  const light = appearance === "light";
   return (
     <KeyboardAvoidingView
       style={styles.keyboardView}
@@ -67,7 +70,7 @@ export function CustomerItemizedOrderLayout({
         >
           {children}
         </ScrollView>
-        <SafeAreaView style={styles.footer} edges={["bottom"]}>
+        <SafeAreaView style={[styles.footer, light && styles.footerLight]} edges={["bottom"]}>
           {footer}
         </SafeAreaView>
       </View>
@@ -86,5 +89,9 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: "rgba(255,255,255,0.06)",
     paddingHorizontal: CUSTOMER_ORDER_FOOTER_PAD,
+  },
+  footerLight: {
+    backgroundColor: "#F7F8FA",
+    borderTopColor: "#E5E7EB",
   },
 });

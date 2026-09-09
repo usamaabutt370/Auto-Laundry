@@ -1,9 +1,15 @@
 import { useCallback, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { theme } from "@/constants/theme";
-
-const c = theme.colors;
+const UI = {
+  card: "#FFFFFF",
+  text: "#111827",
+  muted: "#6B7280",
+  teal: "#12B886",
+  chipBorder: "#E5E7EB",
+  bg: "#F7F8FA",
+  red: "#DC2626",
+};
 
 export type ConfirmDialogOptions = {
   title: string;
@@ -47,7 +53,10 @@ function ConfirmDialogView({ pending, onClose }: ConfirmDialogViewProps) {
               pressed && styles.pressed,
             ]}
           >
-            <Text style={styles.confirmText}>{pending.confirmLabel ?? "OK"}</Text>
+            <Text style={[
+              styles.confirmText,
+              pending.destructive && styles.destructiveText,
+            ]}>{pending.confirmLabel ?? "OK"}</Text>
           </Pressable>
         </View>
       </View>
@@ -92,27 +101,33 @@ const styles = StyleSheet.create({
   },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: c.sheetBackdrop,
+    backgroundColor: "rgba(17, 24, 39, 0.45)",
   },
   card: {
     width: "100%",
     maxWidth: 400,
-    backgroundColor: c.blue900,
-    borderRadius: 16,
+    backgroundColor: UI.card,
+    borderRadius: 20,
     padding: 24,
     borderWidth: 1,
-    borderColor: c.modalBorder,
+    borderColor: UI.chipBorder,
     zIndex: 1,
+    shadowColor: "rgba(17, 24, 39, 0.12)",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 1,
+    shadowRadius: 16,
   },
   title: {
     fontSize: 18,
+    fontFamily: "Poppins-Bold",
     fontWeight: "700",
-    color: c.white,
+    color: UI.text,
     marginBottom: 8,
   },
   message: {
     fontSize: 15,
-    color: "rgba(255, 255, 255, 0.85)",
+    fontFamily: "Poppins-Regular",
+    color: UI.muted,
     lineHeight: 22,
     marginBottom: 24,
   },
@@ -122,30 +137,37 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   btn: {
-    paddingVertical: 10,
+    paddingVertical: 12,
     paddingHorizontal: 16,
-    borderRadius: 10,
+    borderRadius: 999,
     minWidth: 88,
     alignItems: "center",
   },
   cancelBtn: {
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    backgroundColor: UI.bg,
+    borderWidth: 1,
+    borderColor: UI.chipBorder,
   },
   confirmBtn: {
-    backgroundColor: c.lightBlue,
+    backgroundColor: UI.teal,
   },
   destructiveBtn: {
-    backgroundColor: "#D9534F",
+    backgroundColor: UI.red,
   },
   cancelText: {
-    color: c.white,
+    color: UI.text,
     fontSize: 15,
+    fontFamily: "Poppins-SemiBold",
     fontWeight: "600",
   },
   confirmText: {
-    color: c.white,
+    color: "#FFFFFF",
     fontSize: 15,
+    fontFamily: "Poppins-Bold",
     fontWeight: "700",
+  },
+  destructiveText: {
+    color: "#FFFFFF",
   },
   pressed: {
     opacity: 0.8,

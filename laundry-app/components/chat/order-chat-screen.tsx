@@ -4,6 +4,7 @@ import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { StatusBar } from "expo-status-bar";
 import {
   ActivityIndicator,
   FlatList,
@@ -47,7 +48,14 @@ import {
 import { supabase } from "@/lib/supabase";
 import { pickImagesFromDocument } from "@/utils/pick-images";
 
-const c = theme.colors;
+const UI = {
+  bg: "#F7F8FA",
+  card: "#FFFFFF",
+  text: "#111827",
+  muted: "#6B7280",
+  teal: "#12B886",
+  chipBorder: "#E5E7EB",
+};
 const fs = theme.fontSize;
 const CHAT_INPUT_NATIVE_ID = "order-chat-input";
 const PAD = 20;
@@ -106,7 +114,7 @@ function ChatMessageImage({
           },
         ]}
       >
-        <MaterialCommunityIcons name="image-broken-variant" size={28} color={c.blue500} />
+        <MaterialCommunityIcons name="image-broken-variant" size={28} color={UI.muted} />
         <Text style={styles.imageFailedText}>Tap to open in browser</Text>
       </Pressable>
     );
@@ -482,8 +490,10 @@ export function OrderChatScreen() {
 
   return (
     <View style={styles.container}>
+      <StatusBar style="dark" />
       <SafeAreaView style={styles.safeTop} edges={["top"]}>
         <AppHeader
+          appearance="light"
           title={selectionMode ? `${selectedMessageIds.length} selected` : headerTitle}
           titleVerified={!selectionMode && headerTitleVerified}
           subtitle={selectionMode ? null : headerSubtitle}
@@ -513,7 +523,7 @@ export function OrderChatScreen() {
                   onPress={onDeleteSelectedMessages}
                   style={({ pressed }) => [styles.headerActionBtn, pressed && styles.pressed]}
                 >
-                  <MaterialCommunityIcons name="delete-outline" size={22} color={c.white} />
+                  <MaterialCommunityIcons name="delete-outline" size={22} color={UI.text} />
                 </Pressable>
               </View>
             ) : null
@@ -524,7 +534,7 @@ export function OrderChatScreen() {
 
       {loading ? (
         <View style={styles.center}>
-          <ActivityIndicator color={c.white} />
+          <ActivityIndicator color={UI.teal} />
         </View>
       ) : error ? (
         <View style={styles.center}>
@@ -594,7 +604,7 @@ export function OrderChatScreen() {
                       ]}
                     >
                       {isSelected ? (
-                        <MaterialCommunityIcons name="check" size={12} color={c.background} />
+                        <MaterialCommunityIcons name="check" size={12} color="#FFFFFF" />
                       ) : null}
                     </View>
                   ) : null}
@@ -652,7 +662,7 @@ export function OrderChatScreen() {
                             accessibilityLabel="Uploading image"
                           />
                           <View style={styles.uploadingOverlay}>
-                            <ActivityIndicator size="small" color={c.white} />
+                            <ActivityIndicator size="small" color="#FFFFFF" />
                             <Text style={styles.uploadingText}>{uploadItem?.statusText}</Text>
                             <View style={styles.progressTrack}>
                               <View
@@ -667,16 +677,16 @@ export function OrderChatScreen() {
                       ) : null}
                       {(uploadItem?.body ?? sentItem?.body ?? "").trim() ? (
                         <Text
-                          style={
-                            !isUploading && sentItem?.imageUrl
-                              ? [styles.bubbleText, styles.bubbleCaption]
-                              : styles.bubbleText
-                          }
+                          style={[
+                            styles.bubbleText,
+                            !mine && styles.bubbleTextOther,
+                            !isUploading && sentItem?.imageUrl ? styles.bubbleCaption : null,
+                          ]}
                         >
                           {uploadItem?.body ?? sentItem?.body}
                         </Text>
                       ) : null}
-                      <Text style={styles.bubbleTime}>
+                      <Text style={[styles.bubbleTime, !mine && styles.bubbleTimeOther]}>
                         {isUploading
                           ? `${Math.max(1, Math.round((uploadItem?.progress ?? 0) * 100))}%`
                           : formatClock(sentItem?.createdAt ?? new Date().toISOString())}
@@ -721,7 +731,7 @@ export function OrderChatScreen() {
                       disabled={sending}
                       accessibilityLabel="Remove image attachment"
                     >
-                      <MaterialCommunityIcons name="close" size={12} color={c.white} />
+                      <MaterialCommunityIcons name="close" size={12} color="#FFFFFF" />
                     </Pressable>
                   </View>
                 ))}
@@ -738,7 +748,7 @@ export function OrderChatScreen() {
                     void onSend();
                   }}
                   placeholder="Type a message..."
-                  placeholderTextColor={c.blue500}
+                  placeholderTextColor={UI.muted}
                   style={styles.input}
                   multiline
                   returnKeyType="send"
@@ -755,7 +765,7 @@ export function OrderChatScreen() {
                   ]}
                   accessibilityLabel="Open gallery"
                 >
-                  <MaterialCommunityIcons name="paperclip" size={20} color={c.white} />
+                  <MaterialCommunityIcons name="paperclip" size={20} color={UI.muted} />
                 </Pressable>
                 <Pressable
                   onPress={onOpenCamera}
@@ -767,7 +777,7 @@ export function OrderChatScreen() {
                   ]}
                   accessibilityLabel="Open camera"
                 >
-                  <MaterialCommunityIcons name="camera-outline" size={22} color={c.white} />
+                  <MaterialCommunityIcons name="camera-outline" size={22} color={UI.muted} />
                 </Pressable>
               </View>
               <Pressable
@@ -779,7 +789,7 @@ export function OrderChatScreen() {
                   pressed && styles.pressed,
                 ]}
               >
-                <MaterialCommunityIcons name="send" size={20} color={c.white} />
+                <MaterialCommunityIcons name="send" size={20} color="#FFFFFF" />
               </Pressable>
             </View>
             </View>
@@ -798,7 +808,7 @@ export function OrderChatScreen() {
             onPress={() => setPreviewImageUrl(null)}
             accessibilityLabel="Close image preview"
           >
-            <MaterialCommunityIcons name="close" size={26} color={c.white} />
+            <MaterialCommunityIcons name="close" size={26} color="#FFFFFF" />
           </Pressable>
           <Pressable style={styles.previewBackdrop} onPress={() => setPreviewImageUrl(null)}>
             {previewImageUrl ? (
@@ -829,13 +839,13 @@ export function OrderChatScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: c.background,
+    backgroundColor: UI.bg,
   },
   safeTop: {
     paddingBottom: 8,
+    backgroundColor: UI.bg,
   },
   headerActionBtn: {
-    // width: 32,
     height: 32,
     alignItems: "center",
     justifyContent: "center",
@@ -846,19 +856,19 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   headerActionText: {
-    color: c.white,
+    color: UI.text,
     fontSize: fs.xxSmallText,
     fontWeight: "700",
   },
   headerTitle: {
-    color: c.white,
+    color: UI.text,
     fontSize: fs.titleMedium,
     fontWeight: "700",
     textAlign: "center",
   },
   headerSubtitle: {
     marginTop: 2,
-    color: c.blue500,
+    color: UI.muted,
     fontSize: fs.xxSmallText,
     fontWeight: "600",
     textAlign: "center",
@@ -901,34 +911,34 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   bubbleMine: {
-    backgroundColor: c.lightBlue,
+    backgroundColor: UI.teal,
   },
   bubbleOther: {
-    backgroundColor: c.blue900,
+    backgroundColor: UI.card,
     borderWidth: 1,
-    borderColor: c.outline,
+    borderColor: UI.chipBorder,
   },
   bubbleSelected: {
     borderWidth: 2,
-    borderColor: c.white,
+    borderColor: UI.teal,
   },
   selectionCheckboxOutside: {
     width: 18,
     height: 18,
     borderRadius: 9,
     borderWidth: 1.5,
-    borderColor: c.white,
+    borderColor: UI.teal,
     backgroundColor: "transparent",
     alignItems: "center",
     justifyContent: "center",
   },
   selectionCheckboxChecked: {
-    backgroundColor: c.white,
+    backgroundColor: UI.teal,
   },
   imageFrame: {
     borderRadius: 10,
     overflow: "hidden",
-    backgroundColor: "rgba(0,0,0,0.18)",
+    backgroundColor: "#E5E7EB",
     alignSelf: "flex-start",
     flexShrink: 0,
   },
@@ -940,7 +950,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
   },
   imageFailedText: {
-    color: c.blue500,
+    color: UI.muted,
     fontSize: fs.xxSmallText,
     textAlign: "center",
   },
@@ -949,7 +959,7 @@ const styles = StyleSheet.create({
     height: CHAT_IMAGE_BOX_SIZE,
     borderRadius: 10,
     overflow: "hidden",
-    backgroundColor: "rgba(0,0,0,0.18)",
+    backgroundColor: "#E5E7EB",
     alignSelf: "flex-end",
   },
   uploadingImage: {
@@ -965,7 +975,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   uploadingText: {
-    color: c.white,
+    color: "#FFFFFF",
     fontSize: fs.xxSmallText,
     fontWeight: "700",
   },
@@ -978,24 +988,29 @@ const styles = StyleSheet.create({
   },
   progressFill: {
     height: "100%",
-    backgroundColor: c.white,
+    backgroundColor: "#FFFFFF",
   },
   bubbleCaption: {
     marginTop: 8,
   },
   bubbleText: {
-    color: c.white,
+    color: "#FFFFFF",
     fontSize: fs.smallText,
     lineHeight: 20,
   },
+  bubbleTextOther: {
+    color: UI.text,
+  },
   bubbleTime: {
-    color: c.blue500,
+    color: "rgba(255,255,255,0.8)",
     fontSize: fs.xxSmallText,
     marginTop: 6,
     alignSelf: "flex-end",
   },
+  bubbleTimeOther: {
+    color: UI.muted,
+  },
   attachBtn: {
-    // kept for backward compatibility in case reused later
     width: 0,
     height: 0,
   },
@@ -1016,15 +1031,15 @@ const styles = StyleSheet.create({
   },
   composerSticky: {
     flexShrink: 0,
-    backgroundColor: c.background,
+    backgroundColor: UI.bg,
   },
   composer: {
     borderTopWidth: 1,
-    borderTopColor: "rgba(255,255,255,0.12)",
+    borderTopColor: UI.chipBorder,
     paddingHorizontal: PAD,
     paddingTop: 10,
     gap: 8,
-    backgroundColor: c.background,
+    backgroundColor: UI.bg,
   },
   pendingImagesTray: {
     maxHeight: 40,
@@ -1039,8 +1054,8 @@ const styles = StyleSheet.create({
     minHeight: 42,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: c.outline,
-    backgroundColor: c.blue900,
+    borderColor: UI.chipBorder,
+    backgroundColor: UI.card,
     paddingLeft: 8,
     paddingRight: 8,
     flexDirection: "row",
@@ -1052,9 +1067,9 @@ const styles = StyleSheet.create({
     height: 32,
     borderRadius: 8,
     overflow: "hidden",
-    backgroundColor: c.blue900,
+    backgroundColor: UI.card,
     borderWidth: 1,
-    borderColor: c.outline,
+    borderColor: UI.chipBorder,
     marginRight: 6,
   },
   pendingImagesRow: {
@@ -1064,7 +1079,7 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 40,
     maxHeight: 120,
-    color: c.white,
+    color: UI.text,
     paddingHorizontal: 4,
     paddingTop: 10,
     paddingBottom: 10,
@@ -1087,9 +1102,7 @@ const styles = StyleSheet.create({
     borderRadius: 21,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: c.lightBlue,
-    borderWidth: 1,
-    borderColor: c.filledButtonBorder,
+    backgroundColor: UI.teal,
   },
   sendBtnDisabled: {
     opacity: 0.45,
@@ -1102,19 +1115,20 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   errorText: {
-    color: "#fecaca",
+    color: "#B91C1C",
     textAlign: "center",
     fontSize: fs.smallText,
   },
   retryBtn: {
     borderWidth: 1,
-    borderColor: c.outline,
+    borderColor: UI.chipBorder,
     borderRadius: 999,
     paddingHorizontal: 16,
     paddingVertical: 8,
+    backgroundColor: UI.card,
   },
   retryText: {
-    color: c.white,
+    color: UI.text,
     fontSize: fs.descText,
     fontWeight: "600",
   },
@@ -1123,7 +1137,7 @@ const styles = StyleSheet.create({
     paddingTop: 30,
   },
   emptyText: {
-    color: c.blue500,
+    color: UI.muted,
     fontSize: fs.smallText,
     textAlign: "center",
   },
@@ -1136,7 +1150,7 @@ const styles = StyleSheet.create({
   },
   riderAssignmentTime: {
     fontSize: fs.xxSmallText,
-    color: c.blue500,
+    color: UI.muted,
   },
   pressed: {
     opacity: 0.85,

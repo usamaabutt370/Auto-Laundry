@@ -14,10 +14,11 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams, useSegments } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
+import { LinearGradient } from "expo-linear-gradient";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { StatusBar } from "expo-status-bar";
 import { showAppAlert } from "@/components/app-alert";
 import { AppHeader } from "@/components/app-header";
-import { theme } from "@/constants/theme";
 import { avatarUrlWithCacheBuster } from "@/lib/avatar";
 import {
   notifyProfileAvatarUpdated,
@@ -29,7 +30,15 @@ import { parsePhoneNumberFromString } from "libphonenumber-js";
 import type { CountryCode } from "libphonenumber-js";
 import { Input } from "@/components";
 
-const c = theme.colors;
+const UI = {
+  bg: "#F7F8FA",
+  card: "#FFFFFF",
+  text: "#111827",
+  muted: "#6B7280",
+  teal: "#12B886",
+  chipBorder: "#E5E7EB",
+  iconWell: "#F3F4F6",
+};
 
 const AVATAR_BUCKET = "avatars";
 const AVATAR_PATH_PREFIX = "avatar"; // file will be avatar.jpg or avatar.png
@@ -424,8 +433,9 @@ export default function EditProfileScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.container} edges={["top"]}>
+        <StatusBar style="dark" />
         <View style={styles.loadingWrap}>
-          <ActivityIndicator color={c.white} size="small" />
+          <ActivityIndicator color={UI.teal} size="small" />
         </View>
       </SafeAreaView>
     );
@@ -433,11 +443,13 @@ export default function EditProfileScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
+      <StatusBar style="dark" />
       <KeyboardAvoidingView
         style={styles.keyboardView}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
         <AppHeader
+          appearance="light"
           title={isPaymentMode ? "Payment" : "Profile"}
           leftIcon="arrow-left"
           onLeftPress={() => router.back()}
@@ -470,7 +482,7 @@ export default function EditProfileScreen() {
                   <MaterialCommunityIcons
                     name="account"
                     size={48}
-                    color={c.blue500}
+                    color={UI.muted}
                   />
                 </View>
               )}
@@ -505,13 +517,13 @@ export default function EditProfileScreen() {
               ) : (
                 <View style={styles.avatarPlaceholder}>
                   {uploadingImage ? (
-                    <ActivityIndicator color={c.blue500} size="small" />
+                    <ActivityIndicator color={UI.teal} size="small" />
                   ) : (
                     <>
                       <MaterialCommunityIcons
                         name="account"
                         size={48}
-                        color={c.blue500}
+                        color={UI.muted}
                       />
                       <Text style={styles.addPhotoLabel}>Add photo</Text>
                     </>
@@ -531,7 +543,7 @@ export default function EditProfileScreen() {
                 value={cardName}
                 onChangeText={setCardName}
                 placeholder="John Doe"
-                placeholderTextColor={c.blue500}
+                placeholderTextColor={UI.muted}
                 autoCapitalize="words"
               />
             </View>
@@ -549,7 +561,7 @@ export default function EditProfileScreen() {
                   )
                 }
                 placeholder="8654 2154 8125 4780"
-                placeholderTextColor={c.blue500}
+                placeholderTextColor={UI.muted}
                 keyboardType="number-pad"
                 maxLength={19}
               />
@@ -567,7 +579,7 @@ export default function EditProfileScreen() {
                     else setExpiration(v);
                   }}
                   placeholder="MM/YY"
-                  placeholderTextColor={c.blue500}
+                  placeholderTextColor={UI.muted}
                   keyboardType="number-pad"
                   maxLength={5}
                 />
@@ -579,7 +591,7 @@ export default function EditProfileScreen() {
                   value={cvv}
                   onChangeText={(t) => setCvv(t.replace(/\D/g, "").slice(0, 4))}
                   placeholder="998"
-                  placeholderTextColor={c.blue500}
+                  placeholderTextColor={UI.muted}
                   keyboardType="number-pad"
                   maxLength={4}
                 />
@@ -598,7 +610,7 @@ export default function EditProfileScreen() {
                   useSameAddress ? "checkbox-marked" : "checkbox-blank-outline"
                 }
                 size={24}
-                color={c.blue500}
+                color={UI.teal}
               />
               <Text style={styles.checkboxLabel}>
                 Use same address from Profile
@@ -611,7 +623,7 @@ export default function EditProfileScreen() {
                 value={billingAddress}
                 onChangeText={setBillingAddress}
                 placeholder="Street address"
-                placeholderTextColor={c.blue500}
+                placeholderTextColor={UI.muted}
                 editable={!useSameAddress}
               />
             </View>
@@ -625,7 +637,7 @@ export default function EditProfileScreen() {
                     setZipCode(t.replace(/\D/g, "").slice(0, 10))
                   }
                   placeholder="10001"
-                  placeholderTextColor={c.blue500}
+                  placeholderTextColor={UI.muted}
                   keyboardType="number-pad"
                 />
               </View>
@@ -636,7 +648,7 @@ export default function EditProfileScreen() {
                   value={state}
                   onChangeText={setState}
                   placeholder="NY"
-                  placeholderTextColor={c.blue500}
+                  placeholderTextColor={UI.muted}
                   autoCapitalize="characters"
                   maxLength={2}
                 />
@@ -648,24 +660,32 @@ export default function EditProfileScreen() {
                   value={country}
                   onChangeText={setCountry}
                   placeholder="USA"
-                  placeholderTextColor={c.blue500}
+                  placeholderTextColor={UI.muted}
                   autoCapitalize="characters"
                 />
               </View>
             </View>
             <Pressable
               style={({ pressed }) => [
-                styles.saveBtn,
+                styles.saveWrap,
                 pressed && styles.pressed,
+                saving && styles.saveDisabled,
               ]}
               onPress={savePayment}
               disabled={saving}
             >
-              {saving ? (
-                <ActivityIndicator color={c.background} size="small" />
-              ) : (
-                <Text style={styles.saveLabel}>Save</Text>
-              )}
+              <LinearGradient
+                colors={["#4A3AFF", "#12B886"]}
+                start={{ x: 0, y: 0.5 }}
+                end={{ x: 1, y: 0.5 }}
+                style={styles.saveBtn}
+              >
+                {saving ? (
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                ) : (
+                  <Text style={styles.saveLabel}>Save</Text>
+                )}
+              </LinearGradient>
             </Pressable>
           </View>
         ) : (
@@ -678,7 +698,7 @@ export default function EditProfileScreen() {
                   value={firstName}
                   onChangeText={setFirstName}
                   placeholder="First name"
-                  placeholderTextColor={c.blue500}
+                  placeholderTextColor={UI.muted}
                   autoCapitalize="words"
                 />
               </View>
@@ -689,7 +709,7 @@ export default function EditProfileScreen() {
                   value={lastName}
                   onChangeText={setLastName}
                   placeholder="Last name"
-                  placeholderTextColor={c.blue500}
+                  placeholderTextColor={UI.muted}
                   autoCapitalize="words"
                 />
               </View>
@@ -702,24 +722,24 @@ export default function EditProfileScreen() {
                 value={address}
                 onChangeText={setAddress}
                 placeholder="Address"
-                placeholderTextColor={c.blue500}
+                placeholderTextColor={UI.muted}
               />
             </View>
 
             <View style={styles.field}>
               <Text style={styles.label}>Phone</Text>
               <Input
+                appearance="light"
                 variant="phone"
                 value={phone}
                 onChangeText={(t) => setPhone(t.replace(/\D/g, ""))}
                 placeholder="306 1234567"
-                placeholderTextColor={c.blue500}
+                placeholderTextColor={UI.muted}
                 selectedCca2={countryCode}
                 selectedCallingCode={callingCode}
-                onCountrySelect={(c) => {
-                  setCountryCode(c.cca2);
-                  setCallingCode(c.callingCode);
-
+                onCountrySelect={(country) => {
+                  setCountryCode(country.cca2);
+                  setCallingCode(country.callingCode);
                 }}
                 editable={false}
               />
@@ -727,17 +747,25 @@ export default function EditProfileScreen() {
 
             <Pressable
               style={({ pressed }) => [
-                styles.saveBtn,
+                styles.saveWrap,
                 pressed && styles.pressed,
+                saving && styles.saveDisabled,
               ]}
               onPress={save}
               disabled={saving}
             >
-              {saving ? (
-                <ActivityIndicator color={c.background} size="small" />
-              ) : (
-                <Text style={styles.saveLabel}>Save</Text>
-              )}
+              <LinearGradient
+                colors={["#4A3AFF", "#12B886"]}
+                start={{ x: 0, y: 0.5 }}
+                end={{ x: 1, y: 0.5 }}
+                style={styles.saveBtn}
+              >
+                {saving ? (
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                ) : (
+                  <Text style={styles.saveLabel}>Save</Text>
+                )}
+              </LinearGradient>
             </Pressable>
           </View>
         )}
@@ -750,7 +778,7 @@ export default function EditProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: c.background,
+    backgroundColor: UI.bg,
   },
   keyboardView: {
     flex: 1,
@@ -759,7 +787,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
     paddingTop: 12,
     paddingBottom: 40,
   },
@@ -773,7 +801,9 @@ const styles = StyleSheet.create({
     height: 120,
     borderRadius: 60,
     overflow: "hidden",
-    backgroundColor: c.blue900,
+    backgroundColor: UI.iconWell,
+    borderWidth: 2,
+    borderColor: UI.teal,
     alignSelf: "center",
     marginBottom: 28,
   },
@@ -786,12 +816,13 @@ const styles = StyleSheet.create({
     height: "100%",
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: c.blue900,
+    backgroundColor: UI.iconWell,
   },
   addPhotoLabel: {
     marginTop: 6,
     fontSize: 12,
-    color: c.blue500,
+    fontFamily: "Poppins-SemiBold",
+    color: UI.muted,
   },
   form: {
     gap: 20,
@@ -819,7 +850,8 @@ const styles = StyleSheet.create({
   },
   checkboxLabel: {
     fontSize: 14,
-    color: c.white,
+    fontFamily: "Poppins-Regular",
+    color: UI.text,
   },
   field: {
     flex: 1,
@@ -827,31 +859,39 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 13,
-    color: c.blue500,
+    fontFamily: "Poppins-SemiBold",
+    color: UI.muted,
     fontWeight: "500",
   },
   input: {
-    backgroundColor: c.blue900,
+    backgroundColor: UI.card,
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 16,
-    color: c.white,
+    fontFamily: "Poppins-Regular",
+    color: UI.text,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.2)",
+    borderColor: UI.chipBorder,
+  },
+  saveWrap: {
+    marginTop: 16,
+    borderRadius: 12,
+    overflow: "hidden",
   },
   saveBtn: {
-    marginTop: 16,
-    backgroundColor: c.blue500,
     paddingVertical: 14,
-    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
     minHeight: 48,
   },
+  saveDisabled: {
+    opacity: 0.55,
+  },
   saveLabel: {
     fontSize: 16,
-    color: c.background,
+    fontFamily: "Poppins-Bold",
+    color: "#FFFFFF",
     fontWeight: "700",
   },
   pressed: {

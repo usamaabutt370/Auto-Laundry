@@ -18,7 +18,6 @@ import { showAppAlert } from "@/components/app-alert";
 import { CustomerTrustBanner } from "@/components/customer-trust-banner";
 import { PartnerNameWithBadge } from "@/components/partner-name-with-badge";
 import { ReportOrderProblemModal } from "@/components/report-order-problem-modal";
-import { theme } from "@/constants/theme";
 import { useAuth } from "@/contexts/auth-context";
 import { useLocale } from "@/contexts/locale-context";
 import { getStrings } from "@/locales";
@@ -35,10 +34,26 @@ import {
 } from "@/lib/customer-orders";
 import { hasCustomerOrderDispute } from "@/lib/order-disputes";
 
-const c = theme.colors;
-const fs = theme.fontSize;
-const PAD = 24;
-const CARD_RADIUS = 18;
+const UI = {
+  bg: "#F7F8FA",
+  card: "#FFFFFF",
+  text: "#111827",
+  muted: "#6B7280",
+  teal: "#12B886",
+  purple: "#5B4DFF",
+  backBg: "#EEF2F6",
+  iconWell: "#F3F4F6",
+  openBg: "#ECFDF5",
+  openText: "#047857",
+  chipBorder: "#E5E7EB",
+  shadow: "rgba(17, 24, 39, 0.08)",
+  amber: "#D97706",
+  amberBg: "#FEF3C7",
+  red: "#B91C1C",
+  redBg: "#FEE2E2",
+};
+const PAD = 16;
+const CARD_RADIUS = 16;
 
 function statusLabel(status: CustomerOrderDisplayStatus): string {
   if (status === "pending") return "Pending";
@@ -47,11 +62,11 @@ function statusLabel(status: CustomerOrderDisplayStatus): string {
   return "Rejected";
 }
 
-function statusColor(status: CustomerOrderDisplayStatus): string {
-  if (status === "rejected") return "#D9534F";
-  if (status === "accepted") return c.outline;
-  if (status === "completed") return "#86efac";
-  return c.white;
+function statusTone(status: CustomerOrderDisplayStatus): { text: string; bg: string } {
+  if (status === "rejected") return { text: UI.red, bg: UI.redBg };
+  if (status === "accepted") return { text: UI.openText, bg: UI.openBg };
+  if (status === "completed") return { text: UI.openText, bg: UI.openBg };
+  return { text: UI.amber, bg: UI.amberBg };
 }
 
 export default function CustomerOrderDetailScreen() {
@@ -243,17 +258,24 @@ export default function CustomerOrderDetailScreen() {
     <View style={styles.container}>
       <SafeAreaView style={styles.safeTop} edges={["top"]}>
         <View style={styles.headerRow}>
-          <Pressable onPress={handleBack} style={({ pressed }) => [styles.backBtn, pressed && styles.pressed]}>
-            <MaterialCommunityIcons name="arrow-left" size={24} color={c.white} />
+          <View style={styles.headerSide} />
+          <Text style={styles.headerTitle} numberOfLines={1}>
+            Order detail
+          </Text>
+          <Pressable
+            onPress={handleBack}
+            style={({ pressed }) => [styles.closeBtn, pressed && styles.pressed]}
+            accessibilityRole="button"
+            accessibilityLabel="Close"
+          >
+            <MaterialCommunityIcons name="close" size={20} color={UI.text} />
           </Pressable>
-          <Text style={styles.headerTitle}>Order detail</Text>
-          <View style={styles.headerSpacer} />
         </View>
       </SafeAreaView>
 
       {loading ? (
         <View style={styles.center}>
-          <ActivityIndicator color={c.white} />
+          <ActivityIndicator color={UI.teal} />
         </View>
       ) : error ? (
         <View style={styles.center}>
@@ -276,13 +298,10 @@ export default function CustomerOrderDetailScreen() {
               <View
                 style={[
                   styles.statusPill,
-                  {
-                    borderColor: statusColor(order.displayStatus),
-                    backgroundColor: order.displayStatus === "rejected" ? c.white : "transparent",
-                  },
+                  { backgroundColor: statusTone(order.displayStatus).bg },
                 ]}
               >
-                <Text style={[styles.status, { color: statusColor(order.displayStatus) }]}>
+                <Text style={[styles.status, { color: statusTone(order.displayStatus).text }]}>
                   {statusLabel(order.displayStatus)}
                 </Text>
               </View>
@@ -314,13 +333,13 @@ export default function CustomerOrderDetailScreen() {
           </View>
 
           {order.displayStatus !== "rejected" ? (
-            <CustomerTrustBanner verified={order.partnerVerified} />
+            <CustomerTrustBanner appearance="light" verified={order.partnerVerified} />
           ) : null}
 
           <View style={styles.detailCard}>
             <Text style={styles.secLabel}>Partner</Text>
             <View style={styles.detailRow}>
-              <MaterialCommunityIcons name="storefront-outline" size={16} color={c.outline} />
+              <MaterialCommunityIcons name="storefront-outline" size={16} color={UI.purple} />
               <PartnerNameWithBadge
                 name={order.partnerName}
                 verified={order.partnerVerified}
@@ -329,11 +348,11 @@ export default function CustomerOrderDetailScreen() {
               />
             </View>
             <View style={styles.detailRow}>
-              <MaterialCommunityIcons name="phone-outline" size={16} color={c.outline} />
+              <MaterialCommunityIcons name="phone-outline" size={16} color={UI.purple} />
               <Text style={styles.detailValue}>{order.partnerPhone}</Text>
             </View>
             <View style={styles.detailRow}>
-              <MaterialCommunityIcons name="map-marker-outline" size={16} color={c.outline} />
+              <MaterialCommunityIcons name="map-marker-outline" size={16} color={UI.purple} />
               <Text style={styles.detailValue}>{order.partnerAddress}</Text>
             </View>
             <View style={styles.partnerActionsRow}>
@@ -346,7 +365,7 @@ export default function CustomerOrderDetailScreen() {
                 }
                 style={({ pressed }) => [styles.chatButton, pressed && styles.pressed]}
               >
-                <MaterialCommunityIcons name="chat-processing-outline" size={15} color={c.white} />
+                <MaterialCommunityIcons name="chat-processing-outline" size={15} color={UI.teal} />
                 <Text style={styles.chatButtonText}>Chat with partner</Text>
               </Pressable>
               {order.displayStatus !== "rejected" ? (
@@ -357,7 +376,7 @@ export default function CustomerOrderDetailScreen() {
                   <MaterialCommunityIcons
                     name={hasReportedProblem ? "check-circle-outline" : "alert-circle-outline"}
                     size={15}
-                    color={hasReportedProblem ? c.outline : "#F6D36B"}
+                    color={hasReportedProblem ? UI.teal : UI.amber}
                   />
                   <Text style={styles.reportButtonText}>
                     {hasReportedProblem ? sReport.reportedButton : sReport.reportButton}
@@ -370,14 +389,14 @@ export default function CustomerOrderDetailScreen() {
 
             <Text style={styles.secLabel}>Schedule</Text>
             <View style={styles.detailRow}>
-              <MaterialCommunityIcons name="truck-delivery-outline" size={16} color={c.outline} />
+              <MaterialCommunityIcons name="truck-delivery-outline" size={16} color={UI.purple} />
               <View style={styles.flex1}>
                 <Text style={styles.detailMeta}>Pickup</Text>
                 <Text style={styles.detailValue}>{order.pickupSchedule}</Text>
               </View>
             </View>
             <View style={styles.detailRow}>
-              <MaterialCommunityIcons name="package-variant-closed" size={16} color={c.outline} />
+              <MaterialCommunityIcons name="package-variant-closed" size={16} color={UI.purple} />
               <View style={styles.flex1}>
                 <Text style={styles.detailMeta}>Delivery</Text>
                 <Text style={styles.detailValue}>{order.deliverySchedule}</Text>
@@ -510,7 +529,7 @@ export default function CustomerOrderDetailScreen() {
                     <MaterialCommunityIcons
                       name={value <= rating ? "star" : "star-outline"}
                       size={30}
-                      color={value <= rating ? "#FBBF24" : "rgba(255,255,255,0.45)"}
+                      color={value <= rating ? "#FBBF24" : "#D1D5DB"}
                     />
                   </Pressable>
                 ))}
@@ -549,7 +568,7 @@ export default function CustomerOrderDetailScreen() {
                 value={feedbackMessage}
                 onChangeText={setFeedbackMessage}
                 placeholder="Tell us what went well, or what needs to improve..."
-                placeholderTextColor={c.blue500}
+                placeholderTextColor={UI.muted}
                 multiline
                 style={styles.feedbackInput}
                 textAlignVertical="top"
@@ -595,27 +614,36 @@ export default function CustomerOrderDetailScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: c.background,
+    backgroundColor: UI.bg,
   },
   safeTop: {
+    backgroundColor: UI.bg,
     paddingHorizontal: PAD,
     paddingBottom: 8,
   },
   headerRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    paddingVertical: 7,
+    gap: 10,
   },
-  backBtn: {
-    padding: 6,
+  headerSide: {
+    width: 36,
+  },
+  closeBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: UI.backBg,
+    alignItems: "center",
+    justifyContent: "center",
   },
   headerTitle: {
-    color: c.white,
-    fontSize: fs.titleMedium,
-    fontWeight: "700",
-  },
-  headerSpacer: {
-    width: 32,
+    flex: 1,
+    color: UI.text,
+    fontSize: 18,
+    fontFamily: "Poppins-Bold",
+    textAlign: "center",
   },
   scroll: {
     flex: 1,
@@ -628,9 +656,14 @@ const styles = StyleSheet.create({
   heroCard: {
     borderRadius: CARD_RADIUS,
     borderWidth: 1,
-    borderColor: c.outline,
-    backgroundColor: c.blue900,
+    borderColor: UI.chipBorder,
+    backgroundColor: UI.card,
     padding: 18,
+    shadowColor: UI.shadow,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 10,
+    elevation: 2,
   },
   topRow: {
     flexDirection: "row",
@@ -639,25 +672,25 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   orderRef: {
-    color: c.white,
-    fontSize: fs.smallTitle,
-    fontWeight: "700",
+    color: UI.text,
+    fontSize: 18,
+    fontFamily: "Poppins-Bold",
+    flex: 1,
   },
   status: {
-    fontSize: fs.descText,
-    fontWeight: "700",
+    fontSize: 12,
+    fontFamily: "Poppins-SemiBold",
     textTransform: "uppercase",
   },
   statusPill: {
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 999,
-    borderWidth: 1,
   },
   partner: {
-    color: c.white,
-    fontSize: fs.smallText,
-    fontWeight: "600",
+    color: UI.text,
+    fontSize: 15,
+    fontFamily: "Poppins-SemiBold",
     marginTop: 6,
   },
   metricsRow: {
@@ -670,45 +703,52 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     paddingVertical: 12,
     paddingHorizontal: 10,
-    backgroundColor: "rgba(255,255,255,0.08)",
+    backgroundColor: UI.iconWell,
   },
   metricLabel: {
-    color: c.blue500,
-    fontSize: fs.xxSmallText,
+    color: UI.muted,
+    fontSize: 11,
+    fontFamily: "Poppins-Medium",
     marginBottom: 6,
   },
   metricValue: {
-    color: c.white,
-    fontSize: fs.smallText,
-    fontWeight: "700",
+    color: UI.text,
+    fontSize: 16,
+    fontFamily: "Poppins-Bold",
   },
   confirmedValue: {
-    color: c.lightBlue,
+    color: UI.teal,
   },
   metricHint: {
-    color: "rgba(255,255,255,0.55)",
+    color: UI.muted,
     fontSize: 11,
+    fontFamily: "Poppins-Regular",
     marginTop: 4,
     lineHeight: 14,
   },
   detailCard: {
     borderRadius: CARD_RADIUS,
     borderWidth: 1,
-    borderColor: c.outline,
-    backgroundColor: c.blue900,
+    borderColor: UI.chipBorder,
+    backgroundColor: UI.card,
     padding: 18,
+    shadowColor: UI.shadow,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 10,
+    elevation: 2,
   },
   secLabel: {
     fontSize: 11,
-    fontWeight: "700",
-    color: c.blue500,
+    fontFamily: "Poppins-SemiBold",
+    color: UI.muted,
     textTransform: "uppercase",
     letterSpacing: 0.8,
     marginBottom: 12,
   },
   sectionDivider: {
     height: 1,
-    backgroundColor: "rgba(255,255,255,0.07)",
+    backgroundColor: UI.chipBorder,
     marginVertical: 18,
   },
   detailRow: {
@@ -719,14 +759,15 @@ const styles = StyleSheet.create({
   },
   detailMeta: {
     fontSize: 11,
-    color: c.blue500,
-    fontWeight: "600",
+    color: UI.muted,
+    fontFamily: "Poppins-SemiBold",
     marginBottom: 2,
   },
   detailValue: {
     flex: 1,
-    color: c.white,
+    color: UI.text,
     fontSize: 14,
+    fontFamily: "Poppins-Regular",
     lineHeight: 20,
   },
   flex1: {
@@ -743,32 +784,32 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 6,
     borderWidth: 1,
-    borderColor: c.outline,
+    borderColor: UI.teal,
     borderRadius: 999,
     paddingHorizontal: 12,
     paddingVertical: 7,
-    backgroundColor: c.background,
+    backgroundColor: UI.openBg,
   },
   chatButtonText: {
-    color: c.white,
+    color: UI.openText,
     fontSize: 13,
-    fontWeight: "600",
+    fontFamily: "Poppins-SemiBold",
   },
   reportButton: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
     borderWidth: 1,
-    borderColor: "rgba(246, 211, 107, 0.45)",
+    borderColor: "#FCD34D",
     borderRadius: 999,
     paddingHorizontal: 12,
     paddingVertical: 7,
-    backgroundColor: "rgba(246, 211, 107, 0.08)",
+    backgroundColor: UI.amberBg,
   },
   reportButtonText: {
-    color: c.white,
+    color: UI.amber,
     fontSize: 13,
-    fontWeight: "600",
+    fontFamily: "Poppins-SemiBold",
   },
   deleteOrderBtn: {
     flexDirection: "row",
@@ -777,28 +818,7 @@ const styles = StyleSheet.create({
     gap: 8,
     backgroundColor: "transparent",
     borderWidth: 1,
-    borderColor: "#f87171",
-    borderRadius: 12,
-    paddingVertical: 14,
-  },
-  editOrderBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    backgroundColor: c.backgroundLight,
-    borderRadius: 12,
-    paddingVertical: 14,
-  },
-  editOrderBtnFlex: {
-    flex: 1,
-  },
-  reorderBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    backgroundColor: c.backgroundLight,
+    borderColor: UI.red,
     borderRadius: 12,
     paddingVertical: 14,
   },
@@ -806,19 +826,19 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   editOrderBtnText: {
-    color: c.white,
-    fontSize: fs.descText,
-    fontWeight: "700",
+    color: UI.text,
+    fontSize: 13,
+    fontFamily: "Poppins-Bold",
   },
   deleteOrderBtnText: {
-    color: "#f87171",
+    color: UI.red,
   },
   serviceGroup: {},
   serviceGroupSep: {
     marginTop: 14,
     paddingTop: 14,
     borderTopWidth: 1,
-    borderTopColor: "rgba(255,255,255,0.09)",
+    borderTopColor: UI.chipBorder,
   },
   serviceGroupHeader: {
     flexDirection: "row",
@@ -827,14 +847,14 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   serviceGroupTitle: {
-    color: c.white,
+    color: UI.text,
     fontSize: 14,
-    fontWeight: "700",
+    fontFamily: "Poppins-Bold",
   },
   serviceGroupPrice: {
-    color: c.blue500,
+    color: UI.teal,
     fontSize: 13,
-    fontWeight: "700",
+    fontFamily: "Poppins-Bold",
   },
   serviceItem: {
     flexDirection: "row",
@@ -842,12 +862,12 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingVertical: 8,
     borderTopWidth: 1,
-    borderTopColor: "rgba(255,255,255,0.06)",
+    borderTopColor: UI.chipBorder,
   },
   serviceItemName: {
-    color: c.white,
+    color: UI.text,
     fontSize: 14,
-    fontWeight: "500",
+    fontFamily: "Poppins-Medium",
     marginBottom: 3,
   },
   serviceItemPriceCol: {
@@ -855,14 +875,14 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   serviceItemPrice: {
-    color: c.white,
+    color: UI.text,
     fontSize: 14,
-    fontWeight: "700",
+    fontFamily: "Poppins-Bold",
   },
   serviceItemPriceConfirmed: {
-    color: c.lightBlue,
+    color: UI.teal,
     fontSize: 13,
-    fontWeight: "700",
+    fontFamily: "Poppins-Bold",
   },
   center: {
     flex: 1,
@@ -871,17 +891,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: PAD,
   },
   errorText: {
-    color: "#fecaca",
+    color: UI.red,
     textAlign: "center",
-    fontSize: fs.smallText,
+    fontSize: 15,
+    fontFamily: "Poppins-Regular",
   },
   mutedText: {
-    color: c.blue500,
+    color: UI.muted,
     textAlign: "center",
-    fontSize: fs.smallText,
+    fontSize: 15,
+    fontFamily: "Poppins-Regular",
   },
   pressed: {
-    opacity: 0.8,
+    opacity: 0.85,
   },
   modalOverlay: {
     flex: 1,
@@ -891,25 +913,26 @@ const styles = StyleSheet.create({
   },
   modalBackdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(5, 14, 25, 0.72)",
+    backgroundColor: "rgba(17, 24, 39, 0.45)",
   },
   feedbackModalCard: {
     width: "100%",
-    backgroundColor: c.blue900,
+    backgroundColor: UI.card,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: c.outline,
+    borderColor: UI.chipBorder,
     padding: 16,
   },
   feedbackTitle: {
-    color: c.white,
-    fontSize: fs.smallTitle,
-    fontWeight: "700",
+    color: UI.text,
+    fontSize: 18,
+    fontFamily: "Poppins-Bold",
   },
   feedbackSubtitle: {
     marginTop: 4,
-    color: c.blue500,
-    fontSize: fs.descText,
+    color: UI.muted,
+    fontSize: 13,
+    fontFamily: "Poppins-Regular",
     marginBottom: 12,
   },
   starRow: {
@@ -930,33 +953,36 @@ const styles = StyleSheet.create({
   feedbackTypeChip: {
     flex: 1,
     borderWidth: 1,
-    borderColor: c.outline,
+    borderColor: UI.chipBorder,
     borderRadius: 999,
     paddingVertical: 8,
     alignItems: "center",
+    backgroundColor: UI.iconWell,
   },
   feedbackTypeChipSelected: {
-    borderColor: c.filledButtonBorder,
-    backgroundColor: "rgba(31, 200, 255, 0.12)",
+    borderColor: UI.teal,
+    backgroundColor: UI.openBg,
   },
   feedbackTypeText: {
-    color: c.blue500,
-    fontSize: fs.xxSmallText,
-    fontWeight: "700",
+    color: UI.muted,
+    fontSize: 11,
+    fontFamily: "Poppins-SemiBold",
   },
   feedbackTypeTextSelected: {
-    color: c.white,
+    color: UI.openText,
   },
   feedbackInput: {
     minHeight: 120,
     borderWidth: 1,
-    borderColor: c.outline,
+    borderColor: UI.chipBorder,
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    color: c.white,
-    fontSize: fs.descText,
+    color: UI.text,
+    fontSize: 13,
+    fontFamily: "Poppins-Regular",
     marginBottom: 12,
+    backgroundColor: UI.bg,
   },
   feedbackActionsRow: {
     flexDirection: "row",
@@ -965,29 +991,28 @@ const styles = StyleSheet.create({
   feedbackCancelBtn: {
     flex: 1,
     borderWidth: 1,
-    borderColor: c.outline,
+    borderColor: UI.chipBorder,
     borderRadius: 999,
     paddingVertical: 12,
     alignItems: "center",
+    backgroundColor: UI.iconWell,
   },
   feedbackCancelText: {
-    color: c.white,
-    fontSize: fs.descText,
-    fontWeight: "700",
+    color: UI.text,
+    fontSize: 13,
+    fontFamily: "Poppins-Bold",
   },
   feedbackSubmitBtn: {
     flex: 1,
-    borderWidth: 1,
-    borderColor: c.filledButtonBorder,
-    backgroundColor: c.lightBlue,
+    backgroundColor: UI.teal,
     borderRadius: 999,
     paddingVertical: 12,
     alignItems: "center",
   },
   feedbackSubmitText: {
-    color: c.white,
-    fontSize: fs.descText,
-    fontWeight: "700",
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontFamily: "Poppins-Bold",
   },
   disabled: {
     opacity: 0.55,
@@ -999,22 +1024,23 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   payLabel: {
-    fontSize: fs.descText,
-    color: c.blue500,
+    fontSize: 13,
+    fontFamily: "Poppins-Regular",
+    color: UI.muted,
   },
   payValue: {
-    fontSize: fs.descText,
-    fontWeight: "600",
-    color: c.white,
+    fontSize: 13,
+    fontFamily: "Poppins-SemiBold",
+    color: UI.text,
   },
   payTotalLabel: {
-    fontSize: fs.smallText,
-    fontWeight: "700",
-    color: c.white,
+    fontSize: 15,
+    fontFamily: "Poppins-Bold",
+    color: UI.text,
   },
   payTotalValue: {
-    fontSize: fs.smallText,
-    fontWeight: "700",
-    color: c.lightBlue,
+    fontSize: 15,
+    fontFamily: "Poppins-Bold",
+    color: UI.teal,
   },
 });

@@ -10,11 +10,11 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { StatusBar } from "expo-status-bar";
 import { useRouter, useFocusEffect } from "expo-router";
 import { useIsFocused } from "@react-navigation/native";
 
 import { DeleteAccountButton } from "@/components/delete-account-button";
-import { theme } from "@/constants/theme";
 import { useAuth } from "@/contexts/auth-context";
 import { useLocale } from "@/contexts/locale-context";
 import { avatarUrlWithCacheBuster } from "@/lib/avatar";
@@ -30,7 +30,17 @@ import { useSuppressWebScreenHeader } from "@/hooks/use-suppress-web-screen-head
 import { runAfterModalTeardown } from "@/utils/run-after-modal-teardown";
 import { getStrings } from "@/locales";
 
-const c = theme.colors;
+const UI = {
+	bg: "#F7F8FA",
+	card: "#FFFFFF",
+	text: "#111827",
+	muted: "#6B7280",
+	teal: "#12B886",
+	chipBorder: "#E5E7EB",
+	openBg: "#ECFDF5",
+	openText: "#047857",
+	shadow: "rgba(17, 24, 39, 0.08)",
+};
 
 export default function CustomerProfileMenu() {
 	const router = useRouter();
@@ -221,15 +231,16 @@ export default function CustomerProfileMenu() {
 			style={({ pressed }) => [styles.menuItem, pressed && styles.pressed]}
 			onPress={onPress}
 		>
-			<MaterialCommunityIcons name={icon as any} size={22} color={c.backgroundLight} />
+			<MaterialCommunityIcons name={icon as any} size={22} color={UI.teal} />
 			<Text style={styles.menuLabel}>{label}</Text>
-			<MaterialCommunityIcons name="chevron-right" size={20} color="rgba(255,255,255,0.45)" />
+			<MaterialCommunityIcons name="chevron-right" size={20} color={UI.muted} />
 		</Pressable>
 	);
 
 	if (!user?.id) {
 		return (
 			<SafeAreaView style={styles.container} edges={isWeb ? [] : ["top"]}>
+				<StatusBar style="dark" />
 				{isWeb ? <WebHeaderSpacer /> : null}
 				<ScrollView
 					contentContainerStyle={[styles.content, isWeb && styles.contentWeb]}
@@ -253,7 +264,7 @@ export default function CustomerProfileMenu() {
 								accessibilityRole="button"
 								accessibilityLabel={s.logIn}
 							>
-								<MaterialCommunityIcons name="key-variant" size={18} color={c.white} />
+								<MaterialCommunityIcons name="key-variant" size={18} color="#FFFFFF" />
 								<Text style={styles.guestPrimaryLabel}>{s.logIn}</Text>
 							</Pressable>
 							<Pressable
@@ -273,7 +284,7 @@ export default function CustomerProfileMenu() {
 								<MaterialCommunityIcons
 									name="account-outline"
 									size={18}
-									color={c.white}
+									color={UI.teal}
 								/>
 								<Text style={styles.guestSecondaryLabel}>{s.signUp}</Text>
 							</Pressable>
@@ -300,6 +311,7 @@ export default function CustomerProfileMenu() {
 
 	return (
 		<SafeAreaView style={styles.container} edges={isWeb ? [] : ["top"]}>
+			<StatusBar style="dark" />
 			{isWeb ? <WebHeaderSpacer /> : null}
 			<ScrollView
 				contentContainerStyle={[styles.content, isWeb && styles.contentWeb]}
@@ -312,12 +324,12 @@ export default function CustomerProfileMenu() {
 					<View style={styles.avatarWrap}>
 						<AvatarImage uri={avatarUri} name={displayName} size={80} style={styles.avatar} />
 						<View style={styles.editBadge}>
-							<MaterialCommunityIcons name="pencil" size={12} color={c.white} />
+							<MaterialCommunityIcons name="pencil" size={12} color="#FFFFFF" />
 						</View>
 					</View>
 					<Text style={styles.name}>{displayName}</Text>
 					<View style={styles.editPill}>
-						<MaterialCommunityIcons name="pencil-outline" size={13} color={c.blue500} />
+						<MaterialCommunityIcons name="pencil-outline" size={13} color={UI.teal} />
 						<Text style={styles.editPillText}>Edit profile</Text>
 					</View>
 				</Pressable>
@@ -353,15 +365,15 @@ export default function CustomerProfileMenu() {
 						<Text style={styles.roleLabel}>Become a Laundry Captain</Text>
 						<View style={styles.switchWrap}>
 							{isUpdatingRole ? (
-								<ActivityIndicator color={c.white} size="small" />
+								<ActivityIndicator color={UI.teal} size="small" />
 							) : (
 								<Switch
 									value={isPartnerSwitchOn}
 									onValueChange={handleRoleToggle}
 									disabled={isUpdatingRole}
-									trackColor={{ false: c.blue900, true: c.blue600 }}
-									thumbColor={c.white}
-									ios_backgroundColor={c.backgroundLight}
+									trackColor={{ false: UI.chipBorder, true: UI.teal }}
+									thumbColor="#FFFFFF"
+									ios_backgroundColor={UI.chipBorder}
 								/>
 							)}
 						</View>
@@ -396,7 +408,7 @@ export default function CustomerProfileMenu() {
 									]);
 								}}
 							>
-								<MaterialCommunityIcons name="logout" size={16} color={c.white} />
+								<MaterialCommunityIcons name="logout" size={16} color={UI.teal} />
 								<Text style={styles.signOutLabel}>Sign out</Text>
 							</Pressable>
 
@@ -411,7 +423,7 @@ export default function CustomerProfileMenu() {
 }
 
 const styles = StyleSheet.create({
-	container: { flex: 1, backgroundColor: c.background },
+	container: { flex: 1, backgroundColor: UI.bg },
 	content: { padding: 20, paddingBottom: 120 },
 	contentWeb: { paddingTop: 0 },
 	guestPromo: {
@@ -420,14 +432,16 @@ const styles = StyleSheet.create({
 	},
 	guestTitle: {
 		fontSize: 24,
+		fontFamily: "Poppins-Bold",
 		fontWeight: "700",
-		color: c.white,
+		color: UI.text,
 		marginBottom: 8,
 	},
 	guestSubtitle: {
 		fontSize: 15,
+		fontFamily: "Poppins-Regular",
 		lineHeight: 22,
-		color: "rgba(255,255,255,0.72)",
+		color: UI.muted,
 		marginBottom: 20,
 	},
 	guestActions: {
@@ -440,15 +454,14 @@ const styles = StyleSheet.create({
 		alignItems: "center",
 		justifyContent: "center",
 		gap: 8,
-		backgroundColor: c.lightBlue,
+		backgroundColor: UI.teal,
 		borderRadius: 999,
 		paddingVertical: 14,
-		borderWidth: 1,
-		borderColor: c.filledButtonBorder,
 	},
 	guestPrimaryLabel: {
-		color: c.white,
+		color: "#FFFFFF",
 		fontSize: 15,
+		fontFamily: "Poppins-Bold",
 		fontWeight: "700",
 	},
 	guestSecondaryBtn: {
@@ -457,15 +470,16 @@ const styles = StyleSheet.create({
 		alignItems: "center",
 		justifyContent: "center",
 		gap: 8,
-		backgroundColor: "rgba(255,255,255,0.12)",
+		backgroundColor: UI.card,
 		borderRadius: 999,
 		paddingVertical: 14,
 		borderWidth: 1,
-		borderColor: "rgba(255,255,255,0.2)",
+		borderColor: UI.chipBorder,
 	},
 	guestSecondaryLabel: {
-		color: c.white,
+		color: UI.text,
 		fontSize: 15,
+		fontFamily: "Poppins-Bold",
 		fontWeight: "700",
 	},
 	profileCard: { alignItems: "center", paddingVertical: 20, marginBottom: 8 },
@@ -482,7 +496,7 @@ const styles = StyleSheet.create({
 		height: 80,
 		borderRadius: 40,
 		borderWidth: 2,
-		borderColor: c.blue600,
+		borderColor: UI.teal,
 	},
 	editBadge: {
 		position: "absolute",
@@ -491,14 +505,26 @@ const styles = StyleSheet.create({
 		width: 24,
 		height: 24,
 		borderRadius: 12,
-		backgroundColor: c.backgroundLight,
+		backgroundColor: UI.teal,
 		borderWidth: 1.5,
-		borderColor: c.background,
+		borderColor: UI.card,
 		alignItems: "center",
 		justifyContent: "center",
 	},
-	name: { fontSize: 20, fontWeight: "700", color: c.white, textAlign: "center" },
-	phone: { fontSize: 14, color: c.blue500, marginTop: 4, textAlign: "center" },
+	name: {
+		fontSize: 20,
+		fontFamily: "Poppins-Bold",
+		fontWeight: "700",
+		color: UI.text,
+		textAlign: "center",
+	},
+	phone: {
+		fontSize: 14,
+		fontFamily: "Poppins-Regular",
+		color: UI.muted,
+		marginTop: 4,
+		textAlign: "center",
+	},
 	editPill: {
 		flexDirection: "row",
 		alignItems: "center",
@@ -507,52 +533,99 @@ const styles = StyleSheet.create({
 		paddingHorizontal: 14,
 		paddingVertical: 6,
 		borderRadius: 20,
-		backgroundColor: "rgba(255,255,255,0.07)",
+		backgroundColor: UI.card,
 		borderWidth: 1,
-		borderColor: "rgba(255,255,255,0.1)",
+		borderColor: UI.chipBorder,
 	},
-	editPillText: { fontSize: 13, color: c.blue500, fontWeight: "500" },
-	accountActionsRow: { flexDirection: "row", justifyContent: "center", gap: 12, marginTop: 4 },
+	editPillText: {
+		fontSize: 13,
+		fontFamily: "Poppins-SemiBold",
+		color: UI.teal,
+		fontWeight: "500",
+	},
+	accountActionsRow: {
+		flexDirection: "row",
+		justifyContent: "center",
+		gap: 12,
+		marginTop: 4,
+	},
 	divider: {
-		height: 1,
-		backgroundColor: "rgba(255,255,255,0.06)",
-		marginVertical: 16,
+		height: 12,
 	},
-	menuGroup: { backgroundColor: "transparent", gap: 8 },
+	menuGroup: {
+		backgroundColor: UI.card,
+		borderRadius: 16,
+		borderWidth: 1,
+		borderColor: UI.chipBorder,
+		overflow: "hidden",
+		shadowColor: UI.shadow,
+		shadowOffset: { width: 0, height: 4 },
+		shadowOpacity: 1,
+		shadowRadius: 10,
+		elevation: 2,
+	},
 	menuItem: {
 		flexDirection: "row",
 		alignItems: "center",
 		gap: 12,
 		paddingVertical: 14,
+		paddingHorizontal: 16,
 	},
-	menuLabel: { color: c.white, fontSize: 16, fontWeight: "600", flex: 1 },
+	menuLabel: {
+		color: UI.text,
+		fontSize: 16,
+		fontFamily: "Poppins-SemiBold",
+		fontWeight: "600",
+		flex: 1,
+	},
 	pressed: { opacity: 0.7 },
 	roleCard: {
-		marginTop: 8,
-		paddingTop: 12,
-		borderTopWidth: 1,
-		borderTopColor: "rgba(255,255,255,0.06)",
+		marginTop: 12,
 		marginBottom: 12,
+		padding: 16,
+		borderRadius: 16,
+		backgroundColor: UI.openBg,
+		borderWidth: 1,
+		borderColor: "#A7F3D0",
 	},
 	roleRow: {
 		flexDirection: "row",
 		alignItems: "center",
 		justifyContent: "space-between",
+		gap: 12,
 	},
-	roleLabel: { fontSize: 17, color: c.white, fontWeight: "700", flex: 1 },
+	roleLabel: {
+		fontSize: 17,
+		fontFamily: "Poppins-Bold",
+		color: UI.text,
+		fontWeight: "700",
+		flex: 1,
+	},
 	switchWrap: { transform: [{ scale: 1.02 }] },
-	roleHint: { fontSize: 13, color: c.blue500, lineHeight: 18, marginTop: 8 },
+	roleHint: {
+		fontSize: 13,
+		fontFamily: "Poppins-Regular",
+		color: UI.openText,
+		lineHeight: 18,
+		marginTop: 8,
+	},
 	signOutBtn: {
+		flex: 1,
 		flexDirection: "row",
 		alignItems: "center",
 		justifyContent: "center",
 		gap: 8,
-		backgroundColor: c.backgroundDark,
+		backgroundColor: UI.card,
 		borderRadius: 12,
 		paddingVertical: 14,
-		paddingHorizontal: 20,
+		paddingHorizontal: 16,
 		borderWidth: 1,
-		borderColor: "rgba(255,255,255,0.12)",
+		borderColor: UI.teal,
 	},
-	signOutLabel: { fontSize: 15, fontWeight: "700", color: c.white },
+	signOutLabel: {
+		fontSize: 15,
+		fontFamily: "Poppins-Bold",
+		fontWeight: "700",
+		color: UI.teal,
+	},
 });

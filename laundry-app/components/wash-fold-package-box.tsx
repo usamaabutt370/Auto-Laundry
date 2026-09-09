@@ -38,6 +38,7 @@ export type WashFoldPackageBoxCustomerProps = WashFoldPackageBoxBase & {
   selected: boolean;
   onPress: () => void;
   accessibilityLabel: string;
+  appearance?: "dark" | "light";
 };
 
 export type WashFoldPackageBoxProps =
@@ -56,14 +57,18 @@ export function WashFoldPackageGrid({
 
 export function WashFoldPackageBox(props: WashFoldPackageBoxProps) {
   const { title, description, style } = props;
+  const light = props.mode === "customer" && props.appearance === "light";
+  const accent = light ? "#12B886" : c.lightBlue;
+  const titleColor = light ? "#111827" : c.white;
+  const subColor = light ? "#6B7280" : "rgba(255,255,255,0.6)";
 
   const topRow = (
     <View style={styles.topRow}>
-      <View style={styles.iconWrap}>
+      <View style={[styles.iconWrap, light && styles.iconWrapLight]}>
         <MaterialCommunityIcons
           name="package-variant-closed"
           size={26}
-          color={c.lightBlue}
+          color={accent}
         />
       </View>
       {props.mode === "partner" && props.onRemove ? (
@@ -78,7 +83,7 @@ export function WashFoldPackageBox(props: WashFoldPackageBoxProps) {
         </Pressable>
       ) : null}
       {props.mode === "customer" && props.selected ? (
-        <MaterialCommunityIcons name="check-circle" size={22} color={c.lightBlue} />
+        <MaterialCommunityIcons name="check-circle" size={22} color={accent} />
       ) : null}
     </View>
   );
@@ -86,11 +91,11 @@ export function WashFoldPackageBox(props: WashFoldPackageBoxProps) {
   const body = (
     <>
       {topRow}
-      <Text style={styles.title} numberOfLines={2}>
+      <Text style={[styles.title, { color: titleColor }]} numberOfLines={2}>
         {title}
       </Text>
       {description.trim().length > 0 ? (
-        <Text style={styles.subInfo}>{description}</Text>
+        <Text style={[styles.subInfo, { color: subColor }]}>{description}</Text>
       ) : null}
       <View style={styles.priceBlock}>
         {props.mode === "partner" ? (
@@ -123,7 +128,8 @@ export function WashFoldPackageBox(props: WashFoldPackageBoxProps) {
         onPress={props.onPress}
         style={({ pressed }) => [
           styles.box,
-          props.selected && styles.boxSelected,
+          light && styles.boxLight,
+          props.selected && (light ? styles.boxSelectedLight : styles.boxSelected),
           pressed && styles.pressed,
           style,
         ]}
@@ -160,6 +166,14 @@ const styles = StyleSheet.create({
     borderColor: c.lightBlue,
     backgroundColor: "rgba(255,255,255,0.08)",
   },
+  boxLight: {
+    backgroundColor: "#FFFFFF",
+    borderColor: "#E5E7EB",
+  },
+  boxSelectedLight: {
+    borderColor: "#12B886",
+    backgroundColor: "#ECFDF5",
+  },
   pressed: { opacity: 0.85 },
   topRow: {
     flexDirection: "row",
@@ -174,6 +188,9 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.1)",
     alignItems: "center",
     justifyContent: "center",
+  },
+  iconWrapLight: {
+    backgroundColor: "#F3F4F6",
   },
   actionBtn: {
     width: 32,

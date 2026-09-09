@@ -1,5 +1,6 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useIsFocused } from "@react-navigation/native";
+import { StatusBar } from "expo-status-bar";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -37,9 +38,24 @@ import {
 import { getStrings } from "@/locales";
 import { theme } from "@/constants/theme";
 
-const c = theme.colors;
+const UI = {
+  bg: "#F7F8FA",
+  card: "#FFFFFF",
+  text: "#111827",
+  muted: "#6B7280",
+  teal: "#12B886",
+  chipBorder: "#E5E7EB",
+  openBg: "#ECFDF5",
+  openText: "#047857",
+  amber: "#D97706",
+  amberBg: "#FEF3C7",
+  red: "#B91C1C",
+  redBg: "#FEE2E2",
+  iconWell: "#F3F4F6",
+  shadow: "rgba(17, 24, 39, 0.08)",
+};
 const fs = theme.fontSize;
-const PAD = 24;
+const PAD = 16;
 
 function statusLabelKey(
   display: CustomerOrderDisplayStatus,
@@ -127,24 +143,20 @@ export default function CustomerOrderScreen() {
   const statusStyles = useMemo(
     () => ({
       pending: {
-        borderColor: "rgba(171, 233, 254, 0.85)",
-        color: c.white,
-        backgroundColor: "transparent",
+        backgroundColor: UI.amberBg,
+        color: UI.amber,
       },
       accepted: {
-        borderColor: c.filledButtonBorder,
-        color: c.white,
-        backgroundColor: c.blue900,
+        backgroundColor: UI.openBg,
+        color: UI.openText,
       },
       rejected: {
-        borderColor: "#f87171",
-        color: "#fecaca",
-        backgroundColor: "rgba(127, 29, 29, 0.35)",
+        backgroundColor: UI.redBg,
+        color: UI.red,
       },
       completed: {
-        borderColor: "#86efac",
-        color: "#ecfdf5",
-        backgroundColor: "rgba(22, 101, 52, 0.45)",
+        backgroundColor: UI.openBg,
+        color: UI.openText,
       },
     }),
     [],
@@ -246,10 +258,11 @@ export default function CustomerOrderScreen() {
 
   return (
     <View style={styles.container}>
+      <StatusBar style="dark" />
       {dialog}
       {!isWeb ? (
         <SafeAreaView style={styles.safeTop} edges={["top"]}>
-          <AppHeader title={s.title} />
+          <AppHeader appearance="light" title={s.title} />
         </SafeAreaView>
       ) : (
         <WebHeaderSpacer />
@@ -257,6 +270,7 @@ export default function CustomerOrderScreen() {
       {!isWeb && user?.id ? <Text style={styles.hint}>{s.liveHint}</Text> : null}
       {!user?.id ? (
         <GuestSignInPrompt
+          appearance="light"
           variant="orders"
           title={s.signInTitle}
           subtitle={s.signInSubtitle}
@@ -270,7 +284,7 @@ export default function CustomerOrderScreen() {
         />
       ) : loading && orders.length === 0 ? (
         <View style={styles.center}>
-          <ActivityIndicator color={c.white} />
+          <ActivityIndicator color={UI.teal} />
           <Text style={styles.muted}>{s.loading}</Text>
         </View>
       ) : error ? (
@@ -285,7 +299,9 @@ export default function CustomerOrderScreen() {
         </View>
       ) : orders.length === 0 ? (
         <View style={styles.center}>
-          <MaterialCommunityIcons name="receipt-text-outline" size={48} color={c.blue500} />
+          <View style={styles.emptyIcon}>
+            <MaterialCommunityIcons name="receipt-text-outline" size={32} color={UI.teal} />
+          </View>
           <Text style={styles.muted}>{s.empty}</Text>
         </View>
       ) : (
@@ -297,9 +313,9 @@ export default function CustomerOrderScreen() {
             <RefreshControl
               refreshing={isRefreshing}
               onRefresh={onRefresh}
-              tintColor="#FFFFFF"
-              colors={["#FFFFFF"]}
-              progressBackgroundColor={c.blue900}
+              tintColor={UI.teal}
+              colors={[UI.teal]}
+              progressBackgroundColor={UI.card}
               progressViewOffset={8}
             />
           }
@@ -392,7 +408,7 @@ export default function CustomerOrderScreen() {
                           <MaterialCommunityIcons
                             name="trash-can-outline"
                             size={22}
-                            color="#fecaca"
+                            color={UI.red}
                           />
                         </Pressable>
                       ) : null}
@@ -490,7 +506,7 @@ export default function CustomerOrderScreen() {
                   <MaterialCommunityIcons
                     name={value <= rating ? "star" : "star-outline"}
                     size={30}
-                    color={value <= rating ? "#FBBF24" : "rgba(255,255,255,0.45)"}
+                    color={value <= rating ? "#F5B301" : UI.muted}
                   />
                 </Pressable>
               ))}
@@ -529,7 +545,7 @@ export default function CustomerOrderScreen() {
               value={feedbackMessage}
               onChangeText={setFeedbackMessage}
               placeholder="Tell us what went well, or share your complaint..."
-              placeholderTextColor={c.blue500}
+              placeholderTextColor={UI.muted}
               multiline
               maxLength={700}
               style={styles.feedbackInput}
@@ -564,20 +580,22 @@ export default function CustomerOrderScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: c.background,
+    backgroundColor: UI.bg,
   },
   safeTop: {
-    paddingHorizontal: PAD,
-    paddingBottom: 8,
+    backgroundColor: UI.bg,
+    paddingBottom: 4,
   },
   hint: {
     marginHorizontal: PAD,
     fontSize: fs.descText,
-    color: c.blue500,
+    fontFamily: "Poppins-Regular",
+    color: UI.muted,
     lineHeight: 18,
-    opacity: 0.9,
-    marginBottom: 15,
-  }, scroll: {
+    textAlign: "center",
+    marginBottom: 12,
+  },
+  scroll: {
     flex: 1,
   },
   scrollContent: {
@@ -592,14 +610,24 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 12,
   },
+  emptyIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: UI.openBg,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   muted: {
     fontSize: fs.smallText,
-    color: c.blue500,
+    fontFamily: "Poppins-Regular",
+    color: UI.muted,
     textAlign: "center",
   },
   errorText: {
     fontSize: fs.smallText,
-    color: "#fecaca",
+    fontFamily: "Poppins-Regular",
+    color: UI.red,
     textAlign: "center",
   },
   retryBtn: {
@@ -607,10 +635,12 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: c.outline,
+    borderColor: UI.chipBorder,
+    backgroundColor: UI.card,
   },
   retryLabel: {
-    color: c.white,
+    color: UI.text,
+    fontFamily: "Poppins-SemiBold",
     fontWeight: "600",
   },
   pressed: {
@@ -619,10 +649,15 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: c.outline,
-    backgroundColor: c.blue900,
+    borderColor: UI.chipBorder,
+    backgroundColor: UI.card,
     paddingHorizontal: 14,
     paddingVertical: 12,
+    shadowColor: UI.shadow,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 10,
+    elevation: 2,
   },
   cardTop: {
     flexDirection: "row",
@@ -640,12 +675,13 @@ const styles = StyleSheet.create({
   webDeleteBtn: {
     padding: 6,
     borderRadius: 8,
-    backgroundColor: "rgba(185, 28, 28, 0.25)",
+    backgroundColor: UI.redBg,
   },
   orderRef: {
     fontSize: fs.smallText,
+    fontFamily: "Poppins-Bold",
     fontWeight: "700",
-    color: c.white,
+    color: UI.text,
     letterSpacing: 0.5,
     flex: 1,
   },
@@ -653,33 +689,34 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 999,
-    borderWidth: 1,
     flexShrink: 0,
   },
   statusText: {
     fontSize: fs.xxSmallText,
+    fontFamily: "Poppins-Bold",
     fontWeight: "700",
     textTransform: "uppercase",
     letterSpacing: 0.4,
   },
   partnerName: {
     fontSize: fs.smallTitle,
+    fontFamily: "Poppins-SemiBold",
     fontWeight: "600",
-    color: c.white,
+    color: UI.text,
     marginBottom: 4,
   },
   scheduleLine: {
     fontSize: fs.descText,
-    color: c.blue500,
-    lineHeight: 16,
-    opacity: 0.92,
+    fontFamily: "Poppins-Regular",
+    color: UI.muted,
+    lineHeight: 18,
     marginBottom: 2,
   },
   metaGrid: {
     marginTop: 6,
     paddingTop: 8,
     borderTopWidth: 1,
-    borderTopColor: "rgba(171, 233, 254, 0.2)",
+    borderTopColor: UI.chipBorder,
     flexDirection: "row",
     flexWrap: "wrap",
     rowGap: 6,
@@ -703,8 +740,9 @@ const styles = StyleSheet.create({
   metaLabel: {
     width: 56,
     fontSize: fs.xxSmallText,
+    fontFamily: "Poppins-Bold",
     fontWeight: "700",
-    color: c.blue500,
+    color: UI.muted,
     textTransform: "uppercase",
     letterSpacing: 0.35,
     paddingTop: 1,
@@ -712,7 +750,8 @@ const styles = StyleSheet.create({
   metaValue: {
     flex: 1,
     fontSize: fs.xxSmallText,
-    color: c.white,
+    fontFamily: "Poppins-Regular",
+    color: UI.text,
     lineHeight: 15,
   },
   totalRow: {
@@ -722,32 +761,34 @@ const styles = StyleSheet.create({
     marginTop: 8,
     paddingTop: 8,
     borderTopWidth: 1,
-    borderTopColor: "rgba(171, 233, 254, 0.25)",
+    borderTopColor: UI.chipBorder,
   },
   totalLabel: {
     fontSize: fs.xxSmallText,
+    fontFamily: "Poppins-SemiBold",
     fontWeight: "600",
-    color: c.blue500,
+    color: UI.muted,
     textTransform: "uppercase",
     letterSpacing: 0.3,
   },
   totalValue: {
     fontSize: fs.descText,
+    fontFamily: "Poppins-Bold",
     fontWeight: "700",
-    color: c.white,
+    color: UI.teal,
   },
   reorderButton: {
     marginTop: 12,
-    borderWidth: 1,
-    borderColor: c.filledButtonBorder,
+    backgroundColor: UI.teal,
     borderRadius: 999,
     paddingVertical: 10,
     alignItems: "center",
     justifyContent: "center",
   },
   reorderButtonText: {
-    color: c.white,
+    color: "#FFFFFF",
     fontSize: fs.descText,
+    fontFamily: "Poppins-Bold",
     fontWeight: "700",
   },
   modalOverlay: {
@@ -758,25 +799,27 @@ const styles = StyleSheet.create({
   },
   modalBackdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(5, 14, 25, 0.72)",
+    backgroundColor: "rgba(17, 24, 39, 0.45)",
   },
   feedbackModalCard: {
     width: "100%",
-    backgroundColor: c.blue900,
+    backgroundColor: UI.card,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: c.outline,
+    borderColor: UI.chipBorder,
     padding: 16,
   },
   feedbackTitle: {
-    color: c.white,
+    color: UI.text,
     fontSize: fs.smallTitle,
+    fontFamily: "Poppins-Bold",
     fontWeight: "700",
   },
   feedbackSubtitle: {
     marginTop: 4,
-    color: c.blue500,
+    color: UI.muted,
     fontSize: fs.descText,
+    fontFamily: "Poppins-Regular",
     marginBottom: 12,
   },
   starRow: {
@@ -797,33 +840,37 @@ const styles = StyleSheet.create({
   feedbackTypeChip: {
     flex: 1,
     borderWidth: 1,
-    borderColor: c.outline,
+    borderColor: UI.chipBorder,
     borderRadius: 999,
     paddingVertical: 8,
     alignItems: "center",
+    backgroundColor: UI.iconWell,
   },
   feedbackTypeChipSelected: {
-    borderColor: c.filledButtonBorder,
-    backgroundColor: "rgba(31, 200, 255, 0.12)",
+    borderColor: UI.teal,
+    backgroundColor: UI.openBg,
   },
   feedbackTypeText: {
-    color: c.blue500,
+    color: UI.muted,
     fontSize: fs.xxSmallText,
+    fontFamily: "Poppins-Bold",
     fontWeight: "700",
   },
   feedbackTypeTextSelected: {
-    color: c.white,
+    color: UI.openText,
   },
   feedbackInput: {
     minHeight: 120,
     borderWidth: 1,
-    borderColor: c.outline,
+    borderColor: UI.chipBorder,
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    color: c.white,
+    color: UI.text,
     fontSize: fs.descText,
+    fontFamily: "Poppins-Regular",
     marginBottom: 12,
+    backgroundColor: UI.bg,
   },
   feedbackActionsRow: {
     flexDirection: "row",
@@ -832,28 +879,29 @@ const styles = StyleSheet.create({
   feedbackCancelBtn: {
     flex: 1,
     borderWidth: 1,
-    borderColor: c.outline,
+    borderColor: UI.chipBorder,
     borderRadius: 999,
     paddingVertical: 12,
     alignItems: "center",
+    backgroundColor: UI.card,
   },
   feedbackCancelText: {
-    color: c.white,
+    color: UI.text,
     fontSize: fs.descText,
+    fontFamily: "Poppins-Bold",
     fontWeight: "700",
   },
   feedbackSubmitBtn: {
     flex: 1,
-    borderWidth: 1,
-    borderColor: c.filledButtonBorder,
-    backgroundColor: c.lightBlue,
+    backgroundColor: UI.teal,
     borderRadius: 999,
     paddingVertical: 12,
     alignItems: "center",
   },
   feedbackSubmitText: {
-    color: c.white,
+    color: "#FFFFFF",
     fontSize: fs.descText,
+    fontFamily: "Poppins-Bold",
     fontWeight: "700",
   },
   disabled: {

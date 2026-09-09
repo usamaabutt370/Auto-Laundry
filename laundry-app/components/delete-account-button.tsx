@@ -6,7 +6,7 @@ import { ActivityIndicator, Alert, Pressable, StyleSheet, Text } from "react-nat
 import { useAuth } from "@/contexts/auth-context";
 import { deleteUserAccount } from "@/lib/account-deletion";
 
-const DESTRUCTIVE_RED = "#FF3B30";
+const DESTRUCTIVE_RED = "#DC2626";
 
 export function DeleteAccountButton() {
   const router = useRouter();
@@ -90,11 +90,13 @@ const styles = StyleSheet.create({
     backgroundColor: DESTRUCTIVE_RED,
     borderRadius: 12,
     paddingVertical: 14,
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
+    flex: 1,
   },
   pressed: { opacity: 0.7 },
   label: {
     fontSize: 15,
+    fontFamily: "Poppins-Bold",
     fontWeight: "700",
     color: "#FFFFFF",
   },

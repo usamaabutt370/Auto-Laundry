@@ -449,7 +449,8 @@ export const ur = {
         "آپ کی تبدیلیاں محفوظ ہو گئیں۔ لانڈرر کو اپ ڈیٹ شدہ آرڈر نظر آئے گا۔",
       orderSubmitted: "آرڈر جمع ہو گیا",
       orderSubmittedMessage:
-        "آپ کا آرڈر لانڈرر کو بھیج دیا گیا ہے۔ حوالہ: {{ref}}۔",
+        "آپ کا آرڈر لانڈرر کو بھیج دیا گیا ہے۔",
+      orderSubmittedRef: "حوالہ",
       orderSubmittedOk: "آرڈر دیکھیں",
       selectLaundererFirst: "پہلے لانڈرر منتخب کریں۔",
       pickLaunderer: "لانڈرر منتخب کریں",

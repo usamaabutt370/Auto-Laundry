@@ -457,7 +457,8 @@ export const en = {
         "Your changes have been saved. Your Laundry Captain will see the updated order.",
       orderSubmitted: "Order submitted",
       orderSubmittedMessage:
-        "Your order has been sent to your Laundry Captain. Reference: {{ref}}.",
+        "Your order has been sent to your Laundry Captain.",
+      orderSubmittedRef: "Reference",
       orderSubmittedOk: "View order",
       selectLaundererFirst: "Select a launderer first.",
       pickLaunderer: "Pick a launderer",
