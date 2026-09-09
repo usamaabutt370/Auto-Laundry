@@ -67,7 +67,7 @@ export function Input({
   textColor,
   showFocusUnderline = true,
   focusUnderlineColor = "#78b2cb",
-  passwordIconColor = "rgba(255,255,255,0.8)",
+  passwordIconColor,
   editable = true,
   secureTextEntry = false,
   selectedCca2 = "PK",
@@ -85,6 +85,8 @@ export function Input({
   const resolvedText = textColor ?? (light ? "#111827" : theme.colors.white);
   const resolvedPlaceholder =
     placeholderTextColor ?? (light ? "#6B7280" : "rgba(255,255,255,0.7)");
+  const resolvedPasswordIcon =
+    passwordIconColor ?? (light ? "#6B7280" : "rgba(255,255,255,0.8)");
 
   const isPhone = variant === "phone";
   const keyboardType = isPhone ? "phone-pad" : rest.keyboardType;
@@ -163,7 +165,7 @@ export function Input({
             <MaterialCommunityIcons
               name={isPasswordVisible ? "eye-off-outline" : "eye-outline"}
               size={24}
-              color={passwordIconColor}
+              color={resolvedPasswordIcon}
             />
           </Pressable>
         )}

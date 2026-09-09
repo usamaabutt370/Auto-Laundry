@@ -1,8 +1,8 @@
 import { AuthErrorModal, Input, Spacer, ThemedText, ThemedView } from "@/components";
 import { strings } from "@/constants/strings";
-import { theme } from "@/constants/theme";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useState } from "react";
@@ -18,6 +18,13 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
 import type { CountryCode } from "libphonenumber-js";
+
+const UI = {
+  bg: "#F7F8FA",
+  text: "#111827",
+  muted: "#6B7280",
+  teal: "#12B886",
+};
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -200,7 +207,7 @@ export default function LoginScreen() {
   };
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       <View style={styles.screenBody}>
       <AuthErrorModal
         visible={Boolean(authError)}
@@ -216,7 +223,7 @@ export default function LoginScreen() {
           accessibilityRole="button"
           accessibilityLabel="Close"
         >
-          <MaterialCommunityIcons name="close" size={22} color={theme.colors.white} />
+          <MaterialCommunityIcons name="close" size={22} color={UI.text} />
         </Pressable>
       </ThemedView>
       <KeyboardAvoidingView
@@ -237,6 +244,7 @@ export default function LoginScreen() {
           <Spacer.Column numberOfSpaces={5} />
 
           <Input
+            appearance="light"
             variant="phone"
             placeholder={s.mobileNumber}
             value={mobileNumber}
@@ -249,8 +257,6 @@ export default function LoginScreen() {
               setErrors((prev) => ({ ...prev, mobileNumber: undefined }));
             }}
             containerStyle={styles.inputSpacing}
-            borderColor="rgba(255,255,255,0.5)"
-            focusUnderlineColor={theme.colors.backgroundLight}
           />
           {errors.mobileNumber && (
             <Text style={styles.errorText}>{errors.mobileNumber}</Text>
@@ -259,13 +265,12 @@ export default function LoginScreen() {
 
           <ThemedView style={styles.passwordRow}>
             <Input
+              appearance="light"
               placeholder={s.password}
               value={password}
               onChangeText={setPassword}
               secureTextEntry
               containerStyle={styles.passwordInputSpacing}
-              borderColor="rgba(255,255,255,0.5)"
-              focusUnderlineColor={theme.colors.backgroundLight}
             />
             {errors.password && (
               <Text style={styles.errorText}>{errors.password}</Text>
@@ -296,9 +301,16 @@ export default function LoginScreen() {
             accessibilityLabel={s.signInButton}
             disabled={isLoading}
           >
-            <ThemedText style={styles.signInButtonText}>
-              {isLoading ? "Signing in..." : s.signInButton}
-            </ThemedText>
+            <LinearGradient
+              colors={["#4A3AFF", "#12B886"]}
+              start={{ x: 0, y: 0.5 }}
+              end={{ x: 1, y: 0.5 }}
+              style={styles.signInButtonFill}
+            >
+              <ThemedText style={styles.signInButtonText}>
+                {isLoading ? "Signing in..." : s.signInButton}
+              </ThemedText>
+            </LinearGradient>
           </Pressable>
 
           <ThemedView style={styles.footer}>
@@ -322,7 +334,7 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
+    backgroundColor: UI.bg,
   },
   screenBody: {
     flex: 1,
@@ -362,13 +374,13 @@ const styles = StyleSheet.create({
     fontSize: 32,
     lineHeight: 32,
     fontWeight: "700",
-    color: theme.colors.white,
+    color: UI.text,
     backgroundColor: "transparent",
     textAlign: "center",
   },
   subtitle: {
     fontSize: 14,
-    color: theme.colors.white,
+    color: UI.text,
     marginBottom: 28,
     textAlign: "center",
     backgroundColor: "transparent",
@@ -378,7 +390,7 @@ const styles = StyleSheet.create({
     backgroundColor: "transparent",
   },
   errorText: {
-    color: "#ffb3b3",
+    color: "#DC2626",
     fontSize: 12,
     marginTop: 6,
     marginBottom: 8,
@@ -396,20 +408,23 @@ const styles = StyleSheet.create({
   },
   forgotPassword: {
     fontSize: 14,
-    color: theme.colors.backgroundLight,
+    color: UI.teal,
   },
   signInButton: {
     height: 52,
     borderRadius: 26,
-    backgroundColor: theme.colors.backgroundLight,
+    overflow: "hidden",
+    marginBottom: 28,
+  },
+  signInButtonFill: {
+    flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 28,
   },
   signInButtonText: {
     fontSize: 17,
     fontWeight: "700",
-    color: theme.colors.white,
+    color: "#FFFFFF",
   },
   signInButtonDisabled: {
     opacity: 0.7,
@@ -424,11 +439,11 @@ const styles = StyleSheet.create({
   },
   noAccount: {
     fontSize: 15,
-    color: theme.colors.white,
+    color: UI.muted,
   },
   signUpLink: {
     fontSize: 15,
     fontWeight: "700",
-    color: theme.colors.backgroundLight,
+    color: UI.teal,
   },
 });

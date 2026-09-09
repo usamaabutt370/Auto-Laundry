@@ -1,22 +1,30 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { StatusBar } from "expo-status-bar";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { strings } from "@/constants/strings";
-import { theme } from "@/constants/theme";
 import { goBackToCustomerHome } from "@/utils/customer-navigation";
 import { AppHeader } from "@/components/app-header";
 
-const c = theme.colors;
-const FAQ_EXPANDED_BG = c.blue500;
-const FAQ_COLLAPSED_BG = c.blue900;
-const ICON_BG = c.blue500;
-const ICON_BG_COLLAPSED = c.blue900;
-const ICON_BORDER = c.black;
-const EXPANDED_QUESTION_COLOR = c.themeBlack;
-const EXPANDED_ANSWER_COLOR = c.themeGray;
+const UI = {
+  bg: "#F7F8FA",
+  card: "#FFFFFF",
+  text: "#111827",
+  muted: "#6B7280",
+  teal: "#12B886",
+  chipBorder: "#E5E7EB",
+  openBg: "#ECFDF5",
+};
+const FAQ_EXPANDED_BG = UI.openBg;
+const FAQ_COLLAPSED_BG = UI.card;
+const ICON_BG = UI.openBg;
+const ICON_BG_COLLAPSED = UI.card;
+const ICON_BORDER = UI.text;
+const EXPANDED_QUESTION_COLOR = UI.text;
+const EXPANDED_ANSWER_COLOR = UI.muted;
 
 type FAQItem = {
   question: string;
@@ -58,7 +66,7 @@ function FAQAccordionItem({
           <MaterialCommunityIcons
             name={expanded ? "minus" : "plus"}
             size={18}
-            color={expanded ? ICON_BORDER : c.white}
+            color={expanded ? ICON_BORDER : UI.teal}
           />
         </View>
       </View>
@@ -80,8 +88,10 @@ export default function FAQScreen() {
 
   return (
     <View style={styles.container}>
+      <StatusBar style="dark" />
       <SafeAreaView edges={["top"]}>
         <AppHeader
+          appearance="light"
           title={s.title}
           leftIcon="arrow-left"
           onLeftPress={() => goBackToCustomerHome(router)}
@@ -111,7 +121,7 @@ export default function FAQScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: c.background,
+    backgroundColor: UI.bg,
   },
 
   pressed: {
@@ -137,7 +147,7 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.3)",
+    borderColor: UI.chipBorder,
   },
   faqCardExpanded: {
     backgroundColor: FAQ_EXPANDED_BG,
@@ -160,7 +170,7 @@ const styles = StyleSheet.create({
     color: EXPANDED_QUESTION_COLOR,
   },
   faqQuestionCollapsed: {
-    color: c.white,
+    color: UI.text,
   },
   iconWrapperExpanded: {
     width: 28,
@@ -178,7 +188,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     backgroundColor: ICON_BG_COLLAPSED,
     borderWidth: 1,
-    borderColor: c.white,
+    borderColor: UI.teal,
     alignItems: "center",
     justifyContent: "center",
   },

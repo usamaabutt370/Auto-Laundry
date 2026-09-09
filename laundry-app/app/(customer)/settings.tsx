@@ -1,4 +1,5 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { StatusBar } from "expo-status-bar";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import {
@@ -13,14 +14,20 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { MapSearchRadiusSlider } from "@/components/map-search-radius-slider";
 import { strings } from "@/constants/strings";
-import { theme } from "@/constants/theme";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { useSuppressWebScreenHeader } from "@/hooks/use-suppress-web-screen-header";
 import { goBackToCustomerHome } from "@/utils/customer-navigation";
 
-const c = theme.colors;
-const CARD_BG = c.blue900;
-const TOGGLE_ON = "#34C759";
+const UI = {
+  bg: "#F7F8FA",
+  card: "#FFFFFF",
+  text: "#111827",
+  muted: "#6B7280",
+  teal: "#12B886",
+  chipBorder: "#E5E7EB",
+};
+const CARD_BG = UI.card;
+const TOGGLE_ON = UI.teal;
 
 type LanguageId = "english" | "urdu";
 type ReminderHoursId = "6" | "12" | "24";
@@ -62,6 +69,7 @@ export default function SettingsScreen() {
 
   return (
     <View style={styles.container}>
+      <StatusBar style="dark" />
       {!isWeb ? (
         <SafeAreaView style={styles.header} edges={["top"]}>
           <Pressable
@@ -70,7 +78,7 @@ export default function SettingsScreen() {
             accessibilityRole="button"
             accessibilityLabel="Go back"
           >
-            <MaterialCommunityIcons name="arrow-left" size={24} color={c.white} />
+            <MaterialCommunityIcons name="arrow-left" size={24} color={UI.text} />
           </Pressable>
           <Text style={styles.headerTitle}>{s.title}</Text>
           <View style={styles.headerSpacer} />
@@ -108,9 +116,9 @@ export default function SettingsScreen() {
             <Switch
               value={notificationsOn}
               onValueChange={setNotificationsOn}
-              trackColor={{ false: c.backgroundLight, true: TOGGLE_ON }}
-              thumbColor={c.white}
-              ios_backgroundColor={c.backgroundLight}
+              trackColor={{ false: UI.chipBorder, true: TOGGLE_ON }}
+              thumbColor="#FFFFFF"
+              ios_backgroundColor={UI.chipBorder}
             />
           </View>
           {notificationsOn && (
@@ -145,6 +153,7 @@ export default function SettingsScreen() {
           <Text style={styles.cardTitle}>{s.mileRadius}</Text>
           <Text style={styles.cardSubtitle}>{s.mapSearchRadius}</Text>
           <MapSearchRadiusSlider
+            appearance="light"
             min={0}
             max={10}
             value={mileRadius}
@@ -160,13 +169,13 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: c.background,
+    backgroundColor: UI.bg,
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    backgroundColor: c.background,
+    backgroundColor: UI.bg,
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
@@ -176,7 +185,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: "700",
-    color: c.white,
+    color: UI.text,
   },
   headerSpacer: {
     width: 32,
@@ -197,11 +206,13 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     padding: 20,
     marginBottom: 20,
+    borderWidth: 1,
+    borderColor: UI.chipBorder,
   },
   cardTitle: {
     fontSize: 17,
     fontWeight: "700",
-    color: c.white,
+    color: UI.text,
     marginBottom: 12,
   },
   cardTitleRow: {
@@ -213,11 +224,11 @@ const styles = StyleSheet.create({
   cardTitleNoMargin: {
     fontSize: 17,
     fontWeight: "700",
-    color: c.white,
+    color: UI.text,
   },
   cardSubtitle: {
     fontSize: 13,
-    color: c.white,
+    color: UI.muted,
     opacity: 0.9,
     marginBottom: 12,
   },
@@ -235,22 +246,22 @@ const styles = StyleSheet.create({
     height: 22,
     borderRadius: 11,
     borderWidth: 2,
-    borderColor: c.white,
+    borderColor: UI.teal,
     alignItems: "center",
     justifyContent: "center",
   },
   radioOuterSelected: {
-    borderColor: c.white,
+    borderColor: UI.teal,
   },
   radioInner: {
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: c.white,
+    backgroundColor: UI.teal,
   },
   radioLabel: {
     fontSize: 16,
-    color: c.white,
+    color: UI.text,
     fontWeight: "500",
   },
   radioColumn: {

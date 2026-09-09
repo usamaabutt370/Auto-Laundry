@@ -1,4 +1,5 @@
 import { useRouter } from "expo-router";
+import { StatusBar } from "expo-status-bar";
 import { useState } from "react";
 import {
   Keyboard,
@@ -16,11 +17,17 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { showAppAlert } from "@/components/app-alert";
 import { AppHeader } from "@/components/app-header";
 import { strings } from "@/constants/strings";
-import { theme } from "@/constants/theme";
 import { openWhatsApp } from "@/lib/whatsapp";
 import { goBackToCustomerHome } from "@/utils/customer-navigation";
 
-const c = theme.colors;
+const UI = {
+  bg: "#F7F8FA",
+  card: "#FFFFFF",
+  text: "#111827",
+  muted: "#6B7280",
+  teal: "#12B886",
+  chipBorder: "#E5E7EB",
+};
 
 export default function ContactSupportScreen() {
   const router = useRouter();
@@ -43,8 +50,10 @@ export default function ContactSupportScreen() {
 
   return (
     <View style={styles.container}>
+      <StatusBar style="dark" />
       <SafeAreaView edges={["top"]}>
         <AppHeader
+          appearance="light"
           title={s.title}
           leftIcon="arrow-left"
           onLeftPress={() => goBackToCustomerHome(router)}
@@ -66,7 +75,7 @@ export default function ContactSupportScreen() {
           <TextInput
             style={styles.input}
             placeholder={s.placeholder}
-            placeholderTextColor={c.themeGray}
+            placeholderTextColor={UI.muted}
             value={message}
             onChangeText={setMessage}
             multiline
@@ -93,7 +102,7 @@ export default function ContactSupportScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: c.background,
+    backgroundColor: UI.bg,
   },
   keyboardView: {
     flex: 1,
@@ -111,14 +120,16 @@ const styles = StyleSheet.create({
     minHeight: 200,
     marginBottom: 16,
     borderRadius: 12,
-    color: c.themeGray,
+    color: UI.text,
     paddingVertical: 14,
     paddingHorizontal: 16,
-    backgroundColor: c.white,
+    backgroundColor: UI.card,
+    borderWidth: 1,
+    borderColor: UI.chipBorder,
   },
   whatsappHint: {
     fontSize: 14,
-    color: "rgba(255,255,255,0.75)",
+    color: UI.muted,
     marginBottom: 8,
     lineHeight: 20,
   },
@@ -128,14 +139,14 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: c.backgroundLight,
+    backgroundColor: UI.teal,
   },
   sendBtnPressed: {
     opacity: 0.9,
   },
   sendBtnText: {
     fontSize: 17,
-    color: c.white,
+    color: "#FFFFFF",
     fontWeight: "500",
   },
 });

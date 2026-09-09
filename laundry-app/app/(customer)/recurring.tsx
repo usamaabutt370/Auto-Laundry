@@ -1,15 +1,24 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { StatusBar } from "expo-status-bar";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { strings } from "@/constants/strings";
-import { theme } from "@/constants/theme";
 import { goBackToCustomerHome } from "@/utils/customer-navigation";
 import { Spacer } from "@/components";
 
-const c = theme.colors;
+const UI = {
+  bg: "#F7F8FA",
+  card: "#FFFFFF",
+  text: "#111827",
+  muted: "#6B7280",
+  teal: "#12B886",
+  chipBorder: "#E5E7EB",
+  openBg: "#ECFDF5",
+  openText: "#047857",
+};
 
 type RecurringOptionId = "weekly" | "biWeekly" | "threeWeeks" | "monthly";
 
@@ -30,6 +39,7 @@ export default function RecurringOptionsScreen() {
 
   return (
     <View style={styles.container}>
+      <StatusBar style="dark" />
       <SafeAreaView style={styles.header} edges={["top"]}>
         <Pressable
           onPress={() => goBackToCustomerHome(router)}
@@ -37,7 +47,7 @@ export default function RecurringOptionsScreen() {
           accessibilityRole="button"
           accessibilityLabel="Go back"
         >
-          <MaterialCommunityIcons name="arrow-left" size={24} color={c.white} />
+          <MaterialCommunityIcons name="arrow-left" size={24} color={UI.text} />
         </Pressable>
         <Text style={styles.headerTitle}>{s.title}</Text>
         <View style={styles.headerSpacer} />
@@ -90,13 +100,13 @@ export default function RecurringOptionsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: c.background,
+    backgroundColor: UI.bg,
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: c.background,
+    backgroundColor: UI.bg,
     paddingHorizontal: 16,
   },
   backBtn: {
@@ -105,7 +115,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: "700",
-    color: c.white,
+    color: UI.text,
     backgroundColor: "transparent",
   },
   headerSpacer: {
@@ -136,7 +146,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: -10,
     zIndex: 1,
-    backgroundColor: c.blue600,
+    backgroundColor: UI.teal,
     paddingHorizontal: 20,
     paddingVertical: 4,
     borderRadius: 5,
@@ -145,7 +155,7 @@ const styles = StyleSheet.create({
   activeBadgeText: {
     fontSize: 12,
     fontWeight: "600",
-    color: c.background,
+    color: "#FFFFFF",
   },
   optionBlock: {
     width: "100%",
@@ -155,12 +165,14 @@ const styles = StyleSheet.create({
     backgroundColor: "transparent",
   },
   optionBlockInactive: {
-    backgroundColor: c.blue900,
+    backgroundColor: UI.card,
+    borderWidth: 1,
+    borderColor: UI.chipBorder,
   },
   optionBlockActive: {
-    backgroundColor: c.backgroundLight,
+    backgroundColor: UI.openBg,
     borderWidth: 2,
-    borderColor: c.blue600,
+    borderColor: UI.teal,
     borderRadius: 14,
   },
   optionLabel: {
@@ -168,9 +180,9 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   optionLabelInactive: {
-    color: c.white,
+    color: UI.text,
   },
   optionLabelActive: {
-    color: c.white,
+    color: UI.openText,
   },
 });
