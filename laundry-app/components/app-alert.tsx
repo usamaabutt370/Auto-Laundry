@@ -1,9 +1,15 @@
 import { useEffect, useState } from "react";
 import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 
-import { theme } from "@/constants/theme";
-
-const c = theme.colors;
+const UI = {
+  card: "#FFFFFF",
+  text: "#111827",
+  muted: "#6B7280",
+  teal: "#12B886",
+  chipBorder: "#E5E7EB",
+  bg: "#F7F8FA",
+  red: "#DC2626",
+};
 
 export type AppAlertButton = {
   text: string;
@@ -121,30 +127,36 @@ const styles = StyleSheet.create({
   },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0, 0, 0, 0.55)",
+    backgroundColor: "rgba(17, 24, 39, 0.45)",
   },
   card: {
     width: "100%",
     maxWidth: 360,
-    borderRadius: 16,
-    backgroundColor: c.blue900,
+    borderRadius: 20,
+    backgroundColor: UI.card,
     borderWidth: 1,
-    borderColor: "rgba(171, 233, 254, 0.35)",
+    borderColor: UI.chipBorder,
     paddingHorizontal: 20,
     paddingTop: 20,
     paddingBottom: 14,
     zIndex: 1,
     elevation: 1,
+    shadowColor: "rgba(17, 24, 39, 0.12)",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 1,
+    shadowRadius: 16,
   },
   title: {
     fontSize: 18,
+    fontFamily: "Poppins-Bold",
     fontWeight: "700",
-    color: c.white,
+    color: UI.text,
     marginBottom: 8,
   },
   message: {
     fontSize: 15,
-    color: "rgba(255,255,255,0.8)",
+    fontFamily: "Poppins-Regular",
+    color: UI.muted,
     lineHeight: 21,
     marginBottom: 16,
   },
@@ -168,26 +180,27 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   defaultBtn: {
-    backgroundColor: c.outline,
+    backgroundColor: UI.teal,
   },
   cancelBtn: {
-    backgroundColor: "transparent",
+    backgroundColor: UI.bg,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.25)",
+    borderColor: UI.chipBorder,
   },
   destructiveBtn: {
-    backgroundColor: "#D9534F",
+    backgroundColor: UI.red,
   },
   btnText: {
     fontSize: 15,
+    fontFamily: "Poppins-Bold",
     fontWeight: "700",
-    color: c.background,
+    color: "#FFFFFF",
   },
   cancelText: {
-    color: c.white,
+    color: UI.text,
   },
   destructiveText: {
-    color: c.white,
+    color: "#FFFFFF",
   },
   pressed: {
     opacity: 0.85,

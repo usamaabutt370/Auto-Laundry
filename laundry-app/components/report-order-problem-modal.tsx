@@ -1,4 +1,5 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import * as ImagePicker from "expo-image-picker";
 import { Image } from "expo-image";
 import { useState } from "react";
@@ -16,12 +17,20 @@ import {
 } from "react-native";
 
 import { showAppAlert } from "@/components/app-alert";
-import { theme } from "@/constants/theme";
 import { useLocale } from "@/contexts/locale-context";
 import { submitOrderDispute } from "@/lib/order-disputes";
 import { getStrings } from "@/locales";
 
-const c = theme.colors;
+const UI = {
+  bg: "#F7F8FA",
+  card: "#FFFFFF",
+  text: "#111827",
+  muted: "#6B7280",
+  teal: "#12B886",
+  chipBorder: "#E5E7EB",
+  openBg: "#ECFDF5",
+  openText: "#047857",
+};
 const MAX_PHOTOS = 3;
 
 type PendingPhoto = {
@@ -143,14 +152,16 @@ export function ReportOrderProblemModal({
             <Text style={styles.subtitle}>
               {s.subtitle.replace("{{ref}}", orderRef)}
             </Text>
-            <Text style={styles.adminNote}>{s.adminNote}</Text>
+            <View style={styles.adminNoteBox}>
+              <Text style={styles.adminNote}>{s.adminNote}</Text>
+            </View>
 
             <Text style={styles.label}>{s.descriptionLabel}</Text>
             <TextInput
               value={description}
               onChangeText={setDescription}
               placeholder={s.descriptionPlaceholder}
-              placeholderTextColor="rgba(255,255,255,0.4)"
+              placeholderTextColor={UI.muted}
               multiline
               textAlignVertical="top"
               style={styles.input}
@@ -167,7 +178,7 @@ export function ReportOrderProblemModal({
                     style={styles.removePhotoBtn}
                     disabled={submitting}
                   >
-                    <MaterialCommunityIcons name="close" size={14} color={c.white} />
+                    <MaterialCommunityIcons name="close" size={14} color="#FFFFFF" />
                   </Pressable>
                 </View>
               ))}
@@ -177,7 +188,7 @@ export function ReportOrderProblemModal({
                   style={({ pressed }) => [styles.addPhotoBtn, pressed && styles.pressed]}
                   disabled={submitting}
                 >
-                  <MaterialCommunityIcons name="camera-plus-outline" size={24} color={c.outline} />
+                  <MaterialCommunityIcons name="camera-plus-outline" size={24} color={UI.teal} />
                   <Text style={styles.addPhotoText}>{s.addPhoto}</Text>
                 </Pressable>
               ) : null}
@@ -193,14 +204,21 @@ export function ReportOrderProblemModal({
               </Pressable>
               <Pressable
                 onPress={() => void handleSubmit()}
-                style={[styles.submitBtn, submitting && styles.disabled]}
+                style={[styles.submitWrap, submitting && styles.disabled]}
                 disabled={submitting}
               >
-                {submitting ? (
-                  <ActivityIndicator color={c.background} />
-                ) : (
-                  <Text style={styles.submitText}>{s.submit}</Text>
-                )}
+                <LinearGradient
+                  colors={["#4A3AFF", "#12B886"]}
+                  start={{ x: 0, y: 0.5 }}
+                  end={{ x: 1, y: 0.5 }}
+                  style={styles.submitBtn}
+                >
+                  {submitting ? (
+                    <ActivityIndicator color="#FFFFFF" />
+                  ) : (
+                    <Text style={styles.submitText}>{s.submit}</Text>
+                  )}
+                </LinearGradient>
               </Pressable>
             </View>
           </ScrollView>
@@ -218,39 +236,49 @@ const styles = StyleSheet.create({
   },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.55)",
+    backgroundColor: "rgba(17, 24, 39, 0.45)",
   },
   card: {
     maxHeight: "88%",
-    borderRadius: 18,
-    backgroundColor: c.blue900,
+    borderRadius: 20,
+    backgroundColor: UI.card,
     borderWidth: 1,
-    borderColor: c.outline,
+    borderColor: UI.chipBorder,
   },
   scrollContent: {
     padding: 20,
   },
   title: {
     fontSize: 20,
+    fontFamily: "Poppins-Bold",
     fontWeight: "700",
-    color: c.white,
+    color: UI.text,
     marginBottom: 6,
   },
   subtitle: {
     fontSize: 14,
-    color: "rgba(255,255,255,0.75)",
-    marginBottom: 8,
+    fontFamily: "Poppins-Regular",
+    color: UI.muted,
+    marginBottom: 10,
+  },
+  adminNoteBox: {
+    backgroundColor: UI.openBg,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 16,
   },
   adminNote: {
     fontSize: 13,
-    color: c.outline,
+    fontFamily: "Poppins-Regular",
+    color: UI.openText,
     lineHeight: 18,
-    marginBottom: 16,
   },
   label: {
     fontSize: 12,
+    fontFamily: "Poppins-Bold",
     fontWeight: "700",
-    color: "rgba(255,255,255,0.55)",
+    color: UI.muted,
     textTransform: "uppercase",
     marginBottom: 8,
   },
@@ -258,10 +286,11 @@ const styles = StyleSheet.create({
     minHeight: 110,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.15)",
-    backgroundColor: "rgba(255,255,255,0.06)",
-    color: c.white,
+    borderColor: UI.chipBorder,
+    backgroundColor: UI.bg,
+    color: UI.text,
     fontSize: 15,
+    fontFamily: "Poppins-Regular",
     lineHeight: 21,
     padding: 12,
     marginBottom: 16,
@@ -277,6 +306,7 @@ const styles = StyleSheet.create({
     height: 84,
     borderRadius: 12,
     overflow: "hidden",
+    backgroundColor: UI.bg,
   },
   photo: {
     width: "100%",
@@ -298,15 +328,17 @@ const styles = StyleSheet.create({
     height: 84,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.2)",
+    borderColor: UI.teal,
     borderStyle: "dashed",
+    backgroundColor: UI.openBg,
     alignItems: "center",
     justifyContent: "center",
     gap: 4,
   },
   addPhotoText: {
     fontSize: 11,
-    color: "rgba(255,255,255,0.65)",
+    fontFamily: "Poppins-SemiBold",
+    color: UI.teal,
     textAlign: "center",
   },
   actions: {
@@ -318,26 +350,34 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.2)",
+    borderColor: UI.chipBorder,
+    backgroundColor: UI.bg,
     alignItems: "center",
+    justifyContent: "center",
   },
   cancelText: {
-    color: c.white,
+    color: UI.text,
     fontSize: 15,
+    fontFamily: "Poppins-SemiBold",
     fontWeight: "600",
+  },
+  submitWrap: {
+    flex: 1,
+    borderRadius: 12,
+    overflow: "hidden",
+    minHeight: 48,
   },
   submitBtn: {
     flex: 1,
     paddingVertical: 14,
-    borderRadius: 12,
-    backgroundColor: c.outline,
     alignItems: "center",
     justifyContent: "center",
     minHeight: 48,
   },
   submitText: {
-    color: c.background,
+    color: "#FFFFFF",
     fontSize: 15,
+    fontFamily: "Poppins-Bold",
     fontWeight: "700",
   },
   pressed: { opacity: 0.85 },

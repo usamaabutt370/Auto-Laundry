@@ -10,11 +10,17 @@ const c = theme.colors;
 type CustomerTrustBannerProps = {
   verified?: boolean;
   onPressChat?: () => void;
+  appearance?: "dark" | "light";
 };
 
-export function CustomerTrustBanner({ verified = false, onPressChat }: CustomerTrustBannerProps) {
+export function CustomerTrustBanner({
+  verified = false,
+  onPressChat,
+  appearance = "dark",
+}: CustomerTrustBannerProps) {
   const { locale } = useLocale();
   const message = getStrings(locale).customer.trustBanner.message;
+  const light = appearance === "light";
 
   if (!verified) return null;
 
@@ -23,10 +29,10 @@ export function CustomerTrustBanner({ verified = false, onPressChat }: CustomerT
       <MaterialCommunityIcons
         name="shield-check"
         size={20}
-        color={c.outline}
+        color={light ? "#12B886" : c.outline}
         style={styles.icon}
       />
-      <Text style={styles.text}>{message}</Text>
+      <Text style={[styles.text, light && styles.textLight]}>{message}</Text>
     </>
   );
 
@@ -34,7 +40,11 @@ export function CustomerTrustBanner({ verified = false, onPressChat }: CustomerT
     return (
       <Pressable
         onPress={onPressChat}
-        style={({ pressed }) => [styles.banner, pressed && styles.pressed]}
+        style={({ pressed }) => [
+          styles.banner,
+          light && styles.bannerLight,
+          pressed && styles.pressed,
+        ]}
         accessibilityRole="button"
         accessibilityLabel={message}
       >
@@ -43,7 +53,7 @@ export function CustomerTrustBanner({ verified = false, onPressChat }: CustomerT
     );
   }
 
-  return <View style={styles.banner}>{content}</View>;
+  return <View style={[styles.banner, light && styles.bannerLight]}>{content}</View>;
 }
 
 const styles = StyleSheet.create({
@@ -70,5 +80,13 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     color: c.white,
     fontWeight: "500",
+  },
+  bannerLight: {
+    borderColor: "#A7F3D0",
+    backgroundColor: "#ECFDF5",
+  },
+  textLight: {
+    color: "#047857",
+    fontFamily: "Poppins-Regular",
   },
 });

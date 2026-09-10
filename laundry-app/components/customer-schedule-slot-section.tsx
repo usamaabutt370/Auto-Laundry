@@ -1,5 +1,4 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { Image } from "expo-image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Modal,
@@ -11,8 +10,6 @@ import {
 } from "react-native";
 
 import { Spacer } from "@/components";
-import { assets } from "@/assets/assets";
-import { theme } from "@/constants/theme";
 import {
   dateToIso,
   formatTodayString,
@@ -25,7 +22,16 @@ import {
   timeSlotIndexFromLabel,
 } from "@/utils/schedule-datetime";
 
-const c = theme.colors;
+const UI = {
+  card: "#FFFFFF",
+  text: "#111827",
+  muted: "#6B7280",
+  teal: "#12B886",
+  openBg: "#ECFDF5",
+  chipBorder: "#E5E7EB",
+  iconWell: "#F3F4F6",
+  shadow: "rgba(17, 24, 39, 0.08)",
+};
 
 const CURRENT_YEAR = new Date().getFullYear();
 const CURRENT_MONTH = new Date().getMonth();
@@ -193,14 +199,14 @@ export function CustomerScheduleSlotSection({
               style={({ pressed }) => [styles.monthButton, pressed && styles.pressed]}
             >
               <Text style={styles.monthLabel}>{MONTH_NAMES_EN[selectedMonth]}</Text>
-              <MaterialCommunityIcons name="chevron-down" size={20} color={c.white} />
+              <MaterialCommunityIcons name="chevron-down" size={20} color={UI.muted} />
             </Pressable>
             <Pressable
               onPress={() => setYearPickerVisible(true)}
               style={({ pressed }) => [styles.yearButton, pressed && styles.pressed]}
             >
               <Text style={styles.yearLabel}>{selectedYear}</Text>
-              <MaterialCommunityIcons name="chevron-down" size={20} color={c.white} />
+              <MaterialCommunityIcons name="chevron-down" size={20} color={UI.muted} />
             </Pressable>
           </View>
           <Text style={styles.todayLabel}>
@@ -242,10 +248,10 @@ export function CustomerScheduleSlotSection({
         onPress={() => setTimePickerVisible(true)}
         style={({ pressed }) => [styles.timeSlotRow, pressed && styles.pressed]}
       >
-        <Image source={assets.icons.clock_icon} style={styles.timeSlotIcon} />
+        <MaterialCommunityIcons name="clock-outline" size={20} color={UI.teal} />
         <Text style={styles.timeSlotLabel}>{dayLabel} :</Text>
         <Text style={styles.timeSlotValue}>{timeSlotLabel}</Text>
-        <MaterialCommunityIcons name="chevron-down" size={22} color={c.white} />
+        <MaterialCommunityIcons name="chevron-down" size={22} color={UI.muted} />
       </Pressable>
 
       <Modal
@@ -287,7 +293,7 @@ export function CustomerScheduleSlotSection({
                       {name}
                     </Text>
                     {selectedMonth === index ? (
-                      <MaterialCommunityIcons name="check" size={20} color={c.white} />
+                      <MaterialCommunityIcons name="check" size={20} color={UI.teal} />
                     ) : null}
                   </Pressable>
                 );
@@ -334,7 +340,7 @@ export function CustomerScheduleSlotSection({
                     {year}
                   </Text>
                   {selectedYear === year ? (
-                    <MaterialCommunityIcons name="check" size={20} color={c.white} />
+                    <MaterialCommunityIcons name="check" size={20} color={UI.teal} />
                   ) : null}
                 </Pressable>
               ))}
@@ -389,7 +395,7 @@ export function CustomerScheduleSlotSection({
                       {label}
                     </Text>
                     {isSelected ? (
-                      <MaterialCommunityIcons name="check" size={20} color={c.white} />
+                      <MaterialCommunityIcons name="check" size={20} color={UI.teal} />
                     ) : null}
                   </Pressable>
                 );
@@ -410,27 +416,33 @@ export function CustomerScheduleSlotSection({
 
 const styles = StyleSheet.create({
   section: {
-    marginBottom: 8,
+    marginBottom: 24,
   },
   sectionHeading: {
     fontSize: 18,
-    fontWeight: "700",
-    color: c.white,
-    marginBottom: 14,
+    fontFamily: "Poppins-Bold",
+    color: UI.text,
+    marginBottom: 12,
   },
-  pressed: { opacity: 0.8 },
+  pressed: { opacity: 0.85 },
   calendarBlock: {
-    backgroundColor: c.blue900,
+    backgroundColor: UI.card,
     borderRadius: 16,
-    paddingVertical: 20,
-    paddingHorizontal: 16,
-    gap: 20,
+    paddingVertical: 16,
+    paddingHorizontal: 14,
+    gap: 16,
+    borderWidth: 1,
+    borderColor: UI.chipBorder,
+    shadowColor: UI.shadow,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 10,
+    elevation: 2,
   },
   calendarHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 16,
   },
   calendarHeaderLeft: {
     flexDirection: "row",
@@ -440,99 +452,95 @@ const styles = StyleSheet.create({
   monthButton: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    gap: 4,
   },
   monthLabel: {
-    fontSize: 17,
-    fontWeight: "700",
-    color: c.white,
+    fontSize: 16,
+    fontFamily: "Poppins-Bold",
+    color: UI.text,
   },
   yearButton: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    gap: 4,
   },
   yearLabel: {
-    fontSize: 17,
-    fontWeight: "700",
-    color: c.white,
+    fontSize: 16,
+    fontFamily: "Poppins-Bold",
+    color: UI.text,
   },
   todayLabel: {
-    fontSize: 14,
-    color: c.white,
-    opacity: 0.85,
+    fontSize: 12,
+    fontFamily: "Poppins-Regular",
+    color: UI.muted,
+    flexShrink: 1,
+    textAlign: "right",
   },
   dateRow: {
-    gap: 10,
+    gap: 8,
     paddingRight: 8,
     flexDirection: "row",
   },
   datePill: {
-    gap: 16,
+    gap: 6,
     minWidth: 56,
     borderRadius: 12,
-    paddingVertical: 12,
+    paddingVertical: 10,
     alignItems: "center",
-    paddingHorizontal: 14,
-    backgroundColor: c.blue900,
+    paddingHorizontal: 12,
+    backgroundColor: UI.iconWell,
   },
   datePillSelected: {
-    backgroundColor: c.backgroundLight,
+    backgroundColor: UI.teal,
   },
   datePillDay: {
     fontSize: 13,
-    color: c.white,
-    opacity: 0.9,
+    fontFamily: "Poppins-Medium",
+    color: UI.muted,
     marginBottom: 2,
   },
   datePillDaySelected: {
-    color: c.white,
-    fontWeight: "600",
+    color: "#FFFFFF",
   },
   datePillNum: {
     fontSize: 16,
-    fontWeight: "700",
-    color: c.white,
-    opacity: 0.9,
+    fontFamily: "Poppins-Bold",
+    color: UI.text,
   },
   datePillNumSelected: {
-    color: c.white,
+    color: "#FFFFFF",
   },
   sectionTitle: {
-    fontSize: 17,
-    fontWeight: "600",
-    color: c.white,
-    marginBottom: 12,
-  },
-  timeSlotIcon: {
-    width: 20,
-    height: 20,
+    fontSize: 16,
+    fontFamily: "Poppins-SemiBold",
+    color: UI.text,
+    marginBottom: 10,
   },
   timeSlotRow: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: c.blue900,
-    borderRadius: 12,
+    backgroundColor: UI.card,
+    borderRadius: 14,
     paddingVertical: 14,
     paddingHorizontal: 16,
     gap: 10,
-    marginBottom: 0,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.2)",
+    borderColor: UI.chipBorder,
   },
   timeSlotLabel: {
-    fontSize: 15,
-    color: c.white,
-    fontWeight: "500",
+    fontSize: 14,
+    color: UI.muted,
+    fontFamily: "Poppins-Medium",
   },
   timeSlotValue: {
     flex: 1,
-    fontSize: 15,
-    color: c.white,
+    fontSize: 14,
+    color: UI.text,
+    fontFamily: "Poppins-SemiBold",
   },
   pickerOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
+    backgroundColor: "rgba(17, 24, 39, 0.45)",
     justifyContent: "center",
     alignItems: "center",
     padding: 24,
@@ -541,11 +549,11 @@ const styles = StyleSheet.create({
     width: "100%",
     maxWidth: 320,
     maxHeight: "70%",
-    backgroundColor: c.blue900,
+    backgroundColor: UI.card,
     borderRadius: 16,
     padding: 20,
     borderWidth: 1,
-    borderColor: c.backgroundLight,
+    borderColor: UI.chipBorder,
   },
   yearPickerCard: {
     maxWidth: 280,
@@ -555,16 +563,16 @@ const styles = StyleSheet.create({
     width: "100%",
     maxWidth: 340,
     maxHeight: "75%",
-    backgroundColor: c.blue900,
+    backgroundColor: UI.card,
     borderRadius: 16,
     padding: 20,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.2)",
+    borderColor: UI.chipBorder,
   },
   pickerTitle: {
     fontSize: 18,
-    fontWeight: "700",
-    color: c.white,
+    fontFamily: "Poppins-Bold",
+    color: UI.text,
     marginBottom: 16,
     textAlign: "center",
   },
@@ -581,29 +589,30 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   pickerOptionSelected: {
-    backgroundColor: c.backgroundLight,
+    backgroundColor: UI.openBg,
   },
   pickerOptionDisabled: {
     opacity: 0.45,
   },
   pickerOptionText: {
     fontSize: 16,
-    color: c.white,
-    fontWeight: "500",
+    color: UI.text,
+    fontFamily: "Poppins-Medium",
   },
   pickerOptionTextSelected: {
-    fontWeight: "700",
+    fontFamily: "Poppins-Bold",
+    color: UI.teal,
   },
   pickerClose: {
     marginTop: 12,
     paddingVertical: 14,
     alignItems: "center",
     borderRadius: 12,
-    backgroundColor: c.backgroundLight,
+    backgroundColor: UI.teal,
   },
   pickerCloseText: {
     fontSize: 16,
-    fontWeight: "600",
-    color: c.white,
+    fontFamily: "Poppins-SemiBold",
+    color: "#FFFFFF",
   },
 });

@@ -22,9 +22,10 @@ export interface SelectedCountry {
 }
 
 interface CountryCodePickerProps {
-  selectedCca2: CountryCode;
+  selectedCca2: string;
   selectedCallingCode: string;
   onSelect: (country: SelectedCountry) => void;
+  appearance?: "dark" | "light";
 }
 
 type CountryOption = {
@@ -55,7 +56,11 @@ export function CountryCodePicker({
   selectedCca2,
   selectedCallingCode,
   onSelect,
+  appearance = "dark",
 }: CountryCodePickerProps) {
+  const [isVisible, setIsVisible] = useState(false);
+  const [query, setQuery] = useState("");
+  const light = appearance === "light";
   const [isVisible, setIsVisible] = useState(false);
   const [query, setQuery] = useState("");
 
@@ -87,8 +92,10 @@ export function CountryCodePicker({
         accessibilityRole="button"
         accessibilityLabel={`Country code +${selectedCallingCode}`}
       >
-        <Text style={styles.flagText}>{selectedCca2}</Text>
-        <Text style={styles.callingCodeText}>+{selectedCallingCode}</Text>
+        <Text style={[styles.flagText, light && styles.flagTextLight]}>{selectedCca2}</Text>
+        <Text style={[styles.callingCodeText, light && styles.callingCodeTextLight]}>
+          +{selectedCallingCode}
+        </Text>
       </Pressable>
 
       <Modal
@@ -157,6 +164,12 @@ const styles = StyleSheet.create({
     color: c.white,
     fontSize: 15,
     fontWeight: "600",
+  },
+  flagTextLight: {
+    color: "#111827",
+  },
+  callingCodeTextLight: {
+    color: "#111827",
   },
   pressed: {
     opacity: 0.7,

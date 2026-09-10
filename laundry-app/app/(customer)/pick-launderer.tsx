@@ -16,6 +16,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 
+import { BlockingLoader } from "@/components/blocking-loader";
 import { FiltersMapFab } from "@/components/filters-map-fab";
 import { AvatarImage } from "@/components/avatar-image";
 import { PartnerNameWithBadge } from "@/components/partner-name-with-badge";
@@ -250,6 +251,8 @@ export default function PickLaundererScreen() {
   const [chip, setChip] = useState<ProviderChip>("all");
   const [favorites, setFavorites] = useState<Record<string, boolean>>({});
   const [sheetPane, setSheetPane] = useState<ProviderSheetPane | null>(null);
+  const [applyingFilters, setApplyingFilters] = useState(false);
+  const applyingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [selectedPartnerId, setSelectedPartnerId] = useState<string | null>(null);
   const [appliedFilters, setAppliedFilters] = useState<ProviderFilters>(() => ({
     ...OPEN_PROVIDER_FILTERS,
@@ -341,6 +344,12 @@ export default function PickLaundererScreen() {
       router.replace("/(customer)/pickup-services");
     }
   }, [editingOrderId, isReassignMode, router]);
+
+  useEffect(() => {
+    return () => {
+      if (applyingTimerRef.current) clearTimeout(applyingTimerRef.current);
+    };
+  }, []);
 
   const resolveUserLocation = useCallback(async () => {
     const result = await getDeviceCoordinatesWithStatus();
@@ -573,6 +582,7 @@ export default function PickLaundererScreen() {
     () => ({
       userCoordinates,
       loadingPartners: loading,
+      partners: filteredPartners.map(toMapPartner),
       mapMarkers,
       setSelectedPartnerId,
       selectedPartner,
@@ -581,7 +591,7 @@ export default function PickLaundererScreen() {
         : null,
       selectedPartnerPrimaryImage: getPartnerPrimaryImage(selectedPartner),
     }),
-    [loading, mapMarkers, selectedPartner, userCoordinates],
+    [filteredPartners, loading, mapMarkers, selectedPartner, toMapPartner, userCoordinates],
   );
 
   const emptyMessage = searchQuery.trim()
@@ -617,6 +627,12 @@ export default function PickLaundererScreen() {
     else if (next.offers) setChip("offers");
     else setChip("all");
     setSheetPane(null);
+    setApplyingFilters(true);
+    if (applyingTimerRef.current) clearTimeout(applyingTimerRef.current);
+    applyingTimerRef.current = setTimeout(() => {
+      applyingTimerRef.current = null;
+      setApplyingFilters(false);
+    }, 500);
   };
 
   const handlePartnerPress = useCallback(
@@ -812,10 +828,11 @@ export default function PickLaundererScreen() {
         matchCount={matchCount}
         onClose={closeSheet}
         onApply={applyFilters}
-        onChangeLocation={() => void resolveUserLocation()}
+        userCoordinates={userCoordinates}
         mapData={mapData}
         onPartnerPress={handleMapPartnerPress}
       />
+      <BlockingLoader visible={applyingFilters} message={s.applyingFilters} />
     </KeyboardAvoidingView>
   );
 }

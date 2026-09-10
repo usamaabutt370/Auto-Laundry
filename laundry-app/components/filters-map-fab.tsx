@@ -67,7 +67,7 @@ const styles = StyleSheet.create({
     pointerEvents: "box-none",
   },
   fabShadow: {
-    borderRadius: 26,
+    borderRadius: 20,
     shadowColor: "rgba(17, 24, 39, 0.25)",
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 1,
@@ -76,9 +76,9 @@ const styles = StyleSheet.create({
   },
   fab: {
     flexDirection: "row",
-    height: 52,
+    height: 40,
     minWidth: 252,
-    borderRadius: 26,
+    borderRadius: 20,
     overflow: "hidden",
   },
   fabHalf: {

@@ -1,3 +1,5 @@
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
 import {
@@ -7,24 +9,26 @@ import {
   Text,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { showAppAlert } from "@/components/app-alert";
-import { AppHeader } from "@/components/app-header";
 import {
   CustomerScheduleSlotSection,
   type ScheduleSlotValue,
 } from "@/components/customer-schedule-slot-section";
-import { Spacer } from "@/components";
 import { strings } from "@/constants/strings";
-import { theme } from "@/constants/theme";
 import { useCustomerOrderDraft } from "@/contexts/customer-order-draft-context";
 import { isBeforeDate, isSameDay } from "@/utils/schedule-datetime";
 
-const c = theme.colors;
+const UI = {
+  bg: "#F7F8FA",
+  text: "#111827",
+  backBg: "#EEF2F6",
+};
 
 export default function SchedulePickupScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { draft, setPickupSchedule, setDeliverySchedule } = useCustomerOrderDraft();
   const s = strings.customer.schedulePickupDelivery;
   const sPickup = strings.customer.schedulePickup;
@@ -83,13 +87,21 @@ export default function SchedulePickupScreen() {
 
   return (
     <View style={styles.container}>
-      <SafeAreaView edges={["top"]}>
-        <AppHeader
-          title={s.title}
-          leftIcon="arrow-left"
-          onLeftPress={() => router.back()}
-          leftAccessibilityLabel="Go back"
-        />
+      <SafeAreaView edges={["top"]} style={styles.headerSafe}>
+        <View style={styles.headerRow}>
+          <View style={styles.headerSide} />
+          <Text style={styles.headerTitle} numberOfLines={1}>
+            {s.title}
+          </Text>
+          <Pressable
+            onPress={() => router.back()}
+            style={styles.closeBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Close"
+          >
+            <MaterialCommunityIcons name="close" size={20} color={UI.text} />
+          </Pressable>
+        </View>
       </SafeAreaView>
 
       <ScrollView
@@ -106,8 +118,6 @@ export default function SchedulePickupScreen() {
           onChange={onPickupChange}
         />
 
-        <Spacer.Column numberOfSpaces={6} />
-
         <CustomerScheduleSlotSection
           sectionTitle={s.deliverySection}
           strings={sDelivery}
@@ -117,15 +127,25 @@ export default function SchedulePickupScreen() {
           initialTimeSlotLabel={draft.delivery?.timeSlotLabel}
           onChange={onDeliveryChange}
         />
+      </ScrollView>
 
-        <Spacer.Column numberOfSpaces={8} />
+      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 12) }]}>
         <Pressable
           onPress={handleConfirm}
-          style={({ pressed }) => [styles.confirmBtn, pressed && styles.pressed]}
+          style={({ pressed }) => [styles.confirmWrap, pressed && styles.pressed]}
+          accessibilityRole="button"
+          accessibilityLabel={s.confirm}
         >
-          <Text style={styles.confirmLabel}>{s.confirm}</Text>
+          <LinearGradient
+            colors={["#4A3AFF", "#12B886"]}
+            start={{ x: 0, y: 0.5 }}
+            end={{ x: 1, y: 0.5 }}
+            style={styles.confirmBtn}
+          >
+            <Text style={styles.confirmLabel}>{s.confirm}</Text>
+          </LinearGradient>
         </Pressable>
-      </ScrollView>
+      </View>
     </View>
   );
 }
@@ -133,29 +153,65 @@ export default function SchedulePickupScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: c.background,
+    backgroundColor: UI.bg,
+  },
+  headerSafe: {
+    backgroundColor: UI.bg,
+  },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 15,
+    gap: 10,
+  },
+  headerSide: {
+    width: 36,
+  },
+  headerTitle: {
+    flex: 1,
+    fontSize: 18,
+    color: UI.text,
+    fontFamily: "Poppins-Bold",
+    textAlign: "center",
+  },
+  closeBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: UI.backBg,
+    alignItems: "center",
+    justifyContent: "center",
   },
   pressed: {
-    opacity: 0.8,
+    opacity: 0.85,
   },
   scroll: {
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: 24,
-    paddingTop: 20,
-    paddingBottom: 40,
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 24,
+  },
+  footer: {
+    paddingTop: 12,
+    paddingHorizontal: 16,
+    backgroundColor: UI.bg,
+  },
+  confirmWrap: {
+    borderRadius: 16,
+    overflow: "hidden",
   },
   confirmBtn: {
-    backgroundColor: c.blue500,
+    borderRadius: 16,
     paddingVertical: 16,
-    borderRadius: 999,
     alignItems: "center",
     justifyContent: "center",
   },
   confirmLabel: {
-    fontSize: 17,
-    fontWeight: "700",
-    color: c.background,
+    fontSize: 16,
+    fontFamily: "Poppins-Bold",
+    color: "#FFFFFF",
   },
 });

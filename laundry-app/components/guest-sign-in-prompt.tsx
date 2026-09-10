@@ -8,6 +8,14 @@ import { theme } from "@/constants/theme";
 const c = theme.colors;
 const fs = theme.fontSize;
 
+const LIGHT = {
+  text: "#111827",
+  muted: "#6B7280",
+  teal: "#12B886",
+  card: "#FFFFFF",
+  border: "#E5E7EB",
+};
+
 export type GuestSignInPromptVariant = "chat" | "orders";
 
 type GuestSignInPromptProps = {
@@ -16,19 +24,30 @@ type GuestSignInPromptProps = {
   subtitle: string;
   buttonLabel: string;
   onPressLogin: () => void;
+  appearance?: "dark" | "light";
 };
 
-function GuestArt({ variant }: { variant: GuestSignInPromptVariant }) {
+function GuestArt({
+  variant,
+  light,
+}: {
+  variant: GuestSignInPromptVariant;
+  light: boolean;
+}) {
   const iconName =
     variant === "chat" ? "message-text-outline" : "clipboard-list-outline";
 
   return (
     <View style={styles.art} accessibilityElementsHidden>
-      <View style={[styles.card, styles.cardBack]} />
-      <View style={[styles.card, styles.cardFront]}>
-        <MaterialCommunityIcons name={iconName} size={36} color={c.backgroundDark} />
+      <View style={[styles.card, styles.cardBack, light && styles.cardLight]} />
+      <View style={[styles.card, styles.cardFront, light && styles.cardLight]}>
+        <MaterialCommunityIcons
+          name={iconName}
+          size={36}
+          color={light ? LIGHT.teal : c.backgroundDark}
+        />
       </View>
-      <View style={styles.badge}>
+      <View style={[styles.badge, light && styles.badgeLight]}>
         <Text style={styles.badgeText}>?</Text>
       </View>
     </View>
@@ -41,20 +60,26 @@ export function GuestSignInPrompt({
   subtitle,
   buttonLabel,
   onPressLogin,
+  appearance = "dark",
 }: GuestSignInPromptProps) {
   const insets = useSafeAreaInsets();
+  const light = appearance === "light";
   // Tab bar is absolute, so pad bottom so optical center matches the visible area.
   const bottomPad = TAB_BAR_HEIGHT + Math.max(insets.bottom, 8);
 
   return (
     <View style={[styles.root, { paddingBottom: bottomPad }]}>
       <View style={styles.content}>
-        <GuestArt variant={variant} />
-        <Text style={styles.title}>{title}</Text>
-        <Text style={styles.subtitle}>{subtitle}</Text>
+        <GuestArt variant={variant} light={light} />
+        <Text style={[styles.title, light && styles.titleLight]}>{title}</Text>
+        <Text style={[styles.subtitle, light && styles.subtitleLight]}>{subtitle}</Text>
         <Pressable
           onPress={onPressLogin}
-          style={({ pressed }) => [styles.loginBtn, pressed && styles.pressed]}
+          style={({ pressed }) => [
+            styles.loginBtn,
+            light && styles.loginBtnLight,
+            pressed && styles.pressed,
+          ]}
           accessibilityRole="button"
           accessibilityLabel={buttonLabel}
         >
@@ -95,6 +120,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  cardLight: {
+    backgroundColor: LIGHT.card,
+    borderColor: LIGHT.border,
+  },
   cardBack: {
     width: 88,
     height: 72,
@@ -123,6 +152,10 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: c.white,
   },
+  badgeLight: {
+    backgroundColor: LIGHT.teal,
+    borderColor: LIGHT.card,
+  },
   badgeText: {
     color: c.white,
     fontSize: 18,
@@ -130,16 +163,24 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 22,
+    fontFamily: "Poppins-Bold",
     fontWeight: "700",
     color: c.white,
     textAlign: "center",
     marginBottom: 8,
   },
+  titleLight: {
+    color: LIGHT.text,
+  },
   subtitle: {
     fontSize: fs.xSmallText,
+    fontFamily: "Poppins-Regular",
     color: "rgba(255,255,255,0.72)",
     textAlign: "center",
     marginBottom: 24,
+  },
+  subtitleLight: {
+    color: LIGHT.muted,
   },
   loginBtn: {
     alignSelf: "stretch",
@@ -151,9 +192,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: c.filledButtonBorder,
   },
+  loginBtnLight: {
+    backgroundColor: LIGHT.teal,
+    borderWidth: 0,
+  },
   loginLabel: {
     color: c.white,
     fontSize: 16,
+    fontFamily: "Poppins-Bold",
     fontWeight: "700",
   },
   pressed: {

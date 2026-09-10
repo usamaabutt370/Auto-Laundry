@@ -33,6 +33,7 @@ export interface AppHeaderProps {
   rightElement?: React.ReactNode;
   leftAccessibilityLabel?: string;
   rightAccessibilityLabel?: string;
+  appearance?: "dark" | "light";
 }
 
 /**
@@ -86,8 +87,11 @@ export function AppHeader({
   rightElement,
   leftAccessibilityLabel,
   rightAccessibilityLabel,
+  appearance = "dark",
 }: AppHeaderProps) {
   const { hideBottomTabBar, isWeb } = useResponsiveLayout();
+  const light = appearance === "light";
+  const iconColor = light ? "#111827" : c.white;
   const showSubtitle = subtitle != null && subtitle.length > 0;
   const showRightIcon = rightElement == null && rightIcon != null && rightIcon.length > 0;
   const showLeftBrand =
@@ -105,7 +109,7 @@ export function AppHeader({
         {showTitleText ? (
           <View style={styles.titleWrap} pointerEvents="none">
             <View style={styles.titleRow}>
-              <Text style={styles.title} numberOfLines={1}>
+              <Text style={[styles.title, light && styles.titleLight]} numberOfLines={1}>
                 {title}
               </Text>
               {titleVerified ? <PartnerVerifiedBadge size={11} /> : null}
@@ -130,7 +134,7 @@ export function AppHeader({
                 accessibilityRole="button"
                 accessibilityLabel={leftAccessibilityLabel}
               >
-                <MaterialCommunityIcons name={leftIcon} size={ICON_SIZE} color={c.white} />
+                <MaterialCommunityIcons name={leftIcon} size={ICON_SIZE} color={iconColor} />
               </Pressable>
             ) : null
           ) : null}
@@ -149,7 +153,7 @@ export function AppHeader({
               accessibilityRole="button"
               accessibilityLabel={rightAccessibilityLabel}
             >
-              <MaterialCommunityIcons name={rightIcon} size={ICON_SIZE} color={c.white} />
+              <MaterialCommunityIcons name={rightIcon} size={ICON_SIZE} color={iconColor} />
             </Pressable>
           ) : null}
         </View>
@@ -157,7 +161,7 @@ export function AppHeader({
 
       {showSubtitle && showTitleText ? (
         <View style={styles.subtitleWrap}>
-          <Text style={styles.subtitle}>{subtitle}</Text>
+          <Text style={[styles.subtitle, light && styles.subtitleLight]}>{subtitle}</Text>
         </View>
       ) : null}
     </View>
@@ -194,6 +198,9 @@ const styles = StyleSheet.create({
     color: c.white,
     textAlign: "center",
   },
+  titleLight: {
+    color: "#111827",
+  },
   subtitleWrap: {
     paddingHorizontal: 20,
     paddingTop: 4,
@@ -202,6 +209,9 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: fs.smallText,
     color: c.blue500,
+  },
+  subtitleLight: {
+    color: "#6B7280",
   },
   slot: {
     zIndex: 1,

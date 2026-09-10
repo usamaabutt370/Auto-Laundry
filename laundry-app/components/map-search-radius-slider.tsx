@@ -32,6 +32,7 @@ export interface MapSearchRadiusSliderProps {
   fillStyle?: object;
   thumbStyle?: object;
   labelStyle?: object;
+  appearance?: "dark" | "light";
 }
 
 const DEFAULT_MIN = 0;
@@ -48,6 +49,7 @@ export function MapSearchRadiusSlider({
   fillStyle,
   thumbStyle,
   labelStyle,
+  appearance = "dark",
 }: MapSearchRadiusSliderProps) {
   const [trackWidth, setTrackWidth] = useState(0);
   const startXRef = useRef(0);
@@ -115,12 +117,13 @@ export function MapSearchRadiusSlider({
   const thumbCenterX = trackWidth > 0 ? ratio * trackWidth : 0;
   const thumbLeft = thumbCenterX - THUMB_SIZE / 2;
   const fillWidth = trackWidth > 0 ? ratio * trackWidth + THUMB_SIZE / 2 : 0;
+  const light = appearance === "light";
 
   return (
     <View>
       {showValue && (
         <View style={styles.valueRow}>
-          <Text style={[styles.valueText, labelStyle]}>
+          <Text style={[styles.valueText, light && styles.valueTextLight, labelStyle]}>
             {clampedValue} {unitLabel}
           </Text>
         </View>
@@ -134,20 +137,18 @@ export function MapSearchRadiusSlider({
         {...panResponder.panHandlers}
       >
         {/* Full 0–10 mile track line (background rail) */}
-        <View style={[styles.trackLine]} pointerEvents="none" />
-        {/* Filled portion from 0 to current value */}
-        <View style={[styles.fill, { width: fillWidth }, fillStyle]} />
-        {/* Thumb (mile indicator) moves along the track line */}
+        <View style={[styles.trackLine, light && styles.trackLineLight]} pointerEvents="none" />
+        <View style={[styles.fill, light && styles.fillLight, { width: fillWidth }, fillStyle]} />
         <View
-          style={[styles.thumb, { left: thumbLeft }, thumbStyle]}
+          style={[styles.thumb, light && styles.thumbLight, { left: thumbLeft }, thumbStyle]}
           pointerEvents="none"
         />
       </View>
       <View style={styles.labels}>
-        <Text style={[styles.label, labelStyle]}>
+        <Text style={[styles.label, light && styles.labelLight, labelStyle]}>
           {min} {unitLabel}
         </Text>
-        <Text style={[styles.label, labelStyle]}>
+        <Text style={[styles.label, light && styles.labelLight, labelStyle]}>
           {max} {unitLabel}
         </Text>
       </View>
@@ -164,6 +165,9 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: c.white,
   },
+  valueTextLight: {
+    color: "#111827",
+  },
   track: {
     height: TRACK_TOUCH_HEIGHT,
     justifyContent: "center",
@@ -179,6 +183,9 @@ const styles = StyleSheet.create({
     borderRadius: TRACK_HEIGHT / 2,
     backgroundColor: "rgba(255,255,255,0.35)",
   },
+  trackLineLight: {
+    backgroundColor: "#E5E7EB",
+  },
   fill: {
     position: "absolute",
     left: 0,
@@ -187,6 +194,9 @@ const styles = StyleSheet.create({
     borderRadius: TRACK_HEIGHT / 2,
     backgroundColor: c.blue600,
   },
+  fillLight: {
+    backgroundColor: "#12B886",
+  },
   thumb: {
     position: "absolute",
     top: (TRACK_TOUCH_HEIGHT - THUMB_SIZE) / 2,
@@ -194,6 +204,11 @@ const styles = StyleSheet.create({
     height: THUMB_SIZE,
     borderRadius: THUMB_SIZE / 2,
     backgroundColor: c.white,
+  },
+  thumbLight: {
+    backgroundColor: "#FFFFFF",
+    borderWidth: 2,
+    borderColor: "#12B886",
   },
   labels: {
     flexDirection: "row",
@@ -204,5 +219,9 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: c.white,
     opacity: 0.9,
+  },
+  labelLight: {
+    color: "#6B7280",
+    opacity: 1,
   },
 });

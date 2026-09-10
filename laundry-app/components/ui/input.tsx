@@ -49,6 +49,8 @@ export interface InputProps extends Omit<TextInputProps, "style"> {
   selectedCallingCode?: string;
   /** Phone variant: callback when country is changed */
   onCountrySelect?: (country: SelectedCountry) => void;
+  /** Light matches customer screens; dark is the default teal look. */
+  appearance?: "dark" | "light";
 }
 
 /**
@@ -65,16 +67,26 @@ export function Input({
   textColor,
   showFocusUnderline = true,
   focusUnderlineColor = "#78b2cb",
-  passwordIconColor = "rgba(255,255,255,0.8)",
+  passwordIconColor,
   editable = true,
   secureTextEntry = false,
   selectedCca2 = "PK",
   selectedCallingCode = "92",
   onCountrySelect,
+  appearance = "dark",
   ...rest
 }: InputProps) {
   const [isFocused, setIsFocused] = useState(false);
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+  const light = appearance === "light";
+  const resolvedBg = backgroundColor ?? (light ? "#FFFFFF" : theme.colors.blue900);
+  const resolvedBorder = borderColor ?? (light ? "#E5E7EB" : theme.colors.outline);
+  const resolvedFocus = light ? "#12B886" : focusUnderlineColor;
+  const resolvedText = textColor ?? (light ? "#111827" : theme.colors.white);
+  const resolvedPlaceholder =
+    placeholderTextColor ?? (light ? "#6B7280" : "rgba(255,255,255,0.7)");
+  const resolvedPasswordIcon =
+    passwordIconColor ?? (light ? "#6B7280" : "rgba(255,255,255,0.8)");
 
   const isPhone = variant === "phone";
   const keyboardType = isPhone ? "phone-pad" : rest.keyboardType;
@@ -101,10 +113,8 @@ export function Input({
         style={[
           styles.inputRow,
           {
-            backgroundColor: theme.colors.blue900 ?? "transparent",
-            borderColor: isFocused
-              ? focusUnderlineColor
-              : (borderColor ?? theme.colors.outline),
+            backgroundColor: resolvedBg,
+            borderColor: isFocused ? resolvedFocus : resolvedBorder,
           },
           editable === false && styles.inputDisabled,
         ]}
@@ -112,6 +122,7 @@ export function Input({
         {isPhone && (
           <View style={styles.phonePrefix}>
             <CountryCodePicker
+              appearance={appearance}
               selectedCca2={selectedCca2}
               selectedCallingCode={selectedCallingCode}
               onSelect={onCountrySelect || (() => {})}
@@ -122,12 +133,12 @@ export function Input({
           style={[
             styles.input,
             {
-              color: textColor ?? theme.colors.white,
+              color: resolvedText,
             },
             style,
           ]}
           placeholder={dynamicPlaceholder}
-          placeholderTextColor={placeholderTextColor ?? "rgba(255,255,255,0.7)"}
+          placeholderTextColor={resolvedPlaceholder}
           keyboardType={keyboardType}
           editable={editable}
           secureTextEntry={effectiveSecureTextEntry}
@@ -154,7 +165,7 @@ export function Input({
             <MaterialCommunityIcons
               name={isPasswordVisible ? "eye-off-outline" : "eye-outline"}
               size={24}
-              color={passwordIconColor}
+              color={resolvedPasswordIcon}
             />
           </Pressable>
         )}

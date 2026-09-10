@@ -44,6 +44,7 @@ type Props = {
   estimate: OrderEstimateResult;
   /** When true, line items are visible on first render (e.g. wash & fold pricing screen). */
   defaultBreakdownOpen?: boolean;
+  appearance?: "dark" | "light";
 };
 
 export function CustomerLiveEstimateFooter({
@@ -54,10 +55,12 @@ export function CustomerLiveEstimateFooter({
   hasPartner,
   estimate,
   defaultBreakdownOpen = false,
+  appearance = "dark",
 }: Props) {
   const insets = useSafeAreaInsets();
   const partnerVerified = usePartnerVerified(partnerId);
   const [open, setOpen] = useState(defaultBreakdownOpen);
+  const light = appearance === "light";
 
   const toggle = () => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -75,32 +78,35 @@ export function CustomerLiveEstimateFooter({
     <View
       style={[
         styles.wrap,
+        light && styles.wrapLight,
         {
           paddingBottom: Math.max(insets.bottom, 12),
         },
       ]}
     >
       {!hasPartner ? (
-        <Text style={styles.warn}>{s.noPartner}</Text>
+        <Text style={[styles.warn, light && styles.warnLight]}>{s.noPartner}</Text>
       ) : loading ? (
-        <Text style={styles.muted}>{s.loading}</Text>
+        <Text style={[styles.muted, light && styles.mutedLight]}>{s.loading}</Text>
       ) : null}
 
       {hasPartner && !loading && estimate.lines.length > 0 ? (
         <>
           <View style={styles.totalRow}>
             <View>
-              <Text style={styles.totalLabel}>{s.estimatedLabel}</Text>
+              <Text style={[styles.totalLabel, light && styles.totalLabelLight]}>
+                {s.estimatedLabel}
+              </Text>
               {partnerName ? (
                 <PartnerNameWithBadge
                   name={partnerName}
                   verified={partnerVerified}
-                  nameStyle={styles.partnerHint}
+                  nameStyle={[styles.partnerHint, light && styles.partnerHintLight]}
                   badgeSize={11}
                 />
               ) : null}
             </View>
-            <Text style={styles.totalValue}>{showTotal}</Text>
+            <Text style={[styles.totalValue, light && styles.totalValueLight]}>{showTotal}</Text>
           </View>
 
           {estimate.total == null && estimate.partialTotal > 0 ? (
@@ -113,27 +119,32 @@ export function CustomerLiveEstimateFooter({
             accessibilityRole="button"
             accessibilityLabel={open ? s.hideBreakdown : s.viewBreakdown}
           >
-            <Text style={styles.breakdownText}>
+            <Text style={[styles.breakdownText, light && styles.breakdownTextLight]}>
               {open ? s.hideBreakdown : s.viewBreakdown}
             </Text>
             <MaterialCommunityIcons
               name={open ? "chevron-up" : "chevron-down"}
               size={20}
-              color={c.lightBlue}
+              color={light ? "#12B886" : c.lightBlue}
             />
           </Pressable>
 
           {open ? (
-            <View style={styles.breakdownBox}>
+            <View style={[styles.breakdownBox, light && styles.breakdownBoxLight]}>
               {estimate.lines.map((line) => (
                 <View key={line.key} style={styles.lineRow}>
                   <View style={styles.lineLeft}>
-                    <Text style={styles.lineTitle} numberOfLines={2}>
+                    <Text
+                      style={[styles.lineTitle, light && styles.lineTitleLight]}
+                      numberOfLines={2}
+                    >
                       {line.title}
                     </Text>
-                    <Text style={styles.lineQty}>{line.qtyLabel}</Text>
+                    <Text style={[styles.lineQty, light && styles.lineQtyLight]}>
+                      {line.qtyLabel}
+                    </Text>
                   </View>
-                  <Text style={styles.lineAmt}>
+                  <Text style={[styles.lineAmt, light && styles.lineAmtLight]}>
                     {line.amount != null
                       ? formatMoney(estimate.currencyPrefix, line.amount)
                       : "—"}
@@ -144,7 +155,9 @@ export function CustomerLiveEstimateFooter({
           ) : null}
 
           {estimate.disclaimer ? (
-            <Text style={styles.disclaimer}>{estimate.disclaimer}</Text>
+            <Text style={[styles.disclaimer, light && styles.disclaimerLight]}>
+              {estimate.disclaimer}
+            </Text>
           ) : null}
         </>
       ) : null}
@@ -249,5 +262,48 @@ const styles = StyleSheet.create({
     textAlign: "center",
     lineHeight: 15,
     marginTop: 4,
+  },
+  wrapLight: {
+    backgroundColor: "#FFFFFF",
+    borderTopColor: "#E5E7EB",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+  },
+  warnLight: {
+    color: "#B45309",
+  },
+  mutedLight: {
+    color: "#6B7280",
+  },
+  totalLabelLight: {
+    color: "#6B7280",
+  },
+  partnerHintLight: {
+    color: "#6B7280",
+  },
+  totalValueLight: {
+    color: "#111827",
+    fontFamily: "Poppins-Bold",
+  },
+  breakdownTextLight: {
+    color: "#12B886",
+    fontFamily: "Poppins-SemiBold",
+  },
+  breakdownBoxLight: {
+    borderTopColor: "#E5E7EB",
+  },
+  lineTitleLight: {
+    color: "#111827",
+    fontFamily: "Poppins-Medium",
+  },
+  lineQtyLight: {
+    color: "#6B7280",
+  },
+  lineAmtLight: {
+    color: "#12B886",
+    fontFamily: "Poppins-Bold",
+  },
+  disclaimerLight: {
+    color: "#9CA3AF",
   },
 });

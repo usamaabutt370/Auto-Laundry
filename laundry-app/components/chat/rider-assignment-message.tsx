@@ -10,7 +10,15 @@ import type { RiderAssignmentMetadata } from "@/lib/chat";
 import { getStrings } from "@/locales";
 import type { UserRole } from "@/types/user";
 
-const c = theme.colors;
+const UI = {
+  bg: "#F7F8FA",
+  card: "#FFFFFF",
+  text: "#111827",
+  muted: "#6B7280",
+  teal: "#12B886",
+  chipBorder: "#E5E7EB",
+  mint: "#ECFDF5",
+};
 const fs = theme.fontSize;
 
 type RiderAssignmentMessageProps = {
@@ -30,7 +38,7 @@ function DetailRow({
 }) {
   return (
     <View style={styles.detailRow}>
-      <MaterialCommunityIcons name={icon} size={16} color={c.outline} style={styles.detailIcon} />
+      <MaterialCommunityIcons name={icon} size={16} color={UI.teal} style={styles.detailIcon} />
       <View style={styles.detailTextWrap}>
         <Text style={styles.detailLabel}>{label}</Text>
         <Text style={styles.detailValue}>{value}</Text>
@@ -51,7 +59,7 @@ export function RiderAssignmentMessage({ metadata, role, intro }: RiderAssignmen
     <View style={styles.card}>
       <View style={styles.header}>
         <View style={styles.headerIconWrap}>
-          <MaterialCommunityIcons name="moped" size={18} color={c.background} />
+          <MaterialCommunityIcons name="moped" size={18} color="#FFFFFF" />
         </View>
         <View style={styles.headerTextWrap}>
           <Text style={styles.title}>{s.title}</Text>
@@ -86,7 +94,7 @@ export function RiderAssignmentMessage({ metadata, role, intro }: RiderAssignmen
 
       <View style={styles.laundromatBox}>
         <View style={styles.laundromatIconWrap}>
-          <MaterialCommunityIcons name="storefront-outline" size={18} color={c.outline} />
+          <MaterialCommunityIcons name="storefront-outline" size={18} color={UI.teal} />
         </View>
         <View style={styles.laundromatTextWrap}>
           <Text style={styles.laundromatLabel}>{s.laundromat}</Text>
@@ -120,8 +128,8 @@ const styles = StyleSheet.create({
     maxWidth: 340,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: "rgba(171, 233, 254, 0.4)",
-    backgroundColor: c.blue900,
+    borderColor: UI.chipBorder,
+    backgroundColor: UI.card,
     padding: 16,
     gap: 14,
   },
@@ -134,7 +142,7 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: c.outline,
+    backgroundColor: UI.teal,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -145,11 +153,11 @@ const styles = StyleSheet.create({
   title: {
     fontSize: fs.smallTitle,
     fontWeight: "700",
-    color: c.white,
+    color: UI.text,
   },
   intro: {
     fontSize: fs.descText,
-    color: c.blue500,
+    color: UI.muted,
     lineHeight: 18,
   },
   riderSection: {
@@ -162,12 +170,12 @@ const styles = StyleSheet.create({
     height: 84,
     borderRadius: 42,
     borderWidth: 2,
-    borderColor: c.outline,
-    backgroundColor: c.background,
+    borderColor: UI.teal,
+    backgroundColor: UI.bg,
   },
   riderLabel: {
     fontSize: fs.xxSmallText,
-    color: c.blue500,
+    color: UI.muted,
     textTransform: "uppercase",
     letterSpacing: 0.5,
     marginTop: 2,
@@ -175,21 +183,21 @@ const styles = StyleSheet.create({
   riderName: {
     fontSize: fs.titleMedium,
     fontWeight: "700",
-    color: c.white,
+    color: UI.text,
     textAlign: "center",
   },
   detailsBox: {
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: "rgba(171, 233, 254, 0.2)",
-    backgroundColor: "rgba(0, 0, 0, 0.18)",
+    borderColor: UI.chipBorder,
+    backgroundColor: UI.bg,
     padding: 12,
     gap: 10,
   },
   sectionTitle: {
     fontSize: fs.descText,
     fontWeight: "700",
-    color: c.outline,
+    color: UI.teal,
     marginBottom: 2,
   },
   detailRow: {
@@ -206,13 +214,13 @@ const styles = StyleSheet.create({
   },
   detailLabel: {
     fontSize: fs.xxSmallText,
-    color: c.blue500,
+    color: UI.muted,
     textTransform: "uppercase",
     letterSpacing: 0.3,
   },
   detailValue: {
     fontSize: fs.descText,
-    color: c.white,
+    color: UI.text,
     lineHeight: 19,
   },
   laundromatBox: {
@@ -221,14 +229,15 @@ const styles = StyleSheet.create({
     gap: 10,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: "rgba(171, 233, 254, 0.25)",
+    borderColor: UI.chipBorder,
     padding: 12,
+    backgroundColor: UI.mint,
   },
   laundromatIconWrap: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: "rgba(171, 233, 254, 0.12)",
+    backgroundColor: UI.card,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -238,7 +247,7 @@ const styles = StyleSheet.create({
   },
   laundromatLabel: {
     fontSize: fs.xxSmallText,
-    color: c.blue500,
+    color: UI.muted,
     textTransform: "uppercase",
     letterSpacing: 0.4,
   },
@@ -251,14 +260,14 @@ const styles = StyleSheet.create({
   laundromatName: {
     fontSize: fs.smallText,
     fontWeight: "700",
-    color: c.white,
+    color: UI.text,
   },
   trackBtn: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    backgroundColor: c.outline,
+    backgroundColor: UI.teal,
     borderRadius: 999,
     paddingVertical: 12,
     paddingHorizontal: 16,
@@ -266,7 +275,7 @@ const styles = StyleSheet.create({
   trackBtnText: {
     fontSize: fs.smallText,
     fontWeight: "700",
-    color: c.background,
+    color: "#FFFFFF",
   },
   pressed: {
     opacity: 0.85,

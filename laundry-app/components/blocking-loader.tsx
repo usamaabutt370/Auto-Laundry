@@ -2,8 +2,14 @@ import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 
 import { theme } from "@/constants/theme";
 
-const c = theme.colors;
 const fs = theme.fontSize;
+
+const UI = {
+  card: "#FFFFFF",
+  text: "#111827",
+  teal: "#12B886",
+  chipBorder: "#E5E7EB",
+};
 
 type BlockingLoaderProps = {
   visible: boolean;
@@ -23,7 +29,7 @@ export function BlockingLoader({ visible, message }: BlockingLoaderProps) {
   return (
     <View style={styles.root} pointerEvents="auto" accessibilityViewIsModal>
       <View style={styles.card}>
-        <ActivityIndicator size="large" color={c.white} />
+        <ActivityIndicator size="large" color={UI.teal} />
         {message ? <Text style={styles.message}>{message}</Text> : null}
       </View>
     </View>
@@ -47,14 +53,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 28,
     paddingVertical: 24,
     borderRadius: 16,
-    backgroundColor: c.blue900,
+    backgroundColor: UI.card,
     borderWidth: 1,
-    borderColor: "rgba(171, 233, 254, 0.35)",
+    borderColor: UI.chipBorder,
   },
   message: {
     fontSize: fs.descText,
     fontWeight: "600",
-    color: c.white,
+    color: UI.text,
     textAlign: "center",
   },
 });

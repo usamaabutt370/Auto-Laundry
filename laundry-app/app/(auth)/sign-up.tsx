@@ -13,14 +13,19 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { AuthErrorModal, Input, Spacer, ThemedText, ThemedView } from "@/components";
-import { theme } from "@/constants/theme";
 import { strings } from "@/constants/strings";
+import { LinearGradient } from "expo-linear-gradient";
 import { reactivateDeletedAccount } from "@/lib/account-deletion";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
 import type { CountryCode } from "libphonenumber-js";
 
-const c = theme.colors;
+const UI = {
+  bg: "#F7F8FA",
+  text: "#111827",
+  muted: "#6B7280",
+  teal: "#12B886",
+};
 
 export default function SignUpScreen() {
   const router = useRouter();
@@ -245,14 +250,13 @@ export default function SignUpScreen() {
   };
 
   const inputProps = {
-    borderColor: "rgba(255,255,255,0.5)",
-    focusUnderlineColor: c.backgroundLight,
+    appearance: "light" as const,
     containerStyle: styles.inputSpacing,
   };
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       <AuthErrorModal
         visible={Boolean(authError)}
         title={authError?.title ?? ""}
@@ -267,7 +271,7 @@ export default function SignUpScreen() {
           accessibilityRole="button"
           accessibilityLabel="Close"
         >
-          <MaterialCommunityIcons name="close" size={22} color={c.white} />
+          <MaterialCommunityIcons name="close" size={22} color={UI.text} />
         </Pressable>
       </View>
       <KeyboardAvoidingView
@@ -348,9 +352,16 @@ export default function SignUpScreen() {
             accessibilityLabel={s.continue}
             disabled={isLoading}
           >
-            <ThemedText style={styles.continueButtonText}>
-              {isLoading ? "Creating account..." : s.continue}
-            </ThemedText>
+            <LinearGradient
+              colors={["#4A3AFF", "#12B886"]}
+              start={{ x: 0, y: 0.5 }}
+              end={{ x: 1, y: 0.5 }}
+              style={styles.continueButtonFill}
+            >
+              <ThemedText style={styles.continueButtonText}>
+                {isLoading ? "Creating account..." : s.continue}
+              </ThemedText>
+            </LinearGradient>
           </Pressable>
           <ThemedView style={styles.footer}>
             <ThemedText style={styles.haveAccount}>{s.haveAccount}</ThemedText>
@@ -372,7 +383,7 @@ export default function SignUpScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: c.background,
+    backgroundColor: UI.bg,
   },
   header: {
     paddingHorizontal: 16,
@@ -408,13 +419,13 @@ const styles = StyleSheet.create({
     fontSize: 32,
     lineHeight: 32,
     fontWeight: "700",
-    color: theme.colors.white,
+    color: UI.text,
     backgroundColor: "transparent",
     textAlign: "center",
   },
   subtitle: {
     fontSize: 14,
-    color: c.white,
+    color: UI.text,
     lineHeight: 20,
     marginBottom: 4,
     backgroundColor: "transparent",
@@ -423,7 +434,7 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   errorText: {
-    color: "#ffb3b3",
+    color: "#DC2626",
     fontSize: 12,
     marginTop: 6,
     marginBottom: 8,
@@ -431,16 +442,19 @@ const styles = StyleSheet.create({
   continueButton: {
     height: 52,
     borderRadius: 26,
-    backgroundColor: c.backgroundLight,
-    alignItems: "center",
-    justifyContent: "center",
+    overflow: "hidden",
     marginTop: 8,
     marginBottom: 28,
+  },
+  continueButtonFill: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
   },
   continueButtonText: {
     fontSize: 17,
     fontWeight: "700",
-    color: c.white,
+    color: "#FFFFFF",
     backgroundColor: "transparent",
   },
   continueButtonDisabled: {
@@ -456,13 +470,13 @@ const styles = StyleSheet.create({
   },
   haveAccount: {
     fontSize: 15,
-    color: c.white,
+    color: UI.muted,
     backgroundColor: "transparent",
   },
   signInLink: {
     fontSize: 15,
     fontWeight: "700",
-    color: c.backgroundLight,
+    color: UI.teal,
     backgroundColor: "transparent",
   },
 });
