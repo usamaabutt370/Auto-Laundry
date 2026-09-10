@@ -2,6 +2,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useEffect, useRef, useState, type ComponentProps, type ReactNode } from "react";
 import {
+  ActivityIndicator,
   LayoutChangeEvent,
   Modal,
   Pressable,
@@ -18,6 +19,7 @@ import {
 } from "react-native-gesture-handler";
 import Animated, {
   runOnJS,
+  useAnimatedReaction,
   useAnimatedStyle,
   useSharedValue,
   withTiming,
@@ -26,7 +28,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { strings } from "@/constants/strings";
 import { CustomerHomeMap, type CustomerHomeMapViewData } from "@/components/customer-home-map";
+import { FilterSearchRadiusMap } from "@/components/filter-search-radius-map";
 import type { PartnerPublicRow } from "@/lib/partner-discovery";
+import { type Coordinates } from "@/utils/geocoding";
 import { isPartnerOpenNow } from "@/utils/partner-hours";
 import { isPartnerTopRated, partnerHasActiveOffer } from "@/utils/partner-offers";
 
@@ -42,7 +46,12 @@ const CARD_BG = "#F3F4F6";
 const STAR = "#F59E0B";
 
 export const DISTANCE_STOPS = [0.5, 1, 2, 5, 10, 20];
+export const DISTANCE_MIN_KM = 0.5;
+export const DISTANCE_MAX_KM = 20;
 export const PRICE_STOPS = [0, 500, 1000, 2500, 5000];
+export const PRICE_MIN = 0;
+export const PRICE_MAX = 5000;
+export const PRICE_STEP = 50;
 
 export type ServiceCategory = "washAndFold" | "press" | "tailoring";
 export type MinRating = 0 | 3 | 4 | 4.5;
@@ -91,17 +100,52 @@ function fill(template: string, vars: Record<string, string | number>) {
   return template.replace(/\{(\w+)\}/g, (_, key: string) => String(vars[key] ?? `{${key}}`));
 }
 
+function clamp(value: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function snapToStep(value: number, step: number, min: number, max: number) {
+  const snapped = Math.round(value / step) * step;
+  return clamp(Number(snapped.toFixed(2)), min, max);
+}
+
+function formatRs(value: number, plus = false) {
+  const formatted = Math.round(value).toLocaleString("en-PK");
+  return plus ? `${formatted}+` : formatted;
+}
+
+function formatFilterDistance(km: number, stopLabels: string[]) {
+  const stopIndex = DISTANCE_STOPS.findIndex((stop) => Math.abs(stop - km) < 0.051);
+  if (stopIndex >= 0) return stopLabels[stopIndex] ?? `${km} km`;
+  if (km < 1) return `${Math.round(km * 1000)} m`;
+  const rounded = km >= 10 ? Math.round(km) : Math.round(km * 10) / 10;
+  return `${rounded} km`;
+}
+
 export function applyProviderFilters(
   partners: PartnerPublicRow[],
   filters: ProviderFilters,
   distanceKm: Record<string, number | null>,
 ): PartnerPublicRow[] {
+  const knownDistance = Object.values(distanceKm).some(
+    (value) => typeof value === "number" && Number.isFinite(value),
+  );
+
   return partners.filter((partner) => {
     if (filters.openNow && !isPartnerOpenNow(partner.available_time)) return false;
     const km = distanceKm[partner.id];
-    if (typeof km === "number" && Number.isFinite(km) && km > filters.maxDistanceKm) {
+    if (knownDistance) {
+      if (typeof km !== "number" || !Number.isFinite(km) || km > filters.maxDistanceKm) {
+        return false;
+      }
+    } else if (typeof km === "number" && Number.isFinite(km) && km > filters.maxDistanceKm) {
       return false;
     }
+    if (typeof partner.minPrice === "number" && Number.isFinite(partner.minPrice)) {
+      if (partner.minPrice < filters.priceMin) return false;
+      if (filters.priceMax < PRICE_MAX && partner.minPrice > filters.priceMax) return false;
+    }
+    if (filters.verified && !partner.verified) return false;
     if (filters.minRating > 0) {
       const avg = Number(partner.ratingAvg);
       if (!Number.isFinite(avg) || avg < filters.minRating) return false;
@@ -128,7 +172,7 @@ type Props = {
   matchCount: (filters: ProviderFilters) => number;
   onClose: () => void;
   onApply: (next: ProviderFilters) => void;
-  onChangeLocation: () => void;
+  userCoordinates?: Coordinates | null;
   mapData?: CustomerHomeMapViewData;
   onPartnerPress?: (partnerId: string, mode: "dropoff" | "pickupDelivery") => void;
 };
@@ -141,26 +185,42 @@ export function ProviderFiltersSheet({
   matchCount,
   onClose,
   onApply,
-  onChangeLocation,
+  userCoordinates = null,
   mapData,
   onPartnerPress,
 }: Props) {
   const s = strings.customer.pickLaunderer;
   const insets = useSafeAreaInsets();
   const [draft, setDraft] = useState<ProviderFilters>(value);
+  const [radiusPicker, setRadiusPicker] = useState(false);
+  const [livePrice, setLivePrice] = useState<{ min: number; max: number } | null>(null);
+  const [applying, setApplying] = useState(false);
+  const applyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const showMap = pane === "map";
 
   useEffect(() => {
-    if (!visible) return;
-    const unused =
-      value.categories.length === 0 &&
-      value.maxDistanceKm === 20 &&
-      value.minRating === 0 &&
-      !value.openNow &&
-      !value.topRated &&
-      !value.offers;
-    setDraft(unused ? DEFAULT_PROVIDER_FILTERS : value);
+    if (!visible) {
+      setRadiusPicker(false);
+      setApplying(false);
+      if (applyTimerRef.current) {
+        clearTimeout(applyTimerRef.current);
+        applyTimerRef.current = null;
+      }
+      return;
+    }
+    setDraft({
+      ...value,
+      maxDistanceKm: clamp(value.maxDistanceKm, DISTANCE_MIN_KM, DISTANCE_MAX_KM),
+      priceMin: clamp(value.priceMin, PRICE_MIN, PRICE_MAX),
+      priceMax: clamp(value.priceMax, PRICE_MIN, PRICE_MAX),
+    });
   }, [value, visible]);
+
+  useEffect(() => {
+    return () => {
+      if (applyTimerRef.current) clearTimeout(applyTimerRef.current);
+    };
+  }, []);
 
   const count = matchCount(draft);
   const distanceLabels = [
@@ -171,13 +231,12 @@ export function ProviderFiltersSheet({
     s.dist10km,
     s.dist20km,
   ];
+  const distanceLabel = formatFilterDistance(draft.maxDistanceKm, distanceLabels);
   const priceLabels = [s.price0, s.price500, s.price1000, s.price2500, s.price5000];
-  const distanceIndex = Math.max(0, DISTANCE_STOPS.indexOf(draft.maxDistanceKm));
-  const priceMinIndex = Math.max(0, PRICE_STOPS.indexOf(draft.priceMin));
-  const priceMaxIndex = Math.max(priceMinIndex, PRICE_STOPS.indexOf(draft.priceMax));
-  const distanceLabel = distanceLabels[distanceIndex] ?? s.dist5km;
+  const shownPriceMin = livePrice?.min ?? draft.priceMin;
+  const shownPriceMax = livePrice?.max ?? draft.priceMax;
   const priceMaxLabel =
-    draft.priceMax >= 5000 ? s.price5000.replace("Rs ", "") : String(draft.priceMax);
+    shownPriceMax >= PRICE_MAX ? formatRs(PRICE_MAX, true) : formatRs(shownPriceMax);
 
   const categories: { id: ServiceCategory; label: string; icon: "washing-machine" | "iron" | "scissors-cutting" }[] =
     [
@@ -194,6 +253,7 @@ export function ProviderFiltersSheet({
   ];
 
   const toggleCategory = (id: ServiceCategory) => {
+    if (applying) return;
     setDraft((prev) => {
       const has = prev.categories.includes(id);
       const next = has ? prev.categories.filter((item) => item !== id) : [...prev.categories, id];
@@ -201,24 +261,46 @@ export function ProviderFiltersSheet({
     });
   };
 
+  const handleApply = () => {
+    if (applying) return;
+    const next = {
+      ...draft,
+      maxDistanceKm: clamp(draft.maxDistanceKm, DISTANCE_MIN_KM, DISTANCE_MAX_KM),
+      priceMin: clamp(draft.priceMin, PRICE_MIN, PRICE_MAX),
+      priceMax: clamp(Math.max(draft.priceMin, draft.priceMax), PRICE_MIN, PRICE_MAX),
+    };
+    setApplying(true);
+    applyTimerRef.current = setTimeout(() => {
+      applyTimerRef.current = null;
+      onApply(next);
+    }, 450);
+  };
+
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <GestureHandlerRootView style={styles.overlay}>
-        <Pressable style={styles.backdrop} onPress={onClose} />
+        <Pressable style={styles.backdrop} onPress={applying ? undefined : onClose} />
         <View
           style={[
             styles.sheet,
-            showMap && styles.sheetFill,
-            !showMap && { paddingBottom: Math.max(insets.bottom, 12) },
+            (showMap || radiusPicker) && styles.sheetFill,
+            !showMap && !radiusPicker && { paddingBottom: Math.max(insets.bottom, 12) },
           ]}
         >
+          {!radiusPicker ? (
+            <>
           <View style={styles.handle} />
           <View style={styles.headerRow}>
             <View style={styles.headerText}>
               <Text style={styles.title}>{showMap ? s.map : s.filters}</Text>
               <Text style={styles.subtitle}>{showMap ? s.mapSubtitle : s.filtersSubtitle}</Text>
             </View>
-            <Pressable onPress={onClose} style={styles.closeBtn} accessibilityRole="button">
+            <Pressable
+              onPress={onClose}
+              disabled={applying}
+              style={[styles.closeBtn, applying && styles.applyDisabled]}
+              accessibilityRole="button"
+            >
               <MaterialCommunityIcons name="close" size={16} color={PURPLE} />
             </Pressable>
           </View>
@@ -272,7 +354,7 @@ export function ProviderFiltersSheet({
               icon="map-marker-outline"
               title={s.location}
               right={
-                <Pressable onPress={onChangeLocation} hitSlop={8}>
+                <Pressable onPress={() => setRadiusPicker(true)} hitSlop={8}>
                   <Text style={styles.link}>{s.changeLocation} →</Text>
                 </Pressable>
               }
@@ -292,12 +374,14 @@ export function ProviderFiltersSheet({
                 <Text style={styles.greenValue}>{fill(s.withinDistance, { label: distanceLabel })}</Text>
               }
             />
-            <SnapSlider
-              labels={distanceLabels}
-              index={distanceIndex}
-              onIndex={(index) =>
-                setDraft((prev) => ({ ...prev, maxDistanceKm: DISTANCE_STOPS[index] ?? 5 }))
-              }
+            <ContinuousSlider
+              min={DISTANCE_MIN_KM}
+              max={DISTANCE_MAX_KM}
+              step={0.1}
+              value={draft.maxDistanceKm}
+              tickValues={DISTANCE_STOPS}
+              tickLabels={distanceLabels}
+              onChange={(maxDistanceKm) => setDraft((prev) => ({ ...prev, maxDistanceKm }))}
             />
 
             <Section
@@ -305,21 +389,23 @@ export function ProviderFiltersSheet({
               title={s.priceRange}
               right={
                 <Text style={styles.link}>
-                  {fill(s.priceRangeValue, { min: draft.priceMin, max: priceMaxLabel })}
+                  {fill(s.priceRangeValue, { min: shownPriceMin, max: priceMaxLabel })}
                 </Text>
               }
             />
-            <RangeSnapSlider
-              labels={priceLabels}
-              minIndex={priceMinIndex}
-              maxIndex={priceMaxIndex}
-              onChange={(minIndex, maxIndex) =>
-                setDraft((prev) => ({
-                  ...prev,
-                  priceMin: PRICE_STOPS[minIndex] ?? 0,
-                  priceMax: PRICE_STOPS[maxIndex] ?? 5000,
-                }))
-              }
+            <RangeContinuousSlider
+              min={PRICE_MIN}
+              max={PRICE_MAX}
+              step={PRICE_STEP}
+              low={draft.priceMin}
+              high={draft.priceMax}
+              tickValues={PRICE_STOPS}
+              tickLabels={priceLabels}
+              onLiveChange={(priceMin, priceMax) => setLivePrice({ min: priceMin, max: priceMax })}
+              onChange={(priceMin, priceMax) => {
+                setLivePrice(null);
+                setDraft((prev) => ({ ...prev, priceMin, priceMax }));
+              }}
             />
 
             <Section
@@ -394,14 +480,23 @@ export function ProviderFiltersSheet({
           <View style={styles.footer}>
             <Pressable
               onPress={() => setDraft(OPEN_PROVIDER_FILTERS)}
-              style={({ pressed }) => [styles.resetBtn, pressed && styles.pressed]}
+              disabled={applying}
+              style={({ pressed }) => [styles.resetBtn, pressed && !applying && styles.pressed, applying && styles.applyDisabled]}
             >
               <MaterialCommunityIcons name="restore" size={18} color={PURPLE} />
               <Text style={styles.resetText}>{s.reset}</Text>
             </Pressable>
             <Pressable
-              onPress={() => onApply(draft)}
-              style={({ pressed }) => [styles.applyWrap, pressed && styles.pressed]}
+              onPress={handleApply}
+              disabled={applying}
+              style={({ pressed }) => [
+                styles.applyWrap,
+                pressed && !applying && styles.pressed,
+                applying && styles.applyDisabled,
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel={applying ? s.applyingFilters : fill(s.applyFilters, { count })}
+              accessibilityState={{ busy: applying, disabled: applying }}
             >
               <LinearGradient
                 colors={["#4A3AFF", "#12B886"]}
@@ -409,12 +504,36 @@ export function ProviderFiltersSheet({
                 end={{ x: 1, y: 0.5 }}
                 style={styles.applyBtn}
               >
-                <MaterialCommunityIcons name="tune-variant" size={18} color="#FFFFFF" />
-                <Text style={styles.applyText}>{fill(s.applyFilters, { count })}</Text>
+                {applying ? (
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                ) : (
+                  <MaterialCommunityIcons name="tune-variant" size={18} color="#FFFFFF" />
+                )}
+                <Text style={styles.applyText}>
+                  {applying ? s.applyingFilters : fill(s.applyFilters, { count })}
+                </Text>
               </LinearGradient>
             </Pressable>
           </View>
             </>
+          )}
+            </>
+          ) : (
+            <FilterSearchRadiusMap
+              userCoordinates={userCoordinates}
+              radiusKm={draft.maxDistanceKm}
+              minKm={DISTANCE_MIN_KM}
+              maxKm={DISTANCE_MAX_KM}
+              title={s.searchRadiusTitle}
+              subtitle={s.searchRadiusSubtitle}
+              hint={s.searchRadiusHint}
+              confirmLabel={s.searchRadiusUse}
+              onConfirm={(km) => {
+                setDraft((prev) => ({ ...prev, maxDistanceKm: km }));
+                setRadiusPicker(false);
+              }}
+              onClose={() => setRadiusPicker(false)}
+            />
           )}
         </View>
       </GestureHandlerRootView>
@@ -470,29 +589,47 @@ function FeatureToggle({
 
 const THUMB_RADIUS = 11;
 
-function SnapSlider({
-  labels,
-  index,
-  onIndex,
+function valueFromX(x: number, width: number, min: number, max: number, step: number) {
+  if (width <= 0) return min;
+  const raw = min + (x / width) * (max - min);
+  return snapToStep(raw, step, min, max);
+}
+
+function xFromValue(value: number, width: number, min: number, max: number) {
+  const span = Math.max(0.0001, max - min);
+  return ((clamp(value, min, max) - min) / span) * width;
+}
+
+function ContinuousSlider({
+  min,
+  max,
+  step,
+  value,
+  tickValues,
+  tickLabels,
+  onChange,
 }: {
-  labels: string[];
-  index: number;
-  onIndex: (index: number) => void;
+  min: number;
+  max: number;
+  step: number;
+  value: number;
+  tickValues: number[];
+  tickLabels: string[];
+  onChange: (next: number) => void;
 }) {
-  const span = Math.max(1, labels.length - 1);
   const trackW = useSharedValue(0);
   const grabX = useSharedValue(0);
   const x = useSharedValue(0);
   const dragging = useSharedValue(false);
-  const onIndexRef = useRef(onIndex);
-  onIndexRef.current = onIndex;
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
 
-  const commit = (nextIndex: number) => {
-    onIndexRef.current(nextIndex);
+  const commitFromTrack = (px: number, width: number) => {
+    onChangeRef.current(valueFromX(px, width, min, max, step));
   };
 
-  const placeAtIndex = (nextIndex: number, width: number, animate: boolean) => {
-    const nextX = (nextIndex / span) * width;
+  const placeAtValue = (next: number, width: number, animate: boolean) => {
+    const nextX = xFromValue(next, width, min, max);
     x.value = animate ? withTiming(nextX, { duration: 140 }) : nextX;
   };
 
@@ -500,8 +637,8 @@ function SnapSlider({
     if (dragging.value) return;
     const w = trackW.value;
     if (w <= 0) return;
-    placeAtIndex(index, w, true);
-  }, [index, span]);
+    placeAtValue(value, w, true);
+  }, [value, min, max]);
 
   const fillStyle = useAnimatedStyle(() => ({
     width: x.value,
@@ -527,9 +664,7 @@ function SnapSlider({
     .onEnd(() => {
       const w = trackW.value;
       if (w <= 0) return;
-      const next = Math.max(0, Math.min(span, Math.round((x.value / w) * span)));
-      x.value = withTiming((next / span) * w, { duration: 140 });
-      runOnJS(commit)(next);
+      runOnJS(commitFromTrack)(x.value, w);
     })
     .onFinalize(() => {
       dragging.value = false;
@@ -544,7 +679,7 @@ function SnapSlider({
           onLayout={(e: LayoutChangeEvent) => {
             const w = e.nativeEvent.layout.width;
             trackW.value = w;
-            if (!dragging.value) placeAtIndex(index, w, false);
+            if (!dragging.value) placeAtValue(value, w, false);
           }}
         >
           <View style={styles.track} pointerEvents="none" />
@@ -553,9 +688,16 @@ function SnapSlider({
         </Animated.View>
       </GestureDetector>
       <View style={styles.stopRow}>
-        {labels.map((label, i) => (
-          <Pressable key={label} onPress={() => onIndex(i)} style={styles.stopBtn}>
-            <Text style={[styles.stopLabel, i === index && styles.stopLabelOn]}>{label}</Text>
+        {tickLabels.map((label, i) => (
+          <Pressable key={`${tickValues[i]}-${label}`} onPress={() => onChange(tickValues[i] ?? min)} style={styles.stopBtn}>
+            <Text
+              style={[
+                styles.stopLabel,
+                Math.abs((tickValues[i] ?? 0) - value) < step / 2 && styles.stopLabelOn,
+              ]}
+            >
+              {label}
+            </Text>
           </Pressable>
         ))}
       </View>
@@ -563,34 +705,52 @@ function SnapSlider({
   );
 }
 
-function RangeSnapSlider({
-  labels,
-  minIndex,
-  maxIndex,
+function RangeContinuousSlider({
+  min,
+  max,
+  step,
+  low,
+  high,
+  tickValues,
+  tickLabels,
   onChange,
+  onLiveChange,
 }: {
-  labels: string[];
-  minIndex: number;
-  maxIndex: number;
-  onChange: (minIndex: number, maxIndex: number) => void;
+  min: number;
+  max: number;
+  step: number;
+  low: number;
+  high: number;
+  tickValues: number[];
+  tickLabels: string[];
+  onChange: (nextLow: number, nextHigh: number) => void;
+  onLiveChange?: (nextLow: number, nextHigh: number) => void;
 }) {
-  const span = Math.max(1, labels.length - 1);
   const trackW = useSharedValue(0);
   const grabX = useSharedValue(0);
   const minX = useSharedValue(0);
   const maxX = useSharedValue(0);
   const dragging = useSharedValue(false);
   const active = useSharedValue(1);
+  const lastLive = useSharedValue(-1);
   const onChangeRef = useRef(onChange);
+  const onLiveChangeRef = useRef(onLiveChange);
   onChangeRef.current = onChange;
+  onLiveChangeRef.current = onLiveChange;
 
-  const commit = (nextMin: number, nextMax: number) => {
-    onChangeRef.current(nextMin, nextMax);
+  const commitFromTrack = (minPx: number, maxPx: number, width: number) => {
+    const nextLow = valueFromX(minPx, width, min, max, step);
+    const nextHigh = valueFromX(maxPx, width, min, max, step);
+    onChangeRef.current(Math.min(nextLow, nextHigh), Math.max(nextLow, nextHigh));
   };
 
-  const placeAtIndices = (nextMin: number, nextMax: number, width: number, animate: boolean) => {
-    const nextMinX = (nextMin / span) * width;
-    const nextMaxX = (nextMax / span) * width;
+  const previewValues = (nextLow: number, nextHigh: number) => {
+    onLiveChangeRef.current?.(Math.min(nextLow, nextHigh), Math.max(nextLow, nextHigh));
+  };
+
+  const placeAtValues = (nextLow: number, nextHigh: number, width: number, animate: boolean) => {
+    const nextMinX = xFromValue(nextLow, width, min, max);
+    const nextMaxX = xFromValue(nextHigh, width, min, max);
     minX.value = animate ? withTiming(nextMinX, { duration: 140 }) : nextMinX;
     maxX.value = animate ? withTiming(nextMaxX, { duration: 140 }) : nextMaxX;
   };
@@ -599,8 +759,26 @@ function RangeSnapSlider({
     if (dragging.value) return;
     const w = trackW.value;
     if (w <= 0) return;
-    placeAtIndices(minIndex, maxIndex, w, true);
-  }, [minIndex, maxIndex, span]);
+    placeAtValues(low, high, w, true);
+  }, [low, high, min, max]);
+
+  useAnimatedReaction(
+    () => {
+      const w = trackW.value;
+      if (w <= 0 || dragging.value === false) return lastLive.value;
+      const span = Math.max(0.0001, max - min);
+      const nextLow = Math.round((min + (minX.value / w) * span) / step) * step;
+      const nextHigh = Math.round((min + (maxX.value / w) * span) / step) * step;
+      return nextLow * 100000 + nextHigh;
+    },
+    (packed) => {
+      if (packed < 0 || packed === lastLive.value) return;
+      lastLive.value = packed;
+      const nextHigh = packed % 100000;
+      const nextLow = (packed - nextHigh) / 100000;
+      runOnJS(previewValues)(nextLow, nextHigh);
+    },
+  );
 
   const fillStyle = useAnimatedStyle(() => ({
     left: minX.value,
@@ -641,11 +819,7 @@ function RangeSnapSlider({
     .onEnd(() => {
       const w = trackW.value;
       if (w <= 0) return;
-      const nextMin = Math.max(0, Math.min(span, Math.round((minX.value / w) * span)));
-      const nextMax = Math.max(0, Math.min(span, Math.round((maxX.value / w) * span)));
-      minX.value = withTiming((nextMin / span) * w, { duration: 140 });
-      maxX.value = withTiming((nextMax / span) * w, { duration: 140 });
-      runOnJS(commit)(nextMin, nextMax);
+      runOnJS(commitFromTrack)(minX.value, maxX.value, w);
     })
     .onFinalize(() => {
       dragging.value = false;
@@ -660,7 +834,7 @@ function RangeSnapSlider({
           onLayout={(e: LayoutChangeEvent) => {
             const w = e.nativeEvent.layout.width;
             trackW.value = w;
-            if (!dragging.value) placeAtIndices(minIndex, maxIndex, w, false);
+            if (!dragging.value) placeAtValues(low, high, w, false);
           }}
         >
           <View style={styles.track} pointerEvents="none" />
@@ -670,23 +844,23 @@ function RangeSnapSlider({
         </Animated.View>
       </GestureDetector>
       <View style={styles.stopRow}>
-        {labels.map((label, i) => (
-          <Pressable
-            key={label}
-            onPress={() => {
-              const closer = Math.abs(i - minIndex) <= Math.abs(i - maxIndex) ? "min" : "max";
-              if (closer === "min") onChange(Math.min(i, maxIndex), maxIndex);
-              else onChange(minIndex, Math.max(i, minIndex));
-            }}
-            style={styles.stopBtn}
-          >
-            <Text
-              style={[styles.stopLabel, (i === minIndex || i === maxIndex) && styles.stopLabelOn]}
+        {tickLabels.map((label, i) => {
+          const tick = tickValues[i] ?? min;
+          const activeTick = Math.abs(tick - low) < step / 2 || Math.abs(tick - high) < step / 2;
+          return (
+            <Pressable
+              key={`${tick}-${label}`}
+              onPress={() => {
+                const closer = Math.abs(tick - low) <= Math.abs(tick - high) ? "min" : "max";
+                if (closer === "min") onChange(Math.min(tick, high), high);
+                else onChange(low, Math.max(tick, low));
+              }}
+              style={styles.stopBtn}
             >
-              {label}
-            </Text>
-          </Pressable>
-        ))}
+              <Text style={[styles.stopLabel, activeTick && styles.stopLabelOn]}>{label}</Text>
+            </Pressable>
+          );
+        })}
       </View>
     </View>
   );
@@ -974,6 +1148,11 @@ const styles = StyleSheet.create({
   },
   applyWrap: {
     flex: 1,
+    borderRadius: 999,
+    overflow: "hidden",
+  },
+  applyDisabled: {
+    opacity: 0.7,
   },
   applyBtn: {
     height: 52,

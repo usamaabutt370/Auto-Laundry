@@ -5,6 +5,7 @@ import { WebView, type WebViewMessageEvent } from "react-native-webview";
 export type MapHtmlSurfaceHandle = {
   fitAll: () => void;
   panTo: (latitude: number, longitude: number) => void;
+  setSearchRadius: (meters: number, animate?: boolean) => void;
 };
 
 type Props = {
@@ -22,6 +23,12 @@ function injectPanTo(webView: WebView | null, latitude: number, longitude: numbe
   );
 }
 
+function injectSetSearchRadius(webView: WebView | null, meters: number, animate?: boolean) {
+  webView?.injectJavaScript(
+    `window.__setSearchRadius && window.__setSearchRadius(${Number(meters)}, ${animate ? "true" : "false"}); true;`,
+  );
+}
+
 export const MapHtmlSurface = forwardRef<MapHtmlSurfaceHandle, Props>(function MapHtmlSurface(
   { html, onMessage },
   ref,
@@ -34,6 +41,9 @@ export const MapHtmlSurface = forwardRef<MapHtmlSurfaceHandle, Props>(function M
     },
     panTo: (latitude, longitude) => {
       injectPanTo(mapRef.current, latitude, longitude);
+    },
+    setSearchRadius: (meters, animate) => {
+      injectSetSearchRadius(mapRef.current, meters, animate);
     },
   }));
 

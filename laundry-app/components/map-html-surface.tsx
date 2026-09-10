@@ -11,6 +11,7 @@ import type { WebViewMessageEvent } from "react-native-webview";
 export type MapHtmlSurfaceHandle = {
   fitAll: () => void;
   panTo: (latitude: number, longitude: number) => void;
+  setSearchRadius: (meters: number, animate?: boolean) => void;
 };
 
 type Props = {
@@ -28,7 +29,11 @@ export const MapHtmlSurface = forwardRef<MapHtmlSurfaceHandle, Props>(function M
   useImperativeHandle(ref, () => ({
     fitAll: () => {
       const win = iframeRef.current?.contentWindow as
-        | (Window & { __fitAll?: () => void; __panTo?: (lat: number, lng: number) => void })
+        | (Window & {
+            __fitAll?: () => void;
+            __panTo?: (lat: number, lng: number) => void;
+            __setSearchRadius?: (meters: number, animate?: boolean) => void;
+          })
         | null;
       win?.__fitAll?.();
     },
@@ -37,6 +42,12 @@ export const MapHtmlSurface = forwardRef<MapHtmlSurfaceHandle, Props>(function M
         | (Window & { __panTo?: (lat: number, lng: number) => void })
         | null;
       win?.__panTo?.(latitude, longitude);
+    },
+    setSearchRadius: (meters, animate) => {
+      const win = iframeRef.current?.contentWindow as
+        | (Window & { __setSearchRadius?: (meters: number, animate?: boolean) => void })
+        | null;
+      win?.__setSearchRadius?.(meters, animate);
     },
   }));
 

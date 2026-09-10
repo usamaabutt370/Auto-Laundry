@@ -1,5 +1,6 @@
 import type { LaundererServiceType } from "@/constants/launderers";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
+import { fetchVerifiedPartnerIds } from "@/lib/partner-verification";
 import { parsePriceDisplay } from "@/utils/parse-price-display";
 import { bestOfferForCategories } from "@/utils/partner-offers";
 
@@ -22,6 +23,7 @@ export type PartnerPublicRow = {
   offerCode: string | null;
   serviceTypes: LaundererServiceType[];
   minPrice: number | null;
+  verified: boolean;
   fulfillmentMode?: PartnerFulfillmentMode;
 };
 
@@ -68,6 +70,7 @@ function toMapMarker(
     offerCode: row.offerCode ?? null,
     serviceTypes: row.serviceTypes ?? [],
     minPrice: row.minPrice ?? null,
+    verified: row.verified ?? false,
     fulfillmentMode: amount.length > 0 ? "pickupDelivery" : "dropoff",
   };
 }
@@ -81,6 +84,7 @@ function withDiscoveryDefaults<T extends PartnerPublicRow>(row: T): T {
     offerCode: row.offerCode ?? null,
     serviceTypes: row.serviceTypes ?? [],
     minPrice: row.minPrice ?? null,
+    verified: row.verified ?? false,
   };
 }
 
@@ -89,9 +93,10 @@ async function attachDiscoveryExtras<T extends PartnerPublicRow>(rows: T[]): Pro
     return rows.map((row) => withDiscoveryDefaults(row));
   }
   const ids = rows.map((row) => row.id);
-  const [ratingsResult, servicesResult] = await Promise.all([
+  const [ratingsResult, servicesResult, verifiedIds] = await Promise.all([
     supabase.rpc("partner_rating_stats", { partner_ids: ids }),
     supabase.from("partner_services").select("user_id, category, price_display").in("user_id", ids),
+    fetchVerifiedPartnerIds(ids),
   ]);
 
   const ratingById = new Map<string, { avg: number; count: number }>();
@@ -137,6 +142,7 @@ async function attachDiscoveryExtras<T extends PartnerPublicRow>(rows: T[]): Pro
       offerCode: offer?.code ?? null,
       serviceTypes: serviceCategoriesToTypes(categories, pricesById.get(row.id)),
       minPrice: minPricedService(categories, pricesById.get(row.id) ?? []),
+      verified: verifiedIds.size === 0 ? true : verifiedIds.has(row.id),
     };
   });
 }
@@ -211,9 +217,9 @@ export async function fetchPickupPartners(): Promise<{
   }
   // RLS policy "Partner profiles: authenticated can read verified discovery partners"
   // already filters to approved-only rows at the DB level.
-  const rows = (data ?? []).filter(
-    (r) => typeof r.business_name === "string" && r.business_name.trim().length > 0
-  ) as PartnerPublicRow[];
+  const rows = (data ?? [])
+    .filter((r) => typeof r.business_name === "string" && r.business_name.trim().length > 0)
+    .map((r) => withDiscoveryDefaults(r as unknown as PartnerPublicRow));
   return { data: await attachDiscoveryExtras(rows), error: null };
 }
 
@@ -245,13 +251,15 @@ export async function fetchPartnersByFulfillmentMode(
   if (error) {
     return { data: null, error: error.message };
   }
-  const rows = (data ?? []).filter((r) => {
-    if (typeof r.business_name !== "string" || r.business_name.trim().length === 0) {
-      return false;
-    }
-    const amount = typeof r.pickup_delivery_amount === "string" ? r.pickup_delivery_amount.trim() : "";
-    return mode === "pickupDelivery" ? amount.length > 0 : amount.length === 0;
-  }) as PartnerPublicRow[];
+  const rows = (data ?? [])
+    .filter((r) => {
+      if (typeof r.business_name !== "string" || r.business_name.trim().length === 0) {
+        return false;
+      }
+      const amount = typeof r.pickup_delivery_amount === "string" ? r.pickup_delivery_amount.trim() : "";
+      return mode === "pickupDelivery" ? amount.length > 0 : amount.length === 0;
+    })
+    .map((r) => withDiscoveryDefaults(r as unknown as PartnerPublicRow));
   return { data: await attachDiscoveryExtras(rows), error: null };
 }
 
@@ -301,6 +309,7 @@ export async function fetchPartnerDetail(partnerId: string): Promise<{
       offerPercent: offer?.percent ?? enriched?.offerPercent ?? null,
       offerCode: offer?.code ?? enriched?.offerCode ?? null,
       minPrice: enriched?.minPrice ?? null,
+      verified: enriched?.verified ?? false,
     },
     services: (serviceRows ?? []) as PartnerServiceLine[],
     error: null,
