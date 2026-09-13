@@ -3,10 +3,10 @@ import { Pressable, ScrollView, StyleSheet, Text, View, Switch, ActivityIndicato
 import { Linking } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { StatusBar } from "expo-status-bar";
 import { useRouter, useFocusEffect } from "expo-router";
 import { useIsFocused } from "@react-navigation/native";
 
-import { theme } from "@/constants/theme";
 import { useAuth } from "@/contexts/auth-context";
 import { avatarUrlWithCacheBuster } from "@/lib/avatar";
 import { subscribeProfileAvatarUpdated } from "@/lib/profile-avatar-refresh";
@@ -20,7 +20,14 @@ import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { useSuppressWebScreenHeader } from "@/hooks/use-suppress-web-screen-header";
 import { runAfterModalTeardown } from "@/utils/run-after-modal-teardown";
 
-const c = theme.colors;
+const UI = {
+	bg: "#F7F8FA",
+	card: "#FFFFFF",
+	text: "#111827",
+	muted: "#6B7280",
+	teal: "#12B886",
+	chipBorder: "#E5E7EB",
+};
 const WHATSAPP_PHONE = "923004639943";
 
 function buildWhatsAppUrl(name: string, balance: number | null): string {
@@ -162,13 +169,14 @@ export default function PartnerProfileMenu() {
 
 	const MenuItem = ({ icon, label, onPress }: { icon: string; label: string; onPress?: () => void }) => (
 		<Pressable style={({ pressed }) => [styles.menuItem, pressed && styles.pressed]} onPress={onPress}>
-			<MaterialCommunityIcons name={icon as any} size={22} color={c.backgroundLight} />
+			<MaterialCommunityIcons name={icon as any} size={22} color={UI.teal} />
 			<Text style={styles.menuLabel}>{label}</Text>
 		</Pressable>
 	);
 
 	return (
 		<SafeAreaView style={styles.container} edges={isWeb ? [] : ["top"]}>
+			<StatusBar style="dark" />
 			{isWeb ? <WebHeaderSpacer /> : null}
 			<ScrollView
 				contentContainerStyle={[styles.content, isWeb && styles.contentWeb]}
@@ -181,12 +189,12 @@ export default function PartnerProfileMenu() {
 					<View style={styles.avatarWrap}>
 						<AvatarImage uri={avatarUri} name={displayName} size={80} style={styles.avatar} />
 						<View style={styles.editBadge}>
-							<MaterialCommunityIcons name="pencil" size={12} color={c.white} />
+							<MaterialCommunityIcons name="pencil" size={12} color="#FFFFFF" />
 						</View>
 					</View>
 					<Text style={styles.name}>{displayName}</Text>
 					<View style={styles.editPill}>
-						<MaterialCommunityIcons name="pencil-outline" size={13} color={c.blue500} />
+						<MaterialCommunityIcons name="pencil-outline" size={13} color={UI.teal} />
 						<Text style={styles.editPillText}>Edit profile</Text>
 					</View>
 				</Pressable>
@@ -219,15 +227,15 @@ export default function PartnerProfileMenu() {
 						<Text style={styles.roleLabel}>Use app as user</Text>
 						<View style={styles.switchWrap}>
 							{isUpdatingRole ? (
-								<ActivityIndicator color={c.white} size="small" />
+								<ActivityIndicator color={UI.teal} size="small" />
 							) : (
 								<Switch
 									value={isPartnerSwitchOn}
 									onValueChange={handleRoleToggle}
 									disabled={isUpdatingRole}
-									trackColor={{ false: c.blue900, true: c.blue600 }}
-									thumbColor={c.white}
-									ios_backgroundColor={c.backgroundLight}
+									trackColor={{ false: UI.chipBorder, true: UI.teal }}
+									thumbColor="#FFFFFF"
+									ios_backgroundColor={UI.chipBorder}
 								/>
 							)
 							}
@@ -259,7 +267,7 @@ export default function PartnerProfileMenu() {
 							]);
 						}}
 					>
-						<MaterialCommunityIcons name="logout" size={16} color={c.white} />
+						<MaterialCommunityIcons name="logout" size={16} color={UI.teal} />
 						<Text style={styles.signOutLabel}>Sign out</Text>
 					</Pressable>
 
@@ -272,34 +280,34 @@ export default function PartnerProfileMenu() {
 }
 
 const styles = StyleSheet.create({
-	container: { flex: 1, backgroundColor: c.background },
+	container: { flex: 1, backgroundColor: UI.bg },
 	content: { padding: 20, paddingBottom: 120 },
 	contentWeb: { paddingTop: 0 },
 	profileCard: { alignItems: "center", paddingTop: 4, paddingBottom: 20, marginBottom: 8 },
 	profileCardWeb: { paddingTop: 0 },
 	avatarWrap: { width: 80, height: 80, borderRadius: 40, overflow: "visible", marginBottom: 12 },
-	avatar: { width: 80, height: 80, borderRadius: 40, borderWidth: 2, borderColor: c.blue600 },
-	editBadge: { position: "absolute", bottom: 0, right: 0, width: 24, height: 24, borderRadius: 12, backgroundColor: c.backgroundLight, borderWidth: 1.5, borderColor: c.background, alignItems: "center", justifyContent: "center" },
-	name: { fontSize: 20, fontWeight: "700", color: c.white, textAlign: "center" },
-	phone: { fontSize: 14, color: c.blue500, marginTop: 4, textAlign: "center" },
-	editPill: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 10, paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.07)", borderWidth: 1, borderColor: "rgba(255,255,255,0.1)" },
-	editPillText: { fontSize: 13, color: c.blue500, fontWeight: "500" },
-	creditCard: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: c.backgroundDark, borderRadius: 14, paddingHorizontal: 18, paddingVertical: 16, marginTop: 8, borderWidth: 1, borderColor: "rgba(255,255,255,0.08)" },
-	creditBalance: { fontSize: 22, fontWeight: "800", color: c.white, letterSpacing: 0.2 },
-	creditHint: { fontSize: 12, color: c.blue500, fontWeight: "500", marginTop: 2 },
-	buyCreditsBtn: { paddingHorizontal: 16, paddingVertical: 9, borderRadius: 999, backgroundColor: c.white },
-	buyCreditsBtnText: { fontSize: 13, fontWeight: "700", color: c.background },
+	avatar: { width: 80, height: 80, borderRadius: 40, borderWidth: 2, borderColor: UI.teal },
+	editBadge: { position: "absolute", bottom: 0, right: 0, width: 24, height: 24, borderRadius: 12, backgroundColor: UI.teal, borderWidth: 1.5, borderColor: UI.card, alignItems: "center", justifyContent: "center" },
+	name: { fontSize: 20, fontWeight: "700", color: UI.text, textAlign: "center" },
+	phone: { fontSize: 14, color: UI.muted, marginTop: 4, textAlign: "center" },
+	editPill: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 10, paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, backgroundColor: UI.card, borderWidth: 1, borderColor: UI.chipBorder },
+	editPillText: { fontSize: 13, color: UI.teal, fontWeight: "500" },
+	creditCard: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: UI.card, borderRadius: 14, paddingHorizontal: 18, paddingVertical: 16, marginTop: 8, borderWidth: 1, borderColor: UI.chipBorder },
+	creditBalance: { fontSize: 22, fontWeight: "800", color: UI.text, letterSpacing: 0.2 },
+	creditHint: { fontSize: 12, color: UI.muted, fontWeight: "500", marginTop: 2 },
+	buyCreditsBtn: { paddingHorizontal: 16, paddingVertical: 9, borderRadius: 999, backgroundColor: UI.teal },
+	buyCreditsBtnText: { fontSize: 13, fontWeight: "700", color: "#FFFFFF" },
 	accountActionsRow: { flexDirection: "row", justifyContent: "center", gap: 12, marginTop: 4 },
-	divider: { height: 1, backgroundColor: "rgba(255,255,255,0.06)", marginVertical: 16 },
+	divider: { height: 1, backgroundColor: UI.chipBorder, marginVertical: 16 },
 	menuGroup: { backgroundColor: "transparent", gap: 8 },
 	menuItem: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 14 },
-	menuLabel: { color: c.white, fontSize: 16, fontWeight: "600" },
+	menuLabel: { color: UI.text, fontSize: 16, fontWeight: "600" },
 	pressed: { opacity: 0.7 },
-	roleCard: { marginTop: 8, paddingTop: 12, borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.06)", marginBottom: 12 },
+	roleCard: { marginTop: 8, paddingTop: 12, borderTopWidth: 1, borderTopColor: UI.chipBorder, marginBottom: 12 },
 	roleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-	roleLabel: { fontSize: 17, color: c.white, fontWeight: "700", flex: 1 },
+	roleLabel: { fontSize: 17, color: UI.text, fontWeight: "700", flex: 1 },
 	switchWrap: { transform: [{ scale: 1.02 }] },
-	roleHint: { fontSize: 13, color: c.blue500, lineHeight: 18, marginTop: 8 },
-	signOutBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: c.backgroundDark, borderRadius: 12, paddingVertical: 14, paddingHorizontal: 20, borderWidth: 1, borderColor: "rgba(255,255,255,0.12)" },
-	signOutLabel: { fontSize: 15, fontWeight: "700", color: c.white },
+	roleHint: { fontSize: 13, color: UI.muted, lineHeight: 18, marginTop: 8 },
+	signOutBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: UI.card, borderRadius: 12, paddingVertical: 14, paddingHorizontal: 20, borderWidth: 1, borderColor: UI.teal },
+	signOutLabel: { fontSize: 15, fontWeight: "700", color: UI.teal },
 });

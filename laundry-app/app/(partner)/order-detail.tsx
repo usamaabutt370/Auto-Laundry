@@ -1,5 +1,6 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { StatusBar } from "expo-status-bar";
 import { useEffect, useMemo, useState } from "react";
 import {
   Pressable,
@@ -30,7 +31,21 @@ import { fetchPartnerRiders, type PartnerRider } from "@/lib/partner-riders";
 import { getStrings } from "@/locales";
 import { parsePriceDisplay, currencyPrefixFromDisplay } from "@/utils/parse-price-display";
 
-const c = theme.colors;
+const UI = {
+  bg: "#F7F8FA",
+  card: "#FFFFFF",
+  text: "#111827",
+  muted: "#6B7280",
+  teal: "#12B886",
+  chipBorder: "#E5E7EB",
+  iconWell: "#F3F4F6",
+  openBg: "#ECFDF5",
+  openText: "#047857",
+  amber: "#D97706",
+  amberBg: "#FEF3C7",
+  red: "#DC2626",
+  redBg: "#FEE2E2",
+};
 const fs = theme.fontSize;
 const H_PAD = 24;
 const CARD_RADIUS = 18;
@@ -407,7 +422,9 @@ export default function PartnerOrderDetailScreen() {
 
   const header = (
     <SafeAreaView edges={["top"]} style={styles.safeArea}>
+      <StatusBar style="dark" />
       <AppHeader
+        appearance="light"
         title={s.orderDetailTitle}
         leftIcon="arrow-left"
         onLeftPress={handleBack}
@@ -445,12 +462,12 @@ export default function PartnerOrderDetailScreen() {
     .filter((value) => Boolean(value?.trim()))
     .join("\n");
   const isPending = finalDetail.status === "pending";
-  const statusColor =
+  const statusTone =
     finalDetail.status === "rejected"
-      ? "#D9534F"
-      : finalDetail.status === "accepted"
-        ? c.outline
-        : c.white;
+      ? { color: UI.red, bg: UI.redBg }
+      : finalDetail.status === "accepted" || finalDetail.status === "completed"
+        ? { color: UI.openText, bg: UI.openBg }
+        : { color: UI.amber, bg: UI.amberBg };
 
   return (
     <View style={styles.container}>
@@ -468,12 +485,12 @@ export default function PartnerOrderDetailScreen() {
               style={[
                 styles.statusBadge,
                 {
-                  borderColor: statusColor,
-                  backgroundColor: finalDetail.status === "rejected" ? c.white : "transparent",
+                  borderColor: statusTone.bg,
+                  backgroundColor: statusTone.bg,
                 },
               ]}
             >
-              <Text style={[styles.statusBadgeText, { color: statusColor }]}>
+              <Text style={[styles.statusBadgeText, { color: statusTone.color }]}>
                 {formatStatusLabel(finalDetail.status)}
               </Text>
             </View>
@@ -510,7 +527,7 @@ export default function PartnerOrderDetailScreen() {
             </View>
           </View>
           <View style={styles.infoRow}>
-            <MaterialCommunityIcons name="map-marker-outline" size={18} color={c.outline} />
+            <MaterialCommunityIcons name="map-marker-outline" size={18} color={UI.teal} />
             <Text style={styles.infoValue}>{fullAddress || "Address not available"}</Text>
           </View>
           <Pressable
@@ -525,7 +542,7 @@ export default function PartnerOrderDetailScreen() {
               pressed && styles.pressed,
             ]}
           >
-            <MaterialCommunityIcons name="chat-processing-outline" size={16} color={c.white} />
+            <MaterialCommunityIcons name="chat-processing-outline" size={16} color={UI.teal} />
             <Text style={styles.chatButtonText}>Chat with customer</Text>
           </Pressable>
         </View>
@@ -533,21 +550,21 @@ export default function PartnerOrderDetailScreen() {
         <View style={styles.sectionCard}>
           <Text style={styles.sectionTitle}>Schedule</Text>
           <View style={styles.infoRow}>
-            <MaterialCommunityIcons name="truck-delivery-outline" size={18} color={c.outline} />
+            <MaterialCommunityIcons name="truck-delivery-outline" size={18} color={UI.teal} />
             <View style={styles.infoTextBlock}>
               <Text style={styles.infoLabel}>{s.pickup}</Text>
               <Text style={styles.infoValue}>{finalDetail.pickup}</Text>
             </View>
           </View>
           <View style={styles.infoRow}>
-            <MaterialCommunityIcons name="package-variant-closed" size={18} color={c.outline} />
+            <MaterialCommunityIcons name="package-variant-closed" size={18} color={UI.teal} />
             <View style={styles.infoTextBlock}>
               <Text style={styles.infoLabel}>{s.delivery}</Text>
               <Text style={styles.infoValue}>{finalDetail.delivery}</Text>
             </View>
           </View>
           <View style={styles.infoRow}>
-            <MaterialCommunityIcons name="account-switch-outline" size={18} color={c.outline} />
+            <MaterialCommunityIcons name="account-switch-outline" size={18} color={UI.teal} />
             <View style={styles.infoTextBlock}>
               <Text style={styles.infoLabel}>{s.courier}</Text>
               <Text style={styles.infoValue}>
@@ -644,7 +661,7 @@ export default function PartnerOrderDetailScreen() {
                         }
                         style={styles.intakeStepBtn}
                       >
-                        <MaterialCommunityIcons name="minus" size={18} color={c.white} />
+                        <MaterialCommunityIcons name="minus" size={18} color={UI.teal} />
                       </Pressable>
                       <Text style={styles.intakeQty}>{qty}</Text>
                       <Pressable
@@ -656,7 +673,7 @@ export default function PartnerOrderDetailScreen() {
                         }
                         style={styles.intakeStepBtn}
                       >
-                        <MaterialCommunityIcons name="plus" size={18} color={c.white} />
+                        <MaterialCommunityIcons name="plus" size={18} color={UI.teal} />
                       </Pressable>
                     </View>
                   </View>
@@ -667,7 +684,7 @@ export default function PartnerOrderDetailScreen() {
               value={intakeNotes}
               onChangeText={setIntakeNotes}
               placeholder={s.intakeNotesPlaceholder}
-              placeholderTextColor="rgba(255,255,255,0.45)"
+              placeholderTextColor={UI.muted}
               multiline
             />
             <Pressable
@@ -791,7 +808,7 @@ export default function PartnerOrderDetailScreen() {
         ) : (
           <View style={styles.footerStatusCard}>
             <Text style={styles.footerStatusLabel}>Current status</Text>
-            <Text style={[styles.footerStatusValue, { color: statusColor }]}>
+            <Text style={[styles.footerStatusValue, { color: statusTone.color }]}>
               {formatStatusLabel(finalDetail.status)}
             </Text>
           </View>
@@ -861,7 +878,7 @@ export default function PartnerOrderDetailScreen() {
                 value={otherRejectionReason}
                 onChangeText={setOtherRejectionReason}
                 placeholder="Write reason for rejection"
-                placeholderTextColor={c.blue500}
+                placeholderTextColor={UI.muted}
                 style={styles.otherReasonInput}
                 textAlignVertical="top"
               />
@@ -890,7 +907,7 @@ export default function PartnerOrderDetailScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: c.background,
+    backgroundColor: UI.bg,
   },
   safeArea: {
     paddingBottom: 8,
@@ -907,10 +924,10 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   heroCard: {
-    backgroundColor: c.blue900,
+    backgroundColor: UI.card,
     borderRadius: CARD_RADIUS,
     borderWidth: 1,
-    borderColor: c.outline,
+    borderColor: UI.chipBorder,
     padding: 18,
   },
   heroTopRow: {
@@ -925,11 +942,11 @@ const styles = StyleSheet.create({
   orderIdText: {
     fontSize: fs.titleMedium,
     fontWeight: "700",
-    color: c.white,
+    color: UI.text,
   },
   heroSubtitle: {
     marginTop: 6,
-    color: c.blue500,
+    color: UI.muted,
     fontSize: fs.smallText,
   },
   statusBadge: {
@@ -950,30 +967,30 @@ const styles = StyleSheet.create({
   },
   metricCard: {
     flex: 1,
-    backgroundColor: "rgba(255,255,255,0.08)",
+    backgroundColor: UI.iconWell,
     borderRadius: 14,
     paddingVertical: 12,
     paddingHorizontal: 10,
   },
   metricLabel: {
-    color: c.blue500,
+    color: UI.muted,
     fontSize: fs.xxSmallText,
     marginBottom: 6,
   },
   metricValue: {
-    color: c.white,
+    color: UI.text,
     fontSize: fs.smallText,
     fontWeight: "700",
   },
   sectionCard: {
-    backgroundColor: c.blue900,
+    backgroundColor: UI.card,
     borderRadius: CARD_RADIUS,
     borderWidth: 1,
-    borderColor: c.outline,
+    borderColor: UI.chipBorder,
     padding: 18,
   },
   sectionTitle: {
-    color: c.white,
+    color: UI.text,
     fontSize: fs.smallTitle,
     fontWeight: "700",
     marginBottom: 14,
@@ -988,12 +1005,12 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: c.background,
+    backgroundColor: UI.openBg,
     alignItems: "center",
     justifyContent: "center",
   },
   avatarText: {
-    color: c.white,
+    color: UI.teal,
     fontSize: fs.smallTitle,
     fontWeight: "700",
   },
@@ -1001,13 +1018,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   clientName: {
-    color: c.white,
+    color: UI.text,
     fontSize: fs.smallTitle,
     fontWeight: "700",
   },
   phone: {
     marginTop: 4,
-    color: c.blue500,
+    color: UI.muted,
     fontSize: fs.smallText,
   },
   infoRow: {
@@ -1020,14 +1037,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   infoLabel: {
-    color: c.blue500,
+    color: UI.muted,
     fontSize: fs.xxSmallText,
     marginBottom: 4,
     textTransform: "uppercase",
   },
   infoValue: {
     flex: 1,
-    color: c.white,
+    color: UI.text,
     fontSize: fs.smallText,
     lineHeight: 22,
   },
@@ -1038,14 +1055,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
     borderWidth: 1,
-    borderColor: c.outline,
+    borderColor: UI.teal,
     borderRadius: 999,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    backgroundColor: c.background,
+    backgroundColor: UI.card,
   },
   chatButtonText: {
-    color: c.white,
+    color: UI.teal,
     fontSize: fs.descText,
     fontWeight: "600",
   },
@@ -1053,7 +1070,7 @@ const styles = StyleSheet.create({
     paddingTop: 14,
     marginTop: 14,
     borderTopWidth: 1,
-    borderTopColor: "rgba(255,255,255,0.14)",
+    borderTopColor: UI.chipBorder,
   },
   serviceHeader: {
     flexDirection: "row",
@@ -1063,17 +1080,17 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   serviceTitle: {
-    color: c.white,
+    color: UI.text,
     fontSize: fs.smallText,
     fontWeight: "700",
   },
   serviceSubprice: {
-    color: c.blue500,
+    color: UI.muted,
     fontSize: fs.descText,
     marginTop: 4,
   },
   serviceCount: {
-    color: c.white,
+    color: UI.muted,
     fontSize: fs.descText,
   },
   itemRow: {
@@ -1082,34 +1099,34 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingVertical: 10,
     borderTopWidth: 1,
-    borderTopColor: "rgba(255,255,255,0.08)",
+    borderTopColor: UI.chipBorder,
   },
   itemTextWrap: {
     flex: 1,
   },
   itemLabel: {
-    color: c.white,
+    color: UI.text,
     fontSize: fs.smallText,
     fontWeight: "600",
     marginBottom: 4,
   },
   itemMeta: {
-    color: c.blue500,
+    color: UI.muted,
     fontSize: fs.descText,
     lineHeight: 18,
   },
   itemPrice: {
-    color: c.white,
+    color: UI.text,
     fontSize: fs.smallText,
     fontWeight: "700",
   },
   notesText: {
-    color: c.white,
+    color: UI.text,
     fontSize: fs.smallText,
     lineHeight: 22,
   },
   intakeHint: {
-    color: c.blue500,
+    color: UI.muted,
     fontSize: fs.descText,
     lineHeight: 20,
     marginBottom: 14,
@@ -1121,7 +1138,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(255,255,255,0.08)",
+    borderBottomColor: UI.chipBorder,
   },
   intakeRowLeft: { flex: 1, paddingRight: 12 },
   intakeStepper: { flexDirection: "row", alignItems: "center", gap: 8 },
@@ -1129,40 +1146,40 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: "rgba(255,255,255,0.15)",
+    backgroundColor: UI.iconWell,
     alignItems: "center",
     justifyContent: "center",
   },
   intakeQty: {
-    color: c.white,
+    color: UI.text,
     fontSize: fs.smallText,
     fontWeight: "700",
     minWidth: 24,
     textAlign: "center",
   },
   intakeNotesInput: {
-    backgroundColor: "rgba(255,255,255,0.08)",
+    backgroundColor: UI.iconWell,
     borderRadius: 12,
     padding: 12,
-    color: c.white,
+    color: UI.text,
     fontSize: fs.descText,
     minHeight: 72,
     marginBottom: 12,
     marginTop: 4,
   },
   intakeConfirmBtn: {
-    backgroundColor: c.lightBlue,
+    backgroundColor: UI.teal,
     borderRadius: 999,
     paddingVertical: 14,
     alignItems: "center",
   },
   intakeConfirmText: {
-    color: c.white,
+    color: "#FFFFFF",
     fontSize: fs.smallText,
     fontWeight: "700",
   },
   rejectionDetailText: {
-    color: c.blue500,
+    color: UI.muted,
     fontSize: fs.descText,
     lineHeight: 20,
     marginTop: 8,
@@ -1173,46 +1190,46 @@ const styles = StyleSheet.create({
   },
   primaryAction: {
     flex: 1,
-    backgroundColor: c.lightBlue,
+    backgroundColor: UI.teal,
     borderRadius: 999,
     paddingVertical: 16,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: c.filledButtonBorder,
+    borderColor: UI.teal,
   },
   primaryActionText: {
-    color: c.white,
+    color: "#FFFFFF",
     fontSize: fs.smallText,
     fontWeight: "700",
   },
   secondaryAction: {
     flex: 1,
-    backgroundColor: "transparent",
+    backgroundColor: UI.card,
     borderRadius: 999,
     paddingVertical: 16,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: "#D9534F",
+    borderColor: UI.teal,
   },
   secondaryActionText: {
-    color: "#D9534F",
+    color: UI.teal,
     fontSize: fs.smallText,
     fontWeight: "700",
   },
   rejectAction: {
     flex: 1,
-    backgroundColor: c.white,
+    backgroundColor: UI.card,
     borderRadius: 999,
     paddingVertical: 16,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: c.white,
+    borderColor: UI.red,
   },
   rejectActionText: {
-    color: "#D9534F",
+    color: UI.red,
     fontSize: fs.smallText,
     fontWeight: "700",
   },
@@ -1221,7 +1238,7 @@ const styles = StyleSheet.create({
     paddingVertical: 18,
   },
   footerStatusLabel: {
-    color: c.blue500,
+    color: UI.muted,
     fontSize: fs.descText,
     marginBottom: 6,
   },
@@ -1247,7 +1264,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: fs.smallText,
-    color: c.blue500,
+    color: UI.muted,
   },
   modalOverlay: {
     ...StyleSheet.absoluteFillObject,
@@ -1259,24 +1276,24 @@ const styles = StyleSheet.create({
   },
   modalBackdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(5, 14, 25, 0.65)",
+    backgroundColor: "rgba(17, 24, 39, 0.45)",
   },
   modalCard: {
     width: "100%",
-    backgroundColor: c.blue900,
+    backgroundColor: UI.card,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: c.outline,
+    borderColor: UI.chipBorder,
     padding: 16,
     zIndex: 1,
   },
   modalTitle: {
-    color: c.white,
+    color: UI.text,
     fontSize: fs.smallTitle,
     fontWeight: "700",
   },
   modalSubtitle: {
-    color: c.blue500,
+    color: UI.muted,
     fontSize: fs.descText,
     marginTop: 4,
     marginBottom: 12,
@@ -1286,33 +1303,33 @@ const styles = StyleSheet.create({
   },
   reasonOption: {
     borderWidth: 1,
-    borderColor: c.outline,
+    borderColor: UI.chipBorder,
     borderRadius: 12,
     paddingVertical: 10,
     paddingHorizontal: 12,
-    backgroundColor: c.background,
+    backgroundColor: UI.card,
   },
   reasonOptionSelected: {
-    borderColor: c.filledButtonBorder,
-    backgroundColor: "rgba(31, 200, 255, 0.1)",
+    borderColor: UI.teal,
+    backgroundColor: UI.openBg,
   },
   reasonOptionText: {
-    color: c.white,
+    color: UI.text,
     fontSize: fs.descText,
   },
   reasonOptionTextSelected: {
-    color: c.lightBlue,
+    color: UI.teal,
     fontWeight: "700",
   },
   otherReasonInput: {
     marginTop: 12,
     minHeight: 84,
     borderWidth: 1,
-    borderColor: c.outline,
+    borderColor: UI.chipBorder,
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    color: c.white,
+    color: UI.text,
     fontSize: fs.descText,
   },
   modalActions: {
@@ -1324,12 +1341,12 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: c.outline,
+    borderColor: UI.chipBorder,
     paddingVertical: 12,
     alignItems: "center",
   },
   modalCancelText: {
-    color: c.white,
+    color: UI.text,
     fontSize: fs.descText,
     fontWeight: "700",
   },
@@ -1337,13 +1354,13 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "#D9534F",
-    backgroundColor: c.white,
+    borderColor: UI.red,
+    backgroundColor: UI.card,
     paddingVertical: 12,
     alignItems: "center",
   },
   modalRejectText: {
-    color: "#D9534F",
+    color: UI.red,
     fontSize: fs.descText,
     fontWeight: "700",
   },
@@ -1355,26 +1372,26 @@ const styles = StyleSheet.create({
   },
   payLabel: {
     fontSize: fs.descText,
-    color: c.blue500,
+    color: UI.muted,
   },
   payValue: {
     fontSize: fs.descText,
     fontWeight: "600",
-    color: c.white,
+    color: UI.text,
   },
   payDivider: {
     height: 1,
-    backgroundColor: "rgba(171,233,254,0.15)",
+    backgroundColor: UI.chipBorder,
     marginVertical: 4,
   },
   payTotalLabel: {
     fontSize: fs.smallText,
     fontWeight: "700",
-    color: c.white,
+    color: UI.text,
   },
   payTotalValue: {
     fontSize: fs.smallText,
     fontWeight: "700",
-    color: c.lightBlue,
+    color: UI.teal,
   },
 });

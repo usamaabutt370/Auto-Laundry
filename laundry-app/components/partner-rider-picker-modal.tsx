@@ -4,7 +4,14 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 import { theme } from "@/constants/theme";
 import type { PartnerRider } from "@/lib/partner-riders";
 
-const c = theme.colors;
+const UI = {
+  card: "#FFFFFF",
+  text: "#111827",
+  muted: "#6B7280",
+  teal: "#12B886",
+  chipBorder: "#E5E7EB",
+  mint: "#ECFDF5",
+};
 const fs = theme.fontSize;
 
 type PartnerRiderPickerModalProps = {
@@ -58,7 +65,7 @@ export function PartnerRiderPickerModal({
 
         {loading ? (
           <View style={styles.loadingWrap}>
-            <ActivityIndicator color={c.white} />
+            <ActivityIndicator color={UI.teal} />
             <Text style={styles.loadingText}>{loadingLabel}</Text>
           </View>
         ) : riders.length === 0 ? (
@@ -119,7 +126,7 @@ export function PartnerRiderPickerModal({
           >
             {confirming ? (
               <View style={styles.confirmingRow}>
-                <ActivityIndicator color={c.background} size="small" />
+                <ActivityIndicator color="#FFFFFF" size="small" />
                 <Text style={styles.confirmText}>{confirmingLabel}</Text>
               </View>
             ) : (
@@ -142,13 +149,13 @@ const styles = StyleSheet.create({
   },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0, 0, 0, 0.55)",
+    backgroundColor: "rgba(17, 24, 39, 0.45)",
   },
   card: {
-    backgroundColor: c.blue900,
+    backgroundColor: UI.card,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: "rgba(171, 233, 254, 0.35)",
+    borderColor: UI.chipBorder,
     padding: 20,
     maxHeight: "80%",
     width: "100%",
@@ -159,12 +166,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: fs.smallTitle,
     fontWeight: "700",
-    color: c.white,
+    color: UI.text,
     marginBottom: 6,
   },
   subtitle: {
     fontSize: fs.descText,
-    color: c.blue500,
+    color: UI.muted,
     marginBottom: 16,
   },
   loadingWrap: {
@@ -174,11 +181,11 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: fs.descText,
-    color: c.blue500,
+    color: UI.muted,
   },
   emptyText: {
     fontSize: fs.descText,
-    color: c.blue500,
+    color: UI.muted,
     paddingVertical: 16,
   },
   list: {
@@ -193,19 +200,19 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 12,
     borderWidth: 1,
-    borderColor: "rgba(171, 233, 254, 0.25)",
+    borderColor: UI.chipBorder,
     borderRadius: 14,
     padding: 12,
   },
   riderOptionSelected: {
-    borderColor: c.outline,
-    backgroundColor: "rgba(171, 233, 254, 0.08)",
+    borderColor: UI.teal,
+    backgroundColor: UI.mint,
   },
   riderPhoto: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: c.blue900,
+    backgroundColor: UI.mint,
   },
   riderTextWrap: {
     flex: 1,
@@ -214,29 +221,29 @@ const styles = StyleSheet.create({
   riderName: {
     fontSize: fs.smallText,
     fontWeight: "600",
-    color: c.white,
+    color: UI.text,
   },
   riderPhone: {
     fontSize: fs.descText,
-    color: c.blue500,
+    color: UI.muted,
   },
   radio: {
     width: 20,
     height: 20,
     borderRadius: 10,
     borderWidth: 2,
-    borderColor: c.blue500,
+    borderColor: UI.muted,
     alignItems: "center",
     justifyContent: "center",
   },
   radioSelected: {
-    borderColor: c.outline,
+    borderColor: UI.teal,
   },
   radioDot: {
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: c.outline,
+    backgroundColor: UI.teal,
   },
   actions: {
     flexDirection: "row",
@@ -249,25 +256,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "rgba(171, 233, 254, 0.35)",
+    borderColor: UI.chipBorder,
   },
   cancelText: {
     fontSize: fs.descText,
-    color: c.blue500,
+    color: UI.muted,
     fontWeight: "600",
   },
   confirmBtn: {
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 999,
-    backgroundColor: c.outline,
+    backgroundColor: UI.teal,
   },
   confirmBtnDisabled: {
     opacity: 0.5,
   },
   confirmText: {
     fontSize: fs.descText,
-    color: c.background,
+    color: "#FFFFFF",
     fontWeight: "700",
   },
   confirmingRow: {

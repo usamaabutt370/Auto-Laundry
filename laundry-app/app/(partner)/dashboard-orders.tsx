@@ -10,7 +10,10 @@ import { useLocale } from "@/contexts/locale-context";
 import { fetchPartnerOrders, type PartnerOrderListItem } from "@/lib/partner-orders";
 import { getStrings } from "@/locales";
 
-const c = theme.colors;
+const UI = {
+  bg: "#F7F8FA",
+  muted: "#6B7280",
+};
 const fs = theme.fontSize;
 const H_PAD = 24;
 
@@ -59,6 +62,7 @@ export default function DashboardOrdersScreen() {
     <View style={styles.container}>
       <SafeAreaView edges={["top"]} style={styles.safeArea}>
         <AppHeader
+          appearance="light"
           title={title}
           leftIcon="arrow-left"
           onLeftPress={() => router.back()}
@@ -106,7 +110,7 @@ export default function DashboardOrdersScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: c.background,
+    backgroundColor: UI.bg,
   },
   safeArea: {
     paddingBottom: 8,
@@ -120,7 +124,7 @@ const styles = StyleSheet.create({
   },
   caption: {
     fontSize: fs.smallText,
-    color: c.blue500,
+    color: UI.muted,
     marginBottom: 12,
   },
   emptyWrap: {
@@ -129,7 +133,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: fs.smallText,
-    color: c.blue500,
+    color: UI.muted,
     textAlign: "center",
   },
   list: {

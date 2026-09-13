@@ -13,11 +13,9 @@ import {
 } from "@/components/partner-dashboard-cards";
 import { AppButton } from "@/components/ui/button";
 import {
-  DashboardPeriodSelector,
   type DashboardPeriod,
 } from "@/components/dashboard-period-selector";
 import { DashboardChart } from "@/components/dashboard-chart";
-import { theme } from "@/constants/theme";
 import { useAuth } from "@/contexts/auth-context";
 import { useLocale } from "@/contexts/locale-context";
 import { useLaundererDashboard } from "@/hooks/use-launderer-dashboard";
@@ -25,8 +23,19 @@ import { useSuppressWebScreenHeader } from "@/hooks/use-suppress-web-screen-head
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { formatDashboardPeriodRange } from "@/lib/dashboard-period-bounds";
 import { getStrings } from "@/locales";
+import { StatusBar } from "expo-status-bar";
 
-const c = theme.colors;
+import { theme } from "@/constants/theme";
+
+const UI = {
+  bg: "#F7F8FA",
+  card: "#FFFFFF",
+  text: "#111827",
+  muted: "#6B7280",
+  teal: "#12B886",
+  purple: "#4A3AFF",
+  chipBorder: "#E5E7EB",
+};
 const fs = theme.fontSize;
 const H_PAD = 24;
 const CARD_RADIUS = 16;
@@ -98,9 +107,10 @@ export default function PartnerDashboardScreen() {
 
   return (
     <View style={styles.container}>
+      <StatusBar style="dark" />
       {!isWeb ? (
         <SafeAreaView edges={["top"]} style={styles.safeArea}>
-          <AppHeader title={s.title} />
+          <AppHeader appearance="light" title={s.title} />
         </SafeAreaView>
       ) : (
         <WebHeaderSpacer />
@@ -156,7 +166,7 @@ export default function PartnerDashboardScreen() {
                   compact
                   title={s.dropOff}
                   icon="storefront-outline"
-                  accent={c.lightBlue}
+                  accent={UI.teal}
                   totalActive={data.dropOff.total}
                   activeOrdersCaption={s.activeOrdersCaption}
                   onPress={() =>
@@ -172,7 +182,7 @@ export default function PartnerDashboardScreen() {
                   compact
                   title={s.delivery}
                   icon="truck-fast-outline"
-                  accent={c.outline}
+                  accent={UI.purple}
                   totalActive={data.delivery.total}
                   activeOrdersCaption={s.activeOrdersCaption}
                   onPress={() =>
@@ -207,7 +217,7 @@ export default function PartnerDashboardScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: c.background,
+    backgroundColor: UI.bg,
   },
   safeArea: {
     paddingBottom: 12,
@@ -220,10 +230,10 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   placeholderCard: {
-    backgroundColor: c.blue900,
+    backgroundColor: UI.card,
     borderRadius: CARD_RADIUS,
     borderWidth: 1,
-    borderColor: c.outline,
+    borderColor: UI.chipBorder,
     padding: 20,
     marginBottom: 12,
     gap: 12,
@@ -234,17 +244,17 @@ const styles = StyleSheet.create({
   placeholderTitle: {
     fontSize: fs.smallTitle,
     fontWeight: "700",
-    color: c.white,
+    color: UI.text,
   },
   placeholderMessage: {
     fontSize: fs.smallText,
-    color: c.blue500,
+    color: UI.muted,
     lineHeight: 20,
   },
   sectionTitle: {
     fontSize: fs.smallTitle,
     fontWeight: "700",
-    color: c.white,
+    color: UI.text,
     marginBottom: 12,
     letterSpacing: 0.2,
   },
@@ -265,7 +275,7 @@ const styles = StyleSheet.create({
   earningsTotalLabel: {
     marginBottom: 8,
     fontSize: fs.descText,
-    color: c.blue500,
+    color: UI.muted,
     fontWeight: "600",
   },
 });

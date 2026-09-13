@@ -1,4 +1,5 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { StatusBar } from "expo-status-bar";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
@@ -22,7 +23,15 @@ import { fetchMyConversations, type ChatConversationListItem } from "@/lib/chat"
 import { getStrings } from "@/locales";
 import { supabase } from "@/lib/supabase";
 
-const c = theme.colors;
+const UI = {
+  bg: "#F7F8FA",
+  card: "#FFFFFF",
+  text: "#111827",
+  muted: "#6B7280",
+  teal: "#12B886",
+  chipBorder: "#E5E7EB",
+  red: "#DC2626",
+};
 const fs = theme.fontSize;
 const PAD = 24;
 
@@ -113,21 +122,22 @@ export default function PartnerChatScreen() {
 
   return (
     <View style={styles.container}>
+      <StatusBar style="dark" />
       {!isWeb ? (
         <SafeAreaView edges={["top"]} style={styles.safeArea}>
-          <AppHeader title={tabStrings.chat} />
+          <AppHeader appearance="light" title={tabStrings.chat} />
         </SafeAreaView>
       ) : (
         <WebHeaderSpacer />
       )}
       {!user?.id ? (
         <View style={styles.center}>
-          <MaterialCommunityIcons name="account-outline" size={48} color={c.blue500} />
+          <MaterialCommunityIcons name="account-outline" size={48} color={UI.muted} />
           <Text style={styles.muted}>{s.signIn}</Text>
         </View>
       ) : loading && items.length === 0 ? (
         <View style={styles.center}>
-          <ActivityIndicator color={c.white} />
+          <ActivityIndicator color={UI.teal} />
           <Text style={styles.muted}>{s.loading}</Text>
         </View>
       ) : error ? (
@@ -142,7 +152,7 @@ export default function PartnerChatScreen() {
         </View>
       ) : items.length === 0 ? (
         <View style={styles.center}>
-          <MaterialCommunityIcons name="message-text-outline" size={48} color={c.blue500} />
+          <MaterialCommunityIcons name="message-text-outline" size={48} color={UI.muted} />
           <Text style={styles.muted}>{s.empty}</Text>
         </View>
       ) : (
@@ -154,11 +164,11 @@ export default function PartnerChatScreen() {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={onRefresh}
-              tintColor="#FFFFFF"
-              colors={["#FFFFFF"]}
-              progressBackgroundColor={c.background}
+              tintColor={UI.teal}
+              colors={[UI.teal]}
+              progressBackgroundColor={UI.card}
               title=""
-              titleColor="#FFFFFF"
+              titleColor={UI.muted}
             />
           }
         >
@@ -214,7 +224,7 @@ export default function PartnerChatScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: c.background,
+    backgroundColor: UI.bg,
   },
   safeArea: {
     paddingHorizontal: PAD,
@@ -229,12 +239,12 @@ const styles = StyleSheet.create({
   },
   muted: {
     fontSize: fs.smallText,
-    color: c.blue500,
+    color: UI.muted,
     textAlign: "center",
   },
   errorText: {
     fontSize: fs.smallText,
-    color: "#fecaca",
+    color: UI.red,
     textAlign: "center",
   },
   retryBtn: {
@@ -242,10 +252,11 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: c.outline,
+    borderColor: UI.chipBorder,
+    backgroundColor: UI.card,
   },
   retryLabel: {
-    color: c.white,
+    color: UI.text,
     fontWeight: "600",
   },
   scroll: {
@@ -257,10 +268,10 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   row: {
-    backgroundColor: c.blue900,
+    backgroundColor: UI.card,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: c.outline,
+    borderColor: UI.chipBorder,
     padding: 12,
     flexDirection: "row",
     gap: 12,
@@ -278,16 +289,16 @@ const styles = StyleSheet.create({
   },
   nameText: {
     flex: 1,
-    color: c.white,
+    color: UI.text,
     fontSize: fs.smallText,
     fontWeight: "700",
   },
   timeText: {
-    color: c.blue500,
+    color: UI.muted,
     fontSize: fs.xxSmallText,
   },
   metaText: {
-    color: c.blue500,
+    color: UI.muted,
     fontSize: fs.xxSmallText,
   },
   rowBottom: {
@@ -304,30 +315,30 @@ const styles = StyleSheet.create({
   },
   orderMetaText: {
     flex: 1,
-    color: c.blue500,
+    color: UI.muted,
     fontSize: fs.xxSmallText,
   },
   orderMetaValue: {
-    color: c.white,
+    color: UI.teal,
     fontSize: fs.xxSmallText,
     fontWeight: "700",
   },
   previewText: {
     flex: 1,
-    color: c.white,
+    color: UI.text,
     fontSize: fs.descText,
   },
   unreadBadge: {
     minWidth: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: c.lightBlue,
+    backgroundColor: UI.teal,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 6,
   },
   unreadBadgeText: {
-    color: c.background,
+    color: "#FFFFFF",
     fontSize: fs.xxSmallText,
     fontWeight: "700",
   },

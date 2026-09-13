@@ -3,7 +3,12 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { theme } from "@/constants/theme";
 
-const c = theme.colors;
+const UI = {
+  text: "#111827",
+  muted: "#6B7280",
+  teal: "#12B886",
+  purple: "#4A3AFF",
+};
 const fs = theme.fontSize;
 
 const DEFAULT_LABELS: [string, string, string, string, string, string, string] = [
@@ -139,7 +144,7 @@ const styles = StyleSheet.create({
     width: "100%",
     fontSize: fs.smallText,
     fontWeight: "700",
-    color: c.white,
+    color: UI.text,
     textAlign: "center",
   },
   plotRow: {
@@ -169,11 +174,11 @@ const styles = StyleSheet.create({
     maxWidth: 32,
     borderTopLeftRadius: 6,
     borderTopRightRadius: 6,
-    backgroundColor: c.lightBlue,
+    backgroundColor: UI.teal,
   },
   barSelected: {
     borderWidth: 1,
-    borderColor: c.outline,
+    borderColor: UI.purple,
   },
   labelsRow: {
     flexDirection: "row",
@@ -185,7 +190,7 @@ const styles = StyleSheet.create({
     minWidth: 0,
     fontSize: fs.xxSmallText,
     fontWeight: "500",
-    color: c.blue500,
+    color: UI.muted,
     textAlign: "center",
   },
   xLabelFirst: {
