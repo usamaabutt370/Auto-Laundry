@@ -1,35 +1,49 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { StatusBar } from "expo-status-bar";
 import { LinearGradient } from "expo-linear-gradient";
-import { useCallback, useEffect, useMemo, useRef, useState, type ComponentProps } from "react";
+import { Image } from "expo-image";
+import { useRouter } from "expo-router";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Linking,
   NativeScrollEvent,
   NativeSyntheticEvent,
+  Platform,
   Pressable,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import { Image } from "expo-image";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { showAppAlert } from "@/components/app-alert";
+import { StarRating } from "@/components/star-rating";
 import { assets } from "@/assets/assets";
-import { strings } from "@/constants/strings";
 import type { LaundererServiceType } from "@/constants/launderers";
+import { useAuth } from "@/contexts/auth-context";
+import { useLocale } from "@/contexts/locale-context";
+import { usePartnerVerified } from "@/hooks/use-partner-verified";
+import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { avatarUrlWithCacheBuster } from "@/lib/avatar";
+import { findLatestCustomerOrderIdWithPartner } from "@/lib/customer-orders";
 import {
   fetchPartnerDetail,
+  fetchPartnerPublicReviews,
+  partnerOffersPickupDelivery,
   serviceCategoriesToTypes,
+  type PartnerPublicReview,
 } from "@/lib/partner-discovery";
-import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
-import { PartnerNameWithBadge } from "@/components/partner-name-with-badge";
-import { usePartnerVerified } from "@/hooks/use-partner-verified";
-import { StarRating } from "@/components/star-rating";
-import { getPartnerOpenStatus } from "@/utils/partner-hours";
-import { partnerHasActiveOffer } from "@/utils/partner-offers";
+import { isProviderSaved, toggleSavedProvider } from "@/lib/saved-providers";
+import { getStrings } from "@/locales";
+import { getDeviceCoordinates } from "@/utils/device-location";
+import type { Coordinates } from "@/utils/geocoding";
 import { parsePriceDisplay } from "@/utils/parse-price-display";
+import { getPartnerHoursRange, getPartnerOpenStatus } from "@/utils/partner-hours";
+import { partnerHasActiveOffer } from "@/utils/partner-offers";
 
 const UI = {
   bg: "#F7F8FA",
@@ -37,19 +51,15 @@ const UI = {
   text: "#111827",
   muted: "#6B7280",
   teal: "#12B886",
-  purple: "#2C1B6E",
+  purple: "#5B4DFF",
+  purpleDeep: "#2C1B6E",
   star: "#F5B301",
-  backBg: "#EEF2F6",
-  iconWell: "#F3F4F6",
-  openBg: "#ECFDF5",
   openText: "#047857",
+  closedText: "#B91C1C",
   chipBorder: "#E5E7EB",
-  shadow: "rgba(17, 24, 39, 0.08)",
+  iconWell: "#F3F4F6",
+  shadow: "rgba(17, 24, 39, 0.12)",
 };
-
-const HERO_IMAGE_HEIGHT_MOBILE = 220;
-const HERO_IMAGE_HEIGHT_WEB = 450;
-const VERIFIED_BADGE = "#12B886";
 
 const SERVICE_CATEGORY: Record<LaundererServiceType, string> = {
   washAndFold: "Wash & Fold",
@@ -59,9 +69,18 @@ const SERVICE_CATEGORY: Record<LaundererServiceType, string> = {
 };
 const SERVICE_KEYS = Object.keys(SERVICE_CATEGORY) as LaundererServiceType[];
 
+type DetailTab = "services" | "about" | "photos" | "reviews";
+
+function fill(template: string, vars: Record<string, string | number>) {
+  return Object.entries(vars).reduce(
+    (acc, [key, value]) => acc.replaceAll(`{${key}}`, String(value)),
+    template,
+  );
+}
+
 function formatRs(amount: number): string {
-  if (Number.isInteger(amount)) return `Rs ${amount}`;
-  return `Rs ${amount.toFixed(2).replace(/\.00$/, "")}`;
+  if (Number.isInteger(amount)) return `Rs. ${amount}`;
+  return `Rs. ${amount.toFixed(2).replace(/\.00$/, "")}`;
 }
 
 function serviceItemLabel(name: string, category: string): string {
@@ -70,11 +89,67 @@ function serviceItemLabel(name: string, category: string): string {
   return trimmed.startsWith(prefix) ? trimmed.slice(prefix.length) : trimmed;
 }
 
+function toRadians(value: number) {
+  return (value * Math.PI) / 180;
+}
+
+function distanceKm(from: Coordinates, to: Coordinates) {
+  const earthRadiusKm = 6371;
+  const dLat = toRadians(to.latitude - from.latitude);
+  const dLon = toRadians(to.longitude - from.longitude);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRadians(from.latitude)) *
+      Math.cos(toRadians(to.latitude)) *
+      Math.sin(dLon / 2) ** 2;
+  return 2 * earthRadiusKm * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function formatKm(km: number) {
+  if (km < 1) return Math.max(0.1, km).toFixed(1);
+  return km.toFixed(1);
+}
+
+function formatRatingAvg(value: number): string {
+  if (Number.isInteger(value)) return String(value);
+  return value.toFixed(1).replace(/\.0$/, "");
+}
+
+function categoryToType(category: string | null | undefined): LaundererServiceType | null {
+  const c = (category ?? "").trim();
+  if (c === "Wash & Fold") return "washAndFold";
+  if (c === "Dry Cleaning") return "dryCleaning";
+  if (c === "Tailoring") return "tailoring";
+  if (c === "Press") return "press";
+  return null;
+}
+
+function serviceThumb(category: string, label: string) {
+  const hay = `${category} ${label}`.toLowerCase();
+  if (hay.includes("tailor") || hay.includes("stitch")) return assets.images.home_category_tailoring;
+  if (hay.includes("press") || hay.includes("iron")) return assets.images.home_category_ironing;
+  if (hay.includes("shirt") || hay.includes("dry")) return assets.images.home_deal_ironing;
+  return assets.images.home_deal_laundry;
+}
+
+function formatReviewDate(value: string) {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "";
+  return parsed.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+}
+
+type PricedService = {
+  label: string;
+  price: string;
+  category: string;
+  serviceType: LaundererServiceType | null;
+};
+
 interface LaundererDetailViewProps {
   partnerId: string;
   initialName?: string;
   onBack: () => void;
-  onSelect: (partnerId: string, businessName: string | null) => void;
+  onSelect: (partnerId: string, businessName: string | null, service?: LaundererServiceType) => void;
   isModal?: boolean;
 }
 
@@ -83,33 +158,38 @@ export function LaundererDetailView({
   initialName,
   onBack,
   onSelect,
-  isModal = false,
 }: LaundererDetailViewProps) {
-  const s = strings.customer.laundererDetail;
-  const sList = strings.customer.pickLaunderer;
-  const sServices = strings.customer.pickupServices;
+  const router = useRouter();
+  const { user } = useAuth();
+  const { locale } = useLocale();
+  const s = getStrings(locale).customer.laundererDetail;
+  const sServices = getStrings(locale).customer.pickupServices;
+  const sHome = getStrings(locale).customer.home;
   const { isWeb } = useResponsiveLayout();
   const insets = useSafeAreaInsets();
-  // iOS modal/page sheets often report a 0 bottom inset, so the home indicator
-  // covers a sticky footer unless we keep a minimum pad.
-  const footerBottomPad = Math.max(insets.bottom, isModal ? 28 : 12);
-  const heroImageHeight = isWeb ? HERO_IMAGE_HEIGHT_WEB : HERO_IMAGE_HEIGHT_MOBILE;
+  const { width: windowWidth } = useWindowDimensions();
+  const footerBottomPad = Math.max(insets.bottom, 16);
+  const heroHeight = isWeb ? 420 : Math.round(windowWidth * 0.72);
+  const popularCardWidth = Math.round((windowWidth - 40 - 12) / 2.35);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [profile, setProfile] = useState<Awaited<
-    ReturnType<typeof fetchPartnerDetail>
-  >["profile"]>(null);
+  const [profile, setProfile] = useState<Awaited<ReturnType<typeof fetchPartnerDetail>>["profile"]>(
+    null,
+  );
   const [services, setServices] = useState<
     Awaited<ReturnType<typeof fetchPartnerDetail>>["services"]
   >([]);
-  const partnerVerified = usePartnerVerified(partnerId);
+  const [reviews, setReviews] = useState<PartnerPublicReview[]>([]);
+  const [userCoords, setUserCoords] = useState<Coordinates | null>(null);
+  const [favorited, setFavorited] = useState(false);
+  const [tab, setTab] = useState<DetailTab>("services");
+  const [showAllServices, setShowAllServices] = useState(false);
+  const [aboutExpanded, setAboutExpanded] = useState(false);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
-  const [heroWidth, setHeroWidth] = useState(0);
-  const [expandedPriceKeys, setExpandedPriceKeys] = useState<Set<LaundererServiceType>>(
-    () => new Set(),
-  );
+  const [heroWidth, setHeroWidth] = useState(windowWidth);
   const heroScrollRef = useRef<ScrollView | null>(null);
+  const partnerVerified = usePartnerVerified(partnerId);
 
   const load = useCallback(async () => {
     if (!partnerId) {
@@ -120,16 +200,65 @@ export function LaundererDetailView({
     }
     setLoading(true);
     setError(null);
-    const { profile: p, services: rows, error: err } = await fetchPartnerDetail(partnerId);
+    const [{ profile: p, services: rows, error: err }, reviewRows, saved] = await Promise.all([
+      fetchPartnerDetail(partnerId),
+      fetchPartnerPublicReviews(partnerId),
+      isProviderSaved(partnerId),
+    ]);
     if (err) setError(err);
     setProfile(p);
     setServices(rows);
+    setReviews(reviewRows);
+    setFavorited(saved);
     setLoading(false);
   }, [partnerId]);
 
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void getDeviceCoordinates().then((coords) => {
+      if (!cancelled) setUserCoords(coords);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    setActiveImageIndex(0);
+    setShowAllServices(false);
+    setAboutExpanded(false);
+    setTab("services");
+  }, [profile?.id]);
+
+  const pricedServices = useMemo<PricedService[]>(() => {
+    return services.flatMap((row) => {
+      const amount = parsePriceDisplay(row.price_display);
+      if (amount == null || amount <= 0) return [];
+      const category = (row.category ?? "").trim();
+      return [
+        {
+          label: serviceItemLabel(row.name, category) || row.name,
+          price: row.price_display.trim() || formatRs(amount),
+          category,
+          serviceType: categoryToType(category),
+        },
+      ];
+    });
+  }, [services]);
+
+  const popularServices = useMemo(() => pricedServices.slice(0, 4), [pricedServices]);
+
+  const pricedGroups = useMemo(() => {
+    return SERVICE_KEYS.flatMap((key) => {
+      const category = SERVICE_CATEGORY[key];
+      const items = pricedServices.filter((row) => row.category === category);
+      return items.length > 0 ? [{ key, title: sServices[key], items }] : [];
+    });
+  }, [pricedServices, sServices]);
 
   const serviceTypes = useMemo(
     () =>
@@ -140,23 +269,14 @@ export function LaundererDetailView({
     [services],
   );
 
-  const pricedGroups = useMemo(() => {
-    return SERVICE_KEYS.flatMap((key) => {
-      const category = SERVICE_CATEGORY[key];
-      const items = services.flatMap((row) => {
-        if ((row.category ?? "").trim() !== category) return [];
-        const amount = parsePriceDisplay(row.price_display);
-        if (amount == null || amount <= 0) return [];
-        return [
-          {
-            label: serviceItemLabel(row.name, category) || row.name,
-            price: formatRs(amount),
-          },
-        ];
-      });
-      return items.length > 0 ? [{ key, title: sServices[key], items }] : [];
-    });
-  }, [sServices, services]);
+  const primaryCategoryLabel = useMemo(() => {
+    if (serviceTypes.includes("washAndFold") || serviceTypes.includes("dryCleaning")) {
+      return s.categoryLaundry;
+    }
+    if (serviceTypes.includes("press")) return sHome.categoryIroning;
+    if (serviceTypes.includes("tailoring")) return sHome.categoryTailoring;
+    return s.categoryLaundry;
+  }, [s.categoryLaundry, sHome.categoryIroning, sHome.categoryTailoring, serviceTypes]);
 
   const businessImageUris = useMemo(
     () =>
@@ -173,79 +293,177 @@ export function LaundererDetailView({
     if (fallbackHeroUri) return [fallbackHeroUri];
     return [];
   }, [businessImageUris, fallbackHeroUri]);
-  const hasCarousel = carouselImages.length > 1;
+
   const displayName = profile?.business_name?.trim() || initialName || s.title;
-  const hoursDetail = profile?.available_time?.trim() || sList.hoursPlaceholder;
+  const hours = getPartnerHoursRange(profile?.available_time);
   const openStatus = getPartnerOpenStatus(profile?.available_time);
-  const openLabel =
-    openStatus === "open" ? sList.openNow : openStatus === "closed" ? sList.closed : sList.hoursUnknown;
-  const phone = profile?.phone_number?.trim() ?? "";
+  const hasPickup = partnerOffersPickupDelivery(profile);
   const hasOffer = partnerHasActiveOffer(profile?.offerPercent);
+  const aboutText = profile?.business_description?.trim() ?? "";
+  const address = profile?.address?.trim() || "—";
+  const pickupAmount = profile?.pickup_delivery_amount?.trim() ?? "";
+  const pickupLooksFree = !pickupAmount || /free|^0(\.0+)?$/i.test(pickupAmount);
 
-  useEffect(() => {
-    setActiveImageIndex(0);
-    setExpandedPriceKeys(new Set());
-  }, [profile?.id]);
+  const partnerCoords =
+    profile && Number.isFinite(profile.latitude) && Number.isFinite(profile.longitude)
+      ? { latitude: Number(profile.latitude), longitude: Number(profile.longitude) }
+      : null;
+  const km =
+    userCoords && partnerCoords ? distanceKm(userCoords, partnerCoords) : null;
+  const distanceLabel =
+    km != null && Number.isFinite(km) ? fill(s.kmAway, { km: formatKm(km) }) : null;
 
-  const togglePriceGroup = (key: LaundererServiceType) => {
-    setExpandedPriceKeys((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
-  };
+  const ratingAvg = profile?.ratingAvg ?? null;
+  const ratingCount = profile?.ratingCount ?? 0;
+  const ratingLabel =
+    ratingCount > 0 && ratingAvg != null
+      ? formatRatingAvg(ratingAvg)
+      : null;
+  const reviewsLabel =
+    ratingCount === 1
+      ? s.reviewsCountOne
+      : ratingCount > 1
+        ? fill(s.reviewsCount, { count: ratingCount })
+        : s.noReviewsYet;
 
-  const handleSelect = () => {
-    if (partnerId) {
-      onSelect(partnerId, profile?.business_name?.trim() || initialName || null);
-    }
-  };
+  const openLabel =
+    openStatus === "open" ? s.openNow : openStatus === "closed" ? s.closed : s.hoursUnknown;
+  const hoursHint =
+    openStatus === "open" && hours
+      ? fill(s.closesAt, { time: hours.endLabel })
+      : openStatus === "closed" && hours
+        ? fill(s.opensAt, { time: hours.startLabel })
+        : hours?.rangeLabel ?? null;
+
+  const features = useMemo(
+    () => [
+      {
+        icon: "truck-delivery-outline" as const,
+        label: hasPickup && pickupLooksFree ? s.featureFreePickup : s.featurePickup,
+        color: "#2563EB",
+      },
+      {
+        icon: "shield-check-outline" as const,
+        label: s.featureQuality,
+        color: "#2563EB",
+      },
+      {
+        icon: "leaf" as const,
+        label: s.featureEco,
+        color: "#16A34A",
+      },
+      {
+        icon: "clock-outline" as const,
+        label: s.featureOnTime,
+        color: "#2563EB",
+      },
+    ],
+    [hasPickup, pickupLooksFree, s],
+  );
 
   const handleHeroScrollEnd = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const width = event.nativeEvent.layoutMeasurement.width;
     if (!width) return;
     const nextIndex = Math.round(event.nativeEvent.contentOffset.x / width);
-    const clampedIndex = Math.max(0, Math.min(carouselImages.length - 1, nextIndex));
-    setActiveImageIndex(clampedIndex);
+    setActiveImageIndex(Math.max(0, Math.min(carouselImages.length - 1, nextIndex)));
   };
 
-  const scrollToImage = (index: number) => {
-    if (!heroWidth || !heroScrollRef.current) return;
-    const nextIndex = Math.max(0, Math.min(carouselImages.length - 1, index));
-    heroScrollRef.current.scrollTo({ x: nextIndex * heroWidth, animated: true });
-    setActiveImageIndex(nextIndex);
+  const handleSelect = (service?: LaundererServiceType) => {
+    if (!partnerId) return;
+    onSelect(partnerId, profile?.business_name?.trim() || initialName || null, service);
   };
 
-  const renderHeader = () => (
-    <SafeAreaView edges={["top"]} style={styles.headerSafe}>
-      <View style={styles.headerRow}>
-        <View style={styles.headerSide} />
-        <View style={styles.headerCenter}>
-          <PartnerNameWithBadge
-            name={displayName}
-            verified={partnerVerified}
-            nameStyle={styles.headerTitle}
-            badgeSize={14}
-            badgeColor={VERIFIED_BADGE}
-          />
-        </View>
+  const handleShare = async () => {
+    const message = fill(s.shareMessage, { name: displayName, address });
+    try {
+      await Share.share({ message, title: displayName });
+    } catch {
+      showAppAlert(displayName, s.shareError);
+    }
+  };
+
+  const handleFavorite = async () => {
+    const next = await toggleSavedProvider(partnerId);
+    setFavorited(next);
+  };
+
+  const handleDirections = async () => {
+    const dest =
+      partnerCoords != null
+        ? `${partnerCoords.latitude},${partnerCoords.longitude}`
+        : address;
+    if (!dest || dest === "—") {
+      showAppAlert(s.location, s.directionsError);
+      return;
+    }
+    const url =
+      Platform.OS === "ios"
+        ? `http://maps.apple.com/?daddr=${encodeURIComponent(dest)}`
+        : Platform.OS === "android"
+          ? `geo:0,0?q=${encodeURIComponent(dest)}`
+          : `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(dest)}`;
+    try {
+      await Linking.openURL(url);
+    } catch {
+      showAppAlert(s.location, s.directionsError);
+    }
+  };
+
+  const handleChat = async () => {
+    if (!user) {
+      router.push("/(auth)/login");
+      return;
+    }
+    const orderId = await findLatestCustomerOrderIdWithPartner(user.id, partnerId);
+    if (orderId) {
+      router.push({ pathname: "/(customer)/chat/[orderId]", params: { orderId } });
+      return;
+    }
+    showAppAlert(s.chatNeedsBookingTitle, s.chatNeedsBookingMessage, [
+      { text: s.bookService, onPress: () => handleSelect() },
+    ]);
+  };
+
+  const renderHeroChrome = () => (
+    <View pointerEvents="box-none" style={[styles.heroChrome, { paddingTop: insets.top + 8 }]}>
+      <Pressable
+        onPress={onBack}
+        style={({ pressed }) => [styles.heroRoundBtn, pressed && styles.pressed]}
+        accessibilityRole="button"
+        accessibilityLabel="Back"
+      >
+        <MaterialCommunityIcons name="chevron-left" size={26} color={UI.text} />
+      </Pressable>
+      <View style={styles.heroChromeRight}>
         <Pressable
-          onPress={onBack}
-          style={styles.closeBtn}
+          onPress={() => void handleShare()}
+          style={({ pressed }) => [styles.heroRoundBtn, pressed && styles.pressed]}
           accessibilityRole="button"
-          accessibilityLabel="Close"
+          accessibilityLabel={s.share}
         >
-          <MaterialCommunityIcons name="close" size={22} color={UI.text} />
+          <MaterialCommunityIcons name="export-variant" size={20} color={UI.text} />
+        </Pressable>
+        <Pressable
+          onPress={() => void handleFavorite()}
+          style={({ pressed }) => [styles.heroRoundBtn, pressed && styles.pressed]}
+          accessibilityRole="button"
+          accessibilityLabel={favorited ? s.unfavorite : s.favorite}
+        >
+          <MaterialCommunityIcons
+            name={favorited ? "heart" : "heart-outline"}
+            size={20}
+            color={favorited ? "#E11D48" : UI.text}
+          />
         </Pressable>
       </View>
-    </SafeAreaView>
+    </View>
   );
 
   if (loading) {
     return (
       <View style={styles.container}>
-        {renderHeader()}
+        <StatusBar style="dark" />
+        {renderHeroChrome()}
         <View style={styles.centered}>
           <ActivityIndicator color={UI.teal} size="small" />
         </View>
@@ -256,248 +474,400 @@ export function LaundererDetailView({
   if (error || !profile) {
     return (
       <View style={styles.container}>
-        {renderHeader()}
+        <StatusBar style="dark" />
+        {renderHeroChrome()}
         <View style={styles.centered}>
           <Text style={styles.notFoundText}>{error ?? "Launderer not found"}</Text>
           <Pressable onPress={load} style={styles.retryWrap}>
-            <Text style={styles.retryText}>{sList.retry}</Text>
+            <Text style={styles.retryText}>{getStrings(locale).customer.pickLaunderer.retry}</Text>
           </Pressable>
         </View>
       </View>
     );
   }
 
+  const tabs: { id: DetailTab; label: string }[] = [
+    { id: "services", label: s.tabServices },
+    { id: "about", label: s.tabAbout },
+    { id: "photos", label: s.tabPhotos },
+    { id: "reviews", label: s.tabReviews },
+  ];
+
   return (
     <View style={styles.container}>
-      {renderHeader()}
-
+      <StatusBar style="light" />
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={{ paddingBottom: 24 }}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.card}>
-          <View
-            style={styles.heroWrap}
-            onLayout={(event) => setHeroWidth(event.nativeEvent.layout.width)}
-          >
-            {carouselImages.length > 0 ? (
-              <ScrollView
-                ref={heroScrollRef}
-                horizontal
-                pagingEnabled
-                showsHorizontalScrollIndicator={false}
-                onMomentumScrollEnd={handleHeroScrollEnd}
-              >
-                {carouselImages.map((uri, index) => (
-                  <Image
-                    key={`${uri}-${index}`}
-                    source={{ uri }}
-                    style={[
-                      styles.heroImage,
-                      { height: heroImageHeight },
-                      heroWidth ? { width: heroWidth } : null,
-                    ]}
-                    contentFit="cover"
-                  />
-                ))}
-              </ScrollView>
-            ) : (
-              <Image
-                source={assets.onboarding.slide2}
-                style={[styles.heroImage, { height: heroImageHeight }]}
-                contentFit="cover"
-              />
-            )}
-            <View
-              style={[
-                styles.openBadge,
-                openStatus === "closed" && styles.openBadgeClosed,
-                openStatus === "unknown" && styles.openBadgeMuted,
-              ]}
+        <View
+          style={[styles.heroWrap, { height: heroHeight }]}
+          onLayout={(event) => setHeroWidth(event.nativeEvent.layout.width)}
+        >
+          {carouselImages.length > 0 ? (
+            <ScrollView
+              ref={heroScrollRef}
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              onMomentumScrollEnd={handleHeroScrollEnd}
             >
-              <Text
-                style={[
-                  styles.openBadgeText,
-                  openStatus === "closed" && styles.openBadgeTextClosed,
-                  openStatus === "unknown" && styles.openBadgeTextMuted,
-                ]}
-              >
-                {openLabel}
-              </Text>
-            </View>
-            {hasOffer ? (
-              <View style={styles.offerBadge}>
-                <Text style={styles.offerBadgeText}>
-                  {sList.percentOff.replace("{pct}", String(profile.offerPercent ?? 0))}
-                </Text>
-              </View>
-            ) : null}
-            {hasCarousel ? (
-              <>
-                <Pressable
-                  onPress={() => scrollToImage(activeImageIndex - 1)}
-                  style={[styles.carouselArrow, styles.carouselArrowLeft]}
-                  accessibilityRole="button"
-                  accessibilityLabel="Previous business image"
-                >
-                  <MaterialCommunityIcons name="chevron-left" size={18} color="#FFFFFF" />
-                </Pressable>
-                <Pressable
-                  onPress={() => scrollToImage(activeImageIndex + 1)}
-                  style={[styles.carouselArrow, styles.carouselArrowRight]}
-                  accessibilityRole="button"
-                  accessibilityLabel="Next business image"
-                >
-                  <MaterialCommunityIcons name="chevron-right" size={18} color="#FFFFFF" />
-                </Pressable>
-                <View style={styles.carouselDots}>
-                  {carouselImages.map((_, index) => (
-                    <View
-                      key={`dot-${index}`}
-                      style={[
-                        styles.carouselDot,
-                        index === activeImageIndex && styles.carouselDotActive,
-                      ]}
-                    />
-                  ))}
-                </View>
-              </>
-            ) : null}
-          </View>
-
-          <View style={styles.infoBlock}>
-            <PartnerNameWithBadge
-              name={profile.business_name.trim()}
-              verified={partnerVerified}
-              nameStyle={styles.name}
-              containerStyle={styles.nameRow}
-              numberOfLines={2}
-              badgeSize={16}
-              badgeColor={VERIFIED_BADGE}
-            />
-            <View style={styles.ratingWrap}>
-              <StarRating
-                value={(profile.ratingCount ?? 0) > 0 ? profile.ratingAvg : 0}
-                size={18}
-              />
-            </View>
-            {profile.business_description?.trim() ? (
-              <Text style={styles.description}>{profile.business_description.trim()}</Text>
-            ) : null}
-
-            <View style={styles.detailsCard}>
-              {(
-                [
-                  { icon: "clock-outline" as const, text: hoursDetail },
-                  {
-                    icon: "phone-outline" as const,
-                    text: phone || "—",
-                    onPress: phone
-                      ? () => {
-                          void Linking.openURL(`tel:${phone}`);
-                        }
-                      : undefined,
-                  },
-                  { icon: "map-marker-outline" as const, text: profile.address?.trim() || "—" },
-                  ...(profile.pickup_delivery_enabled && profile.pickup_delivery_amount?.trim()
-                    ? [
-                        {
-                          icon: "truck-delivery-outline" as const,
-                          text: `${strings.customer.partnerPickupLinePrefix} ${profile.pickup_delivery_amount.trim()}`,
-                        },
-                      ]
-                    : []),
-                ] as {
-                  icon: ComponentProps<typeof MaterialCommunityIcons>["name"];
-                  text: string;
-                  onPress?: () => void;
-                }[]
-              ).map((row, index, rows) => (
-                <DetailRow
-                  key={`${row.icon}-${index}`}
-                  icon={row.icon}
-                  text={row.text}
-                  onPress={row.onPress}
-                  last={index === rows.length - 1}
+              {carouselImages.map((uri, index) => (
+                <Image
+                  key={`${uri}-${index}`}
+                  source={{ uri }}
+                  style={{ width: heroWidth || windowWidth, height: heroHeight }}
+                  contentFit="cover"
                 />
               ))}
-            </View>
-
-            {SERVICE_KEYS.some((key) => serviceTypes.includes(key)) ? (
-              <View style={styles.servicesRow}>
-                {SERVICE_KEYS.filter((key) => serviceTypes.includes(key)).map((key) => (
-                  <View key={key} style={styles.servicePill}>
-                    <Text style={styles.servicePillText}>{sServices[key]}</Text>
-                  </View>
-                ))}
-              </View>
-            ) : null}
-
-            {pricedGroups.length > 0 ? (
-              <View style={styles.pricesBlock}>
-                <Text style={styles.pricesTitle}>{s.pricesTitle}</Text>
-                {pricedGroups.map((group) => {
-                  const expanded = expandedPriceKeys.has(group.key);
-                  return (
-                    <View
-                      key={group.key}
-                      style={[styles.priceGroup, !expanded && styles.priceGroupCollapsed]}
-                    >
-                      <Pressable
-                        onPress={() => togglePriceGroup(group.key)}
-                        style={({ pressed }) => [
-                          styles.priceGroupHeader,
-                          pressed && styles.pressed,
-                        ]}
-                        accessibilityRole="button"
-                        accessibilityState={{ expanded }}
-                        accessibilityLabel={group.title}
-                      >
-                        <Text style={styles.priceGroupTitle}>{group.title}</Text>
-                        <MaterialCommunityIcons
-                          name={expanded ? "chevron-up" : "chevron-down"}
-                          size={22}
-                          color={UI.muted}
-                        />
-                      </Pressable>
-                      {expanded
-                        ? group.items.map((item, index) => (
-                            <View
-                              key={`${group.key}-${item.label}-${index}`}
-                              style={[
-                                styles.priceRow,
-                                index === group.items.length - 1 && styles.priceRowLast,
-                              ]}
-                            >
-                              <Text style={styles.priceItemLabel} numberOfLines={2}>
-                                {item.label}
-                              </Text>
-                              <Text style={styles.priceItemValue}>{item.price}</Text>
-                            </View>
-                          ))
-                        : null}
-                    </View>
-                  );
+            </ScrollView>
+          ) : (
+            <Image
+              source={assets.onboarding.slide2}
+              style={{ width: "100%", height: heroHeight }}
+              contentFit="cover"
+            />
+          )}
+          {renderHeroChrome()}
+          {carouselImages.length > 0 ? (
+            <View style={styles.photoCount}>
+              <Text style={styles.photoCountText}>
+                {fill(s.photoCount, {
+                  current: activeImageIndex + 1,
+                  total: Math.max(carouselImages.length, 1),
                 })}
+              </Text>
+            </View>
+          ) : null}
+        </View>
+
+        <View style={styles.sheet}>
+          <View style={styles.identityRow}>
+            <View style={styles.avatarWell}>
+              <LinearGradient colors={["#A78BFA", "#6366F1"]} style={styles.avatarInner}>
+                <MaterialCommunityIcons name="washing-machine" size={28} color="#FFFFFF" />
+              </LinearGradient>
+            </View>
+            <View style={styles.identityText}>
+              <View style={styles.nameLine}>
+                <Text style={styles.name} numberOfLines={1}>
+                  {displayName}
+                </Text>
+                <View style={styles.categoryChip}>
+                  <Text style={styles.categoryChipText}>{primaryCategoryLabel}</Text>
+                </View>
               </View>
-            ) : null}
+              {partnerVerified ? (
+                <View style={styles.verifiedRow}>
+                  <MaterialCommunityIcons name="check-decagram" size={14} color={UI.teal} />
+                  <Text style={styles.verifiedText}>{s.verifiedPartner}</Text>
+                </View>
+              ) : null}
+              <View style={styles.ratingRow}>
+                <MaterialCommunityIcons name="star" size={15} color={UI.star} />
+                <Text style={styles.metaStrong}>{ratingLabel ?? "—"}</Text>
+                <Text style={styles.metaMuted}>({reviewsLabel})</Text>
+              </View>
+              <View style={styles.locHoursRow}>
+                {distanceLabel ? (
+                  <View style={styles.metaCluster}>
+                    <MaterialCommunityIcons name="map-marker-outline" size={14} color={UI.purple} />
+                    <Text style={styles.metaMuted} numberOfLines={1}>
+                      {distanceLabel}
+                    </Text>
+                  </View>
+                ) : null}
+                {distanceLabel && hoursHint ? <View style={styles.metaDivider} /> : null}
+                <View style={styles.metaCluster}>
+                  <MaterialCommunityIcons
+                    name="clock-outline"
+                    size={14}
+                    color={openStatus === "open" ? UI.openText : UI.muted}
+                  />
+                  <Text
+                    style={[
+                      styles.openText,
+                      openStatus === "closed" && styles.closedText,
+                      openStatus === "unknown" && styles.mutedText,
+                    ]}
+                  >
+                    {openLabel}
+                  </Text>
+                  {hoursHint ? (
+                    <>
+                      <Text style={styles.metaDot}>•</Text>
+                      <Text style={styles.metaMuted} numberOfLines={1}>
+                        {hoursHint}
+                      </Text>
+                    </>
+                  ) : null}
+                </View>
+              </View>
+            </View>
           </View>
+
+          <View style={styles.featureRow}>
+            {features.map((item) => (
+              <View key={item.label} style={styles.featureChip}>
+                <MaterialCommunityIcons name={item.icon} size={16} color={item.color} />
+                <Text style={styles.featureLabel} numberOfLines={2}>
+                  {item.label}
+                </Text>
+              </View>
+            ))}
+          </View>
+
+          <View style={styles.tabRow}>
+            {tabs.map((item) => {
+              const active = tab === item.id;
+              return (
+                <Pressable
+                  key={item.id}
+                  onPress={() => setTab(item.id)}
+                  style={styles.tabBtn}
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected: active }}
+                >
+                  <Text style={[styles.tabLabel, active && styles.tabLabelActive]} numberOfLines={1}>
+                    {item.label}
+                  </Text>
+                  <View style={[styles.tabUnderline, active && styles.tabUnderlineActive]} />
+                </Pressable>
+              );
+            })}
+          </View>
+
+          {tab === "services" ? (
+            <View style={styles.tabBody}>
+              <View style={styles.sectionHead}>
+                <Text style={styles.sectionTitle}>{s.popularServices}</Text>
+                {pricedServices.length > 0 ? (
+                  <Pressable onPress={() => setShowAllServices((value) => !value)}>
+                    <Text style={styles.viewAll}>{showAllServices ? s.readLess : s.viewAll}</Text>
+                  </Pressable>
+                ) : null}
+              </View>
+              {popularServices.length > 0 ? (
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.popularRow}
+                >
+                  {popularServices.map((item) => (
+                    <Pressable
+                      key={`${item.category}-${item.label}`}
+                      onPress={() => handleSelect(item.serviceType ?? undefined)}
+                      style={({ pressed }) => [
+                        styles.popularCard,
+                        { width: popularCardWidth },
+                        pressed && styles.pressed,
+                      ]}
+                    >
+                      <Image
+                        source={serviceThumb(item.category, item.label)}
+                        style={[styles.popularImage, { width: popularCardWidth }]}
+                        contentFit="cover"
+                      />
+                      <Text style={styles.popularName} numberOfLines={1}>
+                        {item.label}
+                      </Text>
+                      <View style={styles.popularPriceRow}>
+                        <Text style={styles.popularPrice} numberOfLines={1}>
+                          {fill(s.fromPrice, { price: item.price })}
+                        </Text>
+                        <MaterialCommunityIcons name="chevron-right" size={16} color={UI.muted} />
+                      </View>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              ) : (
+                <Text style={styles.emptyCopy}>{s.noServices}</Text>
+              )}
+
+              {showAllServices
+                ? pricedGroups.map((group) => (
+                    <View key={group.key} style={styles.priceGroup}>
+                      <Text style={styles.priceGroupTitle}>{group.title}</Text>
+                      {group.items.map((item) => (
+                        <Pressable
+                          key={`${group.key}-${item.label}`}
+                          onPress={() => handleSelect(item.serviceType ?? group.key)}
+                          style={styles.priceRow}
+                        >
+                          <Text style={styles.priceItemLabel}>{item.label}</Text>
+                          <Text style={styles.priceItemValue}>{item.price}</Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  ))
+                : null}
+
+              {hasOffer ? (
+                <Pressable
+                  onPress={() => handleSelect()}
+                  style={({ pressed }) => [styles.offerCard, pressed && styles.pressed]}
+                >
+                  <View style={styles.offerIcon}>
+                    <MaterialCommunityIcons name="sale" size={20} color={UI.purple} />
+                  </View>
+                  <View style={styles.offerCopy}>
+                    <Text style={styles.offerTitle}>{s.specialOffer}</Text>
+                    <Text style={styles.offerBody}>
+                      {fill(s.specialOfferBody, { pct: profile.offerPercent ?? 0 })}
+                    </Text>
+                    {profile.offerCode ? (
+                      <Text style={styles.offerCode}>
+                        {fill(s.offerCode, { code: profile.offerCode })}
+                      </Text>
+                    ) : null}
+                  </View>
+                  <MaterialCommunityIcons name="chevron-right" size={22} color={UI.purple} />
+                </Pressable>
+              ) : null}
+
+              <View style={styles.infoPair}>
+                <View style={styles.infoCard}>
+                  <View style={styles.infoIcon}>
+                    <MaterialCommunityIcons name="map-marker" size={18} color={UI.purple} />
+                  </View>
+                  <Text style={styles.infoTitle}>{s.location}</Text>
+                  <Text style={styles.infoBody} numberOfLines={3}>
+                    {address}
+                  </Text>
+                  <Pressable onPress={() => void handleDirections()}>
+                    <Text style={styles.linkText}>{s.getDirections}</Text>
+                  </Pressable>
+                </View>
+                <View style={styles.infoCard}>
+                  <View style={[styles.infoIcon, { backgroundColor: "#ECFDF5" }]}>
+                    <MaterialCommunityIcons name="clock-outline" size={18} color={UI.teal} />
+                  </View>
+                  <Text style={styles.infoTitle}>{s.businessHours}</Text>
+                  <Text style={styles.infoBody}>{s.hoursMonSun}</Text>
+                  <Text style={styles.infoBody}>{hours?.rangeLabel ?? s.hoursUnknown}</Text>
+                </View>
+              </View>
+
+              <AboutBlock
+                heading={fill(s.aboutHeading, { name: displayName })}
+                text={aboutText || s.noAbout}
+                expanded={aboutExpanded}
+                onToggle={() => setAboutExpanded((value) => !value)}
+                readMore={s.readMore}
+                readLess={s.readLess}
+              />
+            </View>
+          ) : null}
+
+          {tab === "about" ? (
+            <View style={styles.tabBody}>
+              <AboutBlock
+                heading={fill(s.aboutHeading, { name: displayName })}
+                text={aboutText || s.noAbout}
+                expanded
+                onToggle={() => undefined}
+                readMore={s.readMore}
+                readLess={s.readLess}
+                hideToggle
+              />
+              <View style={styles.infoPair}>
+                <View style={styles.infoCard}>
+                  <View style={styles.infoIcon}>
+                    <MaterialCommunityIcons name="map-marker" size={18} color={UI.purple} />
+                  </View>
+                  <Text style={styles.infoTitle}>{s.location}</Text>
+                  <Text style={styles.infoBody}>{address}</Text>
+                  <Pressable onPress={() => void handleDirections()}>
+                    <Text style={styles.linkText}>{s.getDirections}</Text>
+                  </Pressable>
+                </View>
+                <View style={styles.infoCard}>
+                  <View style={[styles.infoIcon, { backgroundColor: "#ECFDF5" }]}>
+                    <MaterialCommunityIcons name="clock-outline" size={18} color={UI.teal} />
+                  </View>
+                  <Text style={styles.infoTitle}>{s.businessHours}</Text>
+                  <Text style={styles.infoBody}>{s.hoursMonSun}</Text>
+                  <Text style={styles.infoBody}>{hours?.rangeLabel ?? s.hoursUnknown}</Text>
+                </View>
+              </View>
+            </View>
+          ) : null}
+
+          {tab === "photos" ? (
+            <View style={styles.tabBody}>
+              {carouselImages.length > 0 ? (
+                <View style={styles.photoGrid}>
+                  {carouselImages.map((uri, index) => (
+                    <Pressable
+                      key={`${uri}-${index}`}
+                      onPress={() => {
+                        setActiveImageIndex(index);
+                        heroScrollRef.current?.scrollTo({ x: index * heroWidth, animated: true });
+                        setTab("services");
+                      }}
+                      style={styles.photoCell}
+                    >
+                      <Image source={{ uri }} style={styles.photoCellImage} contentFit="cover" />
+                    </Pressable>
+                  ))}
+                </View>
+              ) : (
+                <Text style={styles.emptyCopy}>{s.noPhotos}</Text>
+              )}
+            </View>
+          ) : null}
+
+          {tab === "reviews" ? (
+            <View style={styles.tabBody}>
+              <View style={styles.reviewSummary}>
+                <Text style={styles.reviewAvg}>{ratingLabel ?? "—"}</Text>
+                <StarRating value={ratingCount > 0 ? ratingAvg : 0} size={18} />
+                <Text style={styles.metaMuted}>{reviewsLabel}</Text>
+              </View>
+              {reviews.length > 0 ? (
+                reviews.map((item) => (
+                  <View key={item.id} style={styles.reviewCard}>
+                    <View style={styles.reviewAvatar}>
+                      <Text style={styles.reviewInitial}>{item.reviewerInitial}</Text>
+                    </View>
+                    <View style={styles.reviewCopy}>
+                      <View style={styles.reviewHead}>
+                        <StarRating value={item.rating} size={14} />
+                        <Text style={styles.reviewDate}>{formatReviewDate(item.createdAt)}</Text>
+                      </View>
+                      {item.message ? <Text style={styles.reviewMessage}>{item.message}</Text> : null}
+                    </View>
+                  </View>
+                ))
+              ) : (
+                <Text style={styles.emptyCopy}>{s.noReviewsYet}</Text>
+              )}
+            </View>
+          ) : null}
         </View>
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: footerBottomPad }]}>
         <Pressable
-          onPress={handleSelect}
-          style={({ pressed }) => [styles.selectWrap, pressed && styles.pressed]}
+          onPress={() => void handleChat()}
+          style={({ pressed }) => [styles.chatBtn, pressed && styles.pressed]}
+        >
+          <MaterialCommunityIcons name="chat-outline" size={20} color={UI.purple} />
+          <Text style={styles.chatLabel}>{s.chat}</Text>
+        </Pressable>
+        <Pressable
+          onPress={() => handleSelect()}
+          style={({ pressed }) => [styles.bookWrap, pressed && styles.pressed]}
         >
           <LinearGradient
-            colors={["#4A3AFF", "#12B886"]}
+            colors={["#6D5CFF", "#8B5CF6", "#22D3EE"]}
             start={{ x: 0, y: 0.5 }}
             end={{ x: 1, y: 0.5 }}
-            style={styles.selectBtn}
+            style={styles.bookBtn}
           >
-            <Text style={styles.selectLabel}>{s.select}</Text>
+            <MaterialCommunityIcons name="calendar-month-outline" size={18} color="#FFFFFF" />
+            <Text style={styles.bookLabel}>{s.bookService}</Text>
           </LinearGradient>
         </Pressable>
       </View>
@@ -505,344 +875,297 @@ export function LaundererDetailView({
   );
 }
 
-function DetailRow({
-  icon,
+function AboutBlock({
+  heading,
   text,
-  onPress,
-  last = false,
+  expanded,
+  onToggle,
+  readMore,
+  readLess,
+  hideToggle = false,
 }: {
-  icon: ComponentProps<typeof MaterialCommunityIcons>["name"];
+  heading: string;
   text: string;
-  onPress?: () => void;
-  last?: boolean;
+  expanded: boolean;
+  onToggle: () => void;
+  readMore: string;
+  readLess: string;
+  hideToggle?: boolean;
 }) {
-  const content = (
-    <>
-      <View style={styles.iconWell}>
-        <MaterialCommunityIcons name={icon} size={18} color={UI.purple} />
+  const long = text.length > 140;
+  return (
+    <View style={styles.aboutBlock}>
+      <View style={styles.sectionHead}>
+        <Text style={[styles.sectionTitle, styles.aboutHeading]} numberOfLines={1}>
+          {heading}
+        </Text>
+        {!hideToggle && long ? (
+          <Pressable onPress={onToggle}>
+            <Text style={styles.viewAll}>{expanded ? readLess : readMore}</Text>
+          </Pressable>
+        ) : null}
       </View>
-      <Text style={styles.detailText}>{text}</Text>
-    </>
+      <Text style={styles.aboutText} numberOfLines={expanded || hideToggle ? undefined : 3}>
+        {text}
+      </Text>
+    </View>
   );
-
-  if (onPress) {
-    return (
-      <Pressable
-        onPress={onPress}
-        style={({ pressed }) => [styles.detailRow, last && styles.detailRowLast, pressed && styles.pressed]}
-      >
-        {content}
-      </Pressable>
-    );
-  }
-
-  return <View style={[styles.detailRow, last && styles.detailRowLast]}>{content}</View>;
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: UI.bg,
-  },
-  headerSafe: {
-    backgroundColor: UI.bg,
-  },
-  headerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    gap: 10,
-  },
-  closeBtn: {
-    width: 20,
-    height: 20,
-    borderRadius: 18,
-    backgroundColor: UI.iconWell,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  headerCenter: {
-    flex: 1,
-    alignItems: "center",
-  },
-  headerTitle: {
-    fontSize:20,
-    color: UI.text,
-    fontFamily: "Poppins-Bold",
-    textAlign: "center",
-    marginVertical : 10,
-  },
-  headerSide: {
-    width: 36,
-  },
-  pressed: { opacity: 0.85 },
-  scroll: { flex: 1 },
-  scrollContent: {
-    paddingBottom: 24,
-    paddingHorizontal: 16,
-  },
-  card: {
-    backgroundColor: UI.card,
-    borderRadius: 22,
-    overflow: "hidden",
-    shadowColor: UI.shadow,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 1,
-    shadowRadius: 16,
-    elevation: 3,
-  },
-  heroWrap: {
-    position: "relative",
-    backgroundColor: UI.iconWell,
-  },
-  heroImage: {
-    width: "100%",
-    backgroundColor: UI.iconWell,
-  },
-  openBadge: {
+  container: { flex: 1, backgroundColor: UI.card },
+  scroll: { flex: 1, backgroundColor: UI.card },
+  heroWrap: { backgroundColor: UI.iconWell },
+  heroChrome: {
     position: "absolute",
-    top: 12,
-    left: 12,
-    backgroundColor: UI.openBg,
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-  openBadgeMuted: {
-    backgroundColor: "rgba(17, 24, 39, 0.55)",
-  },
-  openBadgeClosed: {
-    backgroundColor: "#FEE2E2",
-  },
-  openBadgeText: {
-    fontSize: 11,
-    color: UI.openText,
-    fontFamily: "Poppins-SemiBold",
-  },
-  openBadgeTextMuted: {
-    color: "#FFFFFF",
-  },
-  openBadgeTextClosed: {
-    color: "#B91C1C",
-  },
-  offerBadge: {
-    position: "absolute",
-    top: 12,
-    right: 12,
-    backgroundColor: "#FCE7F3",
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-  offerBadgeText: {
-    fontSize: 11,
-    color: "#BE185D",
-    fontFamily: "Poppins-SemiBold",
-  },
-  carouselArrow: {
-    position: "absolute",
-    top: "50%",
-    marginTop: -16,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(17, 24, 39, 0.45)",
-  },
-  carouselArrowLeft: {
-    left: 10,
-  },
-  carouselArrowRight: {
-    right: 10,
-  },
-  carouselDots: {
-    position: "absolute",
-    bottom: 12,
     left: 0,
     right: 0,
+    top: 0,
+    zIndex: 4,
     flexDirection: "row",
-    justifyContent: "center",
     alignItems: "center",
-    gap: 6,
-  },
-  carouselDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 999,
-    backgroundColor: "rgba(255,255,255,0.5)",
-  },
-  carouselDotActive: {
-    width: 16,
-    backgroundColor: "#FFFFFF",
-  },
-  infoBlock: {
+    justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 18,
   },
-  nameRow: {
-    marginBottom: 8,
+  heroChromeRight: { flexDirection: "row", gap: 10 },
+  heroRoundBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "rgba(17, 24, 39, 0.18)",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 8,
+    elevation: 3,
   },
-  name: {
-    fontSize: 22,
-    color: UI.text,
-    fontFamily: "Poppins-Bold",
-  },
-  ratingWrap: {
-    marginBottom: 10,
-  },
-  description: {
-    fontSize: 13,
-    color: UI.muted,
-    fontFamily: "Poppins-Regular",
-    lineHeight: 20,
-    marginBottom: 14,
-  },
-  detailsCard: {
-    backgroundColor: UI.bg,
-    borderRadius: 16,
-    paddingHorizontal: 12,
+  photoCount: {
+    position: "absolute",
+    right: 16,
+    bottom: 16,
+    backgroundColor: "rgba(17, 24, 39, 0.72)",
+    borderRadius: 999,
+    paddingHorizontal: 10,
     paddingVertical: 4,
   },
-  detailRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: UI.chipBorder,
+  photoCountText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontFamily: "Poppins-SemiBold",
   },
-  detailRowLast: {
-    borderBottomWidth: 0,
-  },
-  iconWell: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
+  sheet: {
+    marginTop: -28,
     backgroundColor: UI.card,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 16,
+  },
+  identityRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+  avatarWell: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: "#F3F0FF",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+  avatarInner: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
     alignItems: "center",
     justifyContent: "center",
   },
-  detailText: {
+  identityText: { flex: 1, minWidth: 0 },
+  nameLine: { flexDirection: "row", alignItems: "center", gap: 8 },
+  name: {
     flex: 1,
-    fontSize: 14,
+    minWidth: 0,
+    fontSize: 18,
     color: UI.text,
-    fontFamily: "Poppins-Regular",
-  },
-  servicesRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-    marginTop: 16,
-  },
-  servicePill: {
-    backgroundColor: UI.openBg,
-    borderRadius: 999,
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-  },
-  servicePillText: {
-    fontSize: 12,
-    color: UI.openText,
-    fontFamily: "Poppins-SemiBold",
-  },
-  pricesBlock: {
-    marginTop: 18,
-    gap: 12,
-  },
-  pricesTitle: {
-    fontSize: 16,
     fontFamily: "Poppins-Bold",
-    color: UI.text,
+    lineHeight: 24,
   },
-  priceGroup: {
-    backgroundColor: UI.bg,
-    borderRadius: 16,
-    paddingHorizontal: 14,
-    paddingTop: 4,
-    paddingBottom: 6,
+  categoryChip: {
+    borderWidth: 1,
+    borderColor: "#DDD6FE",
+    backgroundColor: "#F5F3FF",
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    flexShrink: 0,
   },
-  priceGroupCollapsed: {
-    paddingBottom: 4,
+  categoryChipText: { fontSize: 11, color: UI.purple, fontFamily: "Poppins-SemiBold" },
+  verifiedRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 },
+  verifiedText: { fontSize: 12, color: UI.teal, fontFamily: "Poppins-SemiBold" },
+  ratingRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 6 },
+  locHoursRow: { flexDirection: "row", alignItems: "center", flexWrap: "nowrap", marginTop: 4 },
+  metaCluster: { flexDirection: "row", alignItems: "center", gap: 4, flexShrink: 1 },
+  metaDivider: {
+    width: 1,
+    height: 12,
+    backgroundColor: "#E5E7EB",
+    marginHorizontal: 8,
   },
-  priceGroupHeader: {
+  metaStrong: { fontSize: 13, color: UI.text, fontFamily: "Poppins-Bold" },
+  metaMuted: { fontSize: 12, color: UI.muted, fontFamily: "Poppins-Regular" },
+  metaDot: { color: UI.muted, marginHorizontal: 2, fontSize: 12 },
+  openText: { fontSize: 12, color: UI.openText, fontFamily: "Poppins-SemiBold" },
+  closedText: { color: UI.closedText },
+  mutedText: { color: UI.muted },
+  featureRow: { flexDirection: "row", marginTop: 16, gap: 6 },
+  featureChip: {
+    flex: 1,
+    minWidth: 0,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
-    paddingVertical: 10,
+    gap: 5,
+    backgroundColor: "#F3F4F6",
+    borderRadius: 14,
+    paddingVertical: 8,
+    paddingHorizontal: 6,
   },
-  priceGroupTitle: {
+  featureLabel: {
     flex: 1,
-    fontSize: 13,
-    fontFamily: "Poppins-SemiBold",
+    minWidth: 0,
+    fontSize: 9,
     color: UI.text,
+    fontFamily: "Poppins-Regular",
+    lineHeight: 12,
   },
+  tabRow: {
+    flexDirection: "row",
+    marginTop: 20,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: UI.chipBorder,
+  },
+  tabBtn: { flex: 1, alignItems: "center" },
+  tabLabel: { fontSize: 13, color: UI.muted, fontFamily: "Poppins-Medium", textAlign: "center" },
+  tabLabelActive: { color: UI.purple, fontFamily: "Poppins-SemiBold" },
+  tabUnderline: { marginTop: 10, height: 3, width: "78%", borderRadius: 999, backgroundColor: "transparent" },
+  tabUnderlineActive: { backgroundColor: UI.purple },
+  tabBody: { paddingTop: 18, gap: 16 },
+  sectionHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
+  sectionTitle: { fontSize: 17, color: UI.text, fontFamily: "Poppins-Bold" },
+  aboutHeading: { flex: 1 },
+  viewAll: { fontSize: 13, color: UI.purple, fontFamily: "Poppins-SemiBold" },
+  popularRow: { gap: 12, paddingRight: 4 },
+  popularCard: {},
+  popularImage: { height: 92, borderRadius: 14, backgroundColor: UI.iconWell },
+  popularName: { marginTop: 8, fontSize: 13, color: UI.text, fontFamily: "Poppins-SemiBold" },
+  popularPriceRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  popularPrice: { flex: 1, fontSize: 12, color: UI.muted, fontFamily: "Poppins-Regular" },
+  priceGroup: { backgroundColor: UI.bg, borderRadius: 16, padding: 12, gap: 4 },
+  priceGroupTitle: { fontSize: 13, color: UI.text, fontFamily: "Poppins-SemiBold", marginBottom: 4 },
   priceRow: {
     flexDirection: "row",
-    alignItems: "center",
     justifyContent: "space-between",
     gap: 12,
-    paddingVertical: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: UI.chipBorder,
+    paddingVertical: 8,
   },
-  priceRowLast: {
-    borderBottomWidth: 0,
+  priceItemLabel: { flex: 1, fontSize: 13, color: UI.text, fontFamily: "Poppins-Regular" },
+  priceItemValue: { fontSize: 13, color: UI.teal, fontFamily: "Poppins-Bold" },
+  offerCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: "#F3EFFF",
+    borderRadius: 18,
+    padding: 14,
   },
-  priceItemLabel: {
+  offerIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  offerCopy: { flex: 1 },
+  offerTitle: { fontSize: 14, color: UI.text, fontFamily: "Poppins-Bold" },
+  offerBody: { fontSize: 13, color: UI.muted, fontFamily: "Poppins-Regular" },
+  offerCode: { marginTop: 2, fontSize: 12, color: UI.purple, fontFamily: "Poppins-SemiBold" },
+  infoPair: { flexDirection: "row", gap: 12 },
+  infoCard: {
     flex: 1,
-    fontSize: 13,
-    color: UI.text,
-    fontFamily: "Poppins-Regular",
+    backgroundColor: UI.bg,
+    borderRadius: 16,
+    padding: 14,
+    gap: 6,
   },
-  priceItemValue: {
-    fontSize: 13,
-    fontFamily: "Poppins-Bold",
-    color: UI.teal,
+  infoIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: "#EDE9FE",
+    alignItems: "center",
+    justifyContent: "center",
   },
+  infoTitle: { fontSize: 14, color: UI.text, fontFamily: "Poppins-Bold" },
+  infoBody: { fontSize: 12, color: UI.muted, fontFamily: "Poppins-Regular", lineHeight: 18 },
+  linkText: { fontSize: 13, color: UI.purple, fontFamily: "Poppins-SemiBold" },
+  aboutBlock: { gap: 8 },
+  aboutText: { fontSize: 13, color: UI.muted, fontFamily: "Poppins-Regular", lineHeight: 20 },
+  photoGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  photoCell: { width: "31.5%", aspectRatio: 1, borderRadius: 12, overflow: "hidden" },
+  photoCellImage: { width: "100%", height: "100%" },
+  reviewSummary: { alignItems: "center", gap: 6, paddingVertical: 8 },
+  reviewAvg: { fontSize: 32, color: UI.text, fontFamily: "Poppins-Bold" },
+  reviewCard: { flexDirection: "row", gap: 12, paddingVertical: 10 },
+  reviewAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#EDE9FE",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  reviewInitial: { fontSize: 16, color: UI.purple, fontFamily: "Poppins-Bold" },
+  reviewCopy: { flex: 1, gap: 4 },
+  reviewHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  reviewDate: { fontSize: 11, color: UI.muted, fontFamily: "Poppins-Regular" },
+  reviewMessage: { fontSize: 13, color: UI.text, fontFamily: "Poppins-Regular", lineHeight: 19 },
+  emptyCopy: { fontSize: 13, color: UI.muted, fontFamily: "Poppins-Regular" },
   footer: {
+    flexDirection: "row",
+    gap: 12,
     paddingTop: 12,
     paddingHorizontal: 16,
-    backgroundColor: UI.bg,
+    backgroundColor: UI.card,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: UI.chipBorder,
   },
-  selectWrap: {
-    borderRadius: 16,
-    overflow: "hidden",
-  },
-  selectBtn: {
-    borderRadius: 16,
-    paddingVertical: 16,
+  chatBtn: {
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    gap: 8,
+    paddingHorizontal: 22,
+    borderRadius: 28,
+    borderWidth: 1.5,
+    borderColor: UI.purple,
+    backgroundColor: "#FFFFFF",
+    minHeight: 52,
   },
-  selectLabel: {
-    fontSize: 16,
-    color: "#FFFFFF",
-    fontFamily: "Poppins-Bold",
-  },
-  centered: {
-    flex: 1,
+  chatLabel: { fontSize: 15, color: UI.purple, fontFamily: "Poppins-Bold" },
+  bookWrap: { flex: 1, borderRadius: 28, overflow: "hidden" },
+  bookBtn: {
+    minHeight: 52,
+    borderRadius: 28,
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 24,
-    gap: 12,
+    gap: 8,
   },
-  notFoundText: {
-    fontSize: 15,
-    color: UI.muted,
-    fontFamily: "Poppins-Regular",
-    textAlign: "center",
-  },
-  retryWrap: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-  },
-  retryText: {
-    color: UI.teal,
-    fontSize: 15,
-    fontFamily: "Poppins-SemiBold",
-  },
+  bookLabel: { fontSize: 16, color: "#FFFFFF", fontFamily: "Poppins-Bold" },
+  pressed: { opacity: 0.88 },
+  centered: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 24, gap: 12 },
+  notFoundText: { fontSize: 15, color: UI.muted, fontFamily: "Poppins-Regular", textAlign: "center" },
+  retryWrap: { paddingVertical: 8, paddingHorizontal: 16 },
+  retryText: { color: UI.teal, fontSize: 15, fontFamily: "Poppins-SemiBold" },
 });

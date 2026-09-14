@@ -27,7 +27,7 @@ export default function LaundererDetailScreen() {
     return <View style={styles.container} />;
   }
 
-  const handleSelect = async (id: string, name: string | null) => {
+  const handleSelect = async (id: string, name: string | null, service?: string) => {
     if (isReassignMode) {
       try {
         await reassignRejectedCustomerOrder(reorderOrderId, id);
@@ -56,6 +56,7 @@ export default function LaundererDetailScreen() {
       params: {
         mode: params.mode === "pickupDelivery" ? "pickupDelivery" : "dropoff",
         ...(typeof params.service === "string" ? { service: params.service } : {}),
+        ...(service ? { service } : {}),
       },
     });
   };
@@ -74,6 +75,6 @@ export default function LaundererDetailScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "green",
+    backgroundColor: "#F7F8FA",
   },
 });

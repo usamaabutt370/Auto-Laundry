@@ -633,3 +633,21 @@ export async function submitCustomerOrderFeedback(
     throw new Error(error.message);
   }
 }
+
+export async function findLatestCustomerOrderIdWithPartner(
+  customerId: string,
+  partnerId: string,
+): Promise<string | null> {
+  if (!supabase || !customerId || !partnerId) return null;
+  const { data, error } = await supabase
+    .from("customer_orders")
+    .select("id")
+    .eq("customer_id", customerId)
+    .eq("partner_id", partnerId)
+    .not("status", "in", "(draft,cancelled)")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle<{ id: string }>();
+  if (error) return null;
+  return data?.id ?? null;
+}
