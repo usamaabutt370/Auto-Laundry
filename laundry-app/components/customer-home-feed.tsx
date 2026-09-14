@@ -155,6 +155,7 @@ export function CustomerHomeFeed({
   const { width: windowWidth } = useWindowDimensions();
   const categoryCardWidth = (windowWidth - SCREEN_PAD * 2 - CARD_GAP) / 2.2;
   const recCardWidth = categoryCardWidth;
+  const nearbyCardWidth = (windowWidth - SCREEN_PAD * 2 - CARD_GAP) / 1.5;
   const { firstName, avatarUri, isLoggedIn } = useHomeProfile();
   const [locationLabel, setLocationLabel] = useState<string>(s.locationFallback);
   const [favorites, setFavorites] = useState<Record<string, boolean>>({});
@@ -335,7 +336,7 @@ export function CustomerHomeFeed({
             horizontal
             showsHorizontalScrollIndicator={false}
             style={styles.hScroll}
-            contentContainerStyle={styles.recommendedList}
+            contentContainerStyle={styles.nearbyList}
           >
             {recommended.map(({ partner, km }, index) => {
               const badge = BADGES[index % BADGES.length];
@@ -349,7 +350,7 @@ export function CustomerHomeFeed({
                 <RecommendedCard
                   key={partner.id}
                   partner={partner}
-                  cardWidth={recCardWidth}
+                  cardWidth={nearbyCardWidth}
                   distanceLabel={
                     Number.isFinite(km) ? fill(s.kmAway, { km: formatKm(km) }) : "—"
                   }
@@ -910,8 +911,10 @@ const styles = StyleSheet.create({
   recommendedList: {
     gap: CARD_GAP,
     paddingHorizontal: 6,
-    // paddingTop: 8,
-    // paddingBottom: 18,
+  },
+  nearbyList: {
+    gap: CARD_GAP,
+    paddingHorizontal: 6,
   },
   hCardShadowHost: {
     backgroundColor: HOME_UI.card,

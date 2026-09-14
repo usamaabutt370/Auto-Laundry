@@ -7,7 +7,6 @@ import {
   Modal,
   Pressable,
   StyleSheet,
-  Switch,
   Text,
   View,
 } from "react-native";
@@ -39,9 +38,13 @@ const LINK = "#4F46E5";
 const MUTED = "#6B7280";
 const TEXT = "#111827";
 const BORDER = "#E5E7EB";
-const TRACK = "#E5E7EB";
 const CARD_BG = "#F3F4F6";
 const STAR = "#F59E0B";
+const DIST = "#12B886";
+const PRICE = "#5B4DFF";
+const TRACK = "#E5E7EB";
+const DIST_THUMB_RADIUS = 11;
+const PRICE_THUMB_RADIUS = 11;
 
 export const DISTANCE_STOPS = [0.5, 1, 2, 5, 10, 20];
 export const DISTANCE_MIN_KM = 0.5;
@@ -52,7 +55,7 @@ export const PRICE_MAX = 5000;
 export const PRICE_STEP = 50;
 
 export type ServiceCategory = "washAndFold" | "press" | "tailoring";
-export type MinRating = 0 | 3 | 4 | 4.5;
+export type MinRating = 0 | 1 | 2 | 3 | 4 | 5;
 
 export function isServiceCategory(value: string | undefined): value is ServiceCategory {
   return value === "washAndFold" || value === "press" || value === "tailoring";
@@ -105,6 +108,17 @@ function clamp(value: number, min: number, max: number) {
 function snapToStep(value: number, step: number, min: number, max: number) {
   const snapped = Math.round(value / step) * step;
   return clamp(Number(snapped.toFixed(2)), min, max);
+}
+
+function valueFromX(x: number, width: number, min: number, max: number, step: number) {
+  if (width <= 0) return min;
+  const raw = min + (x / width) * (max - min);
+  return snapToStep(raw, step, min, max);
+}
+
+function xFromValue(value: number, width: number, min: number, max: number) {
+  const span = Math.max(0.0001, max - min);
+  return ((clamp(value, min, max) - min) / span) * width;
 }
 
 function formatRs(value: number, plus = false) {
@@ -232,18 +246,43 @@ export function ProviderFiltersSheet({
   const priceMaxLabel =
     shownPriceMax >= PRICE_MAX ? formatRs(PRICE_MAX, true) : formatRs(shownPriceMax);
 
-  const categories: { id: ServiceCategory; label: string; icon: "washing-machine" | "iron" | "scissors-cutting" }[] =
-    [
-      { id: "washAndFold", label: s.categoryLaundry, icon: "washing-machine" },
-      { id: "press", label: s.categoryIroning, icon: "iron" },
-      { id: "tailoring", label: s.categoryTailoring, icon: "scissors-cutting" },
-    ];
+  const categories: {
+    id: ServiceCategory;
+    label: string;
+    icon: "washing-machine" | "iron" | "scissors-cutting";
+    accent: string;
+    accentSoft: string;
+  }[] = [
+    {
+      id: "washAndFold",
+      label: s.categoryLaundry,
+      icon: "washing-machine",
+      accent: "#12B886",
+      accentSoft: "#ECFDF5",
+    },
+    {
+      id: "press",
+      label: s.categoryIroning,
+      icon: "iron",
+      accent: "#2563EB",
+      accentSoft: "#EFF6FF",
+    },
+    {
+      id: "tailoring",
+      label: s.categoryTailoring,
+      icon: "scissors-cutting",
+      accent: "#7C3AED",
+      accentSoft: "#F5F3FF",
+    },
+  ];
 
   const ratings: { id: MinRating; label: string }[] = [
-    { id: 0, label: s.ratingAny },
-    { id: 3, label: fill(s.ratingNPlus, { n: 3 }) },
-    { id: 4, label: fill(s.ratingNPlus, { n: 4 }) },
-    { id: 4.5, label: fill(s.ratingNPlus, { n: 4.5 }) },
+    { id: 1, label: "1" },
+    { id: 2, label: "2" },
+    { id: 3, label: "3" },
+    { id: 4, label: "4" },
+    { id: 5, label: "5" },
+    { id: 0, label: s.filterAll },
   ];
 
   const toggleCategory = (id: ServiceCategory) => {
@@ -389,19 +428,30 @@ export function ProviderFiltersSheet({
                   <Pressable
                     key={item.id}
                     onPress={() => toggleCategory(item.id)}
-                    style={[styles.categoryCard, selected && styles.categoryCardOn]}
+                    style={[
+                      styles.categoryCard,
+                      selected && {
+                        backgroundColor: item.accentSoft,
+                        borderColor: item.accent,
+                      },
+                    ]}
                   >
                     {selected ? (
-                      <View style={styles.checkBadge}>
+                      <View style={[styles.checkBadge, { backgroundColor: item.accent }]}>
                         <MaterialCommunityIcons name="check" size={10} color="#FFFFFF" />
                       </View>
                     ) : null}
                     <MaterialCommunityIcons
                       name={item.icon}
                       size={26}
-                      color={selected ? GREEN : PURPLE}
+                      color={selected ? item.accent : PURPLE}
                     />
-                    <Text style={[styles.categoryLabel, selected && styles.categoryLabelOn]}>
+                    <Text
+                      style={[
+                        styles.categoryLabel,
+                        selected && { color: item.accent },
+                      ]}
+                    >
                       {item.label}
                     </Text>
                   </Pressable>
@@ -413,7 +463,7 @@ export function ProviderFiltersSheet({
               icon="map-outline"
               title={s.distance}
               right={
-                <Text style={styles.greenValue}>{fill(s.withinDistance, { label: distanceLabel })}</Text>
+                <Text style={styles.distValue}>{fill(s.withinDistance, { label: distanceLabel })}</Text>
               }
             />
             <ContinuousSlider
@@ -430,7 +480,7 @@ export function ProviderFiltersSheet({
               icon="tag-outline"
               title={s.priceRange}
               right={
-                <Text style={styles.link}>
+                <Text style={styles.priceValue}>
                   {fill(s.priceRangeValue, { min: shownPriceMin, max: priceMaxLabel })}
                 </Text>
               }
@@ -454,11 +504,14 @@ export function ProviderFiltersSheet({
               icon="star-outline"
               title={s.minimumRating}
               right={
-                <Text style={styles.link}>
-                  {draft.minRating === 0
-                    ? s.ratingAny
-                    : fill(s.ratingValue, { n: draft.minRating })}
-                </Text>
+                draft.minRating === 0 ? (
+                  <Text style={styles.link}>{s.filterAll}</Text>
+                ) : (
+                  <View style={styles.ratingValue}>
+                    <MaterialCommunityIcons name="star" size={16} color={STAR} />
+                    <Text style={styles.ratingValueText}>{draft.minRating}</Text>
+                  </View>
+                )
               }
             />
             <View style={styles.ratingRow}>
@@ -468,21 +521,24 @@ export function ProviderFiltersSheet({
                   <Pressable
                     key={String(item.id)}
                     onPress={() => setDraft((prev) => ({ ...prev, minRating: item.id }))}
-                    style={[styles.ratingChip, selected && styles.ratingChipOn]}
+                    style={[styles.ratingTile, selected && styles.ratingTileOn]}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected }}
+                    accessibilityLabel={item.label}
                   >
-                    {selected ? (
-                      <View style={styles.checkBadge}>
-                        <MaterialCommunityIcons name="check" size={10} color="#FFFFFF" />
-                      </View>
-                    ) : null}
                     {item.id !== 0 ? (
                       <MaterialCommunityIcons
                         name="star"
-                        size={14}
-                        color={selected ? GREEN : STAR}
+                        size={16}
+                        color={selected ? STAR : MUTED}
                       />
                     ) : null}
-                    <Text style={[styles.ratingLabel, selected && styles.ratingLabelOn]}>
+                    <Text
+                      style={[styles.ratingTileLabel, selected && styles.ratingTileLabelOn]}
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
+                      minimumFontScale={0.8}
+                    >
                       {item.label}
                     </Text>
                   </Pressable>
@@ -492,28 +548,36 @@ export function ProviderFiltersSheet({
 
             <Section icon="shield-check-outline" title={s.providerFeatures} />
             <View style={styles.featureGrid}>
-              <FeatureToggle
-                icon="crown-outline"
+              <FeatureTile
+                icon="crown"
                 label={s.featureTopRated}
                 value={draft.topRated}
+                accent="#F59E0B"
+                accentSoft="#FFFBEB"
                 onChange={(topRated) => setDraft((prev) => ({ ...prev, topRated }))}
               />
-              <FeatureToggle
-                icon="check-decagram-outline"
+              <FeatureTile
+                icon="check-decagram"
                 label={s.featureVerified}
                 value={draft.verified}
+                accent="#2563EB"
+                accentSoft="#EFF6FF"
                 onChange={(verified) => setDraft((prev) => ({ ...prev, verified }))}
               />
-              <FeatureToggle
-                icon="clock-outline"
+              <FeatureTile
+                icon="clock-check-outline"
                 label={s.featureOpenNow}
                 value={draft.openNow}
+                accent={GREEN}
+                accentSoft={GREEN_SOFT}
                 onChange={(openNow) => setDraft((prev) => ({ ...prev, openNow }))}
               />
-              <FeatureToggle
-                icon="tag-outline"
+              <FeatureTile
+                icon="tag"
                 label={s.featureOffers}
                 value={draft.offers}
+                accent="#7C3AED"
+                accentSoft="#F5F3FF"
                 onChange={(offers) => setDraft((prev) => ({ ...prev, offers }))}
               />
             </View>
@@ -585,43 +649,49 @@ function Section({
   );
 }
 
-function FeatureToggle({
+function FeatureTile({
   icon,
   label,
   value,
+  accent,
+  accentSoft,
   onChange,
 }: {
   icon: ComponentProps<typeof MaterialCommunityIcons>["name"];
   label: string;
   value: boolean;
+  accent: string;
+  accentSoft: string;
   onChange: (next: boolean) => void;
 }) {
   return (
-    <View style={styles.featureItem}>
-      <MaterialCommunityIcons name={icon} size={18} color={PURPLE} />
-      <Text style={styles.featureLabel}>{label}</Text>
-      <Switch
-        value={value}
-        onValueChange={onChange}
-        trackColor={{ false: "#D1D5DB", true: GREEN }}
-        thumbColor="#FFFFFF"
-        ios_backgroundColor="#D1D5DB"
-      />
-    </View>
+    <Pressable
+      onPress={() => onChange(!value)}
+      style={({ pressed }) => [
+        styles.featureTile,
+        value && { backgroundColor: accentSoft, borderColor: accent, borderWidth: 1.5 },
+        pressed && styles.pressed,
+      ]}
+      accessibilityRole="button"
+      accessibilityState={{ selected: value }}
+      accessibilityLabel={label}
+    >
+      <View style={[styles.featureIconWell, { backgroundColor: accent }]}>
+        <MaterialCommunityIcons name={icon} size={16} color="#FFFFFF" />
+      </View>
+      <Text
+        style={[styles.featureTileLabel, value && { color: accent }]}
+        numberOfLines={2}
+      >
+        {label}
+      </Text>
+      {value ? (
+        <View style={[styles.featureCheck, { backgroundColor: accent }]}>
+          <MaterialCommunityIcons name="check" size={10} color="#FFFFFF" />
+        </View>
+      ) : null}
+    </Pressable>
   );
-}
-
-const THUMB_RADIUS = 11;
-
-function valueFromX(x: number, width: number, min: number, max: number, step: number) {
-  if (width <= 0) return min;
-  const raw = min + (x / width) * (max - min);
-  return snapToStep(raw, step, min, max);
-}
-
-function xFromValue(value: number, width: number, min: number, max: number) {
-  const span = Math.max(0.0001, max - min);
-  return ((clamp(value, min, max) - min) / span) * width;
 }
 
 function ContinuousSlider({
@@ -668,7 +738,7 @@ function ContinuousSlider({
     width: x.value,
   }));
   const thumbStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: x.value - THUMB_RADIUS }],
+    transform: [{ translateX: x.value - DIST_THUMB_RADIUS }],
   }));
 
   const gesture = Gesture.Pan()
@@ -706,24 +776,31 @@ function ContinuousSlider({
             if (!dragging.value) placeAtValue(value, w, false);
           }}
         >
-          <View style={styles.track} pointerEvents="none" />
-          <Animated.View style={[styles.trackFill, fillStyle]} pointerEvents="none" />
-          <Animated.View style={[styles.thumb, thumbStyle]} pointerEvents="none" />
+          <View style={styles.distTrack} pointerEvents="none" />
+          <Animated.View style={[styles.distFill, fillStyle]} pointerEvents="none" />
+          <Animated.View style={[styles.distThumb, thumbStyle]} pointerEvents="none" />
         </Animated.View>
       </GestureDetector>
       <View style={styles.stopRow}>
-        {tickLabels.map((label, i) => (
-          <Pressable key={`${tickValues[i]}-${label}`} onPress={() => onChange(tickValues[i] ?? min)} style={styles.stopBtn}>
-            <Text
-              style={[
-                styles.stopLabel,
-                Math.abs((tickValues[i] ?? 0) - value) < step / 2 && styles.stopLabelOn,
-              ]}
+        {tickLabels.map((label, i) => {
+          const on = Math.abs((tickValues[i] ?? 0) - value) < step / 2;
+          return (
+            <Pressable
+              key={`${tickValues[i]}-${label}`}
+              onPress={() => onChange(tickValues[i] ?? min)}
+              style={styles.stopBtn}
             >
-              {label}
-            </Text>
-          </Pressable>
-        ))}
+              <Text
+                style={[styles.stopLabel, on && styles.distStopOn]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.85}
+              >
+                {label}
+              </Text>
+            </Pressable>
+          );
+        })}
       </View>
     </View>
   );
@@ -809,10 +886,10 @@ function RangeContinuousSlider({
     width: Math.max(0, maxX.value - minX.value),
   }));
   const minThumbStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: minX.value - THUMB_RADIUS }],
+    transform: [{ translateX: minX.value - PRICE_THUMB_RADIUS }],
   }));
   const maxThumbStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: maxX.value - THUMB_RADIUS }],
+    transform: [{ translateX: maxX.value - PRICE_THUMB_RADIUS }],
   }));
 
   const gesture = Gesture.Pan()
@@ -822,7 +899,12 @@ function RangeContinuousSlider({
       const w = trackW.value;
       if (w <= 0) return;
       const pos = Math.max(0, Math.min(w, e.x));
-      active.value = Math.abs(pos - minX.value) <= Math.abs(pos - maxX.value) ? 0 : 1;
+      const overlapping = Math.abs(maxX.value - minX.value) <= PRICE_THUMB_RADIUS;
+      if (overlapping) {
+        active.value = pos >= maxX.value ? 1 : 0;
+      } else {
+        active.value = Math.abs(pos - minX.value) <= Math.abs(pos - maxX.value) ? 0 : 1;
+      }
       grabX.value = pos;
       if (active.value === 0) {
         minX.value = Math.max(0, Math.min(maxX.value, pos));
@@ -861,10 +943,10 @@ function RangeContinuousSlider({
             if (!dragging.value) placeAtValues(low, high, w, false);
           }}
         >
-          <View style={styles.track} pointerEvents="none" />
-          <Animated.View style={[styles.trackFill, fillStyle]} pointerEvents="none" />
-          <Animated.View style={[styles.thumb, minThumbStyle]} pointerEvents="none" />
-          <Animated.View style={[styles.thumb, maxThumbStyle]} pointerEvents="none" />
+          <View style={styles.priceTrack} pointerEvents="none" />
+          <Animated.View style={[styles.priceFill, fillStyle]} pointerEvents="none" />
+          <Animated.View style={[styles.priceThumb, minThumbStyle]} pointerEvents="none" />
+          <Animated.View style={[styles.priceThumb, maxThumbStyle]} pointerEvents="none" />
         </Animated.View>
       </GestureDetector>
       <View style={styles.stopRow}>
@@ -875,13 +957,25 @@ function RangeContinuousSlider({
             <Pressable
               key={`${tick}-${label}`}
               onPress={() => {
+                if (Math.abs(high - low) < step / 2) {
+                  if (tick >= high) onChange(low, tick);
+                  else onChange(tick, high);
+                  return;
+                }
                 const closer = Math.abs(tick - low) <= Math.abs(tick - high) ? "min" : "max";
                 if (closer === "min") onChange(Math.min(tick, high), high);
                 else onChange(low, Math.max(tick, low));
               }}
               style={styles.stopBtn}
             >
-              <Text style={[styles.stopLabel, activeTick && styles.stopLabelOn]}>{label}</Text>
+              <Text
+                style={[styles.stopLabel, activeTick && styles.priceStopOn]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.85}
+              >
+                {label}
+              </Text>
             </Pressable>
           );
         })}
@@ -889,6 +983,7 @@ function RangeContinuousSlider({
     </View>
   );
 }
+
 
 const styles = StyleSheet.create({
   overlay: {
@@ -956,6 +1051,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     top: 0,
+    zIndex: 400,
   },
   mapCard: {
     backgroundColor: "#FFFFFF",
@@ -1017,11 +1113,11 @@ const styles = StyleSheet.create({
   },
   body: {
     paddingHorizontal: 20,
-    paddingBottom: 16,
+    paddingBottom: 24,
   },
   sectionHead: {
-    marginTop: 18,
-    marginBottom: 10,
+    marginTop: 15,
+    marginBottom: 12,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -1040,12 +1136,27 @@ const styles = StyleSheet.create({
   },
   link: {
     color: LINK,
-    fontSize: 13,
+    fontSize: 15,
     fontFamily: "Poppins-SemiBold",
   },
-  greenValue: {
-    color: GREEN,
-    fontSize: 13,
+  ratingValue: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  ratingValueText: {
+    color: STAR,
+    fontSize: 15,
+    fontFamily: "Poppins-SemiBold",
+  },
+  distValue: {
+    color: DIST,
+    fontSize: 15,
+    fontFamily: "Poppins-SemiBold",
+  },
+  priceValue: {
+    color: PRICE,
+    fontSize: 15,
     fontFamily: "Poppins-SemiBold",
   },
   categoryRow: {
@@ -1062,17 +1173,10 @@ const styles = StyleSheet.create({
     gap: 8,
     backgroundColor: "#FFFFFF",
   },
-  categoryCardOn: {
-    backgroundColor: GREEN_SOFT,
-    borderColor: GREEN,
-  },
   categoryLabel: {
     fontSize: 12,
     fontFamily: "Poppins-SemiBold",
     color: TEXT,
-  },
-  categoryLabelOn: {
-    color: GREEN,
   },
   checkBadge: {
     position: "absolute",
@@ -1086,38 +1190,65 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   sliderBlock: {
-    marginBottom: 4,
+    marginBottom: 8,
   },
   trackHit: {
     height: 44,
     justifyContent: "center",
   },
-  thumb: {
+  distTrack: {
+    height: 6,
+    borderRadius: 999,
+    backgroundColor: TRACK,
+  },
+  distFill: {
+    position: "absolute",
+    top: 19,
+    height: 6,
+    borderRadius: 999,
+    backgroundColor: DIST,
+  },
+  distThumb: {
     position: "absolute",
     top: 11,
     width: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: GREEN,
+    backgroundColor: DIST,
     borderWidth: 4,
     borderColor: "#FFFFFF",
-    shadowColor: GREEN,
-    shadowOpacity: 0.25,
+    shadowColor: DIST,
+    shadowOpacity: 0.28,
     shadowRadius: 4,
     shadowOffset: { width: 0, height: 1 },
     elevation: 2,
   },
-  track: {
+  priceTrack: {
     height: 6,
     borderRadius: 999,
     backgroundColor: TRACK,
   },
-  trackFill: {
+  priceFill: {
     position: "absolute",
     top: 19,
     height: 6,
     borderRadius: 999,
-    backgroundColor: GREEN,
+    backgroundColor: PRICE,
+  },
+  priceThumb: {
+    position: "absolute",
+    top: 11,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: PRICE,
+    borderWidth: 4,
+    borderColor: "#FFFFFF",
+    shadowColor: PRICE,
+    shadowOpacity: 0.28,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 2,
   },
   stopRow: {
     flexDirection: "row",
@@ -1129,64 +1260,95 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   stopLabel: {
-    fontSize: 10,
+    fontSize: 12,
     color: MUTED,
-    fontFamily: "Poppins-Regular",
+    fontFamily: "Poppins-Medium",
+    textAlign: "center",
   },
-  stopLabelOn: {
-    color: GREEN,
+  distStopOn: {
+    color: DIST,
     fontFamily: "Poppins-Bold",
+    fontSize: 13,
+  },
+  priceStopOn: {
+    color: PRICE,
+    fontFamily: "Poppins-Bold",
+    fontSize: 13,
   },
   ratingRow: {
     flexDirection: "row",
-    gap: 8,
+    gap: 6,
+    alignItems: "stretch",
   },
-  ratingChip: {
-    flex: 1,
-    minHeight: 44,
+  ratingTile: {
+    flexGrow: 1,
+    flexShrink: 1,
+    flexBasis: 0,
+    minWidth: 0,
+    minHeight: 52,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: BORDER,
+    borderColor: "#E8EAED",
+    backgroundColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",
-    flexDirection: "row",
-    gap: 4,
-    backgroundColor: "#FFFFFF",
+    gap: 2,
+    paddingVertical: 6,
+    paddingHorizontal: 2,
   },
-  ratingChipOn: {
-    backgroundColor: GREEN_SOFT,
-    borderColor: GREEN,
+  ratingTileOn: {
+    backgroundColor: "#FFFBEB",
+    borderColor: STAR,
   },
-  ratingLabel: {
+  ratingTileLabel: {
     fontSize: 12,
     fontFamily: "Poppins-SemiBold",
     color: TEXT,
   },
-  ratingLabelOn: {
-    color: GREEN,
+  ratingTileLabelOn: {
+    color: STAR,
+    fontFamily: "Poppins-Bold",
   },
   featureGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 12,
-  },
-  featureItem: {
-    width: "48%",
-    flexGrow: 1,
-    flexDirection: "row",
-    alignItems: "center",
     gap: 8,
-    backgroundColor: CARD_BG,
-    borderRadius: 14,
-    paddingHorizontal: 10,
-    paddingVertical: 10,
   },
-  featureLabel: {
-    flex: 1,
-    fontSize: 11,
-    lineHeight: 15,
+  featureTile: {
+    width: "47%",
+    flexGrow: 1,
+    minHeight: 76,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#E8EAED",
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 10,
+    paddingTop: 10,
+    paddingBottom: 10,
+    gap: 8,
+  },
+  featureIconWell: {
+    width: 30,
+    height: 30,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  featureTileLabel: {
+    fontSize: 12,
+    lineHeight: 16,
     fontFamily: "Poppins-SemiBold",
     color: TEXT,
+  },
+  featureCheck: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
   },
   footer: {
     flexDirection: "row",

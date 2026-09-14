@@ -254,7 +254,6 @@ function MapPartnerPreviewCard({
 }
 
 export function CustomerHomeMapOverlays({
-  strings: overlayStrings,
   loadingPartners,
   recenterBottomOffset,
   mapBottomInset,
@@ -345,18 +344,12 @@ export function CustomerHomeMapOverlays({
 
       {cardVisible && selectedPartner ? (
         <View style={styles.modalOverlay} pointerEvents="box-none">
-          <Pressable
-            style={styles.sheetBackdrop}
-            onPress={onClosePartner}
-            accessibilityRole="button"
-            accessibilityLabel={overlayStrings.closePartnerDetails}
-          />
-          <View style={[styles.partnerSheetWrap, { bottom: cardBottom }]}>
+          <View style={[styles.partnerSheetWrap, { bottom: cardBottom }]} pointerEvents="box-none">
             <FlatList
               ref={listRef}
               data={browsePartners}
               keyExtractor={(item) => item.id}
-              style={{ width: pageWidth }}
+              style={{ width: pageWidth, flexGrow: 0 }}
               horizontal
               windowSize={5}
               pagingEnabled
@@ -378,7 +371,10 @@ export function CustomerHomeMapOverlays({
               }}
               extraData={selectedPartner.id}
               renderItem={({ item }) => (
-                <View style={[styles.partnerSheetPage, { width: pageWidth }]}>
+                <View
+                  style={[styles.partnerSheetPage, { width: pageWidth }]}
+                  pointerEvents="box-none"
+                >
                   <MapPartnerPreviewCard
                     partner={item}
                     userCoordinates={userCoordinates}
@@ -442,10 +438,6 @@ const styles = StyleSheet.create({
   modalOverlay: {
     ...StyleSheet.absoluteFillObject,
     zIndex: 300,
-  },
-  sheetBackdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "transparent",
   },
   partnerSheetWrap: {
     position: "absolute",

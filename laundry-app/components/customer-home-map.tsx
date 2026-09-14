@@ -73,27 +73,131 @@ export function CustomerHomeMap({
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
   <style>
     html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; }
     #map { position: absolute; inset: 0; }
-    .leaflet-div-icon.partner-marker-icon { background: transparent !important; border: none !important; box-shadow: none !important; }
-    .partner-marker { display: flex; flex-direction: column; align-items: center; width: 48px; line-height: 0; }
-    .partner-marker-frame { width: 48px; height: 48px; border-radius: 50%; border: 3px solid #A0D0E9; background: #3b7f95; overflow: hidden; box-sizing: border-box; box-shadow: 0 2px 8px rgba(18, 129, 151, 0.35); position: relative; flex-shrink: 0; }
-    .partner-marker-frame.pickupDelivery { border-color: #64B5D9; background: #128197; }
-    .partner-marker-media { position: absolute; inset: 0; width: 100%; height: 100%; }
-    .partner-marker-media img { width: 100%; height: 100%; object-fit: cover; display: block; }
-    .partner-marker-fallback { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: #3b7f95; color: #F9FAFB; font-size: 18px; font-weight: 700; }
-    .partner-marker-frame.pickupDelivery .partner-marker-fallback { background: #128197; }
-    .partner-marker-pointer { width: 0; height: 0; margin-top: -1px; border-left: 7px solid transparent; border-right: 7px solid transparent; border-top: 9px solid #A0D0E9; }
-    .partner-marker-pointer.pickupDelivery { border-top-color: #64B5D9; }
-    .leaflet-right { right: 8px; }
+    .leaflet-div-icon.partner-marker-icon,
+    .leaflet-div-icon.cluster-icon,
+    .leaflet-div-icon.user-marker-icon { background: transparent !important; border: none !important; overflow: visible !important; }
+    .partner-marker {
+      width: 44px; height: 56px; position: relative;
+    }
+    .partner-marker-head {
+      width: 44px; height: 44px; border-radius: 50%;
+      overflow: hidden; position: relative; flex-shrink: 0;
+      border: 2px solid #FFFFFF; box-sizing: border-box;
+      background: #12B886;
+      box-shadow: 0 5px 12px rgba(17, 24, 39, 0.28);
+      transform: translateZ(0);
+      -webkit-clip-path: circle(50%);
+      clip-path: circle(50%);
+      -webkit-mask-image: radial-gradient(closest-side, #000 99%, transparent);
+      mask-image: radial-gradient(closest-side, #000 99%, transparent);
+    }
+    .partner-marker-head.pickupDelivery { background: #5B4DFF; }
+    .leaflet-container .partner-marker img.partner-photo,
+    .partner-marker img.partner-photo {
+      display: block !important;
+      width: 40px !important; height: 40px !important;
+      max-width: 40px !important; max-height: 40px !important;
+      object-fit: cover !important; object-position: center !important;
+      border-radius: 50% !important;
+      -webkit-clip-path: circle(50%);
+      clip-path: circle(50%);
+      position: relative !important;
+    }
+    .partner-marker-fallback {
+      position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      color: #FFFFFF; font: 700 14px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+    .partner-marker-pointer {
+      width: 0; height: 0; margin: -1px auto 0; flex-shrink: 0;
+      border-left: 7px solid transparent; border-right: 7px solid transparent;
+      border-top: 10px solid #FFFFFF;
+    }
+    .partner-marker-label {
+      position: absolute; top: 56px; left: 50%; transform: translateX(-50%);
+      max-width: 92px; padding: 2px 7px; border-radius: 8px;
+      background: #FFFFFF; color: #111827;
+      font: 700 10px/1.25 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      box-shadow: 0 2px 8px rgba(17, 24, 39, 0.16);
+      pointer-events: none;
+    }
+    .cluster-bubble {
+      width: 40px; height: 40px; border-radius: 20px;
+      background: #12B886; border: 3px solid #FFFFFF; color: #FFFFFF;
+      font: 700 13px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 6px 16px rgba(18, 184, 134, 0.38);
+    }
+    .user-wrap { width: 28px; height: 28px; position: relative; }
+    .user-pulse {
+      position: absolute; inset: 0; border-radius: 50%; background: #0B84FF;
+      animation: userPulse 1.8s ease-out infinite;
+    }
+    .user-core {
+      position: absolute; left: 7px; top: 7px; width: 14px; height: 14px; border-radius: 50%;
+      background: #0B84FF; border: 3px solid #FFFFFF;
+      box-shadow: 0 2px 6px rgba(11, 132, 255, 0.45);
+    }
+    @keyframes userPulse {
+      0% { transform: scale(0.65); opacity: 0.5; }
+      100% { transform: scale(2.1); opacity: 0; }
+    }
+    .leaflet-right { right: 12px; }
     .leaflet-bottom { bottom: ${zoomControlBottomOffset}px; }
     .leaflet-control-attribution { display: none !important; }
+    .leaflet-bar {
+      border: none !important;
+      box-shadow: none !important;
+      background: transparent !important;
+    }
+    .leaflet-control-zoom {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-right: 4px !important;
+      margin-bottom: 4px !important;
+    }
+    .leaflet-touch .leaflet-control-zoom {
+      border: none !important;
+    }
+    .leaflet-control-zoom a,
+    .leaflet-touch .leaflet-control-zoom a {
+      width: 42px !important;
+      height: 42px !important;
+      line-height: 42px !important;
+      border-radius: 21px !important;
+      border: 1px solid #E5E7EB !important;
+      background: #FFFFFF !important;
+      color: #12B886 !important;
+      font-size: 22px !important;
+      font-weight: 600 !important;
+      text-indent: 0 !important;
+      box-shadow: 0 8px 18px rgba(17, 24, 39, 0.12);
+    }
+    .leaflet-control-zoom a.leaflet-control-zoom-in,
+    .leaflet-control-zoom a.leaflet-control-zoom-out {
+      border-bottom: 1px solid #E5E7EB !important;
+    }
+    .leaflet-control-zoom a:hover,
+    .leaflet-control-zoom a:focus {
+      background: #ECFDF5 !important;
+      color: #0F9F7A !important;
+    }
+    .leaflet-control-zoom a.leaflet-disabled {
+      color: #D1D5DB !important;
+      background: #F9FAFB !important;
+    }
   </style>
 </head>
 <body>
   <div id="map"></div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
   <script>
     const markers = ${markersJson};
     const user = ${userJson};
@@ -105,20 +209,29 @@ export function CustomerHomeMap({
       return String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     }
 
-    function markerHtml(item) {
-      const modeClass = item.mode === 'pickupDelivery' ? 'pickupDelivery' : 'dropoff';
-      const imageHtml = item.imageUrl
-        ? '<div class="partner-marker-media"><img src="' + escapeHtml(item.imageUrl) + '" alt="" /></div>'
-        : '<span class="partner-marker-fallback">' + escapeHtml(item.initial || 'P') + '</span>';
-      return '<div class="partner-marker"><div class="partner-marker-frame ' + modeClass + '">' + imageHtml + '</div><div class="partner-marker-pointer ' + modeClass + '"></div></div>';
+    function shortName(name) {
+      const trimmed = String(name || '').trim();
+      if (!trimmed) return 'Laundry';
+      if (trimmed.length <= 16) return trimmed;
+      const first = trimmed.split(/\s+/)[0];
+      if (first.length >= 4 && first.length <= 16) return first;
+      return trimmed.slice(0, 15) + '…';
     }
 
-    function isLocalCluster(points) {
-      if (points.length < 2) return true;
-      var lats = points.map(function(p) { return p[0]; });
-      var lngs = points.map(function(p) { return p[1]; });
-      return (Math.max.apply(null, lats) - Math.min.apply(null, lats) <= 1.5)
-        && (Math.max.apply(null, lngs) - Math.min.apply(null, lngs) <= 1.5);
+    function markerHtml(item) {
+      const modeClass = item.mode === 'pickupDelivery' ? 'pickupDelivery' : 'dropoff';
+      const photoUrl = item.imageUrl ? String(item.imageUrl) : '';
+      const img = photoUrl
+        ? '<img class="partner-photo" width="40" height="40" src="' + escapeHtml(photoUrl) + '" alt="" style="width:40px;height:40px;max-width:40px;max-height:40px;object-fit:cover;border-radius:50%;display:block;" onerror="this.style.display=\\'none\\';this.nextElementSibling.style.display=\\'flex\\'" />'
+        : '';
+      const hideFallback = photoUrl ? ' style="display:none"' : '';
+      const initial = escapeHtml(item.initial || 'P');
+      const label = escapeHtml(shortName(item.name));
+      return '<div class="partner-marker"><div class="partner-marker-head ' + modeClass + '">' +
+        img +
+        '<div class="partner-marker-fallback"' + hideFallback + '>' + initial + '</div>' +
+        '</div><div class="partner-marker-pointer"></div>' +
+        '<div class="partner-marker-label">' + label + '</div></div>';
     }
 
     function bootMap() {
@@ -131,6 +244,11 @@ export function CustomerHomeMap({
       }
 
       partnerPoints.length = 0;
+      if (window.__cluster) {
+        window.__cluster.clearLayers();
+        map.removeLayer(window.__cluster);
+        window.__cluster = null;
+      }
       map.eachLayer(function(layer) {
         if (layer instanceof L.Marker || layer instanceof L.CircleMarker) {
           map.removeLayer(layer);
@@ -138,19 +256,55 @@ export function CustomerHomeMap({
       });
 
       if (user && Number.isFinite(user.latitude) && Number.isFinite(user.longitude)) {
-        L.circleMarker([user.latitude, user.longitude], { radius: 8, color: '#0B84FF', fillColor: '#0B84FF', fillOpacity: 0.95 }).addTo(map);
+        const userIcon = L.divIcon({
+          html: '<div class="user-wrap"><div class="user-pulse"></div><div class="user-core"></div></div>',
+          className: 'user-marker-icon',
+          iconSize: [28, 28],
+          iconAnchor: [14, 14],
+        });
+        L.marker([user.latitude, user.longitude], { icon: userIcon, interactive: false, zIndexOffset: 1000 }).addTo(map);
       }
 
-      markers.forEach(function(item) {
-        const icon = L.divIcon({ html: markerHtml(item), className: 'partner-marker-icon', iconSize: [48, 58], iconAnchor: [24, 54], popupAnchor: [0, -50] });
-        const m = L.marker([item.latitude, item.longitude], { icon }).addTo(map);
+      const partnerLayers = markers.map(function(item) {
+        const icon = L.divIcon({
+          html: markerHtml(item),
+          className: 'partner-marker-icon',
+          iconSize: [44, 56],
+          iconAnchor: [22, 56],
+          popupAnchor: [0, -50],
+        });
+        const m = L.marker([item.latitude, item.longitude], { icon: icon });
         m.on('click', function() {
           const payload = JSON.stringify({ type: 'partner-press', partnerId: item.id, mode: item.mode });
           if (window.ReactNativeWebView?.postMessage) window.ReactNativeWebView.postMessage(payload);
           else if (window.parent && window.parent !== window) window.parent.postMessage(payload, '*');
         });
         partnerPoints.push([item.latitude, item.longitude]);
+        return m;
       });
+
+      if (typeof L.markerClusterGroup === 'function') {
+        window.__cluster = L.markerClusterGroup({
+          maxClusterRadius: 64,
+          disableClusteringAtZoom: 15,
+          showCoverageOnHover: false,
+          spiderfyOnMaxZoom: true,
+          zoomToBoundsOnClick: true,
+          iconCreateFunction: function(cluster) {
+            const n = cluster.getChildCount();
+            return L.divIcon({
+              html: '<div class="cluster-bubble">' + n + '</div>',
+              className: 'cluster-icon',
+              iconSize: [40, 40],
+              iconAnchor: [20, 20],
+            });
+          },
+        });
+        partnerLayers.forEach(function(m) { window.__cluster.addLayer(m); });
+        map.addLayer(window.__cluster);
+      } else {
+        partnerLayers.forEach(function(m) { m.addTo(map); });
+      }
     }
 
     function fitRadius(lat, lng) {

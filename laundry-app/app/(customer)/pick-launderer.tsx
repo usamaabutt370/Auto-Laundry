@@ -45,6 +45,7 @@ import { getCoordinatesWithFallback, type Coordinates } from "@/utils/geocoding"
 import {
   formatPartnerUpdatedAt,
   getPartnerPrimaryImage,
+  partnerMarkerInitial,
   type CustomerMapMarker,
   type PartnerMapMarker,
 } from "@/hooks/use-customer-home-map-data";
@@ -519,7 +520,9 @@ export default function PickLaundererScreen() {
           latitude: coords.latitude,
           longitude: coords.longitude,
           imageUrl: getPartnerPrimaryImage(mapped),
-          initial: partner.business_name.trim().charAt(0).toUpperCase() || "P",
+          initial: partnerMarkerInitial(partner.business_name),
+          ratingAvg: partner.ratingAvg,
+          ratingCount: partner.ratingCount ?? 0,
         },
       ];
     });
