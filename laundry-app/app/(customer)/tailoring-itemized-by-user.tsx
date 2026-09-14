@@ -1,20 +1,17 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Image } from "expo-image";
-import { AppHeader } from "@/components/app-header";
 
 import {
   CUSTOMER_ORDER_NOTES_MAX_HEIGHT,
   CustomerItemizedOrderLayout,
-  customerOrderFooterStyles,
 } from "@/components/customer-itemized-order-layout";
 import { CustomerLiveEstimateFooter } from "@/components/customer-live-estimate-footer";
 import { strings } from "@/constants/strings";
 import { initialTailoringQuantities, isLadiesTailoringItem } from "@/constants/tailoring-items";
-import { theme } from "@/constants/theme";
 import type { CustomerOrderDraft } from "@/contexts/customer-order-draft-context";
 import { useCustomerOrderDraft } from "@/contexts/customer-order-draft-context";
 import { useLocale } from "@/contexts/locale-context";
@@ -26,7 +23,16 @@ import {
 import { getStrings } from "@/locales";
 import { formatMoney } from "@/utils/format-money";
 
-const c = theme.colors;
+const UI = {
+  bg: "#F7F8FA",
+  card: "#FFFFFF",
+  text: "#111827",
+  muted: "#6B7280",
+  teal: "#12B886",
+  backBg: "#EEF2F6",
+  chipBorder: "#E5E7EB",
+  shadow: "rgba(17, 24, 39, 0.08)",
+};
 
 export default function TailoringItemizedByUserScreen() {
   const router = useRouter();
@@ -103,21 +109,31 @@ export default function TailoringItemizedByUserScreen() {
 
   return (
     <View style={styles.container}>
-      <SafeAreaView edges={["top"]}>
-        <AppHeader
-          title={s.tailoring}
-          leftIcon="arrow-left"
-          onLeftPress={() => router.back()}
-          leftAccessibilityLabel="Go back"
-        />
+      <SafeAreaView edges={["top"]} style={styles.headerSafe}>
+        <View style={styles.headerRow}>
+          <View style={styles.headerSide} />
+          <Text style={styles.headerTitle} numberOfLines={1}>
+            {s.tailoring}
+          </Text>
+          <Pressable
+            onPress={() => router.back()}
+            style={styles.closeBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Close"
+          >
+            <MaterialCommunityIcons name="close" size={20} color={UI.text} />
+          </Pressable>
+        </View>
       </SafeAreaView>
 
       <CustomerItemizedOrderLayout
+        appearance="light"
         scrollContentStyle={styles.scrollContent}
         footer={
           <>
             {hasSelectedItems ? (
               <CustomerLiveEstimateFooter
+                appearance="light"
                 strings={sLive}
                 partnerId={draft.partnerId}
                 partnerName={draft.partnerName}
@@ -128,12 +144,18 @@ export default function TailoringItemizedByUserScreen() {
             ) : null}
             <Pressable
               onPress={handleSave}
-              style={({ pressed }) => [
-                customerOrderFooterStyles.actionBtn,
-                pressed && styles.pressed,
-              ]}
+              style={({ pressed }) => [styles.confirmWrap, pressed && styles.pressed]}
+              accessibilityRole="button"
+              accessibilityLabel={sDet.save}
             >
-              <Text style={customerOrderFooterStyles.actionLabel}>{sDet.save}</Text>
+              <LinearGradient
+                colors={["#4A3AFF", "#12B886"]}
+                start={{ x: 0, y: 0.5 }}
+                end={{ x: 1, y: 0.5 }}
+                style={styles.confirmBtn}
+              >
+                <Text style={styles.confirmLabel}>{sDet.save}</Text>
+              </LinearGradient>
             </Pressable>
           </>
         }
@@ -183,7 +205,7 @@ export default function TailoringItemizedByUserScreen() {
                   <MaterialCommunityIcons
                     name="minus"
                     size={20}
-                    color={qty <= 0 ? "rgba(255,255,255,0.5)" : c.white}
+                    color={qty <= 0 ? "#D1D5DB" : UI.text}
                   />
                 </Pressable>
                 <Text style={styles.stepperValue}>{qty}</Text>
@@ -191,7 +213,7 @@ export default function TailoringItemizedByUserScreen() {
                   onPress={() => setQty(item.id, 1)}
                   style={styles.stepperBtn}
                 >
-                  <MaterialCommunityIcons name="plus" size={20} color={c.white} />
+                  <MaterialCommunityIcons name="plus" size={20} color={UI.teal} />
                 </Pressable>
               </View>
             </View>
@@ -208,7 +230,7 @@ export default function TailoringItemizedByUserScreen() {
           value={instructions}
           onChangeText={setInstructions}
           placeholder={sDet.instructionsPlaceholder}
-          placeholderTextColor="rgba(0,0,0,0.4)"
+          placeholderTextColor={UI.muted}
           multiline
           numberOfLines={3}
           textAlignVertical="top"
@@ -219,23 +241,48 @@ export default function TailoringItemizedByUserScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: c.background },
-  pressed: { opacity: 0.8 },
+  container: { flex: 1, backgroundColor: UI.bg },
+  headerSafe: { backgroundColor: UI.bg },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 15,
+    gap: 10,
+  },
+  headerTitle: {
+    flex: 1,
+    fontSize: 18,
+    color: UI.text,
+    fontFamily: "Poppins-Bold",
+    textAlign: "center",
+  },
+  headerSide: { width: 36 },
+  closeBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: UI.backBg,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  pressed: { opacity: 0.85 },
   lead: {
     fontSize: 15,
-    color: "rgba(255,255,255,0.8)",
+    fontFamily: "Poppins-Regular",
+    color: UI.muted,
     lineHeight: 22,
     marginBottom: 20,
   },
   scrollContent: {
-    paddingHorizontal: 24,
+    paddingHorizontal: 16,
     paddingTop: 8,
     paddingBottom: 24,
   },
   sectionHeader: {
     fontSize: 12,
-    fontWeight: "700",
-    color: "rgba(255,255,255,0.55)",
+    fontFamily: "Poppins-Bold",
+    color: UI.muted,
     textTransform: "uppercase",
     letterSpacing: 0.8,
     marginTop: 16,
@@ -244,20 +291,23 @@ const styles = StyleSheet.create({
   },
   sectionLabel: {
     fontSize: 13,
-    fontWeight: "700",
-    color: "rgba(255,255,255,0.55)",
+    fontFamily: "Poppins-Bold",
+    color: UI.muted,
     textTransform: "uppercase",
     letterSpacing: 0.6,
     marginBottom: 8,
     marginTop: 8,
   },
   instructions: {
-    backgroundColor: c.white,
+    backgroundColor: UI.card,
     borderRadius: 14,
+    borderWidth: 1,
+    borderColor: UI.chipBorder,
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 15,
-    color: c.themeBlack,
+    fontFamily: "Poppins-Regular",
+    color: UI.text,
     minHeight: 88,
     maxHeight: CUSTOMER_ORDER_NOTES_MAX_HEIGHT,
     marginBottom: 12,
@@ -266,30 +316,41 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: c.blue900,
-    borderRadius: 14,
+    backgroundColor: UI.card,
+    borderRadius: 16,
     paddingVertical: 14,
     paddingHorizontal: 14,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.15)",
+    borderColor: UI.chipBorder,
+    shadowColor: UI.shadow,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 10,
+    elevation: 2,
   },
   itemLeft: { flex: 1, paddingRight: 12 },
-  itemName: { fontSize: 17, fontWeight: "700", color: c.white },
+  itemName: {
+    fontSize: 16,
+    fontFamily: "Poppins-SemiBold",
+    color: UI.text,
+  },
   unitPrice: {
     fontSize: 13,
-    color: "rgba(255,255,255,0.65)",
+    fontFamily: "Poppins-Regular",
+    color: UI.muted,
     marginTop: 4,
   },
   lineSubtotal: {
     fontSize: 14,
-    fontWeight: "700",
-    color: c.lightBlue,
+    fontFamily: "Poppins-Bold",
+    color: UI.teal,
     marginTop: 6,
   },
   emptyText: {
-    color: "rgba(255,255,255,0.75)",
+    color: UI.muted,
     fontSize: 14,
+    fontFamily: "Poppins-Regular",
     marginBottom: 12,
   },
   stepper: { flexDirection: "row", alignItems: "center", gap: 10 },
@@ -297,15 +358,32 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: "rgba(255,255,255,0.2)",
+    backgroundColor: UI.backBg,
     alignItems: "center",
     justifyContent: "center",
   },
   stepperValue: {
     fontSize: 17,
-    fontWeight: "700",
-    color: c.white,
+    fontFamily: "Poppins-Bold",
+    color: UI.text,
     minWidth: 28,
     textAlign: "center",
+  },
+  confirmWrap: {
+    marginTop: 8,
+    marginBottom: 8,
+    borderRadius: 16,
+    overflow: "hidden",
+  },
+  confirmBtn: {
+    borderRadius: 16,
+    paddingVertical: 16,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  confirmLabel: {
+    fontSize: 16,
+    fontFamily: "Poppins-Bold",
+    color: "#FFFFFF",
   },
 });

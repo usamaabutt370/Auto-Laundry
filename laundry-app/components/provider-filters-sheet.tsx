@@ -9,7 +9,6 @@ import {
   StyleSheet,
   Switch,
   Text,
-  TextInput,
   View,
 } from "react-native";
 import {
@@ -29,9 +28,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { strings } from "@/constants/strings";
 import { CustomerHomeMap, type CustomerHomeMapViewData } from "@/components/customer-home-map";
-import { FilterSearchRadiusMap } from "@/components/filter-search-radius-map";
 import type { PartnerPublicRow } from "@/lib/partner-discovery";
-import { type Coordinates } from "@/utils/geocoding";
 import { isPartnerOpenNow } from "@/utils/partner-hours";
 import { isPartnerTopRated, partnerHasActiveOffer } from "@/utils/partner-offers";
 
@@ -169,15 +166,11 @@ type Props = {
   visible: boolean;
   pane: ProviderSheetPane;
   value: ProviderFilters;
-  locationLabel: string;
   matchCount: (filters: ProviderFilters) => number;
   onClose: () => void;
   onApply: (next: ProviderFilters) => void;
-  userCoordinates?: Coordinates | null;
   mapData?: CustomerHomeMapViewData;
   onPartnerPress?: (partnerId: string, mode: "dropoff" | "pickupDelivery") => void;
-  searchQuery?: string;
-  onSearchChange?: (query: string) => void;
   onFiltersChange?: (next: ProviderFilters) => void;
 };
 
@@ -185,21 +178,16 @@ export function ProviderFiltersSheet({
   visible,
   pane,
   value,
-  locationLabel,
   matchCount,
   onClose,
   onApply,
-  userCoordinates = null,
   mapData,
   onPartnerPress,
-  searchQuery = "",
-  onSearchChange,
   onFiltersChange,
 }: Props) {
   const s = strings.customer.pickLaunderer;
   const insets = useSafeAreaInsets();
   const [draft, setDraft] = useState<ProviderFilters>(value);
-  const [radiusPicker, setRadiusPicker] = useState(false);
   const [livePrice, setLivePrice] = useState<{ min: number; max: number } | null>(null);
   const [applying, setApplying] = useState(false);
   const applyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -207,7 +195,6 @@ export function ProviderFiltersSheet({
 
   useEffect(() => {
     if (!visible) {
-      setRadiusPicker(false);
       setApplying(false);
       if (applyTimerRef.current) {
         clearTimeout(applyTimerRef.current);
@@ -313,8 +300,8 @@ export function ProviderFiltersSheet({
         <View
           style={[
             styles.sheet,
-            (showMap || radiusPicker) && styles.sheetFill,
-            !showMap && !radiusPicker && { paddingBottom: Math.max(insets.bottom, 12) },
+            showMap && styles.sheetFill,
+            !showMap && { paddingBottom: Math.max(insets.bottom, 12) },
           ]}
         >
           {showMap && mapData ? (
@@ -345,20 +332,6 @@ export function ProviderFiltersSheet({
                     </Pressable>
                   </View>
 
-                  <View style={styles.mapSearchRow}>
-                    <View style={styles.mapSearchField}>
-                      <MaterialCommunityIcons name="magnify" size={18} color={MUTED} />
-                      <TextInput
-                        value={searchQuery}
-                        onChangeText={onSearchChange}
-                        placeholder={s.mapSearchPlaceholder}
-                        placeholderTextColor={MUTED}
-                        style={styles.mapSearchInput}
-                        returnKeyType="search"
-                      />
-                    </View>
-                  </View>
-
                   <ScrollView
                     horizontal
                     showsHorizontalScrollIndicator={false}
@@ -387,7 +360,7 @@ export function ProviderFiltersSheet({
                 </View>
               </View>
             </View>
-          ) : radiusPicker ? null : (
+          ) : (
             <>
           <View style={styles.handle} />
           <View style={styles.headerRow}>
@@ -434,23 +407,6 @@ export function ProviderFiltersSheet({
                   </Pressable>
                 );
               })}
-            </View>
-
-            <Section
-              icon="map-marker-outline"
-              title={s.location}
-              right={
-                <Pressable onPress={() => setRadiusPicker(true)} hitSlop={8}>
-                  <Text style={styles.link}>{s.changeLocation} →</Text>
-                </Pressable>
-              }
-            />
-            <View style={styles.locationCard}>
-              <MaterialCommunityIcons name="crosshairs-gps" size={22} color={PURPLE} />
-              <View style={styles.locationCopy}>
-                <Text style={styles.locationTitle}>{s.currentLocation}</Text>
-                <Text style={styles.locationSub}>{locationLabel}</Text>
-              </View>
             </View>
 
             <Section
@@ -603,23 +559,6 @@ export function ProviderFiltersSheet({
           </View>
             </>
           )}
-          {radiusPicker ? (
-            <FilterSearchRadiusMap
-              userCoordinates={userCoordinates}
-              radiusKm={draft.maxDistanceKm}
-              minKm={DISTANCE_MIN_KM}
-              maxKm={DISTANCE_MAX_KM}
-              title={s.searchRadiusTitle}
-              subtitle={s.searchRadiusSubtitle}
-              hint={s.searchRadiusHint}
-              confirmLabel={s.searchRadiusUse}
-              onConfirm={(km) => {
-                setDraft((prev) => ({ ...prev, maxDistanceKm: km }));
-                setRadiusPicker(false);
-              }}
-              onClose={() => setRadiusPicker(false)}
-            />
-          ) : null}
         </View>
       </GestureHandlerRootView>
     </Modal>
@@ -1047,32 +986,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  mapSearchRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingHorizontal: 16,
-    marginBottom: 10,
-  },
-  mapSearchField: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    height: 44,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: BORDER,
-    backgroundColor: "#FFFFFF",
-    paddingHorizontal: 12,
-  },
-  mapSearchInput: {
-    flex: 1,
-    fontSize: 13,
-    fontFamily: "Poppins-Regular",
-    color: TEXT,
-    paddingVertical: 0,
-  },
   mapChipRow: {
     paddingHorizontal: 16,
     gap: 8,
@@ -1171,29 +1084,6 @@ const styles = StyleSheet.create({
     backgroundColor: GREEN,
     alignItems: "center",
     justifyContent: "center",
-  },
-  locationCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    backgroundColor: CARD_BG,
-    borderRadius: 16,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-  },
-  locationCopy: {
-    flex: 1,
-  },
-  locationTitle: {
-    fontSize: 14,
-    fontFamily: "Poppins-Bold",
-    color: TEXT,
-  },
-  locationSub: {
-    marginTop: 2,
-    fontSize: 13,
-    color: MUTED,
-    fontFamily: "Poppins-Regular",
   },
   sliderBlock: {
     marginBottom: 4,

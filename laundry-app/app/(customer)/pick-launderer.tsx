@@ -41,7 +41,7 @@ import {
   type PartnerFulfillmentMode,
   type PartnerPublicRow,
 } from "@/lib/partner-discovery";
-import { getCoordinatesWithFallback, getPlaceLabelFromCoordinates, type Coordinates } from "@/utils/geocoding";
+import { getCoordinatesWithFallback, type Coordinates } from "@/utils/geocoding";
 import {
   formatPartnerUpdatedAt,
   getPartnerPrimaryImage,
@@ -258,7 +258,6 @@ export default function PickLaundererScreen() {
     ...OPEN_PROVIDER_FILTERS,
     categories: isServiceCategory(params.service) ? [params.service] : [],
   }));
-  const [locationLabel, setLocationLabel] = useState<string>(s.locationFallback);
   const geocodeCacheRef = useRef<Map<string, Coordinates | null>>(new Map());
   const columns = isWebDesktop ? 3 : 2;
   const cardWidth = (windowWidth - H_PAD * 2 - CARD_GAP * (columns - 1)) / columns;
@@ -451,18 +450,6 @@ export default function PickLaundererScreen() {
       cancelled = true;
     };
   }, [partners]);
-
-  useEffect(() => {
-    const coords = userCoordinates;
-    if (!coords) return;
-    let cancelled = false;
-    void getPlaceLabelFromCoordinates(coords).then((label) => {
-      if (!cancelled && label) setLocationLabel(label);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [userCoordinates]);
 
   const partnerDistanceKm = useMemo(() => {
     const next: Record<string, number | null> = {};
@@ -824,15 +811,11 @@ export default function PickLaundererScreen() {
         visible={sheetPane != null}
         pane={sheetPane ?? "filters"}
         value={appliedFilters}
-        locationLabel={locationLabel}
         matchCount={matchCount}
         onClose={closeSheet}
         onApply={applyFilters}
-        userCoordinates={userCoordinates}
         mapData={mapData}
         onPartnerPress={handleMapPartnerPress}
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
         onFiltersChange={setAppliedFilters}
       />
       <BlockingLoader visible={applyingFilters} message={s.applyingFilters} />

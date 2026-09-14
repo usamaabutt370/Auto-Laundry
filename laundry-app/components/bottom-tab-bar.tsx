@@ -25,22 +25,22 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { GlassTabBarBackground } from "@/components/glass-tab-bar-background";
 
 const PILL_GRADIENT = [
-  "rgba(74, 58, 255, 0.72)",
-  "rgba(18, 184, 134, 0.86)",
+  "rgba(74, 58, 255, 0.30)",
+  "rgba(18, 184, 134, 0.30)",
 ] as const;
 
 export const TAB_BAR_HEIGHT = 64;
 export const TAB_BAR_FLOAT_MARGIN = 16;
 export const TAB_BAR_FLOAT_BOTTOM = 8;
-export const TAB_ICON_SIZE = 22;
+export const TAB_ICON_SIZE = 25;
 
-const PILL_INSET = 5;
+const PILL_INSET = 10;
 const PILL_H_PAD = 36;
 /** Leading edge arrives first so the chip stretches toward the next tab. */
-const LEAD_TIMING = { duration: 240, easing: Easing.out(Easing.cubic) };
+const LEAD_TIMING = { duration: 200, easing: Easing.out(Easing.cubic) };
 /** Trailing edge lags, then catches up into the compact chip. */
-const LAG_TIMING = { duration: 460, easing: Easing.inOut(Easing.cubic) };
-const LAG_DELAY = 80;
+const LAG_TIMING = { duration: 200, easing: Easing.inOut(Easing.cubic) };
+const LAG_DELAY = 20;
 
 type TabSlot = { slotX: number; slotW: number; contentW: number };
 
@@ -145,7 +145,7 @@ function GlassTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
                 typeof options.tabBarLabel === "string"
                   ? options.tabBarLabel
                   : options.title ?? route.name;
-              const color = focused ? "#FFFFFF" : "#111827";
+              const color = focused ? "#111827" : "#111827";
 
               const onPress = () => {
                 const event = navigation.emit({
@@ -392,7 +392,6 @@ const styles = StyleSheet.create({
   tabContent: {
     alignItems: "center",
     justifyContent: "center",
-    gap: 2,
   },
   tabIconSlot: {
     width: 28,
