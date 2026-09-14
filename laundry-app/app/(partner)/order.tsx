@@ -1,6 +1,7 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useFocusEffect, useLocalSearchParams, useRouter, useNavigation } from "expo-router";
 
+import { StatusBar } from "expo-status-bar";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -41,7 +42,16 @@ import { fetchPartnerRiders, type PartnerRider } from "@/lib/partner-riders";
 import { supabase } from "@/lib/supabase";
 import { getStrings } from "@/locales";
 
-const c = theme.colors;
+const UI = {
+  bg: "#F7F8FA",
+  card: "#FFFFFF",
+  text: "#111827",
+  muted: "#6B7280",
+  teal: "#12B886",
+  chipBorder: "#E5E7EB",
+  mint: "#ECFDF5",
+  red: "#DC2626",
+};
 const fs = theme.fontSize;
 const H_PAD = 24;
 const REJECTION_OPTIONS = [
@@ -404,10 +414,12 @@ export default function PartnerOrderScreen() {
 
   return (
     <View style={styles.container}>
+      <StatusBar style="dark" />
       {dialog}
       {!isWeb ? (
         <SafeAreaView edges={["top"]} style={styles.safeArea}>
           <AppHeader
+            appearance="light"
             title={s.title}
           />
         </SafeAreaView>
@@ -436,16 +448,16 @@ export default function PartnerOrderScreen() {
           <RefreshControl
             refreshing={isRefreshing}
             onRefresh={() => void handleRefresh()}
-            tintColor="#FFFFFF"
-            colors={["#FFFFFF"]}
-            progressBackgroundColor={c.blue900}
+            tintColor={UI.teal}
+            colors={[UI.teal]}
+            progressBackgroundColor={UI.card}
             progressViewOffset={8}
           />
         }
       >
         {isLoading && !isRefreshing ? (
           <View style={styles.emptyWrap}>
-            <ActivityIndicator color={c.white} />
+            <ActivityIndicator color={UI.teal} />
             <Text style={styles.emptyText}>Loading orders...</Text>
           </View>
         ) : filteredOrders.length === 0 ? (
@@ -515,7 +527,7 @@ export default function PartnerOrderScreen() {
                     <MaterialCommunityIcons
                       name="trash-can-outline"
                       size={18}
-                      color="#fecaca"
+                      color={UI.red}
                     />
                     <Text style={styles.webDeleteRowText}>{custStrings.deleteAction}</Text>
                   </Pressable>
@@ -543,7 +555,7 @@ export default function PartnerOrderScreen() {
                       <MaterialCommunityIcons
                         name="trash-can-outline"
                         size={26}
-                        color={c.white}
+                        color="#FFFFFF"
                       />
                       <Text style={styles.swipeDeleteText}>{custStrings.deleteAction}</Text>
                     </Pressable>
@@ -623,7 +635,7 @@ export default function PartnerOrderScreen() {
                 value={otherRejectionReason}
                 onChangeText={setOtherRejectionReason}
                 placeholder="Write reason for rejection"
-                placeholderTextColor={c.blue500}
+                placeholderTextColor={UI.muted}
                 style={styles.otherReasonInput}
                 textAlignVertical="top"
               />
@@ -652,7 +664,7 @@ export default function PartnerOrderScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: c.background,
+    backgroundColor: UI.bg,
   },
   safeArea: {
     paddingBottom: 8,
@@ -680,20 +692,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "rgba(171, 233, 254, 0.45)",
-    backgroundColor: "transparent",
+    borderColor: UI.chipBorder,
+    backgroundColor: UI.card,
   },
   filterChipSelected: {
-    backgroundColor: c.blue900,
-    borderColor: c.outline,
+    backgroundColor: UI.teal,
+    borderColor: UI.teal,
   },
   filterChipText: {
     fontSize: fs.descText,
     fontWeight: "500",
-    color: c.blue500,
+    color: UI.muted,
   },
   filterChipTextSelected: {
-    color: c.white,
+    color: "#FFFFFF",
     fontWeight: "600",
   },
   scroll: {
@@ -710,7 +722,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: fs.smallText,
-    color: c.blue500,
+    color: UI.muted,
     textAlign: "center",
   },
   modalOverlay: {
@@ -723,24 +735,24 @@ const styles = StyleSheet.create({
   },
   modalBackdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(5, 14, 25, 0.65)",
+    backgroundColor: "rgba(17, 24, 39, 0.45)",
   },
   modalCard: {
     width: "100%",
-    backgroundColor: c.blue900,
+    backgroundColor: UI.card,
     borderRadius: 18,
     borderWidth: 1,
     zIndex: 1,
-    borderColor: c.outline,
+    borderColor: UI.chipBorder,
     padding: 16,
   },
   modalTitle: {
-    color: c.white,
+    color: UI.text,
     fontSize: fs.smallTitle,
     fontWeight: "700",
   },
   modalSubtitle: {
-    color: c.blue500,
+    color: UI.muted,
     fontSize: fs.descText,
     marginTop: 4,
     marginBottom: 12,
@@ -750,33 +762,33 @@ const styles = StyleSheet.create({
   },
   reasonOption: {
     borderWidth: 1,
-    borderColor: c.outline,
+    borderColor: UI.chipBorder,
     borderRadius: 12,
     paddingVertical: 10,
     paddingHorizontal: 12,
-    backgroundColor: c.background,
+    backgroundColor: UI.card,
   },
   reasonOptionSelected: {
-    borderColor: c.filledButtonBorder,
-    backgroundColor: "rgba(31, 200, 255, 0.1)",
+    borderColor: UI.teal,
+    backgroundColor: UI.mint,
   },
   reasonOptionText: {
-    color: c.white,
+    color: UI.text,
     fontSize: fs.descText,
   },
   reasonOptionTextSelected: {
-    color: c.lightBlue,
+    color: UI.teal,
     fontWeight: "700",
   },
   otherReasonInput: {
     marginTop: 12,
     minHeight: 84,
     borderWidth: 1,
-    borderColor: c.outline,
+    borderColor: UI.chipBorder,
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    color: c.white,
+    color: UI.text,
     fontSize: fs.descText,
   },
   modalActions: {
@@ -788,12 +800,12 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: c.outline,
+    borderColor: UI.chipBorder,
     paddingVertical: 12,
     alignItems: "center",
   },
   modalCancelText: {
-    color: c.white,
+    color: UI.text,
     fontSize: fs.descText,
     fontWeight: "700",
   },
@@ -801,13 +813,13 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "#D9534F",
-    backgroundColor: c.white,
+    borderColor: UI.red,
+    backgroundColor: UI.card,
     paddingVertical: 12,
     alignItems: "center",
   },
   modalRejectText: {
-    color: "#D9534F",
+    color: UI.red,
     fontSize: fs.descText,
     fontWeight: "700",
   },
@@ -826,7 +838,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   swipeDeleteText: {
-    color: c.white,
+    color: "#FFFFFF",
     fontSize: fs.xxSmallText,
     fontWeight: "700",
   },
@@ -841,10 +853,10 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 10,
     borderRadius: 8,
-    backgroundColor: "rgba(185, 28, 28, 0.2)",
+    backgroundColor: "#FEE2E2",
   },
   webDeleteRowText: {
-    color: "#fecaca",
+    color: UI.red,
     fontSize: fs.xxSmallText,
     fontWeight: "700",
   },

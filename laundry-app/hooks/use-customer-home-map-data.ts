@@ -24,7 +24,18 @@ export type CustomerMapMarker = {
   longitude: number;
   imageUrl: string | null;
   initial: string;
+  ratingAvg: number | null;
+  ratingCount: number;
 };
+
+export function partnerMarkerInitial(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) {
+    return `${parts[0]?.[0] ?? ""}${parts[1]?.[0] ?? ""}`.toUpperCase();
+  }
+  const compact = (parts[0] ?? "P").replace(/[^A-Za-z0-9]/g, "");
+  return (compact.slice(0, 2) || "P").toUpperCase();
+}
 
 type GroupedMarker = {
   partner: PartnerMapMarker;
@@ -191,7 +202,9 @@ export function useCustomerHomeMapData() {
             latitude: coords.latitude,
             longitude: coords.longitude,
             imageUrl: getPartnerPrimaryImage(partner),
-            initial: partner.business_name.trim().charAt(0).toUpperCase() || "P",
+            initial: partnerMarkerInitial(partner.business_name),
+            ratingAvg: partner.ratingAvg,
+            ratingCount: partner.ratingCount ?? 0,
           });
           continue;
         }
@@ -205,7 +218,9 @@ export function useCustomerHomeMapData() {
           latitude: coords.latitude + Math.sin(angle) * radiusDegrees,
           longitude: coords.longitude + Math.cos(angle) * radiusDegrees,
           imageUrl: getPartnerPrimaryImage(partner),
-          initial: partner.business_name.trim().charAt(0).toUpperCase() || "P",
+          initial: partnerMarkerInitial(partner.business_name),
+          ratingAvg: partner.ratingAvg,
+          ratingCount: partner.ratingCount ?? 0,
         });
       }
     }

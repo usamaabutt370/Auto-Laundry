@@ -2,7 +2,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { TAB_BAR_HEIGHT } from "@/components/bottom-tab-bar";
+import { getTabBarBottomInset } from "@/components/bottom-tab-bar";
 import { theme } from "@/constants/theme";
 
 const c = theme.colors;
@@ -65,7 +65,7 @@ export function GuestSignInPrompt({
   const insets = useSafeAreaInsets();
   const light = appearance === "light";
   // Tab bar is absolute, so pad bottom so optical center matches the visible area.
-  const bottomPad = TAB_BAR_HEIGHT + Math.max(insets.bottom, 8);
+  const bottomPad = getTabBarBottomInset(Math.max(insets.bottom, 8));
 
   return (
     <View style={[styles.root, { paddingBottom: bottomPad }]}>

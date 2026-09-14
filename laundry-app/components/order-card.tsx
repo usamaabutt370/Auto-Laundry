@@ -3,7 +3,19 @@ import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { theme } from "@/constants/theme";
 
-const c = theme.colors;
+const UI = {
+  card: "#FFFFFF",
+  text: "#111827",
+  muted: "#6B7280",
+  teal: "#12B886",
+  chipBorder: "#E5E7EB",
+  mint: "#ECFDF5",
+  mintText: "#047857",
+  amber: "#D97706",
+  amberBg: "#FEF3C7",
+  red: "#DC2626",
+  redBg: "#FEE2E2",
+};
 const fs = theme.fontSize;
 
 const CARD_RADIUS = 16;
@@ -67,8 +79,11 @@ export function OrderCard({
 }: OrderCardProps) {
   const initialChar =
     initial ?? (customerName.trim()[0]?.toUpperCase() ?? "?");
-  const isRejectedStatus = statusLabel?.trim().toLowerCase() === "rejected";
-  const isCompletedStatus = statusLabel?.trim().toLowerCase() === "completed";
+  const statusKey = statusLabel?.trim().toLowerCase();
+  const isPendingStatus = statusKey === "pending";
+  const isRejectedStatus = statusKey === "rejected";
+  const isCompletedStatus = statusKey === "completed";
+  const isAcceptedStatus = statusKey === "accepted";
   const handleStatusPillPress = (event: { stopPropagation?: () => void }) => {
     event.stopPropagation?.();
   };
@@ -94,6 +109,8 @@ export function OrderCard({
                 onPressIn={handleStatusPillPress}
                 style={[
                   styles.statusPill,
+                  isPendingStatus && styles.statusPillPending,
+                  isAcceptedStatus && styles.statusPillAccepted,
                   isRejectedStatus && styles.statusPillRejected,
                   isCompletedStatus && styles.statusPillCompleted,
                 ]}
@@ -101,6 +118,8 @@ export function OrderCard({
                 <Text
                   style={[
                     styles.statusPillText,
+                    isPendingStatus && styles.statusPillTextPending,
+                    isAcceptedStatus && styles.statusPillTextAccepted,
                     isRejectedStatus && styles.statusPillTextRejected,
                     isCompletedStatus && styles.statusPillTextCompleted,
                   ]}
@@ -212,10 +231,10 @@ export function OrderCard({
 const styles = StyleSheet.create({
   card: {
     flexDirection: "column",
-    backgroundColor: c.blue900,
+    backgroundColor: UI.card,
     borderRadius: CARD_RADIUS,
     borderWidth: 1,
-    borderColor: c.outline,
+    borderColor: UI.chipBorder,
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
@@ -234,7 +253,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: c.lightBlue,
+    backgroundColor: UI.mint,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -247,7 +266,7 @@ const styles = StyleSheet.create({
   avatarText: {
     fontSize: fs.smallTitle,
     fontWeight: "600",
-    color: c.white,
+    color: UI.teal,
   },
   cardBody: {
     flex: 1,
@@ -262,12 +281,12 @@ const styles = StyleSheet.create({
   customerName: {
     fontSize: fs.smallText,
     fontWeight: "600",
-    color: c.white,
+    color: UI.text,
     flex: 1,
   },
   subtitle: {
     fontSize: fs.descText,
-    color: c.blue500,
+    color: UI.muted,
     lineHeight: 16,
     opacity: 0.85,
   },
@@ -295,7 +314,7 @@ const styles = StyleSheet.create({
   detailLabel: {
     fontSize: fs.xxSmallText,
     fontWeight: "600",
-    color: c.blue500,
+    color: UI.muted,
     textTransform: "uppercase",
     letterSpacing: 0.3,
     opacity: 0.9,
@@ -303,7 +322,7 @@ const styles = StyleSheet.create({
   },
   detailValue: {
     fontSize: fs.xxSmallText,
-    color: c.white,
+    color: UI.text,
     lineHeight: 15,
   },
   bottomBar: {
@@ -325,30 +344,44 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: c.filledButtonBorder,
-    backgroundColor: c.blue900,
+    borderColor: UI.chipBorder,
+    backgroundColor: "#F3F4F6",
     flexShrink: 1,
   },
+  statusPillPending: {
+    borderColor: UI.amberBg,
+    backgroundColor: UI.amberBg,
+  },
+  statusPillAccepted: {
+    borderColor: UI.mint,
+    backgroundColor: UI.mint,
+  },
   statusPillRejected: {
-    borderColor: "#f87171",
-    backgroundColor: "rgba(127, 29, 29, 0.2)",
+    borderColor: UI.redBg,
+    backgroundColor: UI.redBg,
   },
   statusPillCompleted: {
-    borderColor: "#86efac",
-    backgroundColor: "rgba(22, 101, 52, 0.2)",
+    borderColor: UI.mint,
+    backgroundColor: UI.mint,
   },
   statusPillText: {
-    color: c.white,
+    color: UI.muted,
     fontSize: fs.xxSmallText,
     fontWeight: "700",
     textTransform: "uppercase",
     letterSpacing: 0.1,
   },
+  statusPillTextPending: {
+    color: UI.amber,
+  },
+  statusPillTextAccepted: {
+    color: UI.mintText,
+  },
   statusPillTextRejected: {
-    color: "#fecaca",
+    color: UI.red,
   },
   statusPillTextCompleted: {
-    color: "#ecfdf5",
+    color: UI.mintText,
   },
   actionButton: {
     flex: 1,
@@ -360,20 +393,20 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   acceptButton: {
-    backgroundColor: c.blue900,
-    borderColor: c.filledButtonBorder,
+    backgroundColor: UI.teal,
+    borderColor: UI.teal,
   },
   rejectButton: {
-    backgroundColor: c.white,
-    borderColor: c.white,
+    backgroundColor: UI.card,
+    borderColor: UI.red,
   },
   actionText: {
-    color: c.white,
+    color: "#FFFFFF",
     fontSize: fs.descText,
     fontWeight: "600",
   },
   rejectActionText: {
-    color: "#D9534F",
+    color: UI.red,
     fontSize: fs.descText,
     fontWeight: "600",
   },

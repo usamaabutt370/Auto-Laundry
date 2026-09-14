@@ -3,7 +3,7 @@ import { strings } from "@/constants/strings";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useState } from "react";
 import {
@@ -19,6 +19,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
 import type { CountryCode } from "libphonenumber-js";
 
+import { dismissAuthSheet } from "@/lib/dismiss-auth-sheet";
+
 const UI = {
   bg: "#F7F8FA",
   text: "#111827",
@@ -28,6 +30,7 @@ const UI = {
 
 export default function LoginScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
   const { returnTo } = useLocalSearchParams<{ returnTo?: string }>();
   const s = strings.auth.login;
 
@@ -172,38 +175,13 @@ export default function LoginScreen() {
     router.push("/(auth)/reset-password");
   };
   const handleSignUp = () => {
-    router.push({
+    router.replace({
       pathname: "/(auth)/sign-up",
       params: returnTo ? { returnTo } : undefined,
     });
   };
   const handleClose = () => {
-    // Dismiss the auth bottom sheet when presented as a modal.
-    if (typeof router.canDismiss === "function" && router.canDismiss()) {
-      router.dismiss();
-      return;
-    }
-    if (router.canGoBack()) {
-      router.back();
-      return;
-    }
-    if (returnTo === "order-summary") {
-      router.replace("/(customer)/order-summary");
-      return;
-    }
-    if (returnTo === "chat") {
-      router.replace("/(customer)/(tabs)/chat");
-      return;
-    }
-    if (returnTo === "orders") {
-      router.replace("/(customer)/(tabs)/order");
-      return;
-    }
-    if (returnTo === "profile") {
-      router.replace("/(customer)/(tabs)/profile");
-      return;
-    }
-    router.replace("/(customer)");
+    dismissAuthSheet(navigation, router, returnTo);
   };
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>

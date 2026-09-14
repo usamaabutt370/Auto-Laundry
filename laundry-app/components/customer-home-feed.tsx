@@ -5,6 +5,7 @@ import { StatusBar } from "expo-status-bar";
 import { useCallback, useEffect, useMemo, useState, type ComponentProps } from "react";
 import {
   ActivityIndicator,
+  AppState,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -95,6 +96,10 @@ function greetingForHour(hour: number, s: HomeStrings) {
   return s.greetingEvening;
 }
 
+function deviceHour() {
+  return new Date().getHours();
+}
+
 function toRadians(value: number) {
   return (value * Math.PI) / 180;
 }
@@ -150,9 +155,30 @@ export function CustomerHomeFeed({
   const { width: windowWidth } = useWindowDimensions();
   const categoryCardWidth = (windowWidth - SCREEN_PAD * 2 - CARD_GAP) / 2.2;
   const recCardWidth = categoryCardWidth;
-  const { firstName, avatarUri } = useHomeProfile(s.guestName);
+  const nearbyCardWidth = (windowWidth - SCREEN_PAD * 2 - CARD_GAP) / 1.5;
+  const { firstName, avatarUri, isLoggedIn } = useHomeProfile();
   const [locationLabel, setLocationLabel] = useState<string>(s.locationFallback);
   const [favorites, setFavorites] = useState<Record<string, boolean>>({});
+  const [hour, setHour] = useState(deviceHour);
+
+  const refreshGreetingHour = useCallback(() => {
+    setHour(deviceHour());
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      refreshGreetingHour();
+      const intervalId = setInterval(refreshGreetingHour, 60_000);
+      return () => clearInterval(intervalId);
+    }, [refreshGreetingHour]),
+  );
+
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") refreshGreetingHour();
+    });
+    return () => sub.remove();
+  }, [refreshGreetingHour]);
 
   useEffect(() => {
     const coords = mapData.userCoordinates;
@@ -188,8 +214,10 @@ export function CustomerHomeFeed({
     mapData.userCoordinates,
   ]);
 
-  const hour = new Date().getHours();
   const greeting = greetingForHour(hour, s);
+  const greetingLine = firstName
+    ? `${greeting} ${firstName}!`
+    : `${greeting.replace(/[,\u060C]\s*$/, "")}!`;
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
@@ -206,9 +234,9 @@ export function CustomerHomeFeed({
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={styles.greeting}
-                accessibilityLabel={`${greeting} ${firstName}!`}
+                accessibilityLabel={greetingLine}
               >
-                {`${greeting} ${firstName}!`}
+                {greetingLine}
               </GradientText>
               <Text style={styles.greetingEmoji}> 👋</Text>
             </View>
@@ -226,12 +254,18 @@ export function CustomerHomeFeed({
               accessibilityRole="button"
               accessibilityLabel={s.profile}
             >
-              <AvatarImage
-                uri={avatarUri}
-                name={firstName}
-                size={32}
-                style={styles.avatar}
-              />
+              {isLoggedIn ? (
+                <AvatarImage
+                  uri={avatarUri}
+                  name={firstName}
+                  size={32}
+                  style={styles.avatar}
+                />
+              ) : (
+                <View style={styles.guestAvatar}>
+                  <MaterialCommunityIcons name="account" size={20} color="#FFFFFF" />
+                </View>
+              )}
             </Pressable>
           </View>
         </View>
@@ -302,7 +336,7 @@ export function CustomerHomeFeed({
             horizontal
             showsHorizontalScrollIndicator={false}
             style={styles.hScroll}
-            contentContainerStyle={styles.recommendedList}
+            contentContainerStyle={styles.nearbyList}
           >
             {recommended.map(({ partner, km }, index) => {
               const badge = BADGES[index % BADGES.length];
@@ -316,7 +350,7 @@ export function CustomerHomeFeed({
                 <RecommendedCard
                   key={partner.id}
                   partner={partner}
-                  cardWidth={recCardWidth}
+                  cardWidth={nearbyCardWidth}
                   distanceLabel={
                     Number.isFinite(km) ? fill(s.kmAway, { km: formatKm(km) }) : "—"
                   }
@@ -604,12 +638,18 @@ function metaAvatarUrl(user: { user_metadata?: Record<string, unknown> } | null 
   return raw?.trim();
 }
 
-function useHomeProfile(fallbackName: string) {
+function useHomeProfile() {
   const { user } = useAuth();
-  const [firstName, setFirstName] = useState(fallbackName);
+  const [firstName, setFirstName] = useState("");
   const [avatarUri, setAvatarUri] = useState<string | undefined>(() => metaAvatarUrl(user));
 
   const load = useCallback(async () => {
+    if (!user?.id) {
+      setFirstName("");
+      setAvatarUri(undefined);
+      return;
+    }
+
     const metaFirst =
       (user?.user_metadata?.first_name as string | undefined)?.trim() ||
       (user?.user_metadata?.full_name as string | undefined)?.trim()?.split(/\s+/)[0];
@@ -618,7 +658,7 @@ function useHomeProfile(fallbackName: string) {
     const metadataAvatar = metaAvatarUrl(user);
     if (metadataAvatar) setAvatarUri((current) => current ?? metadataAvatar);
 
-    if (!isSupabaseConfigured() || !user?.id) return;
+    if (!isSupabaseConfigured()) return;
     const { data: sessionData } = await getSession();
     const currentUser = sessionData?.session?.user ?? user;
     if (!currentUser?.id || !supabase) return;
@@ -636,14 +676,14 @@ function useHomeProfile(fallbackName: string) {
       (data?.first_name ?? "").trim() ||
       (data?.full_name ?? "").trim().split(/\s+/)[0] ||
       metaFirst ||
-      fallbackName;
+      "";
     setFirstName(resolved);
     setAvatarUri(
       avatarUrlWithCacheBuster(data?.image_url, data?.updated_at) ??
         metaAvatarUrl(currentUser) ??
         metadataAvatar,
     );
-  }, [fallbackName, user]);
+  }, [user]);
 
   useEffect(() => {
     void load();
@@ -661,7 +701,7 @@ function useHomeProfile(fallbackName: string) {
     });
   }, [load]);
 
-  return { firstName, avatarUri };
+  return { firstName, avatarUri, isLoggedIn: Boolean(user) };
 }
 
 const styles = StyleSheet.create({
@@ -717,6 +757,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   avatar: {
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
+  },
+  guestAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#128197",
+    alignItems: "center",
+    justifyContent: "center",
     borderWidth: 2,
     borderColor: "#FFFFFF",
   },
@@ -861,8 +911,10 @@ const styles = StyleSheet.create({
   recommendedList: {
     gap: CARD_GAP,
     paddingHorizontal: 6,
-    // paddingTop: 8,
-    // paddingBottom: 18,
+  },
+  nearbyList: {
+    gap: CARD_GAP,
+    paddingHorizontal: 6,
   },
   hCardShadowHost: {
     backgroundColor: HOME_UI.card,

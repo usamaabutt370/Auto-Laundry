@@ -77,7 +77,7 @@ const styles = StyleSheet.create({
   fab: {
     flexDirection: "row",
     height: 40,
-    minWidth: 252,
+    minWidth: 196,
     borderRadius: 20,
     overflow: "hidden",
   },
@@ -86,8 +86,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 6,
-    paddingHorizontal: 22,
+    gap: 5,
+    paddingHorizontal: 14,
   },
   fabDivider: {
     width: 1,

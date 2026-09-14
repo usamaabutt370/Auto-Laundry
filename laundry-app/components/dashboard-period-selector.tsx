@@ -14,7 +14,14 @@ import { theme } from "@/constants/theme";
 import { useLocale } from "@/contexts/locale-context";
 import { getStrings } from "@/locales";
 
-const c = theme.colors;
+const UI = {
+  card: "#FFFFFF",
+  text: "#111827",
+  muted: "#6B7280",
+  teal: "#12B886",
+  chipBorder: "#E5E7EB",
+  mint: "#ECFDF5",
+};
 const fs = theme.fontSize;
 
 export type DashboardPeriod = "week" | "month" | "year";
@@ -71,7 +78,7 @@ export function DashboardPeriodSelector({
         <MaterialCommunityIcons
           name="chevron-down"
           size={20}
-          color={c.white}
+          color={UI.muted}
         />
       </Pressable>
 
@@ -107,7 +114,7 @@ export function DashboardPeriodSelector({
                     <MaterialCommunityIcons
                       name="check"
                       size={20}
-                      color={c.outline}
+                      color={UI.teal}
                     />
                   )}
                 </Pressable>
@@ -128,16 +135,16 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 999,
-    backgroundColor: c.blue900,
+    backgroundColor: UI.card,
     borderWidth: 1,
-    borderColor: c.modalBorder,
+    borderColor: UI.chipBorder,
     minWidth: 100,
     flexShrink: 0,
   },
   triggerText: {
     fontSize: fs.smallText,
     fontWeight: "500",
-    color: c.white,
+    color: UI.text,
   },
   pressed: {
     opacity: 0.8,
@@ -148,7 +155,7 @@ const styles = StyleSheet.create({
   /** Non-transparent so Android reliably receives backdrop taps. */
   backdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: c.sheetBackdrop,
+    backgroundColor: "rgba(17, 24, 39, 0.45)",
   },
   menuPosition: {
     position: "absolute",
@@ -156,11 +163,11 @@ const styles = StyleSheet.create({
     right: 20,
   },
   dropdown: {
-    backgroundColor: c.blue900,
+    backgroundColor: UI.card,
     borderRadius: 20,
     minWidth: 160,
     borderWidth: 1,
-    borderColor: c.modalBorder,
+    borderColor: UI.chipBorder,
     overflow: "hidden",
   },
   option: {
@@ -172,11 +179,11 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   optionSelected: {
-    backgroundColor: c.selectionWash,
+    backgroundColor: UI.mint,
   },
   optionText: {
     fontSize: fs.smallText,
     fontWeight: "500",
-    color: c.white,
+    color: UI.text,
   },
 });

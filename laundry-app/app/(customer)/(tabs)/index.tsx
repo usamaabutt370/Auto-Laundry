@@ -9,6 +9,7 @@ import {
   type FulfillmentFilter,
   type HomeServiceId,
 } from "@/components/customer-home-feed";
+import { useAuth } from "@/contexts/auth-context";
 import { useCustomerOrderDraft } from "@/contexts/customer-order-draft-context";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import {
@@ -18,6 +19,7 @@ import {
 
 export default function CustomerHomeScreen() {
   const router = useRouter();
+  const { user } = useAuth();
   const insets = useSafeAreaInsets();
   const { hideBottomTabBar } = useResponsiveLayout();
   const { setPickupDeliveryRequested, setSelectedServiceIds } = useCustomerOrderDraft();
@@ -70,7 +72,13 @@ export default function CustomerHomeScreen() {
         onPressCategory={handleCategory}
         onPressPartner={handlePartner}
         onSeeAll={handleSeeAll}
-        onPressProfile={() => router.push("/(customer)/(tabs)/profile")}
+        onPressProfile={() => {
+          if (!user?.id) {
+            router.push("/(auth)/login");
+            return;
+          }
+          router.push("/(customer)/(tabs)/profile");
+        }}
       />
     </View>
   );

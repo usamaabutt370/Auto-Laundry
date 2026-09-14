@@ -3,7 +3,14 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { theme } from "@/constants/theme";
 
-const c = theme.colors;
+const UI = {
+  card: "#FFFFFF",
+  text: "#111827",
+  muted: "#6B7280",
+  teal: "#12B886",
+  chipBorder: "#E5E7EB",
+  mint: "#ECFDF5",
+};
 const fs = theme.fontSize;
 
 type AcceptedPayload = { type: "accepted" };
@@ -24,7 +31,7 @@ export function PartnerOrderSuccessModal({ payload, onClose }: Props) {
       <Pressable style={styles.backdrop} onPress={onClose} accessibilityRole="button" />
       <View style={styles.card}>
         <View style={styles.iconWrap}>
-          <MaterialCommunityIcons name="check-circle" size={52} color="#4ade80" />
+          <MaterialCommunityIcons name="check-circle" size={52} color={UI.teal} />
         </View>
 
         {payload.type === "accepted" ? (
@@ -78,15 +85,15 @@ const styles = StyleSheet.create({
   },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    backgroundColor: "rgba(17, 24, 39, 0.45)",
   },
   card: {
     width: "100%",
     maxWidth: 420,
-    backgroundColor: c.blue900,
+    backgroundColor: UI.card,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: "rgba(171, 233, 254, 0.35)",
+    borderColor: UI.chipBorder,
     padding: 24,
     alignItems: "center",
     zIndex: 1,
@@ -98,23 +105,23 @@ const styles = StyleSheet.create({
   title: {
     fontSize: fs.smallTitle,
     fontWeight: "700",
-    color: c.white,
+    color: UI.text,
     textAlign: "center",
     marginBottom: 8,
   },
   message: {
     fontSize: fs.descText,
-    color: c.blue500,
+    color: UI.muted,
     textAlign: "center",
     lineHeight: 20,
     marginBottom: 20,
   },
   summaryBox: {
     width: "100%",
-    backgroundColor: "rgba(171, 233, 254, 0.06)",
+    backgroundColor: UI.mint,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: "rgba(171, 233, 254, 0.2)",
+    borderColor: UI.chipBorder,
     paddingVertical: 4,
     marginBottom: 20,
   },
@@ -127,32 +134,32 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: 1,
-    backgroundColor: "rgba(171, 233, 254, 0.15)",
+    backgroundColor: UI.chipBorder,
     marginHorizontal: 16,
   },
   summaryLabel: {
     fontSize: fs.descText,
-    color: c.blue500,
+    color: UI.muted,
   },
   summaryValue: {
     fontSize: fs.descText,
     fontWeight: "600",
-    color: c.white,
+    color: UI.text,
   },
   balanceValue: {
-    color: "#4ade80",
+    color: UI.teal,
   },
   closeBtn: {
     width: "100%",
     paddingVertical: 13,
     borderRadius: 999,
-    backgroundColor: c.outline,
+    backgroundColor: UI.teal,
     alignItems: "center",
   },
   closeBtnText: {
     fontSize: fs.descText,
     fontWeight: "700",
-    color: c.background,
+    color: "#FFFFFF",
   },
   pressed: {
     opacity: 0.85,

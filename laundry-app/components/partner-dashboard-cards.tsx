@@ -4,7 +4,16 @@ import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { theme } from "@/constants/theme";
 
-const c = theme.colors;
+const UI = {
+  bg: "#F7F8FA",
+  card: "#FFFFFF",
+  text: "#111827",
+  muted: "#6B7280",
+  teal: "#12B886",
+  chipBorder: "#E5E7EB",
+  iconWell: "#ECFDF5",
+  mint: "#ECFDF5",
+};
 const fs = theme.fontSize;
 const CARD_RADIUS = 20;
 const shadow = theme.shadow ?? {};
@@ -24,12 +33,12 @@ export function PartnerMetricTile({
   icon,
   label,
   value,
-  iconTint = c.primaryTintSoft,
+  iconTint = UI.iconWell,
 }: PartnerMetricTileProps) {
   return (
     <View style={[styles.metricTile, shadow]}>
       <View style={[styles.metricIconWrap, { backgroundColor: iconTint }]}>
-        <MaterialCommunityIcons name={icon} size={20} color={c.white} />
+        <MaterialCommunityIcons name={icon} size={20} color={UI.teal} />
       </View>
       <Text style={styles.metricLabel} numberOfLines={2}>
         {label}
@@ -85,14 +94,14 @@ export function PartnerDashboardHero({
       <View style={styles.heroTopRow}>
         <View style={styles.heroTitleBlock}>
           <View style={[styles.heroBadge, styles.heroBadgeRing]}>
-            <MaterialCommunityIcons name="wallet-outline" size={24} color={c.white} />
+            <MaterialCommunityIcons name="wallet-outline" size={24} color={UI.teal} />
           </View>
           <Text style={styles.heroEyebrow} numberOfLines={2}>
             {totalIncomeLabel}
           </Text>
         </View>
         <View style={styles.heroPeriodChip} accessibilityRole="text">
-          <MaterialCommunityIcons name="calendar-range" size={14} color={c.blue500} />
+          <MaterialCommunityIcons name="calendar-range" size={14} color={UI.teal} />
           <Text style={styles.heroPeriodChipText} numberOfLines={1}>
             {periodFilterLabel}
           </Text>
@@ -138,7 +147,7 @@ export function PartnerDashboardHero({
           <View style={[styles.heroDivider, styles.heroDividerSpaced]} />
           <View style={styles.heroFootPillAccent}>
             <View style={styles.heroFootIconCircle}>
-              <MaterialCommunityIcons name="chart-timeline-variant" size={20} color={c.white} />
+              <MaterialCommunityIcons name="chart-timeline-variant" size={20} color="#FFFFFF" />
             </View>
             <View style={styles.heroFootPillTextCol}>
               <Text style={styles.heroFootCaption} numberOfLines={2}>
@@ -193,13 +202,13 @@ export function PartnerServiceOverviewCard({
           style={[
             styles.serviceIconWrap,
             compact && styles.serviceIconWrapCompact,
-            { backgroundColor: c.primaryTintSoft },
+            { backgroundColor: UI.iconWell },
           ]}
         >
           <MaterialCommunityIcons
             name={icon}
             size={compact ? 18 : 22}
-            color={c.white}
+            color={UI.teal}
           />
         </View>
         <View style={styles.serviceHeaderText}>
@@ -211,7 +220,7 @@ export function PartnerServiceOverviewCard({
           <MaterialCommunityIcons
             name="chevron-right"
             size={compact ? 18 : 22}
-            color={c.blue500}
+            color={UI.muted}
           />
         ) : null}
       </View>
@@ -244,7 +253,7 @@ export function PartnerPanelCard({ title, icon, children, headerRight }: Partner
         <View style={styles.panelTitleRow}>
           {icon ? (
             <View style={styles.panelIconWrap}>
-              <MaterialCommunityIcons name={icon} size={20} color={c.white} />
+              <MaterialCommunityIcons name={icon} size={20} color={UI.teal} />
             </View>
           ) : null}
           <Text style={styles.panelTitle}>{title}</Text>
@@ -260,10 +269,10 @@ const styles = StyleSheet.create({
   metricTile: {
     flex: 1,
     minWidth: 0,
-    backgroundColor: c.blue900,
+    backgroundColor: UI.card,
     borderRadius: CARD_RADIUS,
     borderWidth: 1,
-    borderColor: c.modalBorder,
+    borderColor: UI.chipBorder,
     paddingVertical: 14,
     paddingHorizontal: 10,
     alignItems: "center",
@@ -279,24 +288,24 @@ const styles = StyleSheet.create({
   metricLabel: {
     fontSize: fs.xxSmallText,
     fontWeight: "600",
-    color: c.blue500,
+    color: UI.muted,
     textAlign: "center",
     lineHeight: 14,
   },
   metricValue: {
     fontSize: fs.smallTitle,
     fontWeight: "700",
-    color: c.white,
+    color: UI.text,
     textAlign: "center",
   },
   heroCard: {
-    backgroundColor: c.blue900,
+    backgroundColor: UI.card,
     borderRadius: CARD_RADIUS + 2,
     marginBottom: 20,
     paddingVertical: 22,
     paddingHorizontal: 20,
     borderWidth: 1,
-    borderColor: c.modalBorder,
+    borderColor: UI.chipBorder,
   },
   heroTopRow: {
     flexDirection: "row",
@@ -316,19 +325,19 @@ const styles = StyleSheet.create({
     width: 46,
     height: 46,
     borderRadius: 15,
-    backgroundColor: c.primaryTintSoft,
+    backgroundColor: UI.iconWell,
     alignItems: "center",
     justifyContent: "center",
   },
   heroBadgeRing: {
     borderWidth: 1,
-    borderColor: c.outline,
+    borderColor: UI.chipBorder,
   },
   heroEyebrow: {
     flex: 1,
     fontSize: fs.smallText,
     fontWeight: "700",
-    color: c.blue500,
+    color: UI.muted,
     textTransform: "uppercase",
     letterSpacing: 0.6,
   },
@@ -340,34 +349,31 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
     paddingHorizontal: 11,
     borderRadius: 999,
-    backgroundColor: c.onTealFrost10,
+    backgroundColor: UI.mint,
     borderWidth: 1,
-    borderColor: c.modalBorder,
+    borderColor: UI.chipBorder,
   },
   heroPeriodChipText: {
     fontSize: fs.xxSmallText,
     fontWeight: "800",
-    color: c.white,
-    textTransform: "uppercase",
-    letterSpacing: 0.4,
-    maxWidth: 88,
+    color: UI.teal,
   },
   heroValue: {
     fontSize: fs.titleBig,
     fontWeight: "800",
-    color: c.white,
+    color: UI.text,
     marginBottom: 8,
     letterSpacing: -0.6,
   },
   heroValueShadow: {
-    textShadowColor: c.textShadowSoft,
+    textShadowColor: "rgba(17, 24, 39, 0.08)",
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 3,
   },
   heroPeriodRange: {
     fontSize: fs.descText,
     fontWeight: "600",
-    color: c.blue500,
+    color: UI.muted,
     marginBottom: 14,
     lineHeight: 18,
   },
@@ -384,7 +390,7 @@ const styles = StyleSheet.create({
   heroStatLabel: {
     fontSize: fs.xxSmallText,
     fontWeight: "700",
-    color: c.blue500,
+    color: UI.muted,
     textTransform: "uppercase",
     letterSpacing: 0.35,
     marginBottom: 4,
@@ -392,12 +398,12 @@ const styles = StyleSheet.create({
   heroStatValue: {
     fontSize: fs.smallText,
     fontWeight: "800",
-    color: c.white,
+    color: UI.text,
     letterSpacing: -0.2,
   },
   heroStatDivider: {
     width: StyleSheet.hairlineWidth,
-    backgroundColor: c.modalBorder,
+    backgroundColor: UI.chipBorder,
     marginHorizontal: 12,
     alignSelf: "stretch",
   },
@@ -406,7 +412,7 @@ const styles = StyleSheet.create({
   },
   heroDivider: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: c.blue600,
+    backgroundColor: UI.chipBorder,
     marginBottom: 12,
   },
   heroFootPillAccent: {
@@ -416,15 +422,15 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 14,
     borderRadius: 14,
-    backgroundColor: c.onTealFrost10,
+    backgroundColor: UI.mint,
     borderWidth: 1,
-    borderColor: c.modalBorder,
+    borderColor: UI.chipBorder,
   },
   heroFootIconCircle: {
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: c.lightBlue,
+    backgroundColor: UI.teal,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -435,7 +441,7 @@ const styles = StyleSheet.create({
   heroFootCaption: {
     fontSize: fs.xxSmallText,
     fontWeight: "700",
-    color: c.blue500,
+    color: UI.muted,
     textTransform: "uppercase",
     letterSpacing: 0.35,
     marginBottom: 4,
@@ -443,14 +449,14 @@ const styles = StyleSheet.create({
   heroFootAmount: {
     fontSize: fs.smallTitle,
     fontWeight: "800",
-    color: c.white,
+    color: UI.text,
     letterSpacing: -0.3,
   },
   serviceCard: {
-    backgroundColor: c.blue900,
+    backgroundColor: UI.card,
     borderRadius: CARD_RADIUS,
     borderWidth: 1,
-    borderColor: c.modalBorder,
+    borderColor: UI.chipBorder,
     padding: 18,
     marginBottom: 12,
   },
@@ -489,7 +495,7 @@ const styles = StyleSheet.create({
   serviceTitle: {
     fontSize: fs.smallTitle,
     fontWeight: "700",
-    color: c.white,
+    color: UI.text,
   },
   serviceTitleCompact: {
     fontSize: fs.descText,
@@ -504,7 +510,7 @@ const styles = StyleSheet.create({
   serviceBigNumber: {
     fontSize: 36,
     fontWeight: "800",
-    color: c.white,
+    color: UI.text,
     letterSpacing: -0.5,
   },
   serviceBigNumberCompact: {
@@ -515,15 +521,15 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontSize: fs.xxSmallText,
     fontWeight: "600",
-    color: c.blue500,
+    color: UI.muted,
     textTransform: "uppercase",
     letterSpacing: 0.3,
   },
   panel: {
-    backgroundColor: c.blue900,
+    backgroundColor: UI.card,
     borderRadius: CARD_RADIUS,
     borderWidth: 1,
-    borderColor: c.modalBorder,
+    borderColor: UI.chipBorder,
     padding: 18,
     marginBottom: 24,
   },
@@ -544,7 +550,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 10,
-    backgroundColor: c.primaryTintSoft,
+    backgroundColor: UI.iconWell,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -552,6 +558,6 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: fs.smallTitle,
     fontWeight: "700",
-    color: c.white,
+    color: UI.text,
   },
 });

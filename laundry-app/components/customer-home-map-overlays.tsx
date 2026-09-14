@@ -159,7 +159,15 @@ function MapPartnerPreviewCard({
     km != null && Number.isFinite(km) ? fill(sHome.kmAway, { km: formatKm(km) }) : "—";
 
   return (
-    <View style={styles.partnerSheet}>
+    <Pressable
+      onPress={() => {
+        onClosePartner();
+        onPartnerPress(partner.id, partner.fulfillmentMode);
+      }}
+      style={({ pressed }) => [styles.partnerSheet, pressed && styles.pressed]}
+      accessibilityRole="button"
+      accessibilityLabel={sHome.viewPartnerDetails}
+    >
       <View style={styles.handle} />
       <View style={styles.cardRow}>
         <View style={styles.media}>
@@ -187,7 +195,10 @@ function MapPartnerPreviewCard({
               numberOfLines={1}
             />
             <Pressable
-              onPress={onToggleFavorite}
+              onPress={(event) => {
+                event.stopPropagation?.();
+                onToggleFavorite();
+              }}
               hitSlop={8}
               accessibilityRole="button"
               accessibilityLabel={favorited ? sHome.unfavorite : sHome.favorite}
@@ -235,26 +246,14 @@ function MapPartnerPreviewCard({
                 {openLabel}
               </Text>
             </View>
-            <Pressable
-              onPress={() => {
-                onClosePartner();
-                onPartnerPress(partner.id, partner.fulfillmentMode);
-              }}
-              style={({ pressed }) => [styles.viewBtn, pressed && styles.pressed]}
-              accessibilityRole="button"
-              accessibilityLabel={sHome.mapCardView}
-            >
-              <Text style={styles.viewBtnText}>{sHome.mapCardView}</Text>
-            </Pressable>
           </View>
         </View>
       </View>
-    </View>
+    </Pressable>
   );
 }
 
 export function CustomerHomeMapOverlays({
-  strings: overlayStrings,
   loadingPartners,
   recenterBottomOffset,
   mapBottomInset,
@@ -345,18 +344,12 @@ export function CustomerHomeMapOverlays({
 
       {cardVisible && selectedPartner ? (
         <View style={styles.modalOverlay} pointerEvents="box-none">
-          <Pressable
-            style={styles.sheetBackdrop}
-            onPress={onClosePartner}
-            accessibilityRole="button"
-            accessibilityLabel={overlayStrings.closePartnerDetails}
-          />
-          <View style={[styles.partnerSheetWrap, { bottom: cardBottom }]}>
+          <View style={[styles.partnerSheetWrap, { bottom: cardBottom }]} pointerEvents="box-none">
             <FlatList
               ref={listRef}
               data={browsePartners}
               keyExtractor={(item) => item.id}
-              style={{ width: pageWidth }}
+              style={{ width: pageWidth, flexGrow: 0 }}
               horizontal
               windowSize={5}
               pagingEnabled
@@ -378,7 +371,10 @@ export function CustomerHomeMapOverlays({
               }}
               extraData={selectedPartner.id}
               renderItem={({ item }) => (
-                <View style={[styles.partnerSheetPage, { width: pageWidth }]}>
+                <View
+                  style={[styles.partnerSheetPage, { width: pageWidth }]}
+                  pointerEvents="box-none"
+                >
                   <MapPartnerPreviewCard
                     partner={item}
                     userCoordinates={userCoordinates}
@@ -442,10 +438,6 @@ const styles = StyleSheet.create({
   modalOverlay: {
     ...StyleSheet.absoluteFillObject,
     zIndex: 300,
-  },
-  sheetBackdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "transparent",
   },
   partnerSheetWrap: {
     position: "absolute",
@@ -551,8 +543,6 @@ const styles = StyleSheet.create({
   footerRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    gap: 8,
     marginTop: 2,
   },
   openPill: {
@@ -577,18 +567,5 @@ const styles = StyleSheet.create({
   },
   openPillTextMuted: {
     color: UI.muted,
-  },
-  viewBtn: {
-    backgroundColor: "#D1FAE5",
-    borderRadius: 12,
-    paddingHorizontal: 18,
-    paddingVertical: 8,
-    minWidth: 72,
-    alignItems: "center",
-  },
-  viewBtnText: {
-    fontSize: 14,
-    color: UI.openText,
-    fontFamily: "Poppins-Bold",
   },
 });
