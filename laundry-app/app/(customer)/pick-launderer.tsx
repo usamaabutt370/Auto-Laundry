@@ -831,6 +831,9 @@ export default function PickLaundererScreen() {
         userCoordinates={userCoordinates}
         mapData={mapData}
         onPartnerPress={handleMapPartnerPress}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        onFiltersChange={setAppliedFilters}
       />
       <BlockingLoader visible={applyingFilters} message={s.applyingFilters} />
     </KeyboardAvoidingView>

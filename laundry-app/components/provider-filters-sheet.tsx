@@ -9,6 +9,7 @@ import {
   StyleSheet,
   Switch,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import {
@@ -175,6 +176,9 @@ type Props = {
   userCoordinates?: Coordinates | null;
   mapData?: CustomerHomeMapViewData;
   onPartnerPress?: (partnerId: string, mode: "dropoff" | "pickupDelivery") => void;
+  searchQuery?: string;
+  onSearchChange?: (query: string) => void;
+  onFiltersChange?: (next: ProviderFilters) => void;
 };
 
 export function ProviderFiltersSheet({
@@ -188,6 +192,9 @@ export function ProviderFiltersSheet({
   userCoordinates = null,
   mapData,
   onPartnerPress,
+  searchQuery = "",
+  onSearchChange,
+  onFiltersChange,
 }: Props) {
   const s = strings.customer.pickLaunderer;
   const insets = useSafeAreaInsets();
@@ -261,6 +268,29 @@ export function ProviderFiltersSheet({
     });
   };
 
+  const mapCategoryChips: {
+    id: ServiceCategory | "all";
+    label: string;
+    icon: ComponentProps<typeof MaterialCommunityIcons>["name"];
+  }[] = [
+    { id: "all", label: s.filterAll, icon: "apps" },
+    { id: "washAndFold", label: s.categoryLaundry, icon: "washing-machine" },
+    { id: "press", label: s.categoryIroning, icon: "iron" },
+    { id: "tailoring", label: s.categoryTailoring, icon: "scissors-cutting" },
+  ];
+
+  const isMapCategoryOn = (id: ServiceCategory | "all") => {
+    if (id === "all") return value.categories.length === 0;
+    return value.categories.includes(id);
+  };
+
+  const setMapCategory = (id: ServiceCategory | "all") => {
+    onFiltersChange?.({
+      ...value,
+      categories: id === "all" ? [] : [id],
+    });
+  };
+
   const handleApply = () => {
     if (applying) return;
     const next = {
@@ -287,24 +317,6 @@ export function ProviderFiltersSheet({
             !showMap && !radiusPicker && { paddingBottom: Math.max(insets.bottom, 12) },
           ]}
         >
-          {!radiusPicker ? (
-            <>
-          <View style={styles.handle} />
-          <View style={styles.headerRow}>
-            <View style={styles.headerText}>
-              <Text style={styles.title}>{showMap ? s.map : s.filters}</Text>
-              <Text style={styles.subtitle}>{showMap ? s.mapSubtitle : s.filtersSubtitle}</Text>
-            </View>
-            <Pressable
-              onPress={onClose}
-              disabled={applying}
-              style={[styles.closeBtn, applying && styles.applyDisabled]}
-              accessibilityRole="button"
-            >
-              <MaterialCommunityIcons name="close" size={16} color={PURPLE} />
-            </Pressable>
-          </View>
-
           {showMap && mapData ? (
             <View style={styles.mapFill}>
               <CustomerHomeMap
@@ -315,9 +327,83 @@ export function ProviderFiltersSheet({
                 mapBottomInset={Math.max(insets.bottom, 12)}
                 partnerSheetHost="map"
               />
+              <View pointerEvents="box-none" style={styles.mapChrome}>
+                <View style={styles.mapCard}>
+                  <View style={styles.handle} />
+                  <View style={styles.mapHeaderRow}>
+                    <View style={styles.headerText}>
+                      <Text style={styles.mapTitle}>{s.mapTitle}</Text>
+                      <Text style={styles.mapSubtitle}>{s.mapSubtitle}</Text>
+                    </View>
+                    <Pressable
+                      onPress={onClose}
+                      style={styles.mapCloseBtn}
+                      accessibilityRole="button"
+                      accessibilityLabel="Close"
+                    >
+                      <MaterialCommunityIcons name="close" size={18} color={TEXT} />
+                    </Pressable>
+                  </View>
+
+                  <View style={styles.mapSearchRow}>
+                    <View style={styles.mapSearchField}>
+                      <MaterialCommunityIcons name="magnify" size={18} color={MUTED} />
+                      <TextInput
+                        value={searchQuery}
+                        onChangeText={onSearchChange}
+                        placeholder={s.mapSearchPlaceholder}
+                        placeholderTextColor={MUTED}
+                        style={styles.mapSearchInput}
+                        returnKeyType="search"
+                      />
+                    </View>
+                  </View>
+
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.mapChipRow}
+                  >
+                    {mapCategoryChips.map((item) => {
+                      const selected = isMapCategoryOn(item.id);
+                      return (
+                        <Pressable
+                          key={item.id}
+                          onPress={() => setMapCategory(item.id)}
+                          style={[styles.mapChip, selected && styles.mapChipOn]}
+                        >
+                          <MaterialCommunityIcons
+                            name={item.icon}
+                            size={16}
+                            color={selected ? "#FFFFFF" : TEXT}
+                          />
+                          <Text style={[styles.mapChipLabel, selected && styles.mapChipLabelOn]}>
+                            {item.label}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </ScrollView>
+                </View>
+              </View>
             </View>
-          ) : (
+          ) : radiusPicker ? null : (
             <>
+          <View style={styles.handle} />
+          <View style={styles.headerRow}>
+            <View style={styles.headerText}>
+              <Text style={styles.title}>{s.filters}</Text>
+              <Text style={styles.subtitle}>{s.filtersSubtitle}</Text>
+            </View>
+            <Pressable
+              onPress={onClose}
+              disabled={applying}
+              style={[styles.closeBtn, applying && styles.applyDisabled]}
+              accessibilityRole="button"
+            >
+              <MaterialCommunityIcons name="close" size={16} color={PURPLE} />
+            </Pressable>
+          </View>
           <ScrollView
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.body}
@@ -517,8 +603,7 @@ export function ProviderFiltersSheet({
           </View>
             </>
           )}
-            </>
-          ) : (
+          {radiusPicker ? (
             <FilterSearchRadiusMap
               userCoordinates={userCoordinates}
               radiusKm={draft.maxDistanceKm}
@@ -534,7 +619,7 @@ export function ProviderFiltersSheet({
               }}
               onClose={() => setRadiusPicker(false)}
             />
-          )}
+          ) : null}
         </View>
       </GestureHandlerRootView>
     </Modal>
@@ -926,6 +1011,96 @@ const styles = StyleSheet.create({
     flex: 1,
     overflow: "hidden",
     backgroundColor: CARD_BG,
+  },
+  mapChrome: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    top: 0,
+  },
+  mapCard: {
+    backgroundColor: "#FFFFFF",
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingBottom: 12,
+  },
+  mapHeaderRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    paddingHorizontal: 16,
+    paddingBottom: 10,
+  },
+  mapTitle: {
+    fontSize: 20,
+    fontFamily: "Poppins-Bold",
+    color: TEXT,
+  },
+  mapSubtitle: {
+    marginTop: 2,
+    fontSize: 13,
+    fontFamily: "Poppins-Regular",
+    color: MUTED,
+  },
+  mapCloseBtn: {
+    width: 32,
+    height: 32,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  mapSearchRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 16,
+    marginBottom: 10,
+  },
+  mapSearchField: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    height: 44,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: BORDER,
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 12,
+  },
+  mapSearchInput: {
+    flex: 1,
+    fontSize: 13,
+    fontFamily: "Poppins-Regular",
+    color: TEXT,
+    paddingVertical: 0,
+  },
+  mapChipRow: {
+    paddingHorizontal: 16,
+    gap: 8,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  mapChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    height: 36,
+    paddingHorizontal: 14,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: BORDER,
+    backgroundColor: "#FFFFFF",
+  },
+  mapChipOn: {
+    backgroundColor: GREEN,
+    borderColor: GREEN,
+  },
+  mapChipLabel: {
+    fontSize: 13,
+    fontFamily: "Poppins-SemiBold",
+    color: TEXT,
+  },
+  mapChipLabelOn: {
+    color: "#FFFFFF",
   },
   body: {
     paddingHorizontal: 20,
