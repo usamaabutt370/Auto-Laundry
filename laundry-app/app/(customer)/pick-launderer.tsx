@@ -521,6 +521,7 @@ export default function PickLaundererScreen() {
           longitude: coords.longitude,
           imageUrl: getPartnerPrimaryImage(mapped),
           initial: partnerMarkerInitial(partner.business_name),
+          minPrice: partner.minPrice ?? null,
           ratingAvg: partner.ratingAvg,
           ratingCount: partner.ratingCount ?? 0,
         },

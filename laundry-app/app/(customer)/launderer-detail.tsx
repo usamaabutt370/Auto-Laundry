@@ -6,6 +6,7 @@ import { LaundererDetailView } from "@/components/launderer-detail-view";
 import { strings } from "@/constants/strings";
 import { useCustomerOrderDraft } from "@/contexts/customer-order-draft-context";
 import { reassignRejectedCustomerOrder } from "@/lib/customer-orders";
+import { parseServiceJob } from "@/lib/service-jobs";
 
 export default function LaundererDetailScreen() {
   const router = useRouter();
@@ -27,7 +28,11 @@ export default function LaundererDetailScreen() {
     return <View style={styles.container} />;
   }
 
-  const handleSelect = async (id: string, name: string | null, service?: string) => {
+  const handleSelect = async (
+    id: string,
+    name: string | null,
+    options?: { service?: string; job?: string; itemLabel?: string },
+  ) => {
     if (isReassignMode) {
       try {
         await reassignRejectedCustomerOrder(reorderOrderId, id);
@@ -51,12 +56,19 @@ export default function LaundererDetailScreen() {
       return;
     }
     setPartner(id, name);
+    const job =
+      parseServiceJob(options?.job) ??
+      parseServiceJob(options?.service) ??
+      parseServiceJob(params.service) ??
+      "laundry";
     router.push({
-      pathname: "/(customer)/pickup-services",
+      pathname: "/(customer)/book-service",
       params: {
+        job,
+        partnerId: id,
+        ...(name ? { partnerName: name } : {}),
         mode: params.mode === "pickupDelivery" ? "pickupDelivery" : "dropoff",
-        ...(typeof params.service === "string" ? { service: params.service } : {}),
-        ...(service ? { service } : {}),
+        ...(options?.itemLabel ? { itemLabel: options.itemLabel } : {}),
       },
     });
   };
@@ -65,6 +77,7 @@ export default function LaundererDetailScreen() {
     <LaundererDetailView
       partnerId={partnerId}
       initialName={params.name}
+      intentService={typeof params.service === "string" ? params.service : undefined}
       onBack={() => router.back()}
       onSelect={handleSelect}
       isModal

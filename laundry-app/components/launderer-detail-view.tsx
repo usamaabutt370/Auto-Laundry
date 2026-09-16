@@ -38,6 +38,13 @@ import {
   type PartnerPublicReview,
 } from "@/lib/partner-discovery";
 import { isProviderSaved, toggleSavedProvider } from "@/lib/saved-providers";
+import {
+  jobIncludesServiceType,
+  offeredJobsFromTypes,
+  primaryServiceForJob,
+  resolveActiveJob,
+  type ServiceJob,
+} from "@/lib/service-jobs";
 import { getStrings } from "@/locales";
 import { getDeviceCoordinates } from "@/utils/device-location";
 import type { Coordinates } from "@/utils/geocoding";
@@ -60,14 +67,6 @@ const UI = {
   iconWell: "#F3F4F6",
   shadow: "rgba(17, 24, 39, 0.12)",
 };
-
-const SERVICE_CATEGORY: Record<LaundererServiceType, string> = {
-  washAndFold: "Wash & Fold",
-  dryCleaning: "Dry Cleaning",
-  tailoring: "Tailoring",
-  press: "Press",
-};
-const SERVICE_KEYS = Object.keys(SERVICE_CATEGORY) as LaundererServiceType[];
 
 type DetailTab = "services" | "about" | "photos" | "reviews";
 
@@ -124,11 +123,11 @@ function categoryToType(category: string | null | undefined): LaundererServiceTy
   return null;
 }
 
-function serviceThumb(category: string, label: string) {
-  const hay = `${category} ${label}`.toLowerCase();
-  if (hay.includes("tailor") || hay.includes("stitch")) return assets.images.home_category_tailoring;
-  if (hay.includes("press") || hay.includes("iron")) return assets.images.home_category_ironing;
-  if (hay.includes("shirt") || hay.includes("dry")) return assets.images.home_deal_ironing;
+function serviceThumb(category: string) {
+  const type = categoryToType(category);
+  if (type === "tailoring") return assets.images.home_deal_tailoring;
+  if (type === "press") return assets.images.home_deal_ironing;
+  if (type === "dryCleaning") return assets.images.home_deal_ironing;
   return assets.images.home_deal_laundry;
 }
 
@@ -139,6 +138,7 @@ function formatReviewDate(value: string) {
 }
 
 type PricedService = {
+  key: string;
   label: string;
   price: string;
   category: string;
@@ -148,14 +148,20 @@ type PricedService = {
 interface LaundererDetailViewProps {
   partnerId: string;
   initialName?: string;
+  intentService?: string;
   onBack: () => void;
-  onSelect: (partnerId: string, businessName: string | null, service?: LaundererServiceType) => void;
+  onSelect: (
+    partnerId: string,
+    businessName: string | null,
+    options?: { service?: LaundererServiceType; job?: ServiceJob; itemLabel?: string },
+  ) => void;
   isModal?: boolean;
 }
 
 export function LaundererDetailView({
   partnerId,
   initialName,
+  intentService,
   onBack,
   onSelect,
 }: LaundererDetailViewProps) {
@@ -163,7 +169,6 @@ export function LaundererDetailView({
   const { user } = useAuth();
   const { locale } = useLocale();
   const s = getStrings(locale).customer.laundererDetail;
-  const sServices = getStrings(locale).customer.pickupServices;
   const sHome = getStrings(locale).customer.home;
   const { isWeb } = useResponsiveLayout();
   const insets = useSafeAreaInsets();
@@ -184,10 +189,10 @@ export function LaundererDetailView({
   const [userCoords, setUserCoords] = useState<Coordinates | null>(null);
   const [favorited, setFavorited] = useState(false);
   const [tab, setTab] = useState<DetailTab>("services");
-  const [showAllServices, setShowAllServices] = useState(false);
   const [aboutExpanded, setAboutExpanded] = useState(false);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [heroWidth, setHeroWidth] = useState(windowWidth);
+  const [jobOverride, setJobOverride] = useState<ServiceJob | null>(null);
   const heroScrollRef = useRef<ScrollView | null>(null);
   const partnerVerified = usePartnerVerified(partnerId);
 
@@ -229,19 +234,25 @@ export function LaundererDetailView({
 
   useEffect(() => {
     setActiveImageIndex(0);
-    setShowAllServices(false);
     setAboutExpanded(false);
     setTab("services");
-  }, [profile?.id]);
+    setJobOverride(null);
+  }, [profile?.id, intentService]);
 
   const pricedServices = useMemo<PricedService[]>(() => {
-    return services.flatMap((row) => {
+    const seen = new Set<string>();
+    return services.flatMap((row, index) => {
       const amount = parsePriceDisplay(row.price_display);
       if (amount == null || amount <= 0) return [];
       const category = (row.category ?? "").trim();
+      const label = serviceItemLabel(row.name, category) || row.name;
+      const dedupeKey = `${category}::${label.trim().toLowerCase()}`;
+      if (seen.has(dedupeKey)) return [];
+      seen.add(dedupeKey);
       return [
         {
-          label: serviceItemLabel(row.name, category) || row.name,
+          key: `${dedupeKey}-${index}`,
+          label,
           price: row.price_display.trim() || formatRs(amount),
           category,
           serviceType: categoryToType(category),
@@ -249,16 +260,6 @@ export function LaundererDetailView({
       ];
     });
   }, [services]);
-
-  const popularServices = useMemo(() => pricedServices.slice(0, 4), [pricedServices]);
-
-  const pricedGroups = useMemo(() => {
-    return SERVICE_KEYS.flatMap((key) => {
-      const category = SERVICE_CATEGORY[key];
-      const items = pricedServices.filter((row) => row.category === category);
-      return items.length > 0 ? [{ key, title: sServices[key], items }] : [];
-    });
-  }, [pricedServices, sServices]);
 
   const serviceTypes = useMemo(
     () =>
@@ -269,14 +270,29 @@ export function LaundererDetailView({
     [services],
   );
 
-  const primaryCategoryLabel = useMemo(() => {
-    if (serviceTypes.includes("washAndFold") || serviceTypes.includes("dryCleaning")) {
-      return s.categoryLaundry;
-    }
-    if (serviceTypes.includes("press")) return sHome.categoryIroning;
-    if (serviceTypes.includes("tailoring")) return sHome.categoryTailoring;
-    return s.categoryLaundry;
-  }, [s.categoryLaundry, sHome.categoryIroning, sHome.categoryTailoring, serviceTypes]);
+  const offeredJobs = useMemo(() => offeredJobsFromTypes(serviceTypes), [serviceTypes]);
+  const activeJob = jobOverride ?? resolveActiveJob(serviceTypes, intentService);
+
+  const jobServices = useMemo(
+    () => pricedServices.filter((row) => jobIncludesServiceType(activeJob, row.serviceType)),
+    [activeJob, pricedServices],
+  );
+
+  const popularServices = useMemo(() => jobServices.slice(0, 4), [jobServices]);
+
+  const primaryCategoryLabel =
+    activeJob === "ironing"
+      ? sHome.categoryIroning
+      : activeJob === "tailoring"
+        ? sHome.categoryTailoring
+        : s.categoryLaundry;
+
+  const jobSwitcherLabel = (job: ServiceJob) =>
+    job === "ironing"
+      ? sHome.categoryIroning
+      : job === "tailoring"
+        ? sHome.categoryTailoring
+        : sHome.categoryLaundry;
 
   const businessImageUris = useMemo(
     () =>
@@ -368,10 +384,37 @@ export function LaundererDetailView({
     setActiveImageIndex(Math.max(0, Math.min(carouselImages.length - 1, nextIndex)));
   };
 
-  const handleSelect = (service?: LaundererServiceType) => {
+  const handleSelect = (service?: LaundererServiceType, itemLabel?: string) => {
     if (!partnerId) return;
-    onSelect(partnerId, profile?.business_name?.trim() || initialName || null, service);
+    onSelect(partnerId, profile?.business_name?.trim() || initialName || null, {
+      service: service ?? primaryServiceForJob(activeJob, serviceTypes),
+      job: activeJob,
+      itemLabel,
+    });
   };
+
+  const renderServiceCard = (item: PricedService, width: number) => (
+    <Pressable
+      key={item.key}
+      onPress={() => handleSelect(item.serviceType ?? undefined, item.label)}
+      style={({ pressed }) => [styles.popularCard, { width }, pressed && styles.pressed]}
+    >
+      <Image
+        source={serviceThumb(item.category)}
+        style={[styles.popularImage, { width }]}
+        contentFit="cover"
+      />
+      <Text style={styles.popularName} numberOfLines={1}>
+        {item.label}
+      </Text>
+      <View style={styles.popularPriceRow}>
+        <Text style={styles.popularPrice} numberOfLines={1}>
+          {fill(s.fromPrice, { price: item.price })}
+        </Text>
+        <MaterialCommunityIcons name="chevron-right" size={16} color={UI.muted} />
+      </View>
+    </Pressable>
+  );
 
   const handleShare = async () => {
     const message = fill(s.shareMessage, { name: displayName, address });
@@ -618,6 +661,30 @@ export function LaundererDetailView({
             ))}
           </View>
 
+          {offeredJobs.length > 1 ? (
+            <View style={styles.jobSwitch}>
+              <Text style={styles.jobSwitchLabel}>{s.jobSwitcherLabel}</Text>
+              <View style={styles.jobSwitchRow}>
+                {offeredJobs.map((job) => {
+                  const active = job === activeJob;
+                  return (
+                    <Pressable
+                      key={job}
+                      onPress={() => setJobOverride(job)}
+                      style={[styles.jobSwitchChip, active && styles.jobSwitchChipActive]}
+                    >
+                      <Text
+                        style={[styles.jobSwitchText, active && styles.jobSwitchTextActive]}
+                      >
+                        {jobSwitcherLabel(job)}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+          ) : null}
+
           <View style={styles.tabRow}>
             {tabs.map((item) => {
               const active = tab === item.id;
@@ -625,7 +692,7 @@ export function LaundererDetailView({
                 <Pressable
                   key={item.id}
                   onPress={() => setTab(item.id)}
-                  style={styles.tabBtn}
+                  style={[styles.tabBtn, { width: item.id === "services" ? "30%" : "23%" }]}
                   accessibilityRole="tab"
                   accessibilityState={{ selected: active }}
                 >
@@ -642,66 +709,27 @@ export function LaundererDetailView({
             <View style={styles.tabBody}>
               <View style={styles.sectionHead}>
                 <Text style={styles.sectionTitle}>{s.popularServices}</Text>
-                {pricedServices.length > 0 ? (
-                  <Pressable onPress={() => setShowAllServices((value) => !value)}>
-                    <Text style={styles.viewAll}>{showAllServices ? s.readLess : s.viewAll}</Text>
+                {jobServices.length > 0 ? (
+                  <Pressable
+                    onPress={() => handleSelect()}
+                    accessibilityRole="button"
+                    accessibilityLabel={s.viewAll}
+                  >
+                    <Text style={styles.viewAll}>{s.viewAll}</Text>
                   </Pressable>
                 ) : null}
               </View>
-              {popularServices.length > 0 ? (
+              {jobServices.length > 0 ? (
                 <ScrollView
                   horizontal
                   showsHorizontalScrollIndicator={false}
                   contentContainerStyle={styles.popularRow}
                 >
-                  {popularServices.map((item) => (
-                    <Pressable
-                      key={`${item.category}-${item.label}`}
-                      onPress={() => handleSelect(item.serviceType ?? undefined)}
-                      style={({ pressed }) => [
-                        styles.popularCard,
-                        { width: popularCardWidth },
-                        pressed && styles.pressed,
-                      ]}
-                    >
-                      <Image
-                        source={serviceThumb(item.category, item.label)}
-                        style={[styles.popularImage, { width: popularCardWidth }]}
-                        contentFit="cover"
-                      />
-                      <Text style={styles.popularName} numberOfLines={1}>
-                        {item.label}
-                      </Text>
-                      <View style={styles.popularPriceRow}>
-                        <Text style={styles.popularPrice} numberOfLines={1}>
-                          {fill(s.fromPrice, { price: item.price })}
-                        </Text>
-                        <MaterialCommunityIcons name="chevron-right" size={16} color={UI.muted} />
-                      </View>
-                    </Pressable>
-                  ))}
+                  {popularServices.map((item) => renderServiceCard(item, popularCardWidth))}
                 </ScrollView>
               ) : (
                 <Text style={styles.emptyCopy}>{s.noServices}</Text>
               )}
-
-              {showAllServices
-                ? pricedGroups.map((group) => (
-                    <View key={group.key} style={styles.priceGroup}>
-                      <Text style={styles.priceGroupTitle}>{group.title}</Text>
-                      {group.items.map((item) => (
-                        <Pressable
-                          key={`${group.key}-${item.label}`}
-                          onPress={() => handleSelect(item.serviceType ?? group.key)}
-                          style={styles.priceRow}
-                        >
-                          <Text style={styles.priceItemLabel}>{item.label}</Text>
-                          <Text style={styles.priceItemValue}>{item.price}</Text>
-                        </Pressable>
-                      ))}
-                    </View>
-                  ))
-                : null}
 
               {hasOffer ? (
                 <Pressable
@@ -1018,9 +1046,24 @@ const styles = StyleSheet.create({
   openText: { fontSize: 12, color: UI.openText, fontFamily: "Poppins-SemiBold" },
   closedText: { color: UI.closedText },
   mutedText: { color: UI.muted },
+  jobSwitch: { marginTop: 16, gap: 8 },
+  jobSwitchLabel: { fontSize: 12, color: UI.muted, fontFamily: "Poppins-Medium" },
+  jobSwitchRow: { flexDirection: "row", gap: 8 },
+  jobSwitchChip: {
+    flex: 1,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: UI.chipBorder,
+    borderRadius: 999,
+    paddingVertical: 8,
+    backgroundColor: UI.iconWell,
+  },
+  jobSwitchChipActive: { backgroundColor: UI.purple, borderColor: UI.purple },
+  jobSwitchText: { fontSize: 12, color: UI.text, fontFamily: "Poppins-SemiBold" },
+  jobSwitchTextActive: { color: "#FFFFFF" },
   featureRow: { flexDirection: "row", marginTop: 16, gap: 6 },
   featureChip: {
-    flex: 1,
+    width: "25%",
     minWidth: 0,
     flexDirection: "row",
     alignItems: "center",
@@ -1044,8 +1087,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: UI.chipBorder,
   },
-  tabBtn: { flex: 1, alignItems: "center" },
-  tabLabel: { fontSize: 13, color: UI.muted, fontFamily: "Poppins-Medium", textAlign: "center" },
+  tabBtn: { alignItems: "center" },
+  tabLabel: { fontSize: 11, color: UI.muted, fontFamily: "Poppins-Medium", textAlign: "center" },
   tabLabelActive: { color: UI.purple, fontFamily: "Poppins-SemiBold" },
   tabUnderline: { marginTop: 10, height: 3, width: "78%", borderRadius: 999, backgroundColor: "transparent" },
   tabUnderlineActive: { backgroundColor: UI.purple },
@@ -1060,16 +1103,6 @@ const styles = StyleSheet.create({
   popularName: { marginTop: 8, fontSize: 13, color: UI.text, fontFamily: "Poppins-SemiBold" },
   popularPriceRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   popularPrice: { flex: 1, fontSize: 12, color: UI.muted, fontFamily: "Poppins-Regular" },
-  priceGroup: { backgroundColor: UI.bg, borderRadius: 16, padding: 12, gap: 4 },
-  priceGroupTitle: { fontSize: 13, color: UI.text, fontFamily: "Poppins-SemiBold", marginBottom: 4 },
-  priceRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    gap: 12,
-    paddingVertical: 8,
-  },
-  priceItemLabel: { flex: 1, fontSize: 13, color: UI.text, fontFamily: "Poppins-Regular" },
-  priceItemValue: { fontSize: 13, color: UI.teal, fontFamily: "Poppins-Bold" },
   offerCard: {
     flexDirection: "row",
     alignItems: "center",
