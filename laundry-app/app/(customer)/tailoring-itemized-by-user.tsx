@@ -111,18 +111,18 @@ export default function TailoringItemizedByUserScreen() {
     <View style={styles.container}>
       <SafeAreaView edges={["top"]} style={styles.headerSafe}>
         <View style={styles.headerRow}>
-          <View style={styles.headerSide} />
-          <Text style={styles.headerTitle} numberOfLines={1}>
-            {s.tailoring}
-          </Text>
           <Pressable
             onPress={() => router.back()}
             style={styles.closeBtn}
             accessibilityRole="button"
-            accessibilityLabel="Close"
+            accessibilityLabel="Back"
           >
-            <MaterialCommunityIcons name="close" size={20} color={UI.text} />
+            <MaterialCommunityIcons name="chevron-left" size={24} color={UI.text} />
           </Pressable>
+          <Text style={styles.headerTitle} numberOfLines={1}>
+            {s.tailoring}
+          </Text>
+          <View style={styles.headerSide} />
         </View>
       </SafeAreaView>
 

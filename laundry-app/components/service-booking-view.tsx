@@ -17,7 +17,7 @@ import {
   UIManager,
   View,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 import { showAppAlert } from "@/components/app-alert";
 import {
@@ -160,7 +160,6 @@ type Props = {
 
 export function ServiceBookingView({ job, itemLabel, prefersPickupDelivery = false }: Props) {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const { locale } = useLocale();
   const s = getStrings(locale).customer.bookService;
   const sLive = getStrings(locale).customer.liveEstimate;
@@ -602,8 +601,8 @@ export function ServiceBookingView({ job, itemLabel, prefersPickupDelivery = fal
         : ["star-outline", "tshirt-crew-outline", "ruler"];
 
   return (
-    <View style={styles.screen}>
-      <StatusBar style="light" />
+    <SafeAreaView style={styles.screen} edges={["top"]}>
+      <StatusBar style="dark" />
       <CustomerItemizedOrderLayout
         appearance="light"
         scrollContentStyle={styles.scrollContent}
@@ -670,17 +669,25 @@ export function ServiceBookingView({ job, itemLabel, prefersPickupDelivery = fal
             colors={["rgba(15,23,42,0.05)", "rgba(15,23,42,0.78)"]}
             style={styles.heroShade}
           />
-          <View style={[styles.heroChrome, { paddingTop: insets.top + 8 }]}>
-            <Pressable onPress={() => router.back()} style={styles.roundBtn} accessibilityRole="button">
-              <MaterialCommunityIcons name="chevron-left" size={24} color={UI.text} />
-            </Pressable>
-            <Pressable onPress={() => void handleFavorite()} style={styles.roundBtn}>
-              <MaterialCommunityIcons
-                name={favorited ? "heart" : "heart-outline"}
-                size={20}
-                color={favorited ? "#E11D48" : UI.text}
-              />
-            </Pressable>
+          <View style={styles.heroChrome}>
+            <View />
+            <View style={styles.heroChromeRight}>
+              <Pressable onPress={() => void handleFavorite()} style={styles.roundBtn}>
+                <MaterialCommunityIcons
+                  name={favorited ? "heart" : "heart-outline"}
+                  size={20}
+                  color={favorited ? "#E11D48" : UI.text}
+                />
+              </Pressable>
+              <Pressable
+                onPress={() => router.back()}
+                style={styles.roundBtn}
+                accessibilityRole="button"
+                accessibilityLabel="Close"
+              >
+                <MaterialCommunityIcons name="close" size={20} color={UI.text} />
+              </Pressable>
+            </View>
           </View>
           <View style={styles.heroMeta}>
             <View style={styles.heroNameRow}>
@@ -947,7 +954,7 @@ export function ServiceBookingView({ job, itemLabel, prefersPickupDelivery = fal
           )}
         </View>
       </CustomerItemizedOrderLayout>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -1032,9 +1039,12 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: 16,
     right: 16,
+    top: 8,
     flexDirection: "row",
     justifyContent: "space-between",
+    alignItems: "center",
   },
+  heroChromeRight: { flexDirection: "row", gap: 10 },
   roundBtn: {
     width: 40,
     height: 40,

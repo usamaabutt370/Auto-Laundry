@@ -18,7 +18,7 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { showAppAlert } from "@/components/app-alert";
 import { StarRating } from "@/components/star-rating";
@@ -468,7 +468,7 @@ export function LaundererDetailView({
   };
 
   const renderHeroChrome = () => (
-    <View pointerEvents="box-none" style={[styles.heroChrome, { paddingTop: insets.top + 8 }]}>
+    <View pointerEvents="box-none" style={styles.heroChrome}>
       <Pressable
         onPress={onBack}
         style={({ pressed }) => [styles.heroRoundBtn, pressed && styles.pressed]}
@@ -504,19 +504,19 @@ export function LaundererDetailView({
 
   if (loading) {
     return (
-      <View style={styles.container}>
+      <SafeAreaView style={styles.container} edges={["top"]}>
         <StatusBar style="dark" />
         {renderHeroChrome()}
         <View style={styles.centered}>
           <ActivityIndicator color={UI.teal} size="small" />
         </View>
-      </View>
+      </SafeAreaView>
     );
   }
 
   if (error || !profile) {
     return (
-      <View style={styles.container}>
+      <SafeAreaView style={styles.container} edges={["top"]}>
         <StatusBar style="dark" />
         {renderHeroChrome()}
         <View style={styles.centered}>
@@ -525,7 +525,7 @@ export function LaundererDetailView({
             <Text style={styles.retryText}>{getStrings(locale).customer.pickLaunderer.retry}</Text>
           </Pressable>
         </View>
-      </View>
+      </SafeAreaView>
     );
   }
 
@@ -537,8 +537,8 @@ export function LaundererDetailView({
   ];
 
   return (
-    <View style={styles.container}>
-      <StatusBar style="light" />
+    <SafeAreaView style={styles.container} edges={["top"]}>
+      <StatusBar style="dark" />
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={{ paddingBottom: 24 }}
@@ -899,7 +899,7 @@ export function LaundererDetailView({
           </LinearGradient>
         </Pressable>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -941,7 +941,7 @@ function AboutBlock({
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: UI.card },
+  container: { flex: 1, backgroundColor: UI.bg },
   scroll: { flex: 1, backgroundColor: UI.card },
   heroWrap: { backgroundColor: UI.iconWell },
   heroChrome: {
@@ -954,6 +954,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
+    paddingTop: 8,
   },
   heroChromeRight: { flexDirection: "row", gap: 10 },
   heroRoundBtn: {

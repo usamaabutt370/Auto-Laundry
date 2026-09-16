@@ -22,21 +22,8 @@ export default function CustomerLayout() {
         <Stack.Screen name="faq" />
         <Stack.Screen name="edit-profile" />
         <Stack.Screen name="pickup-services" />
-        <Stack.Screen name="book-service" />
-        <Stack.Screen name="dry-clean-itemized-by-user" />
-        <Stack.Screen name="tailoring-itemized-by-user" />
-        <Stack.Screen name="laundry-bags" />
-        <Stack.Screen name="wash-fold-order" />
-        <Stack.Screen name="press-order" />
-        <Stack.Screen name="laundry-bag-detail" />
-        <Stack.Screen name="schedule-pickup" />
-        <Stack.Screen name="schedule-delivery" />
-        <Stack.Screen name="order-summary" />
-        <Stack.Screen name="order-detail" />
-        <Stack.Screen name="chat/[orderId]" />
-        <Stack.Screen name="pick-launderer" />
         <Stack.Screen
-          name="launderer-detail"
+          name="book-service"
           options={{
             presentation: "fullScreenModal",
             animation: "slide_from_bottom",
@@ -44,6 +31,35 @@ export default function CustomerLayout() {
             headerShown: false,
           }}
         />
+        <Stack.Screen name="dry-clean-itemized-by-user" />
+        <Stack.Screen name="tailoring-itemized-by-user" />
+        <Stack.Screen name="laundry-bags" />
+        <Stack.Screen name="wash-fold-order" />
+        <Stack.Screen name="press-order" />
+        <Stack.Screen name="laundry-bag-detail" />
+        <Stack.Screen
+          name="schedule-pickup"
+          options={{
+            presentation: "modal",
+            animation: "slide_from_bottom",
+            gestureEnabled: true,
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen name="schedule-delivery" />
+        <Stack.Screen
+          name="order-summary"
+          options={{
+            presentation: "modal",
+            animation: "slide_from_bottom",
+            gestureEnabled: true,
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen name="order-detail" />
+        <Stack.Screen name="chat/[orderId]" />
+        <Stack.Screen name="pick-launderer" />
+        <Stack.Screen name="launderer-detail" />
       </Stack>
     </WebAreaShell>
   );

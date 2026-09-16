@@ -92,7 +92,7 @@ function fill(template: string, vars: Record<string, string | number>) {
 
 function greetingForHour(hour: number, s: HomeStrings) {
   if (hour < 12) return s.greetingMorning;
-  if (hour < 17) return s.greetingAfternoon;
+  if (hour < 18) return s.greetingAfternoon;
   return s.greetingEvening;
 }
 

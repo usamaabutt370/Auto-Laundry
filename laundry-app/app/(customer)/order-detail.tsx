@@ -258,18 +258,18 @@ export default function CustomerOrderDetailScreen() {
     <View style={styles.container}>
       <SafeAreaView style={styles.safeTop} edges={["top"]}>
         <View style={styles.headerRow}>
-          <View style={styles.headerSide} />
-          <Text style={styles.headerTitle} numberOfLines={1}>
-            Order detail
-          </Text>
           <Pressable
             onPress={handleBack}
             style={({ pressed }) => [styles.closeBtn, pressed && styles.pressed]}
             accessibilityRole="button"
-            accessibilityLabel="Close"
+            accessibilityLabel="Back"
           >
-            <MaterialCommunityIcons name="close" size={20} color={UI.text} />
+            <MaterialCommunityIcons name="chevron-left" size={24} color={UI.text} />
           </Pressable>
+          <Text style={styles.headerTitle} numberOfLines={1}>
+            Order detail
+          </Text>
+          <View style={styles.headerSide} />
         </View>
       </SafeAreaView>
 
