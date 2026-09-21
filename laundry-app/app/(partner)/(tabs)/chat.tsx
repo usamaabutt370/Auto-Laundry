@@ -3,7 +3,6 @@ import { StatusBar } from "expo-status-bar";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
-  ActivityIndicator,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -14,6 +13,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AppHeader } from "@/components/app-header";
 import { WebHeaderSpacer } from "@/components/web-header-spacer";
+import { GradientLoader, APP_LOADER_TINT } from "@/components/ui/gradient-loader";
 import { theme } from "@/constants/theme";
 import { useLocale } from "@/contexts/locale-context";
 import { useAuth } from "@/contexts/auth-context";
@@ -137,7 +137,7 @@ export default function PartnerChatScreen() {
         </View>
       ) : loading && items.length === 0 ? (
         <View style={styles.center}>
-          <ActivityIndicator color={UI.teal} />
+          <GradientLoader />
           <Text style={styles.muted}>{s.loading}</Text>
         </View>
       ) : error ? (
@@ -164,8 +164,8 @@ export default function PartnerChatScreen() {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={onRefresh}
-              tintColor={UI.teal}
-              colors={[UI.teal]}
+              tintColor={APP_LOADER_TINT}
+              colors={[APP_LOADER_TINT]}
               progressBackgroundColor={UI.card}
               title=""
               titleColor={UI.muted}

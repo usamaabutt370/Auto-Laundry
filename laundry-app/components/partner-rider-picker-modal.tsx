@@ -1,6 +1,8 @@
 import { Image } from "expo-image";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
+import { GradientLoader } from "@/components/ui/gradient-loader";
+
 import { theme } from "@/constants/theme";
 import type { PartnerRider } from "@/lib/partner-riders";
 
@@ -65,7 +67,7 @@ export function PartnerRiderPickerModal({
 
         {loading ? (
           <View style={styles.loadingWrap}>
-            <ActivityIndicator color={UI.teal} />
+            <GradientLoader />
             <Text style={styles.loadingText}>{loadingLabel}</Text>
           </View>
         ) : riders.length === 0 ? (

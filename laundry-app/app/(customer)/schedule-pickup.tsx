@@ -1,5 +1,4 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
 import {
@@ -16,6 +15,7 @@ import {
   CustomerScheduleSlotSection,
   type ScheduleSlotValue,
 } from "@/components/customer-schedule-slot-section";
+import { AppCtaButton } from "@/components/ui/cta-button";
 import { strings } from "@/constants/strings";
 import { useCustomerOrderDraft } from "@/contexts/customer-order-draft-context";
 import { isBeforeDate, isSameDay } from "@/utils/schedule-datetime";
@@ -130,21 +130,12 @@ export default function SchedulePickupScreen() {
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 12) }]}>
-        <Pressable
+        <AppCtaButton
+          label={s.confirm}
           onPress={handleConfirm}
-          style={({ pressed }) => [styles.confirmWrap, pressed && styles.pressed]}
-          accessibilityRole="button"
+          width="full"
           accessibilityLabel={s.confirm}
-        >
-          <LinearGradient
-            colors={["#4A3AFF", "#12B886"]}
-            start={{ x: 0, y: 0.5 }}
-            end={{ x: 1, y: 0.5 }}
-            style={styles.confirmBtn}
-          >
-            <Text style={styles.confirmLabel}>{s.confirm}</Text>
-          </LinearGradient>
-        </Pressable>
+        />
       </View>
     </View>
   );
@@ -183,9 +174,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  pressed: {
-    opacity: 0.85,
-  },
   scroll: {
     flex: 1,
   },
@@ -198,20 +186,5 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingHorizontal: 16,
     backgroundColor: UI.bg,
-  },
-  confirmWrap: {
-    borderRadius: 16,
-    overflow: "hidden",
-  },
-  confirmBtn: {
-    borderRadius: 16,
-    paddingVertical: 16,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  confirmLabel: {
-    fontSize: 16,
-    fontFamily: "Poppins-Bold",
-    color: "#FFFFFF",
   },
 });

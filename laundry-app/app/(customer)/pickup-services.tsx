@@ -1,9 +1,7 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import {
-  ActivityIndicator,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -15,6 +13,8 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { showAppAlert } from "@/components/app-alert";
 import { PartnerNameWithBadge } from "@/components/partner-name-with-badge";
+import { AppCtaButton } from "@/components/ui/cta-button";
+import { GradientLoader } from "@/components/ui/gradient-loader";
 import { strings } from "@/constants/strings";
 import type { LaundererServiceType } from "@/constants/launderers";
 import { useCustomerOrderDraft } from "@/contexts/customer-order-draft-context";
@@ -321,7 +321,7 @@ export default function PickupServicesScreen() {
 
       {loading ? (
         <View style={styles.fullScreenLoader}>
-          <ActivityIndicator color={UI.teal} size="large" />
+          <GradientLoader size="large" />
         </View>
       ) : (
         <>
@@ -424,21 +424,12 @@ export default function PickupServicesScreen() {
           </ScrollView>
 
           <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 12) }]}>
-            <Pressable
+            <AppCtaButton
+              label={s.confirm}
               onPress={handleConfirm}
-              style={({ pressed }) => [styles.confirmWrap, pressed && styles.pressed]}
-              accessibilityRole="button"
+              width="full"
               accessibilityLabel={s.confirm}
-            >
-              <LinearGradient
-                colors={["#4A3AFF", "#12B886"]}
-                start={{ x: 0, y: 0.5 }}
-                end={{ x: 1, y: 0.5 }}
-                style={styles.confirmBtn}
-              >
-                <Text style={styles.confirmLabel}>{s.confirm}</Text>
-              </LinearGradient>
-            </Pressable>
+            />
           </View>
         </>
       )}
@@ -622,21 +613,6 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingHorizontal: 16,
     backgroundColor: UI.bg,
-  },
-  confirmWrap: {
-    borderRadius: 16,
-    overflow: "hidden",
-  },
-  confirmBtn: {
-    borderRadius: 16,
-    paddingVertical: 16,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  confirmLabel: {
-    fontSize: 16,
-    fontFamily: "Poppins-Bold",
-    color: "#FFFFFF",
   },
   fullScreenLoader: {
     flex: 1,

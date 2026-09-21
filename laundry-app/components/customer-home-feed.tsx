@@ -4,7 +4,6 @@ import { Image } from "expo-image";
 import { StatusBar } from "expo-status-bar";
 import { useCallback, useEffect, useMemo, useState, type ComponentProps } from "react";
 import {
-  ActivityIndicator,
   AppState,
   Pressable,
   ScrollView,
@@ -18,6 +17,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { assets } from "@/assets/assets";
 import { AvatarImage } from "@/components/avatar-image";
 import { GradientText } from "@/components/gradient-text";
+import { GradientLoader } from "@/components/ui/gradient-loader";
 import { PartnerNameWithBadge } from "@/components/partner-name-with-badge";
 import { strings } from "@/constants/strings";
 import {
@@ -334,7 +334,7 @@ export function CustomerHomeFeed({
 
         <SectionHeader title={s.recommended} actionLabel={s.seeAll} onAction={onSeeAll} />
         {mapData.loadingPartners ? (
-          <ActivityIndicator style={styles.loader} color={HOME_UI.purple} />
+          <GradientLoader style={styles.loader} />
         ) : recommended.length === 0 ? (
           <Text style={styles.empty}>{s.emptyRecommended}</Text>
         ) : (

@@ -6,7 +6,6 @@ import {
 	Text,
 	View,
 	Switch,
-	ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -15,6 +14,7 @@ import { useRouter, useFocusEffect } from "expo-router";
 import { useIsFocused } from "@react-navigation/native";
 
 import { DeleteAccountButton } from "@/components/delete-account-button";
+import { GradientLoader } from "@/components/ui/gradient-loader";
 import { useAuth } from "@/contexts/auth-context";
 import { useLocale } from "@/contexts/locale-context";
 import { avatarUrlWithCacheBuster } from "@/lib/avatar";
@@ -365,7 +365,7 @@ export default function CustomerProfileMenu() {
 						<Text style={styles.roleLabel}>Become a Laundry Captain</Text>
 						<View style={styles.switchWrap}>
 							{isUpdatingRole ? (
-								<ActivityIndicator color={UI.teal} size="small" />
+								<GradientLoader size="small" />
 							) : (
 								<Switch
 									value={isPartnerSwitchOn}

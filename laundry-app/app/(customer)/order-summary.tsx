@@ -1,9 +1,8 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
+import { Image } from "expo-image";
 import { useRouter } from "expo-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
-  ActivityIndicator,
   Alert,
   Modal,
   Pressable,
@@ -12,19 +11,37 @@ import {
   Text,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  initialWindowMetrics,
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
+
 import { showAppAlert } from "@/components/app-alert";
-import { CustomerTrustBanner } from "@/components/customer-trust-banner";
 import { PartnerNameWithBadge } from "@/components/partner-name-with-badge";
 import { SignInRequiredModal } from "@/components/sign-in-required-modal";
-import { usePartnerVerified } from "@/hooks/use-partner-verified";
-import { strings } from "@/constants/strings";
+import { AppCtaButton } from "@/components/ui/cta-button";
+import { GradientLoader } from "@/components/ui/gradient-loader";
 import { useAuth } from "@/contexts/auth-context";
-import { useCustomerOrderDraft } from "@/contexts/customer-order-draft-context";
+import {
+  selectedServiceIdsFromQuantities,
+  useCustomerOrderDraft,
+  type CustomerOrderDraft,
+} from "@/contexts/customer-order-draft-context";
+import { useLocale } from "@/contexts/locale-context";
+import { usePartnerOrderEstimate } from "@/hooks/use-partner-order-estimate";
+import { usePartnerVerified } from "@/hooks/use-partner-verified";
+import { avatarUrlWithCacheBuster } from "@/lib/avatar";
 import { updateCustomerOrder } from "@/lib/customer-order-edit";
 import { submitCustomerOrder } from "@/lib/customer-order-submit";
-import { usePartnerOrderEstimate } from "@/hooks/use-partner-order-estimate";
+import { imageForServiceItem } from "@/lib/service-item-images";
+import { isSupabaseConfigured, supabase } from "@/lib/supabase";
+import type { ServiceJob } from "@/lib/service-jobs";
+import { getStrings } from "@/locales";
+import { getDeviceCoordinates } from "@/utils/device-location";
 import { formatMoney } from "@/utils/format-money";
+import type { Coordinates } from "@/utils/geocoding";
+import { getPartnerHoursRange, getPartnerOpenStatus } from "@/utils/partner-hours";
 import { runAfterModalTeardown } from "@/utils/run-after-modal-teardown";
 
 const UI = {
@@ -33,10 +50,21 @@ const UI = {
   text: "#111827",
   muted: "#6B7280",
   teal: "#12B886",
+  purple: "#5B4DFF",
+  open: "#047857",
+  closed: "#B91C1C",
   backBg: "#EEF2F6",
   chipBorder: "#E5E7EB",
   shadow: "rgba(17, 24, 39, 0.08)",
+  iconWell: "#F3F4F6",
 };
+
+function fill(template: string, vars: Record<string, string | number>) {
+  return Object.entries(vars).reduce(
+    (acc, [key, value]) => acc.replaceAll(`{${key}}`, String(value)),
+    template,
+  );
+}
 
 function formatOrderReference(orderId: string): string {
   return orderId.replace(/-/g, "").slice(0, 8).toUpperCase();
@@ -61,10 +89,6 @@ function goToSubmittedOrderDetail(
   });
 }
 
-/**
- * Open auth from guest order submit as a sheet on top of the current screen.
- * Do not dismiss order-summary / pick-launderer first — that caused a close-then-open flash.
- */
 function goToAuthFromOrderSummary(
   router: ReturnType<typeof useRouter>,
   pathname: "/(auth)/login" | "/(auth)/sign-up",
@@ -75,17 +99,92 @@ function goToAuthFromOrderSummary(
   });
 }
 
+function toRadians(value: number) {
+  return (value * Math.PI) / 180;
+}
+
+function distanceKm(from: Coordinates, to: Coordinates) {
+  const earthRadiusKm = 6371;
+  const dLat = toRadians(to.latitude - from.latitude);
+  const dLon = toRadians(to.longitude - from.longitude);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRadians(from.latitude)) *
+      Math.cos(toRadians(to.latitude)) *
+      Math.sin(dLon / 2) ** 2;
+  return 2 * earthRadiusKm * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function formatKm(km: number) {
+  if (km < 1) return `${Math.max(0.1, km).toFixed(1)} km`;
+  return `${km.toFixed(1)} km`;
+}
+
+function parseQty(label: string) {
+  const match = label.match(/(\d+(?:\.\d+)?)/);
+  return match ? Number(match[1]) : 0;
+}
+
+function displayServiceTitle(title: string) {
+  return title
+    .replace(/^wash\s*&\s*fold\s*-\s*/i, "")
+    .replace(/^dry\s*cleaning\s*-\s*/i, "")
+    .replace(/^press\s*-\s*/i, "")
+    .replace(/^tailoring\s*-\s*/i, "")
+    .trim();
+}
+
+function parseLineKey(key: string): { job: ServiceJob; id: string } | null {
+  if (key.startsWith("wash_fold_")) return { job: "washAndFold", id: key.slice("wash_fold_".length) };
+  if (key.startsWith("dry_")) return { job: "dryCleaning", id: key.slice("dry_".length) };
+  if (key.startsWith("press_")) return { job: "ironing", id: key.slice("press_".length) };
+  if (key.startsWith("tailoring_")) return { job: "tailoring", id: key.slice("tailoring_".length) };
+  return null;
+}
+
+function familyInstructions(draft: CustomerOrderDraft, job: ServiceJob) {
+  if (job === "washAndFold") return draft.washFold?.itemizedInstructions ?? "";
+  if (job === "dryCleaning") return draft.dryClean?.itemizedInstructions ?? "";
+  if (job === "ironing") return draft.press?.itemizedInstructions ?? "";
+  return draft.tailoring?.itemizedInstructions ?? "";
+}
+
+function parseAddOns(instructions: string) {
+  const match = instructions.match(/Add-ons:\s*(.+)/i);
+  if (!match) return [];
+  return match[1]
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function notesWithoutAddOns(instructions: string) {
+  return instructions
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0 && !/^Add-ons:/i.test(line))
+    .join("\n");
+}
+
+const JOB_ORDER: ServiceJob[] = ["washAndFold", "dryCleaning", "ironing", "tailoring"];
+
 export default function OrderSummaryScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const { draft, editingOrderId, resetDraft } = useCustomerOrderDraft();
+  const { locale } = useLocale();
+  const { draft, editingOrderId, resetDraft, setSelectedServiceIds, setWashFoldItemizedQuantities, setDryCleanItemizedQuantities, setPressItemizedQuantities, setTailoringItemizedQuantities } =
+    useCustomerOrderDraft();
   const [submitting, setSubmitting] = useState(false);
   const [submittedOrderId, setSubmittedOrderId] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [signInPromptVisible, setSignInPromptVisible] = useState(false);
+  const [customerAddress, setCustomerAddress] = useState("");
+  const [userCoords, setUserCoords] = useState<Coordinates | null>(null);
   const isEditing = Boolean(editingOrderId);
-  const s = strings.customer.orderSummary;
-  const sServices = strings.customer.pickupServices;
+  const s = getStrings(locale).customer.orderSummary;
+  const sHome = getStrings(locale).customer.home;
+  const footerBottom = Math.max(insets.bottom, initialWindowMetrics?.insets.bottom ?? 0, 12);
 
   const partnerVerified = usePartnerVerified(draft.partnerId);
   const { loading, error, estimate, profile, services, reload } = usePartnerOrderEstimate(
@@ -93,11 +192,32 @@ export default function OrderSummaryScreen() {
     draft,
   );
 
+  useEffect(() => {
+    void getDeviceCoordinates().then((coords) => {
+      if (coords) setUserCoords(coords);
+    });
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      if (!user?.id || !isSupabaseConfigured() || !supabase) return;
+      const { data } = await supabase
+        .from("profiles")
+        .select("address")
+        .eq("id", user.id)
+        .maybeSingle<{ address: string | null }>();
+      if (!cancelled) setCustomerAddress(data?.address?.trim() ?? "");
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
+
   const handleSubmitOrder = async () => {
     const fail = (title: string, message: string) => {
       setSubmitError(message);
       showAppAlert(title, message);
-      // Native alert as hard fallback — custom Modal alerts can fail silently on some builds.
       Alert.alert(title, message);
     };
 
@@ -153,16 +273,13 @@ export default function OrderSummaryScreen() {
       });
       if (!result.ok) {
         const message = result.error || "Unknown error while submitting.";
-        console.warn("[order-summary] submit failed", message);
         fail("Unable to submit order", message);
         return;
       }
-      console.log("[order-summary] submit ok", result.orderId);
       setSubmittedOrderId(result.orderId);
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Something went wrong while submitting.";
-      console.warn("[order-summary] submit threw", err);
       fail("Unable to submit order", message);
     } finally {
       setSubmitting(false);
@@ -177,18 +294,16 @@ export default function OrderSummaryScreen() {
     goToSubmittedOrderDetail(router, orderId);
   };
 
-  const orderRef = useMemo(() => {
-    if (isEditing && editingOrderId) {
-      return editingOrderId.replace(/-/g, "").slice(0, 8).toUpperCase();
-    }
-    const t = Date.now().toString(36).toUpperCase();
-    return `AL-${t.slice(-8)}`;
-  }, [editingOrderId, isEditing]);
-
   const serviceLines = useMemo(
     () => estimate.lines.filter((line) => line.key !== "pickup_delivery"),
     [estimate.lines],
   );
+  const groupedServices = useMemo(() => {
+    return JOB_ORDER.flatMap((job) => {
+      const lines = serviceLines.filter((line) => (parseLineKey(line.key)?.job ?? "washAndFold") === job);
+      return lines.length > 0 ? [{ job, lines }] : [];
+    });
+  }, [serviceLines]);
   const pickupLine = useMemo(
     () => estimate.lines.find((line) => line.key === "pickup_delivery"),
     [estimate.lines],
@@ -202,22 +317,176 @@ export default function OrderSummaryScreen() {
     return raw;
   }, [estimate.currencyPrefix, pickupLine?.amount, profile?.pickup_delivery_amount]);
 
+  const servicesTotal = useMemo(
+    () => serviceLines.reduce((sum, line) => sum + (line.amount ?? 0), 0),
+    [serviceLines],
+  );
+  const totalDisplay =
+    estimate.total != null
+      ? formatMoney(estimate.currencyPrefix, estimate.total)
+      : estimate.partialTotal > 0
+        ? `${formatMoney(estimate.currencyPrefix, estimate.partialTotal)} *`
+        : "—";
+
+  const partnerName = profile?.business_name?.trim() || draft.partnerName || "";
+  const partnerImage =
+    (Array.isArray(profile?.business_images)
+      ? profile.business_images.find((item): item is string => typeof item === "string" && item.trim().length > 0)
+      : null) || avatarUrlWithCacheBuster(profile?.image_url, profile?.updated_at);
+  const openStatus = getPartnerOpenStatus(profile?.available_time);
+  const hours = getPartnerHoursRange(profile?.available_time);
+  const partnerCoords =
+    profile && Number.isFinite(profile.latitude) && Number.isFinite(profile.longitude)
+      ? { latitude: Number(profile.latitude), longitude: Number(profile.longitude) }
+      : null;
+  const distanceLabel =
+    userCoords && partnerCoords ? formatKm(distanceKm(userCoords, partnerCoords)) : null;
+  const ratingAvg = profile?.ratingAvg;
+  const ratingCount = profile?.ratingCount ?? 0;
+  const ratingLabel =
+    ratingAvg != null && Number.isFinite(ratingAvg)
+      ? Number.isInteger(ratingAvg)
+        ? String(ratingAvg)
+        : ratingAvg.toFixed(1)
+      : null;
+
+  const combinedNotes = useMemo(() => {
+    const chunks = [
+      notesWithoutAddOns(draft.washFold?.itemizedInstructions ?? ""),
+      notesWithoutAddOns(draft.dryClean?.itemizedInstructions ?? ""),
+      notesWithoutAddOns(draft.press?.itemizedInstructions ?? ""),
+      notesWithoutAddOns(draft.tailoring?.itemizedInstructions ?? ""),
+    ].filter(Boolean);
+    return Array.from(new Set(chunks)).join("\n");
+  }, [draft.dryClean?.itemizedInstructions, draft.press?.itemizedInstructions, draft.tailoring?.itemizedInstructions, draft.washFold?.itemizedInstructions]);
+
+  const scheduleLabel = useMemo(() => {
+    if (!draft.pickupDeliveryRequested) return null;
+    const pickup = draft.pickup;
+    if (!pickup) return s.noSchedule;
+    const day = pickup.dayLabel || pickup.dateIso;
+    return `${day}${pickup.timeSlotLabel ? `\n${pickup.timeSlotLabel}` : ""}`;
+  }, [draft.pickup, draft.pickupDeliveryRequested, s.noSchedule]);
+
+  const categoryLabel = (job: ServiceJob) => {
+    if (job === "dryCleaning") return sHome.categoryDryCleaning;
+    if (job === "ironing") return sHome.categoryIroning;
+    if (job === "tailoring") return sHome.categoryTailoring;
+    return sHome.categoryLaundry;
+  };
+
+  const openBookService = (job: ServiceJob) => {
+    if (!draft.partnerId) return;
+    router.push({
+      pathname: "/(customer)/book-service",
+      params: {
+        job,
+        partnerId: draft.partnerId,
+        ...(draft.partnerName ? { partnerName: draft.partnerName } : {}),
+      },
+    });
+  };
+
+  const openShop = () => {
+    if (!draft.partnerId) return;
+    router.push({
+      pathname: "/(customer)/launderer-detail",
+      params: {
+        id: draft.partnerId,
+        ...(draft.partnerName ? { name: draft.partnerName } : {}),
+        mode: draft.pickupDeliveryRequested ? "pickupDelivery" : "dropoff",
+      },
+    });
+  };
+
+  const removeLine = (key: string) => {
+    const parsed = parseLineKey(key);
+    if (!parsed) return;
+    const zeroOut = (current: Record<string, number> | undefined) => ({
+      ...(current ?? {}),
+      [parsed.id]: 0,
+    });
+    if (parsed.job === "washAndFold") {
+      const next = zeroOut(draft.washFold?.itemizedQuantities);
+      setWashFoldItemizedQuantities(next);
+      setSelectedServiceIds(
+        selectedServiceIdsFromQuantities({
+          washFold: next,
+          dryClean: draft.dryClean?.itemizedQuantities,
+          press: draft.press?.itemizedQuantities,
+          tailoring: draft.tailoring?.itemizedQuantities,
+        }),
+      );
+      return;
+    }
+    if (parsed.job === "dryCleaning") {
+      const next = zeroOut(draft.dryClean?.itemizedQuantities);
+      setDryCleanItemizedQuantities(next);
+      setSelectedServiceIds(
+        selectedServiceIdsFromQuantities({
+          washFold: draft.washFold?.itemizedQuantities,
+          dryClean: next,
+          press: draft.press?.itemizedQuantities,
+          tailoring: draft.tailoring?.itemizedQuantities,
+        }),
+      );
+      return;
+    }
+    if (parsed.job === "ironing") {
+      const next = zeroOut(draft.press?.itemizedQuantities);
+      setPressItemizedQuantities(next);
+      setSelectedServiceIds(
+        selectedServiceIdsFromQuantities({
+          washFold: draft.washFold?.itemizedQuantities,
+          dryClean: draft.dryClean?.itemizedQuantities,
+          press: next,
+          tailoring: draft.tailoring?.itemizedQuantities,
+        }),
+      );
+      return;
+    }
+    const next = zeroOut(draft.tailoring?.itemizedQuantities);
+    setTailoringItemizedQuantities(next);
+    setSelectedServiceIds(
+      selectedServiceIdsFromQuantities({
+        washFold: draft.washFold?.itemizedQuantities,
+        dryClean: draft.dryClean?.itemizedQuantities,
+        press: draft.press?.itemizedQuantities,
+        tailoring: next,
+      }),
+    );
+  };
+
+  const submitDisabled = !draft.partnerId || loading || Boolean(error) || submitting || serviceLines.length === 0;
+  const submitLabel = submitting
+    ? isEditing
+      ? "Saving..."
+      : "Submitting..."
+    : isEditing
+      ? s.saveChanges
+      : s.continueToPayment;
+
   return (
     <View style={styles.container}>
       <SafeAreaView edges={["top"]} style={styles.headerSafe}>
         <View style={styles.headerRow}>
-          <View style={styles.headerSide} />
-          <Text style={styles.headerTitle} numberOfLines={1}>
-            {isEditing ? s.editTitle : s.title}
-          </Text>
           <Pressable
             onPress={() => router.back()}
-            style={styles.closeBtn}
+            style={styles.roundBtn}
             accessibilityRole="button"
-            accessibilityLabel="Close"
+            accessibilityLabel="Back"
           >
-            <MaterialCommunityIcons name="close" size={20} color={UI.text} />
+            <MaterialCommunityIcons name="chevron-left" size={24} color={UI.text} />
           </Pressable>
+          <View style={styles.headerCopy}>
+            <Text style={styles.headerTitle} numberOfLines={1}>
+              {isEditing ? s.editTitle : s.title}
+            </Text>
+            <Text style={styles.headerSubtitle} numberOfLines={1}>
+              {s.subtitle}
+            </Text>
+          </View>
+          <View style={styles.roundBtn} />
         </View>
       </SafeAreaView>
 
@@ -228,17 +497,17 @@ export default function OrderSummaryScreen() {
       >
         {!draft.partnerId ? (
           <View style={styles.centerBlock}>
-            <Text style={styles.muted}>Select a Laundry Captain first.</Text>
+            <Text style={styles.muted}>{s.selectLaundererFirst}</Text>
             <Pressable
               onPress={() => router.replace("/(customer)/pick-launderer")}
               style={styles.linkBtn}
             >
-              <Text style={styles.linkText}>Pick a Laundry Captain</Text>
+              <Text style={styles.linkText}>{s.pickLaunderer}</Text>
             </Pressable>
           </View>
         ) : loading ? (
           <View style={styles.centerBlock}>
-            <ActivityIndicator color={UI.teal} />
+            <GradientLoader />
           </View>
         ) : error ? (
           <View style={styles.centerBlock}>
@@ -249,125 +518,270 @@ export default function OrderSummaryScreen() {
           </View>
         ) : (
           <>
-            {isEditing ? (
-              <Text style={styles.lockedPartnerNote}>{s.lockedLaundererNote}</Text>
-            ) : null}
-            {draft.partnerName ? (
-              <PartnerNameWithBadge
-                name={draft.partnerName}
-                verified={partnerVerified}
-                nameStyle={styles.partner}
-              />
-            ) : null}
-            <CustomerTrustBanner
-              appearance="light"
-              verified={partnerVerified}
-              onPressChat={() => {
-                if (editingOrderId) {
-                  router.push({
-                    pathname: "/(customer)/chat/[orderId]",
-                    params: {
-                      orderId: editingOrderId,
-                      memberName: draft.partnerName ?? "",
-                    },
-                  });
-                  return;
-                }
-                router.push("/(customer)/(tabs)/chat");
-              }}
-            />
+            {isEditing ? <Text style={styles.lockedPartnerNote}>{s.lockedLaundererNote}</Text> : null}
+
             <View style={styles.card}>
-              <Text style={styles.cardTitle}>{s.service}</Text>
-              <Text style={styles.ref}>
-                {s.orderNumber}: {orderRef}
-              </Text>
-              <Text style={styles.subheading}>Services</Text>
-              {draft.selectedServiceIds.map((id) => (
-                <Text key={id} style={styles.bullet}>
-                  • {sServices[id]}
+              <View style={styles.providerRow}>
+                {partnerImage ? (
+                  <Image source={{ uri: partnerImage }} style={styles.providerImage} contentFit="cover" />
+                ) : (
+                  <View style={[styles.providerImage, styles.providerImageFallback]} />
+                )}
+                <View style={styles.providerCopy}>
+                  <PartnerNameWithBadge
+                    name={partnerName}
+                    verified={partnerVerified}
+                    nameStyle={styles.providerName}
+                    badgeSize={14}
+                  />
+                  <View style={styles.metaRow}>
+                    {ratingLabel ? (
+                      <>
+                        <MaterialCommunityIcons name="star" size={13} color="#F5B301" />
+                        <Text style={styles.metaStrong}>{ratingLabel}</Text>
+                        {ratingCount > 0 ? (
+                          <Text style={styles.metaMuted}>{fill(s.reviewsCount, { count: ratingCount })}</Text>
+                        ) : null}
+                        <Text style={styles.metaDot}>•</Text>
+                      </>
+                    ) : null}
+                    <Text
+                      style={[
+                        styles.openText,
+                        openStatus === "closed" && styles.closedText,
+                        openStatus === "unknown" && styles.metaMuted,
+                      ]}
+                    >
+                      {openStatus === "open" ? s.openNow : openStatus === "closed" ? s.closedNow : ""}
+                    </Text>
+                    {hours?.endLabel ? (
+                      <Text style={styles.metaMuted}>
+                        {" "}
+                        {fill(openStatus === "closed" ? s.opensAt : s.closesAt, { time: hours.endLabel })}
+                      </Text>
+                    ) : null}
+                  </View>
+                  <View style={styles.providerFooter}>
+                    {distanceLabel ? (
+                      <View style={styles.metaRow}>
+                        <MaterialCommunityIcons name="map-marker-outline" size={14} color={UI.purple} />
+                        <Text style={styles.metaMuted}>{distanceLabel}</Text>
+                      </View>
+                    ) : (
+                      <View />
+                    )}
+                    <Pressable onPress={openShop} hitSlop={8} style={styles.inlineLink}>
+                      <Text style={styles.inlineLinkText}>{s.viewProvider}</Text>
+                      <MaterialCommunityIcons name="chevron-right" size={16} color={UI.purple} />
+                    </Pressable>
+                  </View>
+                </View>
+              </View>
+            </View>
+
+            <View style={styles.card}>
+              <View style={styles.sectionHead}>
+                <Text style={styles.sectionTitle}>
+                  {s.yourServices} ({serviceLines.length})
                 </Text>
-              ))}
-              {serviceLines.length > 0 ? (
-                <>
-                  <Text style={[styles.subheading, styles.mt]}>Estimate</Text>
-                  {serviceLines.map((line) => (
-                    <View key={line.key} style={styles.row}>
-                      <Text style={styles.rowName} numberOfLines={2}>
-                        {line.title}
-                      </Text>
-                      <Text style={styles.rowQty}>{line.qtyLabel}</Text>
-                      <Text style={styles.rowPrice}>
-                        {line.amount != null
-                          ? formatMoney(estimate.currencyPrefix, line.amount)
-                          : "—"}
-                      </Text>
+                <Pressable onPress={openShop} hitSlop={8} style={styles.inlineLink}>
+                  <MaterialCommunityIcons name="plus" size={16} color={UI.purple} />
+                  <Text style={styles.inlineLinkText}>{s.addAnotherService}</Text>
+                </Pressable>
+              </View>
+              {groupedServices.map((group, groupIndex) => {
+                const addOns = parseAddOns(familyInstructions(draft, group.job));
+                return (
+                  <View
+                    key={group.job}
+                    style={[
+                      styles.categoryGroup,
+                      groupIndex < groupedServices.length - 1 && styles.categoryGroupBorder,
+                    ]}
+                  >
+                    <View style={styles.categoryHead}>
+                      <Text style={styles.categoryTitle}>{categoryLabel(group.job)}</Text>
+                      <Pressable onPress={() => openBookService(group.job)} hitSlop={8}>
+                        <Text style={styles.inlineLinkText}>{s.edit}</Text>
+                      </Pressable>
                     </View>
-                  ))}
-                </>
-              ) : null}
+                    {group.lines.map((line, index) => {
+                      const parsed = parseLineKey(line.key);
+                      const qty = parseQty(line.qtyLabel);
+                      const unit = line.amount != null && qty > 0 ? line.amount / qty : null;
+                      return (
+                        <View
+                          key={line.key}
+                          style={[
+                            styles.serviceBlock,
+                            index < group.lines.length - 1 && styles.serviceBlockBorder,
+                          ]}
+                        >
+                          <View style={styles.serviceRow}>
+                            <Image
+                              source={imageForServiceItem(parsed?.id, line.title, group.job)}
+                              style={styles.serviceImage}
+                              contentFit="cover"
+                            />
+                            <View style={styles.serviceCopy}>
+                              <Text style={styles.serviceName} numberOfLines={2}>
+                                {displayServiceTitle(line.title)}
+                              </Text>
+                              {unit != null ? (
+                                <Text style={styles.unitPrice}>
+                                  {formatMoney(estimate.currencyPrefix, unit)}
+                                  {s.perPiece}
+                                </Text>
+                              ) : null}
+                              <View style={styles.serviceMetaRow}>
+                                <Text style={styles.metaMuted}>{fill(s.pieces, { count: qty || 1 })}</Text>
+                                <View style={styles.serviceActions}>
+                                  <Text style={styles.lineTotal}>
+                                    {line.amount != null
+                                      ? formatMoney(estimate.currencyPrefix, line.amount)
+                                      : "—"}
+                                  </Text>
+                                  <Pressable
+                                    onPress={() => removeLine(line.key)}
+                                    hitSlop={8}
+                                    accessibilityLabel="Remove"
+                                  >
+                                    <MaterialCommunityIcons name="trash-can-outline" size={18} color={UI.muted} />
+                                  </Pressable>
+                                </View>
+                              </View>
+                            </View>
+                          </View>
+                        </View>
+                      );
+                    })}
+                    {addOns.map((addon) => (
+                      <View key={`${group.job}-${addon}`} style={styles.addonRow}>
+                        <MaterialCommunityIcons name="leaf" size={14} color={UI.teal} />
+                        <Text style={styles.addonText}>{addon}</Text>
+                      </View>
+                    ))}
+                  </View>
+                );
+              })}
+            </View>
+
+            <View style={styles.card}>
+              <View style={styles.infoRow}>
+                <View style={styles.infoIcon}>
+                  <MaterialCommunityIcons
+                    name={draft.pickupDeliveryRequested ? "truck-delivery-outline" : "storefront-outline"}
+                    size={18}
+                    color={UI.purple}
+                  />
+                </View>
+                <View style={styles.infoCopy}>
+                  <Text style={styles.infoTitle}>
+                    {draft.pickupDeliveryRequested ? s.pickupDelivery : s.dropoffTitle}
+                  </Text>
+                  <Text style={styles.infoBody}>
+                    {draft.pickupDeliveryRequested ? s.pickupHint : s.dropoffHint}
+                  </Text>
+                </View>
+                <Pressable onPress={openShop} hitSlop={8}>
+                  <Text style={styles.inlineLinkText}>{s.change}</Text>
+                </Pressable>
+              </View>
+
+              <View style={styles.infoDivider} />
+
+              <View style={styles.infoRow}>
+                <View style={styles.infoIcon}>
+                  <MaterialCommunityIcons name="map-marker-outline" size={18} color={UI.purple} />
+                </View>
+                <Text style={[styles.infoBody, styles.infoCopy]}>{customerAddress || s.noAddress}</Text>
+              </View>
+
               {draft.pickupDeliveryRequested ? (
                 <>
-                  <Text style={[styles.subheading, styles.mt]}>{s.pickupDelivery}</Text>
-                  <View style={styles.row}>
-                    <Text style={styles.rowName}>{s.pickupDeliveryFee}</Text>
-                    <Text style={styles.rowPrice}>{pickupFeeDisplay}</Text>
+                  <View style={styles.infoDivider} />
+                  <View style={styles.infoRow}>
+                    <View style={styles.infoIcon}>
+                      <MaterialCommunityIcons name="calendar-month-outline" size={18} color={UI.purple} />
+                    </View>
+                    <Text style={[styles.infoBody, styles.infoCopy]}>{scheduleLabel}</Text>
+                    <Pressable onPress={() => router.push("/(customer)/schedule-pickup")} hitSlop={8}>
+                      <Text style={styles.inlineLinkText}>{s.change}</Text>
+                    </Pressable>
                   </View>
                 </>
               ) : null}
-              <View style={styles.totalRow}>
-                <Text style={styles.totalLabel}>{s.estimatedTotal}</Text>
-                <Text style={styles.totalValue}>
-                  {estimate.total != null
-                    ? formatMoney(estimate.currencyPrefix, estimate.total)
-                    : estimate.partialTotal > 0
-                      ? `${formatMoney(estimate.currencyPrefix, estimate.partialTotal)} *`
-                      : "—"}
+
+              <View style={styles.infoDivider} />
+
+              <View style={styles.infoRow}>
+                <View style={styles.infoIcon}>
+                  <MaterialCommunityIcons name="text-box-outline" size={18} color={UI.purple} />
+                </View>
+                <View style={styles.infoCopy}>
+                  <Text style={styles.infoTitle}>{s.specialInstructions}</Text>
+                  <Text style={styles.infoBody}>{combinedNotes || s.noInstructions}</Text>
+                </View>
+                <Pressable
+                  onPress={() => openBookService(parseLineKey(serviceLines[0]?.key ?? "")?.job ?? "washAndFold")}
+                  hitSlop={8}
+                >
+                  <Text style={styles.inlineLinkText}>{s.edit}</Text>
+                </Pressable>
+              </View>
+            </View>
+
+            <View style={styles.priceCard}>
+              <Text style={styles.sectionTitle}>{s.priceDetails}</Text>
+              <View style={styles.priceRow}>
+                <Text style={styles.priceLabel}>{fill(s.servicesCount, { count: serviceLines.length })}</Text>
+                <Text style={styles.priceValue}>
+                  {formatMoney(estimate.currencyPrefix, servicesTotal)}
                 </Text>
               </View>
-              {estimate.disclaimer ? (
-                <Text style={styles.disclaimer}>{estimate.disclaimer}</Text>
+              {draft.pickupDeliveryRequested ? (
+                <View style={styles.priceRow}>
+                  <Text style={styles.priceLabel}>{s.pickupDeliveryFee}</Text>
+                  <Text style={styles.priceValue}>{pickupFeeDisplay}</Text>
+                </View>
               ) : null}
+              <View style={styles.priceTotalRow}>
+                <Text style={styles.priceTotalLabel}>{s.total}</Text>
+                <Text style={styles.priceTotalValue}>{totalDisplay}</Text>
+              </View>
+              {estimate.disclaimer ? <Text style={styles.disclaimer}>{estimate.disclaimer}</Text> : null}
             </View>
           </>
         )}
       </ScrollView>
 
-      <SafeAreaView style={styles.footer} edges={["bottom"]}>
+      <View style={[styles.footer, { paddingBottom: footerBottom }]}>
         {submitError ? <Text style={styles.submitError}>{submitError}</Text> : null}
-        <Pressable
-          onPress={handleSubmitOrder}
-          disabled={!draft.partnerId || loading || Boolean(error) || submitting}
-          style={({ pressed }) => [
-            styles.submitWrap,
-            (!draft.partnerId || loading || error || submitting) && styles.submitDisabled,
-            pressed && styles.pressed,
-          ]}
-        >
-          <LinearGradient
-            colors={["#4A3AFF", "#12B886"]}
-            start={{ x: 0, y: 0.5 }}
-            end={{ x: 1, y: 0.5 }}
-            style={styles.submitBtn}
-          >
-            <Text style={styles.submitLabel}>
-              {submitting
-                ? isEditing
-                  ? "Saving..."
-                  : "Submitting..."
-                : isEditing
-                  ? s.saveChanges
-                  : s.submitOrder}
-            </Text>
-          </LinearGradient>
-        </Pressable>
-      </SafeAreaView>
+        <View style={styles.footerRow}>
+          <View style={styles.footerTotal}>
+            <Text style={styles.footerTotalLabel}>{s.totalAmount}</Text>
+            <Text style={styles.footerTotalValue}>{totalDisplay}</Text>
+          </View>
+          <AppCtaButton
+            label={submitLabel}
+            onPress={handleSubmitOrder}
+            disabled={submitDisabled}
+            loading={submitting}
+            width="auto"
+            rightIcon={isEditing ? undefined : "arrow-right"}
+          />
+        </View>
+        <View style={styles.secureRow}>
+          <MaterialCommunityIcons name="lock-outline" size={12} color={UI.muted} />
+          <Text style={styles.secureText}>{s.secureNote}</Text>
+        </View>
+      </View>
 
       <SignInRequiredModal
         visible={signInPromptVisible}
         onClose={() => setSignInPromptVisible(false)}
         onSignIn={() => {
           goToAuthFromOrderSummary(router, "/(auth)/login");
-          // Keep prompt until the sheet covers it (avoids close-then-open flash).
           setTimeout(() => setSignInPromptVisible(false), 500);
         }}
         onSignUp={() => {
@@ -398,21 +812,12 @@ export default function OrderSummaryScreen() {
                   {formatOrderReference(submittedOrderId)}
                 </Text>
               </View>
-              <Pressable
+              <AppCtaButton
+                label={s.orderSubmittedOk}
                 onPress={handleSubmittedOrderContinue}
-                style={({ pressed }) => [styles.successBtnWrap, pressed && styles.pressed]}
-                accessibilityRole="button"
+                width="full"
                 accessibilityLabel={s.orderSubmittedOk}
-              >
-                <LinearGradient
-                  colors={["#4A3AFF", "#12B886"]}
-                  start={{ x: 0, y: 0.5 }}
-                  end={{ x: 1, y: 0.5 }}
-                  style={styles.successBtn}
-                >
-                  <Text style={styles.successBtnLabel}>{s.orderSubmittedOk}</Text>
-                </LinearGradient>
-              </Pressable>
+              />
             </View>
           </View>
         </Modal>
@@ -428,18 +833,24 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 16,
-    paddingVertical: 15,
+    paddingVertical: 8,
     gap: 10,
   },
-  headerSide: { width: 36 },
+  headerCopy: { flex: 1, alignItems: "center" },
   headerTitle: {
-    flex: 1,
     fontSize: 18,
     color: UI.text,
     fontFamily: "Poppins-Bold",
     textAlign: "center",
   },
-  closeBtn: {
+  headerSubtitle: {
+    marginTop: 2,
+    fontSize: 12,
+    color: UI.muted,
+    fontFamily: "Poppins-Regular",
+    textAlign: "center",
+  },
+  roundBtn: {
     width: 36,
     height: 36,
     borderRadius: 18,
@@ -447,135 +858,134 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  pressed: { opacity: 0.85 },
   scroll: { flex: 1 },
-  scrollContent: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 24 },
+  scrollContent: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 24, gap: 12 },
   centerBlock: { paddingVertical: 40, alignItems: "center", gap: 12 },
-  partner: {
-    fontSize: 18,
-    fontFamily: "Poppins-Bold",
-    color: UI.text,
-    marginBottom: 12,
-  },
   lockedPartnerNote: {
     fontSize: 13,
     fontFamily: "Poppins-Regular",
     color: UI.muted,
-    marginBottom: 8,
     lineHeight: 18,
   },
   card: {
     backgroundColor: UI.card,
-    borderRadius: 16,
-    padding: 18,
+    borderRadius: 18,
+    padding: 14,
     borderWidth: 1,
     borderColor: UI.chipBorder,
-    shadowColor: UI.shadow,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 1,
-    shadowRadius: 10,
-    elevation: 2,
   },
-  cardTitle: {
-    fontSize: 20,
-    fontFamily: "Poppins-Bold",
-    color: UI.text,
-    marginBottom: 6,
-  },
-  ref: {
-    fontSize: 13,
-    fontFamily: "Poppins-Regular",
-    color: UI.muted,
-    marginBottom: 14,
-  },
-  subheading: {
-    fontSize: 12,
-    fontFamily: "Poppins-SemiBold",
-    color: UI.muted,
-    textTransform: "uppercase",
-    marginBottom: 6,
-  },
-  mt: { marginTop: 14 },
-  bullet: {
-    fontSize: 15,
-    fontFamily: "Poppins-Medium",
-    color: UI.text,
-    marginBottom: 4,
-  },
-  row: {
+  providerRow: { flexDirection: "row", gap: 12 },
+  providerImage: { width: 64, height: 64, borderRadius: 14, backgroundColor: UI.iconWell },
+  providerImageFallback: { backgroundColor: "#EDE9FE" },
+  providerCopy: { flex: 1, minWidth: 0, gap: 4 },
+  providerName: { fontSize: 16, fontFamily: "Poppins-Bold", color: UI.text },
+  metaRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 4 },
+  metaStrong: { fontSize: 12, color: UI.text, fontFamily: "Poppins-SemiBold" },
+  metaMuted: { fontSize: 12, color: UI.muted, fontFamily: "Poppins-Regular" },
+  metaDot: { color: UI.muted, fontSize: 12 },
+  openText: { fontSize: 12, color: UI.open, fontFamily: "Poppins-SemiBold" },
+  closedText: { color: UI.closed },
+  providerFooter: {
+    marginTop: 2,
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 10,
-    borderBottomWidth: 1,
+    justifyContent: "space-between",
+  },
+  inlineLink: { flexDirection: "row", alignItems: "center", gap: 2 },
+  inlineLinkText: { fontSize: 13, color: UI.purple, fontFamily: "Poppins-SemiBold" },
+  sectionHead: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 8,
+    gap: 8,
+  },
+  sectionTitle: { fontSize: 16, color: UI.text, fontFamily: "Poppins-Bold" },
+  categoryGroup: { paddingTop: 4 },
+  categoryGroupBorder: {
+    marginBottom: 8,
+    paddingBottom: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: UI.chipBorder,
   },
-  rowName: {
-    flex: 1,
-    color: UI.text,
-    fontSize: 14,
-    fontFamily: "Poppins-Regular",
-    paddingRight: 8,
+  categoryHead: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 4,
+    marginBottom: 2,
   },
-  rowQty: {
-    fontSize: 13,
-    color: UI.muted,
-    fontFamily: "Poppins-Medium",
-    marginHorizontal: 6,
+  categoryTitle: { fontSize: 13, color: UI.purple, fontFamily: "Poppins-SemiBold" },
+  serviceBlock: { paddingVertical: 10, gap: 8 },
+  serviceBlockBorder: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: UI.chipBorder },
+  serviceRow: { flexDirection: "row", gap: 10, alignItems: "center" },
+  serviceImage: { width: 56, height: 56, borderRadius: 12, backgroundColor: UI.iconWell },
+  serviceCopy: { flex: 1, minWidth: 0 },
+  serviceTitleRow: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 8 },
+  serviceName: { flex: 1, fontSize: 15, color: UI.text, fontFamily: "Poppins-SemiBold" },
+  unitPrice: { marginTop: 4, fontSize: 12, color: UI.purple, fontFamily: "Poppins-Medium" },
+  serviceMetaRow: {
+    marginTop: 4,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
-  rowPrice: {
-    fontSize: 15,
-    fontFamily: "Poppins-Bold",
-    color: UI.teal,
-    minWidth: 72,
-    textAlign: "right",
+  serviceActions: { flexDirection: "row", alignItems: "center", gap: 10 },
+  lineTotal: { fontSize: 15, color: UI.text, fontFamily: "Poppins-Bold" },
+  addonRow: { flexDirection: "row", alignItems: "center", gap: 6, paddingLeft: 4 },
+  addonText: { fontSize: 12, color: UI.teal, fontFamily: "Poppins-Medium" },
+  infoRow: { flexDirection: "row", alignItems: "flex-start", gap: 10 },
+  infoIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: "#F3F0FF",
+    alignItems: "center",
+    justifyContent: "center",
   },
-  totalRow: {
+  infoCopy: { flex: 1, minWidth: 0 },
+  infoTitle: { fontSize: 14, color: UI.text, fontFamily: "Poppins-SemiBold" },
+  infoBody: { fontSize: 13, color: UI.muted, fontFamily: "Poppins-Regular", lineHeight: 19 },
+  infoDivider: { height: StyleSheet.hairlineWidth, backgroundColor: UI.chipBorder, marginVertical: 12 },
+  priceCard: {
+    backgroundColor: "#F5F3FF",
+    borderRadius: 18,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "#EDE9FE",
+    gap: 10,
+  },
+  priceRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  priceLabel: { fontSize: 13, color: UI.muted, fontFamily: "Poppins-Regular" },
+  priceValue: { fontSize: 13, color: UI.text, fontFamily: "Poppins-SemiBold" },
+  priceTotalRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginTop: 16,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: UI.chipBorder,
+    alignItems: "center",
+    paddingTop: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: "#DDD6FE",
   },
-  totalLabel: {
-    fontSize: 16,
-    fontFamily: "Poppins-Bold",
-    color: UI.text,
-  },
-  totalValue: {
-    fontSize: 20,
-    fontFamily: "Poppins-Bold",
-    color: UI.text,
-  },
-  disclaimer: {
-    fontSize: 12,
-    fontFamily: "Poppins-Regular",
-    color: UI.muted,
-    marginTop: 12,
-    lineHeight: 17,
-  },
-  muted: {
-    color: UI.muted,
-    textAlign: "center",
-    fontFamily: "Poppins-Regular",
-  },
-  error: {
-    color: "#B91C1C",
-    textAlign: "center",
-    fontFamily: "Poppins-Regular",
-  },
+  priceTotalLabel: { fontSize: 16, color: UI.text, fontFamily: "Poppins-Bold" },
+  priceTotalValue: { fontSize: 18, color: UI.text, fontFamily: "Poppins-Bold" },
+  disclaimer: { fontSize: 11, color: UI.muted, fontFamily: "Poppins-Regular", lineHeight: 16 },
+  muted: { color: UI.muted, textAlign: "center", fontFamily: "Poppins-Regular" },
+  error: { color: "#B91C1C", textAlign: "center", fontFamily: "Poppins-Regular" },
   linkBtn: { padding: 12 },
-  linkText: {
-    color: UI.teal,
-    fontFamily: "Poppins-SemiBold",
-    fontSize: 16,
-  },
+  linkText: { color: UI.teal, fontFamily: "Poppins-SemiBold", fontSize: 16 },
   footer: {
     paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 8,
-    backgroundColor: UI.bg,
+    paddingTop: 10,
+    backgroundColor: UI.card,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: UI.chipBorder,
   },
+  footerRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+  footerTotal: { flex: 1, minWidth: 0 },
+  footerTotalLabel: { fontSize: 11, color: UI.muted, fontFamily: "Poppins-Medium" },
+  footerTotalValue: { fontSize: 18, color: UI.text, fontFamily: "Poppins-Bold" },
+  secureRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4, marginTop: 8 },
+  secureText: { fontSize: 11, color: UI.muted, fontFamily: "Poppins-Regular" },
   submitError: {
     color: "#B91C1C",
     fontSize: 13,
@@ -583,21 +993,6 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     marginBottom: 10,
     textAlign: "center",
-  },
-  submitWrap: {
-    borderRadius: 16,
-    overflow: "hidden",
-  },
-  submitBtn: {
-    paddingVertical: 16,
-    borderRadius: 16,
-    alignItems: "center",
-  },
-  submitDisabled: { opacity: 0.45 },
-  submitLabel: {
-    fontSize: 16,
-    fontFamily: "Poppins-Bold",
-    color: "#FFFFFF",
   },
   successOverlay: {
     flex: 1,
@@ -675,21 +1070,5 @@ const styles = StyleSheet.create({
     fontFamily: "Poppins-Bold",
     color: UI.text,
     letterSpacing: 1,
-  },
-  successBtnWrap: {
-    alignSelf: "stretch",
-    borderRadius: 16,
-    overflow: "hidden",
-  },
-  successBtn: {
-    borderRadius: 16,
-    paddingVertical: 15,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  successBtnLabel: {
-    fontSize: 16,
-    fontFamily: "Poppins-Bold",
-    color: "#FFFFFF",
   },
 });

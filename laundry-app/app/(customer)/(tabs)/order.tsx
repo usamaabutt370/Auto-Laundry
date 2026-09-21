@@ -4,7 +4,6 @@ import { StatusBar } from "expo-status-bar";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  ActivityIndicator,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -24,6 +23,7 @@ import { GuestSignInPrompt } from "@/components/guest-sign-in-prompt";
 import { WebHeaderSpacer } from "@/components/web-header-spacer";
 import { useConfirmDialog } from "@/components/confirm-dialog";
 import { PartnerNameWithBadge } from "@/components/partner-name-with-badge";
+import { GradientLoader, APP_LOADER_TINT } from "@/components/ui/gradient-loader";
 import { useAuth } from "@/contexts/auth-context";
 import { useLocale } from "@/contexts/locale-context";
 import { useCustomerOrders } from "@/hooks/use-customer-orders";
@@ -284,7 +284,7 @@ export default function CustomerOrderScreen() {
         />
       ) : loading && orders.length === 0 ? (
         <View style={styles.center}>
-          <ActivityIndicator color={UI.teal} />
+          <GradientLoader />
           <Text style={styles.muted}>{s.loading}</Text>
         </View>
       ) : error ? (
@@ -313,8 +313,8 @@ export default function CustomerOrderScreen() {
             <RefreshControl
               refreshing={isRefreshing}
               onRefresh={onRefresh}
-              tintColor={UI.teal}
-              colors={[UI.teal]}
+              tintColor={APP_LOADER_TINT}
+              colors={[APP_LOADER_TINT]}
               progressBackgroundColor={UI.card}
               progressViewOffset={8}
             />

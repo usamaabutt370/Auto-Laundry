@@ -29,6 +29,7 @@ import { prepareImageForUpload } from "@/utils/read-local-image-bytes";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
 import type { CountryCode } from "libphonenumber-js";
 import { Input } from "@/components";
+import { GradientLoader } from "@/components/ui/gradient-loader";
 
 const UI = {
   bg: "#F7F8FA",
@@ -435,7 +436,7 @@ export default function EditProfileScreen() {
       <SafeAreaView style={styles.container} edges={["top"]}>
         <StatusBar style="dark" />
         <View style={styles.loadingWrap}>
-          <ActivityIndicator color={UI.teal} size="small" />
+          <GradientLoader size="small" />
         </View>
       </SafeAreaView>
     );
@@ -517,7 +518,7 @@ export default function EditProfileScreen() {
               ) : (
                 <View style={styles.avatarPlaceholder}>
                   {uploadingImage ? (
-                    <ActivityIndicator color={UI.teal} size="small" />
+                    <GradientLoader size="small" />
                   ) : (
                     <>
                       <MaterialCommunityIcons

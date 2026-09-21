@@ -1,5 +1,6 @@
-import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 
+import { GradientLoader } from "@/components/ui/gradient-loader";
 import { theme } from "@/constants/theme";
 
 const fs = theme.fontSize;
@@ -7,7 +8,6 @@ const fs = theme.fontSize;
 const UI = {
   card: "#FFFFFF",
   text: "#111827",
-  teal: "#12B886",
   chipBorder: "#E5E7EB",
 };
 
@@ -29,7 +29,7 @@ export function BlockingLoader({ visible, message }: BlockingLoaderProps) {
   return (
     <View style={styles.root} pointerEvents="auto" accessibilityViewIsModal>
       <View style={styles.card}>
-        <ActivityIndicator size="large" color={UI.teal} />
+        <GradientLoader size="large" />
         {message ? <Text style={styles.message}>{message}</Text> : null}
       </View>
     </View>

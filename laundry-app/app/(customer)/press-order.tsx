@@ -1,5 +1,4 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
@@ -7,6 +6,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { CustomerItemizedOrderLayout } from "@/components/customer-itemized-order-layout";
 import { CustomerLiveEstimateFooter } from "@/components/customer-live-estimate-footer";
+import { AppCtaButton } from "@/components/ui/cta-button";
 import {
   WashFoldPackageBox,
   WashFoldPackageGrid,
@@ -284,21 +284,13 @@ export default function PressOrderScreen() {
                 estimate={estimate}
               />
             ) : null}
-            <Pressable
+            <AppCtaButton
+              label={sDet.save}
               onPress={() => router.back()}
-              style={({ pressed }) => [styles.confirmWrap, pressed && styles.pressed]}
-              accessibilityRole="button"
+              width="full"
               accessibilityLabel={sDet.save}
-            >
-              <LinearGradient
-                colors={["#4A3AFF", "#12B886"]}
-                start={{ x: 0, y: 0.5 }}
-                end={{ x: 1, y: 0.5 }}
-                style={styles.confirmBtn}
-              >
-                <Text style={styles.confirmLabel}>{sDet.save}</Text>
-              </LinearGradient>
-            </Pressable>
+              style={styles.confirmBtn}
+            />
           </>
         }
       >
@@ -525,21 +517,8 @@ const styles = StyleSheet.create({
     minWidth: 28,
     textAlign: "center",
   },
-  confirmWrap: {
+  confirmBtn: {
     marginTop: 8,
     marginBottom: 8,
-    borderRadius: 16,
-    overflow: "hidden",
-  },
-  confirmBtn: {
-    borderRadius: 16,
-    paddingVertical: 16,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  confirmLabel: {
-    fontSize: 16,
-    fontFamily: "Poppins-Bold",
-    color: "#FFFFFF",
   },
 });
