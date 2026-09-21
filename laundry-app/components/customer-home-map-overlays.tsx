@@ -102,8 +102,11 @@ function formatRatingAvg(value: number): string {
 
 function serviceLine(partner: PartnerMapMarker, home: typeof strings.customer.home) {
   const types = new Set(partner.serviceTypes ?? []);
-  if (types.has("washAndFold") || types.has("dryCleaning")) {
-    return { icon: "washing-machine" as const, label: `${home.tagLaundry} • ${home.tagWashFold}` };
+  if (types.has("washAndFold")) {
+    return { icon: "washing-machine" as const, label: home.categoryLaundry };
+  }
+  if (types.has("dryCleaning")) {
+    return { icon: "hanger" as const, label: home.categoryDryCleaning };
   }
   if (types.has("press")) {
     return { icon: "iron" as const, label: home.categoryIroning };
@@ -111,7 +114,7 @@ function serviceLine(partner: PartnerMapMarker, home: typeof strings.customer.ho
   if (types.has("tailoring")) {
     return { icon: "scissors-cutting" as const, label: home.categoryTailoring };
   }
-  return { icon: "washing-machine" as const, label: `${home.tagLaundry} • ${home.tagWashFold}` };
+  return { icon: "washing-machine" as const, label: home.categoryLaundry };
 }
 
 function MapPartnerPreviewCard({

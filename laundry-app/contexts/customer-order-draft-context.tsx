@@ -57,6 +57,33 @@ const emptyDraft = (): CustomerOrderDraft => ({
   tailoring: null,
 });
 
+export function quantitiesHaveItems(map: Record<string, number> | undefined | null) {
+  return Object.values(map ?? {}).some((qty) => qty > 0);
+}
+
+export function orderDraftHasItems(draft: CustomerOrderDraft) {
+  return (
+    quantitiesHaveItems(draft.washFold?.itemizedQuantities) ||
+    quantitiesHaveItems(draft.dryClean?.itemizedQuantities) ||
+    quantitiesHaveItems(draft.press?.itemizedQuantities) ||
+    quantitiesHaveItems(draft.tailoring?.itemizedQuantities)
+  );
+}
+
+export function selectedServiceIdsFromQuantities(input: {
+  washFold?: Record<string, number> | null;
+  dryClean?: Record<string, number> | null;
+  press?: Record<string, number> | null;
+  tailoring?: Record<string, number> | null;
+}): CustomerServiceId[] {
+  const ids: CustomerServiceId[] = [];
+  if (quantitiesHaveItems(input.washFold)) ids.push("washAndFold");
+  if (quantitiesHaveItems(input.dryClean)) ids.push("dryCleaning");
+  if (quantitiesHaveItems(input.press)) ids.push("press");
+  if (quantitiesHaveItems(input.tailoring)) ids.push("tailoring");
+  return ids;
+}
+
 type Value = {
   draft: CustomerOrderDraft;
   /** Set while customer is editing a submitted order (before partner accepts). */

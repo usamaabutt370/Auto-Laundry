@@ -22,13 +22,16 @@ export default function CustomerLayout() {
         <Stack.Screen name="faq" />
         <Stack.Screen name="edit-profile" />
         <Stack.Screen name="pickup-services" />
+        <Stack.Screen name="pick-launderer" />
+        <Stack.Screen name="launderer-detail" />
         <Stack.Screen
           name="book-service"
           options={{
-            presentation: "fullScreenModal",
+            presentation: "transparentModal",
             animation: "slide_from_bottom",
             gestureEnabled: true,
             headerShown: false,
+            contentStyle: { backgroundColor: "transparent" },
           }}
         />
         <Stack.Screen name="dry-clean-itemized-by-user" />
@@ -58,8 +61,6 @@ export default function CustomerLayout() {
         />
         <Stack.Screen name="order-detail" />
         <Stack.Screen name="chat/[orderId]" />
-        <Stack.Screen name="pick-launderer" />
-        <Stack.Screen name="launderer-detail" />
       </Stack>
     </WebAreaShell>
   );

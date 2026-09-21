@@ -1,17 +1,17 @@
 import type { LaundererServiceType } from "@/constants/launderers";
 
-export type ServiceJob = "laundry" | "ironing" | "tailoring";
+export type ServiceJob = "washAndFold" | "dryCleaning" | "ironing" | "tailoring";
 
 const JOB_TYPES: Record<ServiceJob, readonly LaundererServiceType[]> = {
-  laundry: ["washAndFold", "dryCleaning"],
+  washAndFold: ["washAndFold"],
+  dryCleaning: ["dryCleaning"],
   ironing: ["press"],
   tailoring: ["tailoring"],
 };
 
 export function jobFromHomeService(value?: string | null): ServiceJob | null {
-  if (value === "laundry" || value === "washAndFold" || value === "dryCleaning") {
-    return "laundry";
-  }
+  if (value === "laundry" || value === "washAndFold") return "washAndFold";
+  if (value === "dryCleaning") return "dryCleaning";
   if (value === "ironing" || value === "press") return "ironing";
   if (value === "tailoring") return "tailoring";
   return null;
@@ -38,14 +38,15 @@ export function jobIncludesServiceType(
 
 export function offeredJobsFromTypes(types: readonly LaundererServiceType[]): ServiceJob[] {
   const jobs: ServiceJob[] = [];
-  if (types.includes("washAndFold") || types.includes("dryCleaning")) jobs.push("laundry");
+  if (types.includes("washAndFold")) jobs.push("washAndFold");
+  if (types.includes("dryCleaning")) jobs.push("dryCleaning");
   if (types.includes("press")) jobs.push("ironing");
   if (types.includes("tailoring")) jobs.push("tailoring");
   return jobs;
 }
 
 export function defaultJobFromTypes(types: readonly LaundererServiceType[]): ServiceJob {
-  return offeredJobsFromTypes(types)[0] ?? "laundry";
+  return offeredJobsFromTypes(types)[0] ?? "washAndFold";
 }
 
 export function resolveActiveJob(
@@ -55,7 +56,7 @@ export function resolveActiveJob(
   const offered = offeredJobsFromTypes(types);
   const wanted = jobFromHomeService(requested);
   if (wanted && offered.includes(wanted)) return wanted;
-  return offered[0] ?? "laundry";
+  return offered[0] ?? "washAndFold";
 }
 
 export function primaryServiceForJob(

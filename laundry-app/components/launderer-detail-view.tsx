@@ -3,9 +3,10 @@ import { StatusBar } from "expo-status-bar";
 import { LinearGradient } from "expo-linear-gradient";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ComponentProps } from "react";
 import {
   ActivityIndicator,
+  Animated,
   Linking,
   NativeScrollEvent,
   NativeSyntheticEvent,
@@ -18,14 +19,21 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { showAppAlert } from "@/components/app-alert";
+import { OrderSelectionSummary } from "@/components/order-selection-summary";
 import { StarRating } from "@/components/star-rating";
 import { assets } from "@/assets/assets";
 import type { LaundererServiceType } from "@/constants/launderers";
 import { useAuth } from "@/contexts/auth-context";
+import {
+  orderDraftHasItems,
+  quantitiesHaveItems,
+  useCustomerOrderDraft,
+} from "@/contexts/customer-order-draft-context";
 import { useLocale } from "@/contexts/locale-context";
+import { usePartnerOrderEstimate } from "@/hooks/use-partner-order-estimate";
 import { usePartnerVerified } from "@/hooks/use-partner-verified";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { avatarUrlWithCacheBuster } from "@/lib/avatar";
@@ -39,7 +47,6 @@ import {
 } from "@/lib/partner-discovery";
 import { isProviderSaved, toggleSavedProvider } from "@/lib/saved-providers";
 import {
-  jobIncludesServiceType,
   offeredJobsFromTypes,
   primaryServiceForJob,
   resolveActiveJob,
@@ -48,7 +55,6 @@ import {
 import { getStrings } from "@/locales";
 import { getDeviceCoordinates } from "@/utils/device-location";
 import type { Coordinates } from "@/utils/geocoding";
-import { parsePriceDisplay } from "@/utils/parse-price-display";
 import { getPartnerHoursRange, getPartnerOpenStatus } from "@/utils/partner-hours";
 import { partnerHasActiveOffer } from "@/utils/partner-offers";
 
@@ -68,24 +74,14 @@ const UI = {
   shadow: "rgba(17, 24, 39, 0.12)",
 };
 
-type DetailTab = "services" | "about" | "photos" | "reviews";
+type DetailTab = "about" | "photos" | "reviews";
+type IconName = ComponentProps<typeof MaterialCommunityIcons>["name"];
 
 function fill(template: string, vars: Record<string, string | number>) {
   return Object.entries(vars).reduce(
     (acc, [key, value]) => acc.replaceAll(`{${key}}`, String(value)),
     template,
   );
-}
-
-function formatRs(amount: number): string {
-  if (Number.isInteger(amount)) return `Rs. ${amount}`;
-  return `Rs. ${amount.toFixed(2).replace(/\.00$/, "")}`;
-}
-
-function serviceItemLabel(name: string, category: string): string {
-  const trimmed = name.trim();
-  const prefix = `${category} - `;
-  return trimmed.startsWith(prefix) ? trimmed.slice(prefix.length) : trimmed;
 }
 
 function toRadians(value: number) {
@@ -114,36 +110,11 @@ function formatRatingAvg(value: number): string {
   return value.toFixed(1).replace(/\.0$/, "");
 }
 
-function categoryToType(category: string | null | undefined): LaundererServiceType | null {
-  const c = (category ?? "").trim();
-  if (c === "Wash & Fold") return "washAndFold";
-  if (c === "Dry Cleaning") return "dryCleaning";
-  if (c === "Tailoring") return "tailoring";
-  if (c === "Press") return "press";
-  return null;
-}
-
-function serviceThumb(category: string) {
-  const type = categoryToType(category);
-  if (type === "tailoring") return assets.images.home_deal_tailoring;
-  if (type === "press") return assets.images.home_deal_ironing;
-  if (type === "dryCleaning") return assets.images.home_deal_ironing;
-  return assets.images.home_deal_laundry;
-}
-
 function formatReviewDate(value: string) {
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return "";
   return parsed.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
 }
-
-type PricedService = {
-  key: string;
-  label: string;
-  price: string;
-  category: string;
-  serviceType: LaundererServiceType | null;
-};
 
 interface LaundererDetailViewProps {
   partnerId: string;
@@ -156,6 +127,7 @@ interface LaundererDetailViewProps {
     options?: { service?: LaundererServiceType; job?: ServiceJob; itemLabel?: string },
   ) => void;
   isModal?: boolean;
+  prefersPickupDelivery?: boolean;
 }
 
 export function LaundererDetailView({
@@ -164,18 +136,54 @@ export function LaundererDetailView({
   intentService,
   onBack,
   onSelect,
+  prefersPickupDelivery = false,
 }: LaundererDetailViewProps) {
   const router = useRouter();
   const { user } = useAuth();
   const { locale } = useLocale();
   const s = getStrings(locale).customer.laundererDetail;
   const sHome = getStrings(locale).customer.home;
+  const sBook = getStrings(locale).customer.bookService;
   const { isWeb } = useResponsiveLayout();
   const insets = useSafeAreaInsets();
   const { width: windowWidth } = useWindowDimensions();
   const footerBottomPad = Math.max(insets.bottom, 16);
   const heroHeight = isWeb ? 420 : Math.round(windowWidth * 0.72);
-  const popularCardWidth = Math.round((windowWidth - 40 - 12) / 2.35);
+  const jobCardWidth = Math.round((windowWidth - 40 - 10) / 2);
+
+  const jobMeta: Record<
+    ServiceJob,
+    { title: string; subtitle: string; icon: IconName; accent: string; image: number }
+  > = {
+    washAndFold: {
+      title: sHome.categoryLaundry,
+      subtitle: sHome.categoryLaundrySub,
+      icon: "tshirt-crew",
+      accent: "#2563EB",
+      image: assets.onboarding.slide1,
+    },
+    dryCleaning: {
+      title: sHome.categoryDryCleaning,
+      subtitle: sHome.categoryDryCleaningSub,
+      icon: "hanger",
+      accent: "#0EA5E9",
+      image: assets.images.home_deal_laundry,
+    },
+    ironing: {
+      title: sHome.categoryIroning,
+      subtitle: sHome.categoryIroningSub,
+      icon: "iron",
+      accent: "#12B886",
+      image: assets.images.home_category_ironing,
+    },
+    tailoring: {
+      title: sHome.categoryTailoring,
+      subtitle: sHome.categoryTailoringSub,
+      icon: "scissors-cutting",
+      accent: "#7C3AED",
+      image: assets.images.home_category_tailoring,
+    },
+  };
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -188,13 +196,18 @@ export function LaundererDetailView({
   const [reviews, setReviews] = useState<PartnerPublicReview[]>([]);
   const [userCoords, setUserCoords] = useState<Coordinates | null>(null);
   const [favorited, setFavorited] = useState(false);
-  const [tab, setTab] = useState<DetailTab>("services");
+  const [tab, setTab] = useState<DetailTab>("about");
   const [aboutExpanded, setAboutExpanded] = useState(false);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [heroWidth, setHeroWidth] = useState(windowWidth);
   const [jobOverride, setJobOverride] = useState<ServiceJob | null>(null);
+  const [headerSolid, setHeaderSolid] = useState(false);
   const heroScrollRef = useRef<ScrollView | null>(null);
+  const scrollY = useRef(new Animated.Value(0)).current;
   const partnerVerified = usePartnerVerified(partnerId);
+  const { draft, setPickupDeliveryRequested } = useCustomerOrderDraft();
+  const { loading: estimateLoading, estimate } = usePartnerOrderEstimate(partnerId, draft);
+  const fulfillmentTouchedRef = useRef(false);
 
   const load = useCallback(async () => {
     if (!partnerId) {
@@ -235,31 +248,9 @@ export function LaundererDetailView({
   useEffect(() => {
     setActiveImageIndex(0);
     setAboutExpanded(false);
-    setTab("services");
+    setTab("about");
     setJobOverride(null);
   }, [profile?.id, intentService]);
-
-  const pricedServices = useMemo<PricedService[]>(() => {
-    const seen = new Set<string>();
-    return services.flatMap((row, index) => {
-      const amount = parsePriceDisplay(row.price_display);
-      if (amount == null || amount <= 0) return [];
-      const category = (row.category ?? "").trim();
-      const label = serviceItemLabel(row.name, category) || row.name;
-      const dedupeKey = `${category}::${label.trim().toLowerCase()}`;
-      if (seen.has(dedupeKey)) return [];
-      seen.add(dedupeKey);
-      return [
-        {
-          key: `${dedupeKey}-${index}`,
-          label,
-          price: row.price_display.trim() || formatRs(amount),
-          category,
-          serviceType: categoryToType(category),
-        },
-      ];
-    });
-  }, [services]);
 
   const serviceTypes = useMemo(
     () =>
@@ -273,26 +264,7 @@ export function LaundererDetailView({
   const offeredJobs = useMemo(() => offeredJobsFromTypes(serviceTypes), [serviceTypes]);
   const activeJob = jobOverride ?? resolveActiveJob(serviceTypes, intentService);
 
-  const jobServices = useMemo(
-    () => pricedServices.filter((row) => jobIncludesServiceType(activeJob, row.serviceType)),
-    [activeJob, pricedServices],
-  );
-
-  const popularServices = useMemo(() => jobServices.slice(0, 4), [jobServices]);
-
-  const primaryCategoryLabel =
-    activeJob === "ironing"
-      ? sHome.categoryIroning
-      : activeJob === "tailoring"
-        ? sHome.categoryTailoring
-        : s.categoryLaundry;
-
-  const jobSwitcherLabel = (job: ServiceJob) =>
-    job === "ironing"
-      ? sHome.categoryIroning
-      : job === "tailoring"
-        ? sHome.categoryTailoring
-        : sHome.categoryLaundry;
+  const primaryCategoryLabel = jobMeta[activeJob].title;
 
   const businessImageUris = useMemo(
     () =>
@@ -314,6 +286,12 @@ export function LaundererDetailView({
   const hours = getPartnerHoursRange(profile?.available_time);
   const openStatus = getPartnerOpenStatus(profile?.available_time);
   const hasPickup = partnerOffersPickupDelivery(profile);
+  const jobHasItems = (job: ServiceJob) => {
+    if (job === "washAndFold") return quantitiesHaveItems(draft.washFold?.itemizedQuantities);
+    if (job === "dryCleaning") return quantitiesHaveItems(draft.dryClean?.itemizedQuantities);
+    if (job === "ironing") return quantitiesHaveItems(draft.press?.itemizedQuantities);
+    return quantitiesHaveItems(draft.tailoring?.itemizedQuantities);
+  };
   const hasOffer = partnerHasActiveOffer(profile?.offerPercent);
   const aboutText = profile?.business_description?.trim() ?? "";
   const address = profile?.address?.trim() || "—";
@@ -384,37 +362,14 @@ export function LaundererDetailView({
     setActiveImageIndex(Math.max(0, Math.min(carouselImages.length - 1, nextIndex)));
   };
 
-  const handleSelect = (service?: LaundererServiceType, itemLabel?: string) => {
+  const handleSelect = (job: ServiceJob = activeJob) => {
     if (!partnerId) return;
+    setJobOverride(job);
     onSelect(partnerId, profile?.business_name?.trim() || initialName || null, {
-      service: service ?? primaryServiceForJob(activeJob, serviceTypes),
-      job: activeJob,
-      itemLabel,
+      service: primaryServiceForJob(job, serviceTypes),
+      job,
     });
   };
-
-  const renderServiceCard = (item: PricedService, width: number) => (
-    <Pressable
-      key={item.key}
-      onPress={() => handleSelect(item.serviceType ?? undefined, item.label)}
-      style={({ pressed }) => [styles.popularCard, { width }, pressed && styles.pressed]}
-    >
-      <Image
-        source={serviceThumb(item.category)}
-        style={[styles.popularImage, { width }]}
-        contentFit="cover"
-      />
-      <Text style={styles.popularName} numberOfLines={1}>
-        {item.label}
-      </Text>
-      <View style={styles.popularPriceRow}>
-        <Text style={styles.popularPrice} numberOfLines={1}>
-          {fill(s.fromPrice, { price: item.price })}
-        </Text>
-        <MaterialCommunityIcons name="chevron-right" size={16} color={UI.muted} />
-      </View>
-    </Pressable>
-  );
 
   const handleShare = async () => {
     const message = fill(s.shareMessage, { name: displayName, address });
@@ -467,11 +422,53 @@ export function LaundererDetailView({
     ]);
   };
 
-  const renderHeroChrome = () => (
-    <View pointerEvents="box-none" style={styles.heroChrome}>
+  useEffect(() => {
+    if (!profile) return;
+    if (!hasPickup) {
+      setPickupDeliveryRequested(false);
+      return;
+    }
+    if (fulfillmentTouchedRef.current) return;
+    if (prefersPickupDelivery) setPickupDeliveryRequested(true);
+  }, [hasPickup, prefersPickupDelivery, profile, setPickupDeliveryRequested]);
+
+  const pickupEnabled = hasPickup && draft.pickupDeliveryRequested;
+
+  const handleContinueOrder = () => {
+    if (!orderDraftHasItems(draft)) {
+      showAppAlert(s.continueOrder, s.needItemsToContinue);
+      return;
+    }
+    if (pickupEnabled) {
+      router.push("/(customer)/schedule-pickup");
+      return;
+    }
+    router.push("/(customer)/order-summary");
+  };
+
+  const headerFadeEnd = Math.max(72, Math.round(heroHeight * 0.32));
+  const headerOpacity = scrollY.interpolate({
+    inputRange: [16, headerFadeEnd],
+    outputRange: [0, 1],
+    extrapolate: "clamp",
+  });
+
+  const onMainScroll = Animated.event(
+    [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+    {
+      useNativeDriver: true,
+      listener: (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+        const next = event.nativeEvent.contentOffset.y >= headerFadeEnd - 8;
+        setHeaderSolid((prev) => (prev === next ? prev : next));
+      },
+    },
+  );
+
+  const headerIcons = (btnStyle: object) => (
+    <>
       <Pressable
         onPress={onBack}
-        style={({ pressed }) => [styles.heroRoundBtn, pressed && styles.pressed]}
+        style={({ pressed }) => [btnStyle, pressed && styles.pressed]}
         accessibilityRole="button"
         accessibilityLabel="Back"
       >
@@ -480,7 +477,7 @@ export function LaundererDetailView({
       <View style={styles.heroChromeRight}>
         <Pressable
           onPress={() => void handleShare()}
-          style={({ pressed }) => [styles.heroRoundBtn, pressed && styles.pressed]}
+          style={({ pressed }) => [btnStyle, pressed && styles.pressed]}
           accessibilityRole="button"
           accessibilityLabel={s.share}
         >
@@ -488,7 +485,7 @@ export function LaundererDetailView({
         </Pressable>
         <Pressable
           onPress={() => void handleFavorite()}
-          style={({ pressed }) => [styles.heroRoundBtn, pressed && styles.pressed]}
+          style={({ pressed }) => [btnStyle, pressed && styles.pressed]}
           accessibilityRole="button"
           accessibilityLabel={favorited ? s.unfavorite : s.favorite}
         >
@@ -499,24 +496,30 @@ export function LaundererDetailView({
           />
         </Pressable>
       </View>
+    </>
+  );
+
+  const renderHeroChrome = () => (
+    <View pointerEvents="box-none" style={[styles.heroChrome, { paddingTop: insets.top + 8 }]}>
+      {headerIcons(styles.heroRoundBtn)}
     </View>
   );
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container} edges={["top"]}>
+      <View style={styles.container}>
         <StatusBar style="dark" />
         {renderHeroChrome()}
         <View style={styles.centered}>
           <ActivityIndicator color={UI.teal} size="small" />
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   if (error || !profile) {
     return (
-      <SafeAreaView style={styles.container} edges={["top"]}>
+      <View style={styles.container}>
         <StatusBar style="dark" />
         {renderHeroChrome()}
         <View style={styles.centered}>
@@ -525,24 +528,25 @@ export function LaundererDetailView({
             <Text style={styles.retryText}>{getStrings(locale).customer.pickLaunderer.retry}</Text>
           </Pressable>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   const tabs: { id: DetailTab; label: string }[] = [
-    { id: "services", label: s.tabServices },
     { id: "about", label: s.tabAbout },
     { id: "photos", label: s.tabPhotos },
     { id: "reviews", label: s.tabReviews },
   ];
 
   return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
-      <StatusBar style="dark" />
-      <ScrollView
+    <View style={styles.container}>
+      <StatusBar style={headerSolid ? "dark" : "light"} />
+      <Animated.ScrollView
         style={styles.scroll}
         contentContainerStyle={{ paddingBottom: 24 }}
         showsVerticalScrollIndicator={false}
+        onScroll={onMainScroll}
+        scrollEventThrottle={16}
       >
         <View
           style={[styles.heroWrap, { height: heroHeight }]}
@@ -572,7 +576,6 @@ export function LaundererDetailView({
               contentFit="cover"
             />
           )}
-          {renderHeroChrome()}
           {carouselImages.length > 0 ? (
             <View style={styles.photoCount}>
               <Text style={styles.photoCountText}>
@@ -661,22 +664,40 @@ export function LaundererDetailView({
             ))}
           </View>
 
-          {offeredJobs.length > 1 ? (
+          {offeredJobs.length > 0 ? (
             <View style={styles.jobSwitch}>
               <Text style={styles.jobSwitchLabel}>{s.jobSwitcherLabel}</Text>
-              <View style={styles.jobSwitchRow}>
+              <View style={styles.jobGrid}>
                 {offeredJobs.map((job) => {
+                  const meta = jobMeta[job];
                   const active = job === activeJob;
+                  const hasItems = jobHasItems(job);
                   return (
                     <Pressable
                       key={job}
-                      onPress={() => setJobOverride(job)}
-                      style={[styles.jobSwitchChip, active && styles.jobSwitchChipActive]}
+                      onPress={() => handleSelect(job)}
+                      style={[
+                        styles.jobCard,
+                        { width: jobCardWidth },
+                        (active || hasItems) && styles.jobCardActive,
+                      ]}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: active }}
                     >
-                      <Text
-                        style={[styles.jobSwitchText, active && styles.jobSwitchTextActive]}
-                      >
-                        {jobSwitcherLabel(job)}
+                      <Image source={meta.image} style={styles.jobCardImage} contentFit="cover" />
+                      <View style={[styles.jobCardIcon, { backgroundColor: meta.accent }]}>
+                        <MaterialCommunityIcons name={meta.icon} size={14} color="#FFFFFF" />
+                      </View>
+                      {hasItems ? (
+                        <View style={styles.jobCardCheck}>
+                          <MaterialCommunityIcons name="check" size={12} color="#FFFFFF" />
+                        </View>
+                      ) : null}
+                      <Text style={[styles.jobCardTitle, (active || hasItems) && styles.jobCardTitleActive]}>
+                        {meta.title}
+                      </Text>
+                      <Text style={styles.jobCardSub} numberOfLines={2}>
+                        {meta.subtitle}
                       </Text>
                     </Pressable>
                   );
@@ -692,7 +713,7 @@ export function LaundererDetailView({
                 <Pressable
                   key={item.id}
                   onPress={() => setTab(item.id)}
-                  style={[styles.tabBtn, { width: item.id === "services" ? "30%" : "23%" }]}
+                  style={[styles.tabBtn, { width: "33.33%" }]}
                   accessibilityRole="tab"
                   accessibilityState={{ selected: active }}
                 >
@@ -705,32 +726,8 @@ export function LaundererDetailView({
             })}
           </View>
 
-          {tab === "services" ? (
+          {tab === "about" ? (
             <View style={styles.tabBody}>
-              <View style={styles.sectionHead}>
-                <Text style={styles.sectionTitle}>{s.popularServices}</Text>
-                {jobServices.length > 0 ? (
-                  <Pressable
-                    onPress={() => handleSelect()}
-                    accessibilityRole="button"
-                    accessibilityLabel={s.viewAll}
-                  >
-                    <Text style={styles.viewAll}>{s.viewAll}</Text>
-                  </Pressable>
-                ) : null}
-              </View>
-              {jobServices.length > 0 ? (
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.popularRow}
-                >
-                  {popularServices.map((item) => renderServiceCard(item, popularCardWidth))}
-                </ScrollView>
-              ) : (
-                <Text style={styles.emptyCopy}>{s.noServices}</Text>
-              )}
-
               {hasOffer ? (
                 <Pressable
                   onPress={() => handleSelect()}
@@ -753,43 +750,6 @@ export function LaundererDetailView({
                   <MaterialCommunityIcons name="chevron-right" size={22} color={UI.purple} />
                 </Pressable>
               ) : null}
-
-              <View style={styles.infoPair}>
-                <View style={styles.infoCard}>
-                  <View style={styles.infoIcon}>
-                    <MaterialCommunityIcons name="map-marker" size={18} color={UI.purple} />
-                  </View>
-                  <Text style={styles.infoTitle}>{s.location}</Text>
-                  <Text style={styles.infoBody} numberOfLines={3}>
-                    {address}
-                  </Text>
-                  <Pressable onPress={() => void handleDirections()}>
-                    <Text style={styles.linkText}>{s.getDirections}</Text>
-                  </Pressable>
-                </View>
-                <View style={styles.infoCard}>
-                  <View style={[styles.infoIcon, { backgroundColor: "#ECFDF5" }]}>
-                    <MaterialCommunityIcons name="clock-outline" size={18} color={UI.teal} />
-                  </View>
-                  <Text style={styles.infoTitle}>{s.businessHours}</Text>
-                  <Text style={styles.infoBody}>{s.hoursMonSun}</Text>
-                  <Text style={styles.infoBody}>{hours?.rangeLabel ?? s.hoursUnknown}</Text>
-                </View>
-              </View>
-
-              <AboutBlock
-                heading={fill(s.aboutHeading, { name: displayName })}
-                text={aboutText || s.noAbout}
-                expanded={aboutExpanded}
-                onToggle={() => setAboutExpanded((value) => !value)}
-                readMore={s.readMore}
-                readLess={s.readLess}
-              />
-            </View>
-          ) : null}
-
-          {tab === "about" ? (
-            <View style={styles.tabBody}>
               <AboutBlock
                 heading={fill(s.aboutHeading, { name: displayName })}
                 text={aboutText || s.noAbout}
@@ -832,7 +792,6 @@ export function LaundererDetailView({
                       onPress={() => {
                         setActiveImageIndex(index);
                         heroScrollRef.current?.scrollTo({ x: index * heroWidth, animated: true });
-                        setTab("services");
                       }}
                       style={styles.photoCell}
                     >
@@ -873,33 +832,143 @@ export function LaundererDetailView({
               )}
             </View>
           ) : null}
+
+          <View style={styles.fulfillment}>
+            <Text style={styles.fulfillmentLabel}>{s.howToCollect}</Text>
+            <View style={styles.fulfillmentGrid}>
+              <Pressable
+                onPress={() => {
+                  if (!hasPickup) return;
+                  fulfillmentTouchedRef.current = true;
+                  setPickupDeliveryRequested(true);
+                }}
+                disabled={!hasPickup}
+                style={[
+                  styles.fulfillmentCard,
+                  pickupEnabled && styles.fulfillmentCardActive,
+                  !hasPickup && styles.fulfillmentDisabled,
+                ]}
+              >
+                <MaterialCommunityIcons name="truck-delivery-outline" size={18} color={UI.purple} />
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={[styles.fulfillmentTitle, pickupEnabled && styles.fulfillmentTitleActive]}
+                    numberOfLines={2}
+                  >
+                    {sBook.pickupTitle}
+                  </Text>
+                  <Text style={styles.fulfillmentBody} numberOfLines={2}>
+                    {sBook.pickupBody}
+                  </Text>
+                </View>
+              </Pressable>
+              <Pressable
+                onPress={() => {
+                  fulfillmentTouchedRef.current = true;
+                  setPickupDeliveryRequested(false);
+                }}
+                style={[
+                  styles.fulfillmentCard,
+                  !pickupEnabled && styles.fulfillmentCardActive,
+                ]}
+              >
+                <MaterialCommunityIcons name="storefront-outline" size={18} color={UI.purple} />
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={[styles.fulfillmentTitle, !pickupEnabled && styles.fulfillmentTitleActive]}
+                    numberOfLines={2}
+                  >
+                    {sBook.dropoffTitle}
+                  </Text>
+                  <Text style={styles.fulfillmentBody} numberOfLines={2}>
+                    {sBook.dropoffBody}
+                  </Text>
+                </View>
+              </Pressable>
+            </View>
+          </View>
         </View>
-      </ScrollView>
+      </Animated.ScrollView>
+
+      <Animated.View
+        pointerEvents="box-none"
+        style={[styles.stickyHeader, { paddingTop: insets.top }]}
+      >
+        <Animated.View
+          pointerEvents="none"
+          style={[styles.stickyHeaderFill, { opacity: headerOpacity }]}
+        />
+        <Pressable
+          onPress={onBack}
+          style={({ pressed }) => [
+            headerSolid ? styles.stickyIconBtn : styles.heroRoundBtn,
+            pressed && styles.pressed,
+          ]}
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+        >
+          <MaterialCommunityIcons name="chevron-left" size={26} color={UI.text} />
+        </Pressable>
+        <Animated.Text style={[styles.stickyTitle, { opacity: headerOpacity }]} numberOfLines={1}>
+          {displayName}
+        </Animated.Text>
+        <View style={styles.heroChromeRight}>
+          <Pressable
+            onPress={() => void handleShare()}
+            style={({ pressed }) => [
+              headerSolid ? styles.stickyIconBtn : styles.heroRoundBtn,
+              pressed && styles.pressed,
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel={s.share}
+          >
+            <MaterialCommunityIcons name="export-variant" size={20} color={UI.text} />
+          </Pressable>
+          <Pressable
+            onPress={() => void handleFavorite()}
+            style={({ pressed }) => [
+              headerSolid ? styles.stickyIconBtn : styles.heroRoundBtn,
+              pressed && styles.pressed,
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel={favorited ? s.unfavorite : s.favorite}
+          >
+            <MaterialCommunityIcons
+              name={favorited ? "heart" : "heart-outline"}
+              size={20}
+              color={favorited ? "#E11D48" : UI.text}
+            />
+          </Pressable>
+        </View>
+      </Animated.View>
 
       <View style={[styles.footer, { paddingBottom: footerBottomPad }]}>
-        <Pressable
-          onPress={() => void handleChat()}
-          style={({ pressed }) => [styles.chatBtn, pressed && styles.pressed]}
-        >
-          <MaterialCommunityIcons name="chat-outline" size={20} color={UI.purple} />
-          <Text style={styles.chatLabel}>{s.chat}</Text>
-        </Pressable>
-        <Pressable
-          onPress={() => handleSelect()}
-          style={({ pressed }) => [styles.bookWrap, pressed && styles.pressed]}
-        >
-          <LinearGradient
-            colors={["#6D5CFF", "#8B5CF6", "#22D3EE"]}
-            start={{ x: 0, y: 0.5 }}
-            end={{ x: 1, y: 0.5 }}
-            style={styles.bookBtn}
+        <OrderSelectionSummary estimate={estimate} loading={estimateLoading} />
+        <View style={styles.footerActions}>
+          <Pressable
+            onPress={() => void handleChat()}
+            style={({ pressed }) => [styles.chatBtn, pressed && styles.pressed]}
           >
-            <MaterialCommunityIcons name="calendar-month-outline" size={18} color="#FFFFFF" />
-            <Text style={styles.bookLabel}>{s.bookService}</Text>
-          </LinearGradient>
-        </Pressable>
+            <MaterialCommunityIcons name="chat-outline" size={20} color={UI.purple} />
+            <Text style={styles.chatLabel}>{s.chat}</Text>
+          </Pressable>
+          <Pressable
+            onPress={handleContinueOrder}
+            style={({ pressed }) => [styles.bookWrap, pressed && styles.pressed]}
+          >
+            <LinearGradient
+              colors={["#6D5CFF", "#8B5CF6", "#22D3EE"]}
+              start={{ x: 0, y: 0.5 }}
+              end={{ x: 1, y: 0.5 }}
+              style={styles.bookBtn}
+            >
+              <Text style={styles.bookLabel}>{s.continueOrder}</Text>
+              <MaterialCommunityIcons name="arrow-right" size={18} color="#FFFFFF" />
+            </LinearGradient>
+          </Pressable>
+        </View>
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -954,9 +1023,44 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingTop: 8,
   },
   heroChromeRight: { flexDirection: "row", gap: 10 },
+  stickyHeader: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    top: 0,
+    zIndex: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingBottom: 4,
+  },
+  stickyHeaderFill: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "#FFFFFF",
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: UI.chipBorder,
+  },
+  stickyTitle: {
+    flex: 1,
+    marginHorizontal: 10,
+    color: UI.text,
+    fontSize: 16,
+    lineHeight: 20,
+    fontFamily: "Poppins-Bold",
+    textAlign: "center",
+    includeFontPadding: false,
+  },
+  stickyIconBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: UI.iconWell,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   heroRoundBtn: {
     width: 40,
     height: 40,
@@ -991,7 +1095,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 28,
     paddingHorizontal: 20,
     paddingTop: 16,
-    paddingBottom: 16,
+    paddingBottom: 24,
   },
   identityRow: { flexDirection: "row", alignItems: "center", gap: 12 },
   avatarWell: {
@@ -1047,21 +1151,48 @@ const styles = StyleSheet.create({
   openText: { fontSize: 12, color: UI.openText, fontFamily: "Poppins-SemiBold" },
   closedText: { color: UI.closedText },
   mutedText: { color: UI.muted },
-  jobSwitch: { marginTop: 16, gap: 8 },
-  jobSwitchLabel: { fontSize: 12, color: UI.muted, fontFamily: "Poppins-Medium" },
-  jobSwitchRow: { flexDirection: "row", gap: 8 },
-  jobSwitchChip: {
-    flex: 1,
-    alignItems: "center",
+  jobSwitch: { marginTop: 16, gap: 10 },
+  jobSwitchLabel: { fontSize: 16, color: UI.text, fontFamily: "Poppins-Bold" },
+  jobGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  jobCard: {
     borderWidth: 1,
     borderColor: UI.chipBorder,
-    borderRadius: 999,
-    paddingVertical: 8,
-    backgroundColor: UI.iconWell,
+    borderRadius: 16,
+    backgroundColor: UI.card,
+    padding: 8,
+    paddingBottom: 10,
   },
-  jobSwitchChipActive: { backgroundColor: UI.purple, borderColor: UI.purple },
-  jobSwitchText: { fontSize: 12, color: UI.text, fontFamily: "Poppins-SemiBold" },
-  jobSwitchTextActive: { color: "#FFFFFF" },
+  jobCardActive: { borderColor: UI.purple, backgroundColor: "#F5F3FF" },
+  jobCardImage: { height: 64, borderRadius: 12, backgroundColor: UI.iconWell },
+  jobCardIcon: {
+    position: "absolute",
+    top: 14,
+    left: 14,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  jobCardCheck: {
+    position: "absolute",
+    top: 14,
+    right: 14,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: UI.purple,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  jobCardTitle: {
+    marginTop: 8,
+    fontSize: 13,
+    color: UI.text,
+    fontFamily: "Poppins-SemiBold",
+  },
+  jobCardTitleActive: { color: UI.purple },
+  jobCardSub: { marginTop: 2, fontSize: 11, color: UI.muted, fontFamily: "Poppins-Regular" },
   featureRow: { flexDirection: "row", marginTop: 16, gap: 6 },
   featureChip: {
     width: "25%",
@@ -1096,14 +1227,9 @@ const styles = StyleSheet.create({
   tabBody: { paddingTop: 18, gap: 16 },
   sectionHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
   sectionTitle: { fontSize: 17, color: UI.text, fontFamily: "Poppins-Bold" },
+  sectionHint: { marginTop: 2, fontSize: 12, color: UI.muted, fontFamily: "Poppins-Regular" },
   aboutHeading: { flex: 1 },
   viewAll: { fontSize: 13, color: UI.purple, fontFamily: "Poppins-SemiBold" },
-  popularRow: { gap: 12, paddingRight: 4 },
-  popularCard: {},
-  popularImage: { height: 92, borderRadius: 14, backgroundColor: UI.iconWell },
-  popularName: { marginTop: 8, fontSize: 13, color: UI.text, fontFamily: "Poppins-SemiBold" },
-  popularPriceRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  popularPrice: { flex: 1, fontSize: 12, color: UI.muted, fontFamily: "Poppins-Regular" },
   offerCard: {
     flexDirection: "row",
     alignItems: "center",
@@ -1166,7 +1292,6 @@ const styles = StyleSheet.create({
   reviewMessage: { fontSize: 13, color: UI.text, fontFamily: "Poppins-Regular", lineHeight: 19 },
   emptyCopy: { fontSize: 13, color: UI.muted, fontFamily: "Poppins-Regular" },
   footer: {
-    flexDirection: "row",
     gap: 12,
     paddingTop: 12,
     paddingHorizontal: 16,
@@ -1174,6 +1299,26 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: UI.chipBorder,
   },
+  fulfillment: { marginTop: 8, gap: 10 },
+  fulfillmentLabel: { fontSize: 16, color: UI.text, fontFamily: "Poppins-Bold" },
+  fulfillmentGrid: { flexDirection: "row", gap: 8 },
+  fulfillmentCard: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+    borderWidth: 1,
+    borderColor: UI.chipBorder,
+    borderRadius: 16,
+    padding: 12,
+    backgroundColor: UI.card,
+  },
+  fulfillmentCardActive: { borderColor: UI.purple, backgroundColor: "#F5F3FF" },
+  fulfillmentDisabled: { opacity: 0.45 },
+  fulfillmentTitle: { fontSize: 12, color: UI.text, fontFamily: "Poppins-SemiBold" },
+  fulfillmentTitleActive: { color: UI.purple },
+  fulfillmentBody: { marginTop: 2, fontSize: 10, color: UI.muted, fontFamily: "Poppins-Regular" },
+  footerActions: { flexDirection: "row", gap: 12 },
   chatBtn: {
     flexDirection: "row",
     alignItems: "center",

@@ -7,7 +7,7 @@ import {
   StyleSheet,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { initialWindowMetrics, useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { theme } from "@/constants/theme";
 
@@ -55,6 +55,12 @@ export function CustomerItemizedOrderLayout({
   appearance = "dark",
 }: Props) {
   const light = appearance === "light";
+  const insets = useSafeAreaInsets();
+  const bottomInset = Math.max(
+    insets.bottom,
+    initialWindowMetrics?.insets.bottom ?? 0,
+    12,
+  );
   return (
     <KeyboardAvoidingView
       style={styles.keyboardView}
@@ -70,9 +76,15 @@ export function CustomerItemizedOrderLayout({
         >
           {children}
         </ScrollView>
-        <SafeAreaView style={[styles.footer, light && styles.footerLight]} edges={["bottom"]}>
+        <View
+          style={[
+            styles.footer,
+            light && styles.footerLight,
+            { paddingBottom: bottomInset },
+          ]}
+        >
           {footer}
-        </SafeAreaView>
+        </View>
       </View>
     </KeyboardAvoidingView>
   );

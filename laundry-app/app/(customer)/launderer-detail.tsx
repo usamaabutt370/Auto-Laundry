@@ -1,4 +1,5 @@
 import { useRouter, useLocalSearchParams } from "expo-router";
+import { useEffect } from "react";
 import { View, StyleSheet } from "react-native";
 
 import { showAppAlert } from "@/components/app-alert";
@@ -23,6 +24,12 @@ export default function LaundererDetailScreen() {
   const reorderOrderId =
     typeof params.reorderOrderId === "string" ? params.reorderOrderId : "";
   const isReassignMode = reorderOrderId.length > 0;
+  const prefersPickupDelivery = params.mode === "pickupDelivery";
+
+  useEffect(() => {
+    if (!partnerId || isReassignMode) return;
+    setPartner(partnerId, typeof params.name === "string" ? params.name : null);
+  }, [isReassignMode, params.name, partnerId, setPartner]);
 
   if (!partnerId) {
     return <View style={styles.container} />;
@@ -60,7 +67,7 @@ export default function LaundererDetailScreen() {
       parseServiceJob(options?.job) ??
       parseServiceJob(options?.service) ??
       parseServiceJob(params.service) ??
-      "laundry";
+      "washAndFold";
     router.push({
       pathname: "/(customer)/book-service",
       params: {
@@ -81,6 +88,7 @@ export default function LaundererDetailScreen() {
       onBack={() => router.back()}
       onSelect={handleSelect}
       isModal
+      prefersPickupDelivery={prefersPickupDelivery}
     />
   );
 }
