@@ -50,7 +50,7 @@ export function GradientText({
           accessible={false}
           style={{ width: size.width, height: size.height }}
           maskElement={
-            <Text style={[style, { backgroundColor: "transparent" }]}>
+            <Text style={[style, { backgroundColor: "transparent" }]} numberOfLines={1}>
               {children}
             </Text>
           }

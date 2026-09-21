@@ -16,3 +16,4 @@ export { AuthErrorModal } from "./auth-error-modal";
 export { GradientText } from "./gradient-text";
 export type { GradientTextProps } from "./gradient-text";
 export { LaundererDetailView } from "./launderer-detail-view";
+export { ServiceBookingView } from "./service-booking-view";

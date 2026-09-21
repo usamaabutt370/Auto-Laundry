@@ -332,3 +332,38 @@ export function serviceCategoriesToTypes(
   }
   return Array.from(out);
 }
+
+export type PartnerPublicReview = {
+  id: string;
+  rating: number;
+  message: string;
+  createdAt: string;
+  reviewerInitial: string;
+};
+
+export async function fetchPartnerPublicReviews(
+  partnerId: string,
+  limit = 20,
+): Promise<PartnerPublicReview[]> {
+  if (!isSupabaseConfigured() || !supabase || !partnerId) return [];
+  const { data, error } = await supabase.rpc("partner_public_reviews", {
+    p_partner_id: partnerId,
+    p_limit: limit,
+  });
+  if (error) return [];
+  return ((data ?? []) as Array<{
+    id?: string;
+    rating?: number;
+    message?: string | null;
+    created_at?: string;
+    reviewer_initial?: string | null;
+  }>)
+    .filter((row) => typeof row.id === "string")
+    .map((row) => ({
+      id: row.id as string,
+      rating: Number(row.rating) || 0,
+      message: (row.message ?? "").trim(),
+      createdAt: row.created_at ?? "",
+      reviewerInitial: (row.reviewer_initial ?? "C").trim().charAt(0).toUpperCase() || "C",
+    }));
+}

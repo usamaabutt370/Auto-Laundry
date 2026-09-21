@@ -115,7 +115,7 @@ export function PartnerServicesScreen({ mode }: PartnerServicesScreenProps) {
     const pricing = pricingByKey[key];
     return pricing?.rows != null && pricing.rows.length > 0;
   });
-  const hasHomeServices = (["washAndFold", "press", "tailoring"] as const).some((key) => {
+  const hasHomeServices = (["washAndFold", "dryCleaning", "press", "tailoring"] as const).some((key) => {
     const pricing = pricingByKey[key];
     return pricing?.rows != null && pricing.rows.length > 0;
   });

@@ -24,6 +24,7 @@ export type CustomerMapMarker = {
   longitude: number;
   imageUrl: string | null;
   initial: string;
+  minPrice: number | null;
   ratingAvg: number | null;
   ratingCount: number;
 };
@@ -203,6 +204,7 @@ export function useCustomerHomeMapData() {
             longitude: coords.longitude,
             imageUrl: getPartnerPrimaryImage(partner),
             initial: partnerMarkerInitial(partner.business_name),
+            minPrice: partner.minPrice ?? null,
             ratingAvg: partner.ratingAvg,
             ratingCount: partner.ratingCount ?? 0,
           });
@@ -219,6 +221,7 @@ export function useCustomerHomeMapData() {
           longitude: coords.longitude + Math.cos(angle) * radiusDegrees,
           imageUrl: getPartnerPrimaryImage(partner),
           initial: partnerMarkerInitial(partner.business_name),
+          minPrice: partner.minPrice ?? null,
           ratingAvg: partner.ratingAvg,
           ratingCount: partner.ratingCount ?? 0,
         });

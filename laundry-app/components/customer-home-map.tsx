@@ -96,6 +96,7 @@ export function CustomerHomeMap({
       mask-image: radial-gradient(closest-side, #000 99%, transparent);
     }
     .partner-marker-head.pickupDelivery { background: #5B4DFF; }
+    /* Marker photo — kept for later; price is shown instead.
     .leaflet-container .partner-marker img.partner-photo,
     .partner-marker img.partner-photo {
       display: block !important;
@@ -107,10 +108,24 @@ export function CustomerHomeMap({
       clip-path: circle(50%);
       position: relative !important;
     }
+    */
     .partner-marker-fallback {
       position: absolute; inset: 0;
       display: flex; align-items: center; justify-content: center;
       color: #FFFFFF; font: 700 14px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+    .partner-marker-price {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      color: #FFFFFF; text-align: center; pointer-events: none;
+    }
+    .partner-marker-price-prefix {
+      font: 700 8px/1 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      letter-spacing: 0.2px; opacity: 0.92;
+    }
+    .partner-marker-price-value {
+      font: 700 12px/1.1 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      max-width: 40px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
     .partner-marker-pointer {
       width: 0; height: 0; margin: -1px auto 0; flex-shrink: 0;
@@ -220,16 +235,24 @@ export function CustomerHomeMap({
 
     function markerHtml(item) {
       const modeClass = item.mode === 'pickupDelivery' ? 'pickupDelivery' : 'dropoff';
-      const photoUrl = item.imageUrl ? String(item.imageUrl) : '';
-      const img = photoUrl
-        ? '<img class="partner-photo" width="40" height="40" src="' + escapeHtml(photoUrl) + '" alt="" style="width:40px;height:40px;max-width:40px;max-height:40px;object-fit:cover;border-radius:50%;display:block;" onerror="this.style.display=\\'none\\';this.nextElementSibling.style.display=\\'flex\\'" />'
-        : '';
-      const hideFallback = photoUrl ? ' style="display:none"' : '';
       const initial = escapeHtml(item.initial || 'P');
       const label = escapeHtml(shortName(item.name));
+      const minPrice = Number(item.minPrice);
+      const hasPrice = Number.isFinite(minPrice) && minPrice > 0;
+      const headContent = hasPrice
+        ? '<div class="partner-marker-price"><span class="partner-marker-price-prefix">Rs</span><span class="partner-marker-price-value">' + escapeHtml(String(Math.round(minPrice))) + '</span></div>'
+        : '<div class="partner-marker-fallback">' + initial + '</div>';
+
+      // Photo on the marker is kept for later. Lowest service price is shown instead.
+      // const photoUrl = item.imageUrl ? String(item.imageUrl) : '';
+      // const img = photoUrl
+      //   ? '<img class="partner-photo" width="40" height="40" src="' + escapeHtml(photoUrl) + '" alt="" style="width:40px;height:40px;max-width:40px;max-height:40px;object-fit:cover;border-radius:50%;display:block;" onerror="this.style.display=\\'none\\';this.nextElementSibling.style.display=\\'flex\\'" />'
+      //   : '';
+      // const hideFallback = photoUrl ? ' style="display:none"' : '';
+      // const photoHead = img + '<div class="partner-marker-fallback"' + hideFallback + '>' + initial + '</div>';
+
       return '<div class="partner-marker"><div class="partner-marker-head ' + modeClass + '">' +
-        img +
-        '<div class="partner-marker-fallback"' + hideFallback + '>' + initial + '</div>' +
+        headContent +
         '</div><div class="partner-marker-pointer"></div>' +
         '<div class="partner-marker-label">' + label + '</div></div>';
     }

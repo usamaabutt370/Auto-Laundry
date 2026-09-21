@@ -57,3 +57,24 @@ export function isPartnerOpenNow(
 ): boolean {
   return getPartnerOpenStatus(availableTime, now) === "open";
 }
+
+function minutesToClock(mins: number): string {
+  const hour24 = Math.floor(mins / 60) % 24;
+  const minute = mins % 60;
+  const period = hour24 >= 12 ? "PM" : "AM";
+  const hour12 = hour24 % 12 || 12;
+  return `${hour12}:${String(minute).padStart(2, "0")} ${period}`;
+}
+
+export function getPartnerHoursRange(
+  availableTime: string | null | undefined,
+): { startLabel: string; endLabel: string; rangeLabel: string } | null {
+  const range = parseAvailableTimeRange(availableTime);
+  if (!range) {
+    const raw = availableTime?.trim();
+    return raw ? { startLabel: raw, endLabel: raw, rangeLabel: raw } : null;
+  }
+  const startLabel = minutesToClock(range.start);
+  const endLabel = minutesToClock(range.end);
+  return { startLabel, endLabel, rangeLabel: `${startLabel} – ${endLabel}` };
+}

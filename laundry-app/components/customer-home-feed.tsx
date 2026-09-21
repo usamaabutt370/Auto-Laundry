@@ -20,15 +20,12 @@ import { AvatarImage } from "@/components/avatar-image";
 import { GradientText } from "@/components/gradient-text";
 import { PartnerNameWithBadge } from "@/components/partner-name-with-badge";
 import { strings } from "@/constants/strings";
-import { useAuth } from "@/contexts/auth-context";
 import {
   getPartnerPrimaryImage,
   type CustomerHomeMapData,
   type PartnerMapMarker,
 } from "@/hooks/use-customer-home-map-data";
-import { avatarUrlWithCacheBuster } from "@/lib/avatar";
-import { subscribeProfileAvatarUpdated } from "@/lib/profile-avatar-refresh";
-import { getSession, isSupabaseConfigured, supabase } from "@/lib/supabase";
+import { useHomeProfile } from "@/hooks/use-home-profile";
 import {
   getPlaceLabelFromCoordinates,
   type Coordinates,
@@ -82,7 +79,7 @@ const CARD_SHADOW = {
 } as const;
 
 export type FulfillmentFilter = "all" | "dropoff" | "pickupDelivery";
-export type HomeServiceId = "washAndFold" | "press" | "tailoring";
+export type HomeServiceId = "washAndFold" | "dryCleaning" | "press" | "tailoring";
 
 type HomeStrings = typeof strings.customer.home;
 
@@ -92,7 +89,7 @@ function fill(template: string, vars: Record<string, string | number>) {
 
 function greetingForHour(hour: number, s: HomeStrings) {
   if (hour < 12) return s.greetingMorning;
-  if (hour < 17) return s.greetingAfternoon;
+  if (hour < 18) return s.greetingAfternoon;
   return s.greetingEvening;
 }
 
@@ -240,13 +237,13 @@ export function CustomerHomeFeed({
               </GradientText>
               <Text style={styles.greetingEmoji}> 👋</Text>
             </View>
-            <Pressable style={styles.locationRow} hitSlop={8}>
+            {/* <Pressable style={styles.locationRow} hitSlop={8}>
               <MaterialCommunityIcons name="map-marker" size={16} color={HOME_UI.purple} />
               <Text style={styles.locationText} numberOfLines={1}>
                 {locationLabel}
               </Text>
               <MaterialCommunityIcons name="chevron-down" size={16} color={HOME_UI.muted} />
-            </Pressable>
+            </Pressable> */}
           </View>
           <View style={styles.headerActions}>
             <Pressable
@@ -288,13 +285,13 @@ export function CustomerHomeFeed({
             onPress={() => onPressCategory("washAndFold")}
           />
           <CategoryCard
-            title={s.categoryTailoring}
-            subtitle={s.categoryTailoringSub}
-            image={assets.images.home_category_tailoring}
-            icon="scissors-cutting"
-            accent={HOME_UI.purple}
+            title={s.categoryDryCleaning}
+            subtitle={s.categoryDryCleaningSub}
+            image={assets.images.home_deal_laundry}
+            icon="hanger"
+            accent="#0EA5E9"
             width={categoryCardWidth}
-            onPress={() => onPressCategory("tailoring")}
+            onPress={() => onPressCategory("dryCleaning")}
           />
           <CategoryCard
             title={s.categoryIroning}
@@ -304,6 +301,15 @@ export function CustomerHomeFeed({
             accent={HOME_UI.mapGreen}
             width={categoryCardWidth}
             onPress={() => onPressCategory("press")}
+          />
+          <CategoryCard
+            title={s.categoryTailoring}
+            subtitle={s.categoryTailoringSub}
+            image={assets.images.home_category_tailoring}
+            icon="scissors-cutting"
+            accent={HOME_UI.purple}
+            width={categoryCardWidth}
+            onPress={() => onPressCategory("tailoring")}
           />
 
         </ScrollView>
@@ -628,80 +634,6 @@ function DealCard({
       </Pressable>
     </View>
   );
-}
-
-function metaAvatarUrl(user: { user_metadata?: Record<string, unknown> } | null | undefined) {
-  const meta = user?.user_metadata ?? {};
-  const raw = [meta.avatar_url, meta.picture, meta.image_url].find(
-    (value): value is string => typeof value === "string" && value.trim().length > 0,
-  );
-  return raw?.trim();
-}
-
-function useHomeProfile() {
-  const { user } = useAuth();
-  const [firstName, setFirstName] = useState("");
-  const [avatarUri, setAvatarUri] = useState<string | undefined>(() => metaAvatarUrl(user));
-
-  const load = useCallback(async () => {
-    if (!user?.id) {
-      setFirstName("");
-      setAvatarUri(undefined);
-      return;
-    }
-
-    const metaFirst =
-      (user?.user_metadata?.first_name as string | undefined)?.trim() ||
-      (user?.user_metadata?.full_name as string | undefined)?.trim()?.split(/\s+/)[0];
-    if (metaFirst) setFirstName(metaFirst);
-
-    const metadataAvatar = metaAvatarUrl(user);
-    if (metadataAvatar) setAvatarUri((current) => current ?? metadataAvatar);
-
-    if (!isSupabaseConfigured()) return;
-    const { data: sessionData } = await getSession();
-    const currentUser = sessionData?.session?.user ?? user;
-    if (!currentUser?.id || !supabase) return;
-    const { data } = await supabase
-      .from("profiles")
-      .select("full_name,first_name,image_url,updated_at")
-      .eq("id", currentUser.id)
-      .maybeSingle<{
-        full_name: string | null;
-        first_name: string | null;
-        image_url: string | null;
-        updated_at: string | null;
-      }>();
-    const resolved =
-      (data?.first_name ?? "").trim() ||
-      (data?.full_name ?? "").trim().split(/\s+/)[0] ||
-      metaFirst ||
-      "";
-    setFirstName(resolved);
-    setAvatarUri(
-      avatarUrlWithCacheBuster(data?.image_url, data?.updated_at) ??
-        metaAvatarUrl(currentUser) ??
-        metadataAvatar,
-    );
-  }, [user]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  useFocusEffect(
-    useCallback(() => {
-      void load();
-    }, [load]),
-  );
-
-  useEffect(() => {
-    return subscribeProfileAvatarUpdated(() => {
-      void load();
-    });
-  }, [load]);
-
-  return { firstName, avatarUri, isLoggedIn: Boolean(user) };
 }
 
 const styles = StyleSheet.create({

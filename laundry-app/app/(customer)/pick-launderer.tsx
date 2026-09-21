@@ -30,11 +30,10 @@ import {
 } from "@/components/provider-filters-sheet";
 import { assets } from "@/assets/assets";
 import { strings } from "@/constants/strings";
-import { useAuth } from "@/contexts/auth-context";
 import { useCustomerOrderDraft } from "@/contexts/customer-order-draft-context";
+import { useHomeProfile } from "@/hooks/use-home-profile";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { avatarUrlWithCacheBuster } from "@/lib/avatar";
-import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import {
   fetchMapPartners,
   fetchPartnersByFulfillmentMode,
@@ -235,7 +234,7 @@ export default function PickLaundererScreen() {
   const s = strings.customer.pickLaunderer;
   const { isWebDesktop } = useResponsiveLayout();
   const insets = useSafeAreaInsets();
-  const { user } = useAuth();
+  const { firstName, avatarUri, isLoggedIn } = useHomeProfile();
   const { width: windowWidth } = useWindowDimensions();
   const reorderOrderId = typeof params.reorderOrderId === "string" ? params.reorderOrderId : "";
   const fulfillmentMode: PartnerFulfillmentMode =
@@ -263,16 +262,7 @@ export default function PickLaundererScreen() {
   const columns = isWebDesktop ? 3 : 2;
   const cardWidth = (windowWidth - H_PAD * 2 - CARD_GAP * (columns - 1)) / columns;
   const headerTitle = isReassignMode ? s.reassignTitle : s.serviceProviders;
-  const [avatarUri, setAvatarUri] = useState<string | undefined>(
-    () =>
-      (user?.user_metadata?.avatar_url as string | undefined) ||
-      (user?.user_metadata?.picture as string | undefined) ||
-      (user?.user_metadata?.image_url as string | undefined),
-  );
-  const avatarName =
-    (user?.user_metadata?.first_name as string | undefined) ||
-    (user?.user_metadata?.full_name as string | undefined) ||
-    "U";
+  const sHome = strings.customer.home;
   const chips: {
     id: ProviderChip;
     label: string;
@@ -313,31 +303,6 @@ export default function PickLaundererScreen() {
   useEffect(() => {
     void load();
   }, [load]);
-
-  useEffect(() => {
-    let cancelled = false;
-    const metadataAvatar =
-      (typeof user?.user_metadata?.avatar_url === "string" && user.user_metadata.avatar_url.trim()) ||
-      (typeof user?.user_metadata?.picture === "string" && user.user_metadata.picture.trim()) ||
-      (typeof user?.user_metadata?.image_url === "string" && user.user_metadata.image_url.trim()) ||
-      undefined;
-    if (metadataAvatar) setAvatarUri(metadataAvatar);
-    if (!isSupabaseConfigured() || !user?.id || !supabase) return;
-    void (async () => {
-      const { data } = await supabase
-        .from("profiles")
-        .select("image_url,updated_at")
-        .eq("id", user.id)
-        .maybeSingle<{ image_url: string | null; updated_at: string | null }>();
-      if (cancelled) return;
-      setAvatarUri(
-        avatarUrlWithCacheBuster(data?.image_url, data?.updated_at) ?? metadataAvatar,
-      );
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [user]);
 
   useEffect(() => {
     if (editingOrderId && !isReassignMode) {
@@ -521,6 +486,7 @@ export default function PickLaundererScreen() {
           longitude: coords.longitude,
           imageUrl: getPartnerPrimaryImage(mapped),
           initial: partnerMarkerInitial(partner.business_name),
+          minPrice: partner.minPrice ?? null,
           ratingAvg: partner.ratingAvg,
           ratingCount: partner.ratingCount ?? 0,
         },
@@ -680,7 +646,25 @@ export default function PickLaundererScreen() {
               {fill(s.providersNearby, { count: filteredPartners.length })}
             </Text>
           </View>
-          <AvatarImage uri={avatarUri} name={avatarName} size={36} style={styles.headerAvatar} />
+          <Pressable
+            onPress={() => {
+              if (!isLoggedIn) {
+                router.push("/(auth)/login");
+                return;
+              }
+              router.push("/(customer)/(tabs)/profile");
+            }}
+            accessibilityRole="button"
+            accessibilityLabel={sHome.profile}
+          >
+            {isLoggedIn ? (
+              <AvatarImage uri={avatarUri} name={firstName} size={32} style={styles.headerAvatar} />
+            ) : (
+              <View style={styles.guestAvatar}>
+                <MaterialCommunityIcons name="account" size={20} color="#FFFFFF" />
+              </View>
+            )}
+          </Pressable>
         </View>
 
         <View style={styles.chipBar}>
@@ -870,6 +854,14 @@ const styles = StyleSheet.create({
   headerAvatar: {
     borderWidth: 2,
     borderColor: "#FFFFFF",
+  },
+  guestAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#128197",
+    alignItems: "center",
+    justifyContent: "center",
   },
   body: {
     flex: 1,

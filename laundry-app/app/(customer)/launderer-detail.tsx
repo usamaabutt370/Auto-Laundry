@@ -1,4 +1,5 @@
 import { useRouter, useLocalSearchParams } from "expo-router";
+import { useEffect } from "react";
 import { View, StyleSheet } from "react-native";
 
 import { showAppAlert } from "@/components/app-alert";
@@ -6,6 +7,7 @@ import { LaundererDetailView } from "@/components/launderer-detail-view";
 import { strings } from "@/constants/strings";
 import { useCustomerOrderDraft } from "@/contexts/customer-order-draft-context";
 import { reassignRejectedCustomerOrder } from "@/lib/customer-orders";
+import { parseServiceJob } from "@/lib/service-jobs";
 
 export default function LaundererDetailScreen() {
   const router = useRouter();
@@ -22,12 +24,22 @@ export default function LaundererDetailScreen() {
   const reorderOrderId =
     typeof params.reorderOrderId === "string" ? params.reorderOrderId : "";
   const isReassignMode = reorderOrderId.length > 0;
+  const prefersPickupDelivery = params.mode === "pickupDelivery";
+
+  useEffect(() => {
+    if (!partnerId || isReassignMode) return;
+    setPartner(partnerId, typeof params.name === "string" ? params.name : null);
+  }, [isReassignMode, params.name, partnerId, setPartner]);
 
   if (!partnerId) {
     return <View style={styles.container} />;
   }
 
-  const handleSelect = async (id: string, name: string | null) => {
+  const handleSelect = async (
+    id: string,
+    name: string | null,
+    options?: { service?: string; job?: string; itemLabel?: string },
+  ) => {
     if (isReassignMode) {
       try {
         await reassignRejectedCustomerOrder(reorderOrderId, id);
@@ -51,11 +63,19 @@ export default function LaundererDetailScreen() {
       return;
     }
     setPartner(id, name);
+    const job =
+      parseServiceJob(options?.job) ??
+      parseServiceJob(options?.service) ??
+      parseServiceJob(params.service) ??
+      "washAndFold";
     router.push({
-      pathname: "/(customer)/pickup-services",
+      pathname: "/(customer)/book-service",
       params: {
+        job,
+        partnerId: id,
+        ...(name ? { partnerName: name } : {}),
         mode: params.mode === "pickupDelivery" ? "pickupDelivery" : "dropoff",
-        ...(typeof params.service === "string" ? { service: params.service } : {}),
+        ...(options?.itemLabel ? { itemLabel: options.itemLabel } : {}),
       },
     });
   };
@@ -64,9 +84,11 @@ export default function LaundererDetailScreen() {
     <LaundererDetailView
       partnerId={partnerId}
       initialName={params.name}
+      intentService={typeof params.service === "string" ? params.service : undefined}
       onBack={() => router.back()}
       onSelect={handleSelect}
       isModal
+      prefersPickupDelivery={prefersPickupDelivery}
     />
   );
 }
@@ -74,6 +96,6 @@ export default function LaundererDetailScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "green",
+    backgroundColor: "#F7F8FA",
   },
 });

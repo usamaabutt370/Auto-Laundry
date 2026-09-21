@@ -54,11 +54,16 @@ export const PRICE_MIN = 0;
 export const PRICE_MAX = 5000;
 export const PRICE_STEP = 50;
 
-export type ServiceCategory = "washAndFold" | "press" | "tailoring";
+export type ServiceCategory = "washAndFold" | "dryCleaning" | "press" | "tailoring";
 export type MinRating = 0 | 1 | 2 | 3 | 4 | 5;
 
 export function isServiceCategory(value: string | undefined): value is ServiceCategory {
-  return value === "washAndFold" || value === "press" || value === "tailoring";
+  return (
+    value === "washAndFold" ||
+    value === "dryCleaning" ||
+    value === "press" ||
+    value === "tailoring"
+  );
 }
 
 export type ProviderFilters = {
@@ -261,6 +266,13 @@ export function ProviderFiltersSheet({
       accentSoft: "#ECFDF5",
     },
     {
+      id: "dryCleaning",
+      label: s.categoryDryCleaning,
+      icon: "hanger",
+      accent: "#0EA5E9",
+      accentSoft: "#ECFEFF",
+    },
+    {
       id: "press",
       label: s.categoryIroning,
       icon: "iron",
@@ -301,6 +313,7 @@ export function ProviderFiltersSheet({
   }[] = [
     { id: "all", label: s.filterAll, icon: "apps" },
     { id: "washAndFold", label: s.categoryLaundry, icon: "washing-machine" },
+    { id: "dryCleaning", label: s.categoryDryCleaning, icon: "hanger" },
     { id: "press", label: s.categoryIroning, icon: "iron" },
     { id: "tailoring", label: s.categoryTailoring, icon: "scissors-cutting" },
   ];
@@ -451,6 +464,7 @@ export function ProviderFiltersSheet({
                         styles.categoryLabel,
                         selected && { color: item.accent },
                       ]}
+                      numberOfLines={2}
                     >
                       {item.label}
                     </Text>
@@ -1161,10 +1175,13 @@ const styles = StyleSheet.create({
   },
   categoryRow: {
     flexDirection: "row",
+    flexWrap: "wrap",
     gap: 10,
   },
   categoryCard: {
-    flex: 1,
+    flexBasis: "47%",
+    flexGrow: 1,
+    maxWidth: "49%",
     borderWidth: 1,
     borderColor: BORDER,
     borderRadius: 16,
@@ -1177,6 +1194,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: "Poppins-SemiBold",
     color: TEXT,
+    textAlign: "center",
   },
   checkBadge: {
     position: "absolute",
