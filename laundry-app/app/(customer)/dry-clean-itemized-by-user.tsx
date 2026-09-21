@@ -1,5 +1,4 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
@@ -10,6 +9,7 @@ import {
   CustomerItemizedOrderLayout,
 } from "@/components/customer-itemized-order-layout";
 import { CustomerLiveEstimateFooter } from "@/components/customer-live-estimate-footer";
+import { AppCtaButton } from "@/components/ui/cta-button";
 import {
   DRY_CLEAN_SUIT_2_PIECE_ID,
   DRY_CLEAN_SUIT_3_PIECE_ID,
@@ -372,21 +372,13 @@ export default function DryCleanItemizedByUserScreen() {
                 estimate={estimate}
               />
             ) : null}
-            <Pressable
+            <AppCtaButton
+              label={sDet.save}
               onPress={handleSave}
-              style={({ pressed }) => [styles.confirmWrap, pressed && styles.pressed]}
-              accessibilityRole="button"
+              width="full"
               accessibilityLabel={sDet.save}
-            >
-              <LinearGradient
-                colors={["#4A3AFF", "#12B886"]}
-                start={{ x: 0, y: 0.5 }}
-                end={{ x: 1, y: 0.5 }}
-                style={styles.confirmBtn}
-              >
-                <Text style={styles.confirmLabel}>{sDet.save}</Text>
-              </LinearGradient>
-            </Pressable>
+              style={styles.confirmBtn}
+            />
           </>
         }
       >
@@ -446,7 +438,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  pressed: { opacity: 0.85 },
   lead: {
     fontSize: 15,
     fontFamily: "Poppins-Regular",
@@ -614,21 +605,8 @@ const styles = StyleSheet.create({
     minWidth: 28,
     textAlign: "center",
   },
-  confirmWrap: {
+  confirmBtn: {
     marginTop: 8,
     marginBottom: 8,
-    borderRadius: 16,
-    overflow: "hidden",
-  },
-  confirmBtn: {
-    borderRadius: 16,
-    paddingVertical: 16,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  confirmLabel: {
-    fontSize: 16,
-    fontFamily: "Poppins-Bold",
-    color: "#FFFFFF",
   },
 });

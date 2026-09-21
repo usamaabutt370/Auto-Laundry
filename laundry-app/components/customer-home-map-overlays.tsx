@@ -2,7 +2,6 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   FlatList,
   Pressable,
   StyleSheet,
@@ -15,6 +14,7 @@ import {
 
 import { assets } from "@/assets/assets";
 import { PartnerNameWithBadge } from "@/components/partner-name-with-badge";
+import { GradientLoader } from "@/components/ui/gradient-loader";
 import { strings } from "@/constants/strings";
 import {
   getPartnerPrimaryImage,
@@ -326,7 +326,7 @@ export function CustomerHomeMapOverlays({
     <>
       {showMapChrome && loadingPartners ? (
         <View style={styles.mapLoading}>
-          <ActivityIndicator color={UI.teal} size="small" />
+          <GradientLoader size="small" />
         </View>
       ) : null}
 

@@ -1,7 +1,8 @@
 import { Redirect } from "expo-router";
-import { ActivityIndicator, Platform, StyleSheet, View } from "react-native";
+import { Platform, StyleSheet, View } from "react-native";
 
 import { LandingPage } from "@/components/landing";
+import { GradientLoader } from "@/components/ui/gradient-loader";
 import { useAuth } from "@/contexts/auth-context";
 import { useOnboardingComplete } from "@/hooks/use-onboarding-complete";
 
@@ -23,7 +24,7 @@ export default function IndexScreen() {
   if (onboardingComplete === null || isLoading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" />
+        <GradientLoader size="large" />
       </View>
     );
   }

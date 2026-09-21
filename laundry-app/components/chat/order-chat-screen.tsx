@@ -2,6 +2,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
+import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { StatusBar } from "expo-status-bar";
@@ -32,6 +33,7 @@ import { AppHeader } from "@/components/app-header";
 import { ChatListScrollView } from "@/components/chat/chat-list-scroll-view";
 import { RiderAssignmentMessage } from "@/components/chat/rider-assignment-message";
 import { WebCameraCaptureModal } from "@/components/chat/web-camera-capture-modal";
+import { GradientLoader } from "@/components/ui/gradient-loader";
 import { theme } from "@/constants/theme";
 import { useAuth } from "@/contexts/auth-context";
 import {
@@ -56,6 +58,11 @@ const UI = {
   teal: "#12B886",
   chipBorder: "#E5E7EB",
 };
+/** Same translucent purple → green wash as the floating tab pill. */
+const BUBBLE_GLASS_GRADIENT = [
+  "rgba(74, 58, 255, 0.30)",
+  "rgba(18, 184, 134, 0.30)",
+] as const;
 const fs = theme.fontSize;
 const CHAT_INPUT_NATIVE_ID = "order-chat-input";
 const PAD = 20;
@@ -534,7 +541,7 @@ export function OrderChatScreen() {
 
       {loading ? (
         <View style={styles.center}>
-          <ActivityIndicator color={UI.teal} />
+          <GradientLoader />
         </View>
       ) : error ? (
         <View style={styles.center}>
@@ -627,71 +634,88 @@ export function OrderChatScreen() {
                     }}
                     delayLongPress={280}
                   >
-                    <View
-                      style={[
+                    {(() => {
+                      const bubbleBody = (
+                        <>
+                          {!isUploading && sentItem?.imageUrl ? (
+                            <ChatMessageImage
+                              uri={sentItem.imageUrl}
+                              selectionMode={selectionMode}
+                              alignEnd={mine}
+                              onOpen={() => {
+                                if (selectionMode) return;
+                                setPreviewImageUrl(sentItem.imageUrl!);
+                              }}
+                              onLongPress={() => {
+                                if (!sentItem) return;
+                                if (!mine) return;
+                                if (selectionMode) {
+                                  toggleMessageSelection(sentItem.id);
+                                  return;
+                                }
+                                setSelectedMessageIds([sentItem.id]);
+                              }}
+                            />
+                          ) : isUploading ? (
+                            <View style={styles.uploadingImageWrap}>
+                              <Image
+                                source={{ uri: uploadItem?.localUri }}
+                                style={styles.uploadingImage}
+                                contentFit="cover"
+                                accessibilityLabel="Uploading image"
+                              />
+                              <View style={styles.uploadingOverlay}>
+                                <ActivityIndicator size="small" color="#FFFFFF" />
+                                <Text style={styles.uploadingText}>{uploadItem?.statusText}</Text>
+                                <View style={styles.progressTrack}>
+                                  <View
+                                    style={[
+                                      styles.progressFill,
+                                      {
+                                        width: `${Math.max(4, Math.round((uploadItem?.progress ?? 0) * 100))}%`,
+                                      },
+                                    ]}
+                                  />
+                                </View>
+                              </View>
+                            </View>
+                          ) : null}
+                          {(uploadItem?.body ?? sentItem?.body ?? "").trim() ? (
+                            <Text
+                              style={[
+                                styles.bubbleText,
+                                !mine && styles.bubbleTextOther,
+                                !isUploading && sentItem?.imageUrl ? styles.bubbleCaption : null,
+                              ]}
+                            >
+                              {uploadItem?.body ?? sentItem?.body}
+                            </Text>
+                          ) : null}
+                          <Text style={[styles.bubbleTime, !mine && styles.bubbleTimeOther]}>
+                            {isUploading
+                              ? `${Math.max(1, Math.round((uploadItem?.progress ?? 0) * 100))}%`
+                              : formatClock(sentItem?.createdAt ?? new Date().toISOString())}
+                          </Text>
+                        </>
+                      );
+                      const bubbleStyle = [
                         styles.bubble,
                         mine ? styles.bubbleMine : styles.bubbleOther,
                         selectionMode && isSelected && styles.bubbleSelected,
-                      ]}
-                    >
-                      {!isUploading && sentItem?.imageUrl ? (
-                        <ChatMessageImage
-                          uri={sentItem.imageUrl}
-                          selectionMode={selectionMode}
-                          alignEnd={mine}
-                          onOpen={() => {
-                            if (selectionMode) return;
-                            setPreviewImageUrl(sentItem.imageUrl!);
-                          }}
-                          onLongPress={() => {
-                            if (!sentItem) return;
-                            if (!mine) return;
-                            if (selectionMode) {
-                              toggleMessageSelection(sentItem.id);
-                              return;
-                            }
-                            setSelectedMessageIds([sentItem.id]);
-                          }}
-                        />
-                      ) : isUploading ? (
-                        <View style={styles.uploadingImageWrap}>
-                          <Image
-                            source={{ uri: uploadItem?.localUri }}
-                            style={styles.uploadingImage}
-                            contentFit="cover"
-                            accessibilityLabel="Uploading image"
-                          />
-                          <View style={styles.uploadingOverlay}>
-                            <ActivityIndicator size="small" color="#FFFFFF" />
-                            <Text style={styles.uploadingText}>{uploadItem?.statusText}</Text>
-                            <View style={styles.progressTrack}>
-                              <View
-                                style={[
-                                  styles.progressFill,
-                                  { width: `${Math.max(4, Math.round((uploadItem?.progress ?? 0) * 100))}%` },
-                                ]}
-                              />
-                            </View>
-                          </View>
-                        </View>
-                      ) : null}
-                      {(uploadItem?.body ?? sentItem?.body ?? "").trim() ? (
-                        <Text
-                          style={[
-                            styles.bubbleText,
-                            !mine && styles.bubbleTextOther,
-                            !isUploading && sentItem?.imageUrl ? styles.bubbleCaption : null,
-                          ]}
+                      ];
+                      return mine ? (
+                        <LinearGradient
+                          colors={[...BUBBLE_GLASS_GRADIENT]}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 1 }}
+                          style={bubbleStyle}
                         >
-                          {uploadItem?.body ?? sentItem?.body}
-                        </Text>
-                      ) : null}
-                      <Text style={[styles.bubbleTime, !mine && styles.bubbleTimeOther]}>
-                        {isUploading
-                          ? `${Math.max(1, Math.round((uploadItem?.progress ?? 0) * 100))}%`
-                          : formatClock(sentItem?.createdAt ?? new Date().toISOString())}
-                      </Text>
-                    </View>
+                          {bubbleBody}
+                        </LinearGradient>
+                      ) : (
+                        <View style={bubbleStyle}>{bubbleBody}</View>
+                      );
+                    })()}
                   </Pressable>
                 </View>
               );
@@ -907,11 +931,12 @@ const styles = StyleSheet.create({
   bubble: {
     maxWidth: "100%",
     borderRadius: 14,
+    overflow: "hidden",
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
   bubbleMine: {
-    backgroundColor: UI.teal,
+    backgroundColor: "transparent",
   },
   bubbleOther: {
     backgroundColor: UI.card,
@@ -994,7 +1019,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   bubbleText: {
-    color: "#FFFFFF",
+    color: UI.text,
     fontSize: fs.smallText,
     lineHeight: 20,
   },
@@ -1002,7 +1027,7 @@ const styles = StyleSheet.create({
     color: UI.text,
   },
   bubbleTime: {
-    color: "rgba(255,255,255,0.8)",
+    color: "rgba(17, 24, 39, 0.55)",
     fontSize: fs.xxSmallText,
     marginTop: 6,
     alignSelf: "flex-end",

@@ -2,9 +2,9 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useFocusEffect, useLocalSearchParams, useRouter, useNavigation } from "expo-router";
 
 import { StatusBar } from "expo-status-bar";
+import { LinearGradient } from "expo-linear-gradient";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -21,6 +21,7 @@ import { AppHeader } from "@/components/app-header";
 import { WebHeaderSpacer } from "@/components/web-header-spacer";
 import { BlockingLoader } from "@/components/blocking-loader";
 import { OrderCard } from "@/components/order-card";
+import { GradientLoader, APP_LOADER_TINT } from "@/components/ui/gradient-loader";
 import { useConfirmDialog } from "@/components/confirm-dialog";
 import {
   PartnerOrderSuccessModal,
@@ -29,6 +30,7 @@ import {
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { useSuppressWebScreenHeader } from "@/hooks/use-suppress-web-screen-header";
 import { PartnerRiderPickerModal } from "@/components/partner-rider-picker-modal";
+import { APP_CTA_GRADIENT_COLORS } from "@/components/ui/cta-button";
 import { theme } from "@/constants/theme";
 import { useAuth } from "@/contexts/auth-context";
 import { useLocale } from "@/contexts/locale-context";
@@ -115,24 +117,29 @@ export default function PartnerOrderScreen() {
       <Pressable
         key={key}
         onPress={() => setOrderFilter(key)}
-        style={({ pressed }) => [
-          styles.filterChip,
-          selected && styles.filterChipSelected,
-          pressed && styles.pressed,
-        ]}
+        style={({ pressed }) => [styles.filterChipPress, pressed && styles.pressed]}
         accessibilityRole="button"
         accessibilityState={{ selected }}
         accessibilityLabel={`${filterLabels[key]} orders`}
       >
-        <Text
-          style={[
-            styles.filterChipText,
-            selected && styles.filterChipTextSelected,
-          ]}
-          numberOfLines={1}
-        >
-          {filterLabels[key]}
-        </Text>
+        {selected ? (
+          <LinearGradient
+            colors={APP_CTA_GRADIENT_COLORS}
+            start={{ x: 0, y: 0.5 }}
+            end={{ x: 1, y: 0.5 }}
+            style={styles.filterChip}
+          >
+            <Text style={[styles.filterChipText, styles.filterChipTextSelected]} numberOfLines={1}>
+              {filterLabels[key]}
+            </Text>
+          </LinearGradient>
+        ) : (
+          <View style={[styles.filterChip, styles.filterChipIdle]}>
+            <Text style={styles.filterChipText} numberOfLines={1}>
+              {filterLabels[key]}
+            </Text>
+          </View>
+        )}
       </Pressable>
     );
   });
@@ -448,8 +455,8 @@ export default function PartnerOrderScreen() {
           <RefreshControl
             refreshing={isRefreshing}
             onRefresh={() => void handleRefresh()}
-            tintColor={UI.teal}
-            colors={[UI.teal]}
+            tintColor={APP_LOADER_TINT}
+            colors={[APP_LOADER_TINT]}
             progressBackgroundColor={UI.card}
             progressViewOffset={8}
           />
@@ -457,7 +464,7 @@ export default function PartnerOrderScreen() {
       >
         {isLoading && !isRefreshing ? (
           <View style={styles.emptyWrap}>
-            <ActivityIndicator color={UI.teal} />
+            <GradientLoader />
             <Text style={styles.emptyText}>Loading orders...</Text>
           </View>
         ) : filteredOrders.length === 0 ? (
@@ -687,20 +694,26 @@ const styles = StyleSheet.create({
     width: "100%",
     marginBottom: 12,
   },
+  filterChipPress: {
+    borderRadius: 999,
+    overflow: "hidden",
+  },
   filterChip: {
-    paddingVertical: 8,
-    paddingHorizontal: 14,
+    height: 28,
+    paddingHorizontal: 12,
     borderRadius: 999,
     borderWidth: 1,
+    borderColor: "transparent",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  filterChipIdle: {
     borderColor: UI.chipBorder,
     backgroundColor: UI.card,
   },
-  filterChipSelected: {
-    backgroundColor: UI.teal,
-    borderColor: UI.teal,
-  },
   filterChipText: {
-    fontSize: fs.descText,
+    fontSize: 12,
+    lineHeight: 16,
     fontWeight: "500",
     color: UI.muted,
   },

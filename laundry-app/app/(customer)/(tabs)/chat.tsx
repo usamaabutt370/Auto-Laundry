@@ -3,7 +3,6 @@ import { StatusBar } from "expo-status-bar";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
-  ActivityIndicator,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -17,6 +16,7 @@ import { AvatarImage } from "@/components/avatar-image";
 import { GuestSignInPrompt } from "@/components/guest-sign-in-prompt";
 import { WebHeaderSpacer } from "@/components/web-header-spacer";
 import { PartnerNameWithBadge } from "@/components/partner-name-with-badge";
+import { GradientLoader, APP_LOADER_TINT } from "@/components/ui/gradient-loader";
 import { theme } from "@/constants/theme";
 import { useAuth } from "@/contexts/auth-context";
 import { useLocale } from "@/contexts/locale-context";
@@ -173,7 +173,7 @@ export default function CustomerChatScreen() {
         />
       ) : loading && items.length === 0 ? (
         <View style={styles.center}>
-          <ActivityIndicator color={UI.teal} />
+          <GradientLoader />
           <Text style={styles.muted}>{s.loading}</Text>
         </View>
       ) : error ? (
@@ -202,8 +202,8 @@ export default function CustomerChatScreen() {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={onRefresh}
-              tintColor={UI.teal}
-              colors={[UI.teal]}
+              tintColor={APP_LOADER_TINT}
+              colors={[APP_LOADER_TINT]}
               progressBackgroundColor={UI.card}
               title=""
               titleColor={UI.muted}

@@ -18,6 +18,7 @@ import { showAppAlert } from "@/components/app-alert";
 import { CustomerTrustBanner } from "@/components/customer-trust-banner";
 import { PartnerNameWithBadge } from "@/components/partner-name-with-badge";
 import { ReportOrderProblemModal } from "@/components/report-order-problem-modal";
+import { GradientLoader } from "@/components/ui/gradient-loader";
 import { useAuth } from "@/contexts/auth-context";
 import { useLocale } from "@/contexts/locale-context";
 import { getStrings } from "@/locales";
@@ -275,7 +276,7 @@ export default function CustomerOrderDetailScreen() {
 
       {loading ? (
         <View style={styles.center}>
-          <ActivityIndicator color={UI.teal} />
+          <GradientLoader />
         </View>
       ) : error ? (
         <View style={styles.center}>

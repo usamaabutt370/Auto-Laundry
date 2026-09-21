@@ -1,11 +1,9 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
-import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState, type ComponentProps } from "react";
 import {
-  ActivityIndicator,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -20,7 +18,8 @@ import {
   CUSTOMER_ORDER_NOTES_MAX_HEIGHT,
 } from "@/components/customer-itemized-order-layout";
 import { OrderSelectionSummary } from "@/components/order-selection-summary";
-import { assets } from "@/assets/assets";
+import { AppCtaButton } from "@/components/ui/cta-button";
+import { GradientLoader } from "@/components/ui/gradient-loader";
 import {
   initialDryCleanQuantities,
   type DryCleanItemDef,
@@ -48,6 +47,7 @@ import {
   tailoringUnitForItem,
   washFoldUnitForItem,
 } from "@/lib/customer-order-estimate";
+import { imageForServiceItem } from "@/lib/service-item-images";
 import type { ServiceJob } from "@/lib/service-jobs";
 import { getStrings } from "@/locales";
 import { formatMoney } from "@/utils/format-money";
@@ -94,13 +94,6 @@ function namesMatch(left: string, right: string) {
   const normalize = (value: string) =>
     value.trim().toLowerCase().replaceAll("&", "and").replace(/[^a-z0-9]+/g, " ").trim();
   return normalize(left) === normalize(right);
-}
-
-function imageForFamily(family: CatalogFamily) {
-  if (family === "press") return assets.images.home_deal_ironing;
-  if (family === "tailoring") return assets.images.home_deal_tailoring;
-  if (family === "dryCleaning") return assets.images.home_deal_ironing;
-  return assets.images.home_deal_laundry;
 }
 
 function hasQty(map: Record<string, number> | undefined) {
@@ -229,7 +222,7 @@ export function ServiceBookingView({ job, itemLabel }: Props) {
           name: displayName(def.id, def.name),
           amount: unit.amount,
           priceLabel: unit.priceLabel,
-          image: imageForFamily("washAndFold"),
+          image: imageForServiceItem(def.id, def.name, "washAndFold"),
         };
       });
       return wash;
@@ -244,7 +237,7 @@ export function ServiceBookingView({ job, itemLabel }: Props) {
           name: displayName(def.id, def.name),
           amount: unit.amount,
           priceLabel: unit.priceLabel,
-          image: imageForFamily("dryCleaning"),
+          image: imageForServiceItem(def.id, def.name, "dryCleaning"),
         };
       });
     }
@@ -258,7 +251,7 @@ export function ServiceBookingView({ job, itemLabel }: Props) {
           name: displayName(def.id, def.name),
           amount: unit.amount,
           priceLabel: unit.priceLabel,
-          image: imageForFamily("press"),
+          image: imageForServiceItem(def.id, def.name, "press"),
         };
       });
     }
@@ -271,7 +264,7 @@ export function ServiceBookingView({ job, itemLabel }: Props) {
           name: displayName(def.id, def.name),
           amount: unit.amount,
         priceLabel: unit.priceLabel,
-        image: imageForFamily("tailoring"),
+        image: imageForServiceItem(def.id, def.name, "tailoring"),
       };
     });
   }, [job, onboarding, services]);
@@ -483,20 +476,13 @@ export function ServiceBookingView({ job, itemLabel }: Props) {
         footer={
           <>
             <OrderSelectionSummary estimate={estimate} loading={loading} />
-            <Pressable
+            <AppCtaButton
+              label={s.done}
               onPress={persistAndClose}
-              style={({ pressed }) => [styles.continueWrap, pressed && styles.pressed]}
-            >
-              <LinearGradient
-                colors={["#6D5CFF", "#22D3EE"]}
-                start={{ x: 0, y: 0.5 }}
-                end={{ x: 1, y: 0.5 }}
-                style={styles.continueBtn}
-              >
-                <Text style={styles.continueLabel}>{s.done}</Text>
-                <MaterialCommunityIcons name="check" size={18} color="#FFFFFF" />
-              </LinearGradient>
-            </Pressable>
+              width="full"
+              rightIcon="check"
+              style={styles.continueBtn}
+            />
           </>
         }
       >
@@ -521,7 +507,7 @@ export function ServiceBookingView({ job, itemLabel }: Props) {
           </View>
 
           {loading && tiles.length === 0 ? (
-            <ActivityIndicator color={UI.teal} style={{ marginTop: 24 }} />
+            <GradientLoader style={{ marginTop: 24 }} />
           ) : !draft.partnerId ? (
             <Text style={styles.empty}>{s.noPartner}</Text>
           ) : tiles.length === 0 ? (
@@ -923,15 +909,5 @@ const styles = StyleSheet.create({
   photoRow: { gap: 8, paddingTop: 4 },
   photoThumb: { width: 56, height: 56, borderRadius: 10, backgroundColor: UI.iconWell },
   empty: { paddingVertical: 32, textAlign: "center", color: UI.muted, fontFamily: "Poppins-Regular" },
-  continueWrap: { marginTop: 4, marginBottom: 8 },
-  continueBtn: {
-    height: 52,
-    borderRadius: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-  },
-  continueLabel: { color: "#FFFFFF", fontSize: 16, fontFamily: "Poppins-Bold" },
-  pressed: { opacity: 0.88 },
+  continueBtn: { marginTop: 4, marginBottom: 8 },
 });

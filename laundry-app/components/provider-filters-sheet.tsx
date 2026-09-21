@@ -1,8 +1,6 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 import { useEffect, useRef, useState, type ComponentProps, type ReactNode } from "react";
 import {
-  ActivityIndicator,
   LayoutChangeEvent,
   Modal,
   Pressable,
@@ -27,6 +25,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { strings } from "@/constants/strings";
 import { CustomerHomeMap, type CustomerHomeMapViewData } from "@/components/customer-home-map";
+import { AppCtaButton } from "@/components/ui/cta-button";
 import type { PartnerPublicRow } from "@/lib/partner-discovery";
 import { isPartnerOpenNow } from "@/utils/partner-hours";
 import { isPartnerTopRated, partnerHasActiveOffer } from "@/utils/partner-offers";
@@ -606,34 +605,15 @@ export function ProviderFiltersSheet({
               <MaterialCommunityIcons name="restore" size={18} color={PURPLE} />
               <Text style={styles.resetText}>{s.reset}</Text>
             </Pressable>
-            <Pressable
+            <AppCtaButton
+              label={applying ? s.applyingFilters : fill(s.applyFilters, { count })}
               onPress={handleApply}
               disabled={applying}
-              style={({ pressed }) => [
-                styles.applyWrap,
-                pressed && !applying && styles.pressed,
-                applying && styles.applyDisabled,
-              ]}
-              accessibilityRole="button"
+              loading={applying}
+              width="half"
+              leftIcon="tune-variant"
               accessibilityLabel={applying ? s.applyingFilters : fill(s.applyFilters, { count })}
-              accessibilityState={{ busy: applying, disabled: applying }}
-            >
-              <LinearGradient
-                colors={["#4A3AFF", "#12B886"]}
-                start={{ x: 0, y: 0.5 }}
-                end={{ x: 1, y: 0.5 }}
-                style={styles.applyBtn}
-              >
-                {applying ? (
-                  <ActivityIndicator color="#FFFFFF" size="small" />
-                ) : (
-                  <MaterialCommunityIcons name="tune-variant" size={18} color="#FFFFFF" />
-                )}
-                <Text style={styles.applyText}>
-                  {applying ? s.applyingFilters : fill(s.applyFilters, { count })}
-                </Text>
-              </LinearGradient>
-            </Pressable>
+            />
           </View>
             </>
           )}
@@ -1384,33 +1364,15 @@ const styles = StyleSheet.create({
     backgroundColor: CARD_BG,
     borderRadius: 999,
     paddingHorizontal: 16,
-    height: 52,
+    height: 48,
   },
   resetText: {
     fontSize: 14,
     fontFamily: "Poppins-SemiBold",
     color: PURPLE,
   },
-  applyWrap: {
-    flex: 1,
-    borderRadius: 999,
-    overflow: "hidden",
-  },
   applyDisabled: {
     opacity: 0.7,
-  },
-  applyBtn: {
-    height: 52,
-    borderRadius: 999,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-  },
-  applyText: {
-    color: "#FFFFFF",
-    fontSize: 15,
-    fontFamily: "Poppins-Bold",
   },
   pressed: {
     opacity: 0.86,

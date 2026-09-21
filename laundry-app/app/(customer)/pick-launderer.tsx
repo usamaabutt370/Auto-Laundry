@@ -2,7 +2,6 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -15,11 +14,14 @@ import {
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
+import { LinearGradient } from "expo-linear-gradient";
 
 import { BlockingLoader } from "@/components/blocking-loader";
 import { FiltersMapFab } from "@/components/filters-map-fab";
 import { AvatarImage } from "@/components/avatar-image";
 import { PartnerNameWithBadge } from "@/components/partner-name-with-badge";
+import { APP_CTA_GRADIENT_COLORS } from "@/components/ui/cta-button";
+import { GradientLoader } from "@/components/ui/gradient-loader";
 import {
   applyProviderFilters,
   isServiceCategory,
@@ -676,6 +678,20 @@ export default function PickLaundererScreen() {
           >
             {chips.map((item) => {
               const selected = chip === item.id;
+              const inner = (
+                <>
+                  {item.icon ? (
+                    <MaterialCommunityIcons
+                      name={item.icon}
+                      size={12}
+                      color={selected ? "#FFFFFF" : UI.text}
+                    />
+                  ) : null}
+                  <Text style={[styles.chipText, selected && styles.chipTextSelected]}>
+                    {item.label}
+                  </Text>
+                </>
+              );
               return (
                 <Pressable
                   key={item.id}
@@ -712,18 +728,20 @@ export default function PickLaundererScreen() {
                       }));
                     }
                   }}
-                  style={[styles.chip, selected && styles.chipSelected]}
+                  style={({ pressed }) => [styles.chipPress, pressed && styles.pressed]}
                 >
-                  {item.icon ? (
-                    <MaterialCommunityIcons
-                      name={item.icon}
-                      size={12}
-                      color={selected ? "#FFFFFF" : UI.text}
-                    />
-                  ) : null}
-                  <Text style={[styles.chipText, selected && styles.chipTextSelected]}>
-                    {item.label}
-                  </Text>
+                  {selected ? (
+                    <LinearGradient
+                      colors={APP_CTA_GRADIENT_COLORS}
+                      start={{ x: 0, y: 0.5 }}
+                      end={{ x: 1, y: 0.5 }}
+                      style={styles.chip}
+                    >
+                      {inner}
+                    </LinearGradient>
+                  ) : (
+                    <View style={[styles.chip, styles.chipIdle]}>{inner}</View>
+                  )}
                 </Pressable>
               );
             })}
@@ -747,7 +765,7 @@ export default function PickLaundererScreen() {
       <View style={styles.body}>
         {loading ? (
           <View style={styles.centerBlock}>
-            <ActivityIndicator color={UI.teal} size="small" />
+            <GradientLoader size="small" />
           </View>
         ) : error ? (
           <View style={styles.centerBlock}>
@@ -880,6 +898,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingRight: 4,
   },
+  chipPress: {
+    borderRadius: 999,
+    overflow: "hidden",
+  },
   chip: {
     flexDirection: "row",
     alignItems: "center",
@@ -887,13 +909,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 999,
-    backgroundColor: UI.card,
     borderWidth: 1,
-    borderColor: UI.chipBorder,
+    borderColor: "transparent",
   },
-  chipSelected: {
-    backgroundColor: UI.teal,
-    borderColor: UI.teal,
+  chipIdle: {
+    backgroundColor: UI.card,
+    borderColor: UI.chipBorder,
   },
   chipText: {
     fontSize: 11,

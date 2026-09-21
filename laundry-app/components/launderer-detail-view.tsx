@@ -5,7 +5,6 @@ import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState, type ComponentProps } from "react";
 import {
-  ActivityIndicator,
   Animated,
   Linking,
   NativeScrollEvent,
@@ -23,6 +22,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { showAppAlert } from "@/components/app-alert";
 import { OrderSelectionSummary } from "@/components/order-selection-summary";
+import { AppCtaButton } from "@/components/ui/cta-button";
+import { GradientLoader } from "@/components/ui/gradient-loader";
 import { StarRating } from "@/components/star-rating";
 import { assets } from "@/assets/assets";
 import type { LaundererServiceType } from "@/constants/launderers";
@@ -511,7 +512,7 @@ export function LaundererDetailView({
         <StatusBar style="dark" />
         {renderHeroChrome()}
         <View style={styles.centered}>
-          <ActivityIndicator color={UI.teal} size="small" />
+          <GradientLoader size="small" />
         </View>
       </View>
     );
@@ -945,27 +946,19 @@ export function LaundererDetailView({
       <View style={[styles.footer, { paddingBottom: footerBottomPad }]}>
         <OrderSelectionSummary estimate={estimate} loading={estimateLoading} />
         <View style={styles.footerActions}>
-          <Pressable
+          <AppCtaButton
+            label={s.chat}
+            variant="outline"
+            width={40}
+            leftIcon="chat-outline"
             onPress={() => void handleChat()}
-            style={({ pressed }) => [styles.chatBtn, pressed && styles.pressed]}
-          >
-            <MaterialCommunityIcons name="chat-outline" size={20} color={UI.purple} />
-            <Text style={styles.chatLabel}>{s.chat}</Text>
-          </Pressable>
-          <Pressable
+          />
+          <AppCtaButton
+            label={s.continueOrder}
+            width={60}
+            rightIcon="arrow-right"
             onPress={handleContinueOrder}
-            style={({ pressed }) => [styles.bookWrap, pressed && styles.pressed]}
-          >
-            <LinearGradient
-              colors={["#6D5CFF", "#8B5CF6", "#22D3EE"]}
-              start={{ x: 0, y: 0.5 }}
-              end={{ x: 1, y: 0.5 }}
-              style={styles.bookBtn}
-            >
-              <Text style={styles.bookLabel}>{s.continueOrder}</Text>
-              <MaterialCommunityIcons name="arrow-right" size={18} color="#FFFFFF" />
-            </LinearGradient>
-          </Pressable>
+          />
         </View>
       </View>
     </View>
@@ -1318,30 +1311,7 @@ const styles = StyleSheet.create({
   fulfillmentTitle: { fontSize: 12, color: UI.text, fontFamily: "Poppins-SemiBold" },
   fulfillmentTitleActive: { color: UI.purple },
   fulfillmentBody: { marginTop: 2, fontSize: 10, color: UI.muted, fontFamily: "Poppins-Regular" },
-  footerActions: { flexDirection: "row", gap: 12 },
-  chatBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    paddingHorizontal: 22,
-    borderRadius: 28,
-    borderWidth: 1.5,
-    borderColor: UI.purple,
-    backgroundColor: "#FFFFFF",
-    minHeight: 52,
-  },
-  chatLabel: { fontSize: 15, color: UI.purple, fontFamily: "Poppins-Bold" },
-  bookWrap: { flex: 1, borderRadius: 28, overflow: "hidden" },
-  bookBtn: {
-    minHeight: 52,
-    borderRadius: 28,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-  },
-  bookLabel: { fontSize: 16, color: "#FFFFFF", fontFamily: "Poppins-Bold" },
+  footerActions: { flexDirection: "row", alignItems: "center", gap: 10 },
   pressed: { opacity: 0.88 },
   centered: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 24, gap: 12 },
   notFoundText: { fontSize: 15, color: UI.muted, fontFamily: "Poppins-Regular", textAlign: "center" },

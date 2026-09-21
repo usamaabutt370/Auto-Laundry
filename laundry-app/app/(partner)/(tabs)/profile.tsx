@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View, Switch, ActivityIndicator } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Linking } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -15,6 +15,9 @@ import { awardWelcomeCredits } from "@/lib/partner-credits";
 import { showAppAlert } from "@/components/app-alert";
 import { AvatarImage } from "@/components/avatar-image";
 import { DeleteAccountButton } from "@/components/delete-account-button";
+import { AppCtaButton } from "@/components/ui/cta-button";
+import { GradientSwitch } from "@/components/ui/gradient-switch";
+import { GradientLoader } from "@/components/ui/gradient-loader";
 import { WebHeaderSpacer } from "@/components/web-header-spacer";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { useSuppressWebScreenHeader } from "@/hooks/use-suppress-web-screen-header";
@@ -213,12 +216,16 @@ export default function PartnerProfileMenu() {
 							<Text style={styles.creditBalance}>{creditBalance.toLocaleString()}</Text>
 							<Text style={styles.creditHint}>Available credits</Text>
 						</View>
-						<Pressable
-							onPress={() => Linking.openURL(buildWhatsAppUrl(displayName, creditBalance)).catch(() => showAppAlert("Error", "Could not open WhatsApp."))}
-							style={({ pressed }) => [styles.buyCreditsBtn, pressed && styles.pressed]}
-						>
-							<Text style={styles.buyCreditsBtnText}>Buy more credits</Text>
-						</Pressable>
+						<AppCtaButton
+							label="Buy more credits"
+							width="auto"
+							size="sm"
+							onPress={() =>
+								Linking.openURL(buildWhatsAppUrl(displayName, creditBalance)).catch(() =>
+									showAppAlert("Error", "Could not open WhatsApp."),
+								)
+							}
+						/>
 					</View>
 				) : null}
 
@@ -227,18 +234,14 @@ export default function PartnerProfileMenu() {
 						<Text style={styles.roleLabel}>Use app as user</Text>
 						<View style={styles.switchWrap}>
 							{isUpdatingRole ? (
-								<ActivityIndicator color={UI.teal} size="small" />
+								<GradientLoader size="small" />
 							) : (
-								<Switch
+								<GradientSwitch
 									value={isPartnerSwitchOn}
-									onValueChange={handleRoleToggle}
+									onValueChange={(next) => void handleRoleToggle(next)}
 									disabled={isUpdatingRole}
-									trackColor={{ false: UI.chipBorder, true: UI.teal }}
-									thumbColor="#FFFFFF"
-									ios_backgroundColor={UI.chipBorder}
 								/>
-							)
-							}
+							)}
 						</View>
 					</View>
 					<Text style={styles.roleHint}>Switch back to customer mode to place orders.</Text>
@@ -295,8 +298,6 @@ const styles = StyleSheet.create({
 	creditCard: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: UI.card, borderRadius: 14, paddingHorizontal: 18, paddingVertical: 16, marginTop: 8, borderWidth: 1, borderColor: UI.chipBorder },
 	creditBalance: { fontSize: 22, fontWeight: "800", color: UI.text, letterSpacing: 0.2 },
 	creditHint: { fontSize: 12, color: UI.muted, fontWeight: "500", marginTop: 2 },
-	buyCreditsBtn: { paddingHorizontal: 16, paddingVertical: 9, borderRadius: 999, backgroundColor: UI.teal },
-	buyCreditsBtnText: { fontSize: 13, fontWeight: "700", color: "#FFFFFF" },
 	accountActionsRow: { flexDirection: "row", justifyContent: "center", gap: 12, marginTop: 4 },
 	divider: { height: 1, backgroundColor: UI.chipBorder, marginVertical: 16 },
 	menuGroup: { backgroundColor: "transparent", gap: 8 },
