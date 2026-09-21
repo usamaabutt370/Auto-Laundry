@@ -13,6 +13,7 @@ import { LandingContainer } from "./landing-container";
 const c = theme.colors;
 const NAVBAR_HEIGHT = 72;
 const GOOGLE_PLAY_URL = "https://play.google.com/store/apps/details?id=com.autolaundry.app&hl=en";
+const APPLE_STORE_URL = "https://apps.apple.com/us/app/tap2laundry/id6789571411";
 
 /** Top-of-page hero: the customer pitch — gentle, trusted laundry care. */
 export function LandingHero() {
@@ -51,7 +52,10 @@ export function LandingHero() {
             <View style={styles.downloadRow}>
               <Pressable
                 style={({ pressed }) => [pressed && styles.pressed]}
-                onPress={() => trackMetaEvent("ClickAppStore")}
+                 onPress={() => {
+                  trackMetaEvent("ClickAppStore");
+                  Linking.openURL(APPLE_STORE_URL);
+                }}
                 accessibilityRole="link"
                 accessibilityLabel="Download on the App Store"
               >
