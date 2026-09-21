@@ -15,6 +15,7 @@ import { useLocale } from "@/contexts/locale-context";
 import type { OrderEstimateResult } from "@/lib/customer-order-estimate";
 import { getStrings } from "@/locales";
 import { formatMoney } from "@/utils/format-money";
+import { UI } from "@/constants/theme";
 
 if (
   Platform.OS === "android" &&
@@ -22,13 +23,6 @@ if (
 ) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
-
-const UI = {
-  text: "#111827",
-  muted: "#6B7280",
-  purple: "#5B4DFF",
-  chipBorder: "#E5E7EB",
-};
 
 type Props = {
   estimate: OrderEstimateResult;

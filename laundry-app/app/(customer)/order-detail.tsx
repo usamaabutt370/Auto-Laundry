@@ -34,25 +34,8 @@ import {
   type CustomerOrderDisplayStatus,
 } from "@/lib/customer-orders";
 import { hasCustomerOrderDispute } from "@/lib/order-disputes";
+import { UI } from "@/constants/theme";
 
-const UI = {
-  bg: "#F7F8FA",
-  card: "#FFFFFF",
-  text: "#111827",
-  muted: "#6B7280",
-  teal: "#12B886",
-  purple: "#5B4DFF",
-  backBg: "#EEF2F6",
-  iconWell: "#F3F4F6",
-  openBg: "#ECFDF5",
-  openText: "#047857",
-  chipBorder: "#E5E7EB",
-  shadow: "rgba(17, 24, 39, 0.08)",
-  amber: "#D97706",
-  amberBg: "#FEF3C7",
-  red: "#B91C1C",
-  redBg: "#FEE2E2",
-};
 const PAD = 16;
 const CARD_RADIUS = 16;
 

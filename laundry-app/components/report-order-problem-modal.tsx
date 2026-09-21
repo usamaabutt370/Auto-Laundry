@@ -19,17 +19,8 @@ import { AppCtaButton } from "@/components/ui/cta-button";
 import { useLocale } from "@/contexts/locale-context";
 import { submitOrderDispute } from "@/lib/order-disputes";
 import { getStrings } from "@/locales";
+import { UI } from "@/constants/theme";
 
-const UI = {
-  bg: "#F7F8FA",
-  card: "#FFFFFF",
-  text: "#111827",
-  muted: "#6B7280",
-  teal: "#12B886",
-  chipBorder: "#E5E7EB",
-  openBg: "#ECFDF5",
-  openText: "#047857",
-};
 const MAX_PHOTOS = 3;
 
 type PendingPhoto = {

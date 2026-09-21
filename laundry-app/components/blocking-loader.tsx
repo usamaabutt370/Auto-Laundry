@@ -1,15 +1,9 @@
 import { StyleSheet, Text, View } from "react-native";
 
 import { GradientLoader } from "@/components/ui/gradient-loader";
-import { theme } from "@/constants/theme";
+import { theme, UI } from "@/constants/theme";
 
 const fs = theme.fontSize;
-
-const UI = {
-  card: "#FFFFFF",
-  text: "#111827",
-  chipBorder: "#E5E7EB",
-};
 
 type BlockingLoaderProps = {
   visible: boolean;

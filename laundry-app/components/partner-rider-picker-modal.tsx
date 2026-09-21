@@ -3,17 +3,9 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 
 import { GradientLoader } from "@/components/ui/gradient-loader";
 
-import { theme } from "@/constants/theme";
+import { theme, UI } from "@/constants/theme";
 import type { PartnerRider } from "@/lib/partner-riders";
 
-const UI = {
-  card: "#FFFFFF",
-  text: "#111827",
-  muted: "#6B7280",
-  teal: "#12B886",
-  chipBorder: "#E5E7EB",
-  mint: "#ECFDF5",
-};
 const fs = theme.fontSize;
 
 type PartnerRiderPickerModalProps = {

@@ -1,15 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-
-const UI = {
-  card: "#FFFFFF",
-  text: "#111827",
-  muted: "#6B7280",
-  teal: "#12B886",
-  chipBorder: "#E5E7EB",
-  bg: "#F7F8FA",
-  red: "#DC2626",
-};
+import { UI } from "@/constants/theme";
 
 export type ConfirmDialogOptions = {
   title: string;

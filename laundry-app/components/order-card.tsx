@@ -2,21 +2,8 @@ import type { ComponentProps } from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { AppCtaButton } from "@/components/ui/cta-button";
-import { theme } from "@/constants/theme";
+import { theme, UI } from "@/constants/theme";
 
-const UI = {
-  card: "#FFFFFF",
-  text: "#111827",
-  muted: "#6B7280",
-  teal: "#12B886",
-  chipBorder: "#E5E7EB",
-  mint: "#ECFDF5",
-  mintText: "#047857",
-  amber: "#D97706",
-  amberBg: "#FEF3C7",
-  red: "#DC2626",
-  redBg: "#FEE2E2",
-};
 const fs = theme.fontSize;
 
 const CARD_RADIUS = 16;

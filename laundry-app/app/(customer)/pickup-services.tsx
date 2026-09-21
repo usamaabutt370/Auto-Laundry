@@ -36,20 +36,7 @@ import {
 } from "@/lib/customer-order-estimate";
 import { formatMoney } from "@/utils/format-money";
 import { parsePriceDisplay } from "@/utils/parse-price-display";
-
-const UI = {
-  bg: "#F7F8FA",
-  card: "#FFFFFF",
-  text: "#111827",
-  muted: "#6B7280",
-  teal: "#12B886",
-  backBg: "#EEF2F6",
-  iconWell: "#F3F4F6",
-  openBg: "#ECFDF5",
-  openText: "#047857",
-  chipBorder: "#E5E7EB",
-  shadow: "rgba(17, 24, 39, 0.08)",
-};
+import { UI } from "@/constants/theme";
 
 type ServiceId = "washAndFold" | "dryCleaning" | "tailoring" | "press";
 

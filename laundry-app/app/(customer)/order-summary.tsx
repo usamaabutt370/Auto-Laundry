@@ -43,21 +43,7 @@ import { formatMoney } from "@/utils/format-money";
 import type { Coordinates } from "@/utils/geocoding";
 import { getPartnerHoursRange, getPartnerOpenStatus } from "@/utils/partner-hours";
 import { runAfterModalTeardown } from "@/utils/run-after-modal-teardown";
-
-const UI = {
-  bg: "#F7F8FA",
-  card: "#FFFFFF",
-  text: "#111827",
-  muted: "#6B7280",
-  teal: "#12B886",
-  purple: "#5B4DFF",
-  open: "#047857",
-  closed: "#B91C1C",
-  backBg: "#EEF2F6",
-  chipBorder: "#E5E7EB",
-  shadow: "rgba(17, 24, 39, 0.08)",
-  iconWell: "#F3F4F6",
-};
+import { UI } from "@/constants/theme";
 
 function fill(template: string, vars: Record<string, string | number>) {
   return Object.entries(vars).reduce(
@@ -470,14 +456,7 @@ export default function OrderSummaryScreen() {
     <View style={styles.container}>
       <SafeAreaView edges={["top"]} style={styles.headerSafe}>
         <View style={styles.headerRow}>
-          <Pressable
-            onPress={() => router.back()}
-            style={styles.roundBtn}
-            accessibilityRole="button"
-            accessibilityLabel="Back"
-          >
-            <MaterialCommunityIcons name="chevron-left" size={24} color={UI.text} />
-          </Pressable>
+          <View style={styles.roundBtn} />
           <View style={styles.headerCopy}>
             <Text style={styles.headerTitle} numberOfLines={1}>
               {isEditing ? s.editTitle : s.title}
@@ -486,7 +465,14 @@ export default function OrderSummaryScreen() {
               {s.subtitle}
             </Text>
           </View>
-          <View style={styles.roundBtn} />
+          <Pressable
+            onPress={() => router.back()}
+            style={styles.roundBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Close"
+          >
+            <MaterialCommunityIcons name="close" size={20} color={UI.text} />
+          </Pressable>
         </View>
       </SafeAreaView>
 
@@ -833,7 +819,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingTop: 16,
+    paddingBottom: 8,
     gap: 10,
   },
   headerCopy: { flex: 1, alignItems: "center" },

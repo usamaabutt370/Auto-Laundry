@@ -24,24 +24,25 @@ import Animated, {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { strings } from "@/constants/strings";
+import { UI } from "@/constants/theme";
 import { CustomerHomeMap, type CustomerHomeMapViewData } from "@/components/customer-home-map";
 import { AppCtaButton } from "@/components/ui/cta-button";
 import type { PartnerPublicRow } from "@/lib/partner-discovery";
 import { isPartnerOpenNow } from "@/utils/partner-hours";
 import { isPartnerTopRated, partnerHasActiveOffer } from "@/utils/partner-offers";
 
-const GREEN = "#12B886";
-const GREEN_SOFT = "#ECFDF5";
-const PURPLE = "#2C1B6E";
-const LINK = "#4F46E5";
-const MUTED = "#6B7280";
-const TEXT = "#111827";
-const BORDER = "#E5E7EB";
-const CARD_BG = "#F3F4F6";
-const STAR = "#F59E0B";
-const DIST = "#12B886";
-const PRICE = "#5B4DFF";
-const TRACK = "#E5E7EB";
+const GREEN = UI.teal;
+const GREEN_SOFT = UI.openBg;
+const PURPLE = UI.purpleDeep;
+const LINK = UI.purple;
+const MUTED = UI.muted;
+const TEXT = UI.text;
+const BORDER = UI.chipBorder;
+const CARD_BG = UI.iconWell;
+const STAR = UI.star;
+const DIST = UI.teal;
+const PRICE = UI.purple;
+const TRACK = UI.chipBorder;
 const DIST_THUMB_RADIUS = 11;
 const PRICE_THUMB_RADIUS = 11;
 
@@ -261,8 +262,8 @@ export function ProviderFiltersSheet({
       id: "washAndFold",
       label: s.categoryLaundry,
       icon: "washing-machine",
-      accent: "#12B886",
-      accentSoft: "#ECFDF5",
+      accent: UI.teal,
+      accentSoft: UI.openBg,
     },
     {
       id: "dryCleaning",

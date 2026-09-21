@@ -24,22 +24,7 @@ import { usePartnerVerified } from "@/hooks/use-partner-verified";
 import type { Coordinates } from "@/utils/geocoding";
 import { getPartnerOpenStatus } from "@/utils/partner-hours";
 import { isPartnerTopRated } from "@/utils/partner-offers";
-
-const UI = {
-  text: "#111827",
-  muted: "#6B7280",
-  card: "#FFFFFF",
-  bg: "#F7F8FA",
-  purple: "#5B4DFF",
-  teal: "#12B886",
-  openBg: "#ECFDF5",
-  openText: "#047857",
-  star: "#F5B301",
-  chipBorder: "#E5E7EB",
-  shadow: "rgba(17, 24, 39, 0.14)",
-  handle: "#D1D5DB",
-  verified: "#2563EB",
-};
+import { UI } from "@/constants/theme";
 
 type HomeStrings = {
   dropOff: string;

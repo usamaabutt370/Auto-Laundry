@@ -58,22 +58,7 @@ import { getDeviceCoordinates } from "@/utils/device-location";
 import type { Coordinates } from "@/utils/geocoding";
 import { getPartnerHoursRange, getPartnerOpenStatus } from "@/utils/partner-hours";
 import { partnerHasActiveOffer } from "@/utils/partner-offers";
-
-const UI = {
-  bg: "#F7F8FA",
-  card: "#FFFFFF",
-  text: "#111827",
-  muted: "#6B7280",
-  teal: "#12B886",
-  purple: "#5B4DFF",
-  purpleDeep: "#2C1B6E",
-  star: "#F5B301",
-  openText: "#047857",
-  closedText: "#B91C1C",
-  chipBorder: "#E5E7EB",
-  iconWell: "#F3F4F6",
-  shadow: "rgba(17, 24, 39, 0.12)",
-};
+import { UI } from "@/constants/theme";
 
 type DetailTab = "about" | "photos" | "reviews";
 type IconName = ComponentProps<typeof MaterialCommunityIcons>["name"];
@@ -174,7 +159,7 @@ export function LaundererDetailView({
       title: sHome.categoryIroning,
       subtitle: sHome.categoryIroningSub,
       icon: "iron",
-      accent: "#12B886",
+      accent: UI.teal,
       image: assets.images.home_category_ironing,
     },
     tailoring: {

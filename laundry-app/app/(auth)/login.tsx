@@ -20,13 +20,7 @@ import { parsePhoneNumberFromString } from "libphonenumber-js";
 import type { CountryCode } from "libphonenumber-js";
 
 import { dismissAuthSheet } from "@/lib/dismiss-auth-sheet";
-
-const UI = {
-  bg: "#F7F8FA",
-  text: "#111827",
-  muted: "#6B7280",
-  teal: "#12B886",
-};
+import { gradients, UI } from "@/constants/theme";
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -280,7 +274,7 @@ export default function LoginScreen() {
             disabled={isLoading}
           >
             <LinearGradient
-              colors={["#4A3AFF", "#12B886"]}
+              colors={[...gradients.brand]}
               start={{ x: 0, y: 0.5 }}
               end={{ x: 1, y: 0.5 }}
               style={styles.signInButtonFill}

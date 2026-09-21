@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 
-import { APP_CTA_GRADIENT_COLORS } from "@/components/ui/cta-button";
+import { gradients } from "@/constants/theme";
 
 const TRACK_W = 52;
 const TRACK_H = 32;
@@ -30,7 +30,7 @@ export function GradientSwitch({
     >
       {value ? (
         <LinearGradient
-          colors={APP_CTA_GRADIENT_COLORS}
+          colors={gradients.cta}
           start={{ x: 0, y: 0.5 }}
           end={{ x: 1, y: 0.5 }}
           style={[styles.track, styles.trackOn]}

@@ -20,7 +20,7 @@ import { BlockingLoader } from "@/components/blocking-loader";
 import { FiltersMapFab } from "@/components/filters-map-fab";
 import { AvatarImage } from "@/components/avatar-image";
 import { PartnerNameWithBadge } from "@/components/partner-name-with-badge";
-import { APP_CTA_GRADIENT_COLORS } from "@/components/ui/cta-button";
+import { gradients, UI } from "@/constants/theme";
 import { GradientLoader } from "@/components/ui/gradient-loader";
 import {
   applyProviderFilters,
@@ -54,20 +54,6 @@ import { getDeviceCoordinatesWithStatus } from "@/utils/device-location";
 import { StarRating } from "@/components/star-rating";
 import { getPartnerOpenStatus, isPartnerOpenNow } from "@/utils/partner-hours";
 import { isPartnerTopRated, partnerHasActiveOffer } from "@/utils/partner-offers";
-
-const UI = {
-  bg: "#F7F8FA",
-  card: "#FFFFFF",
-  text: "#111827",
-  muted: "#6B7280",
-  teal: "#12B886",
-  price: "#0F9F6E",
-  chipBorder: "#E5E7EB",
-  openBg: "#ECFDF5",
-  openText: "#047857",
-  distBg: "rgba(17, 24, 39, 0.62)",
-  backBg: "#EEF2F6",
-};
 
 const DISTANCE_PLACEHOLDER = "—";
 const PARTNER_DISTANCE_PLACEHOLDER = `${DISTANCE_PLACEHOLDER} km`;
@@ -732,7 +718,7 @@ export default function PickLaundererScreen() {
                 >
                   {selected ? (
                     <LinearGradient
-                      colors={APP_CTA_GRADIENT_COLORS}
+                      colors={gradients.cta}
                       start={{ x: 0, y: 0.5 }}
                       end={{ x: 1, y: 0.5 }}
                       style={styles.chip}

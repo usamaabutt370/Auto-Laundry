@@ -22,15 +22,8 @@ import { WebHeaderSpacer } from "@/components/web-header-spacer";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { useSuppressWebScreenHeader } from "@/hooks/use-suppress-web-screen-header";
 import { runAfterModalTeardown } from "@/utils/run-after-modal-teardown";
+import { UI } from "@/constants/theme";
 
-const UI = {
-	bg: "#F7F8FA",
-	card: "#FFFFFF",
-	text: "#111827",
-	muted: "#6B7280",
-	teal: "#12B886",
-	chipBorder: "#E5E7EB",
-};
 const WHATSAPP_PHONE = "923004639943";
 
 function buildWhatsAppUrl(name: string, balance: number | null): string {
