@@ -1,6 +1,56 @@
 import { Dimensions, Platform } from "react-native";
 
-// BarFly-style color palette
+/**
+ * Product UI palette used by customer + partner screens.
+ * Screens should `import { UI, gradients } from "@/constants/theme"` instead of local hex copies.
+ */
+export const UI = {
+  bg: "#F7F8FA",
+  card: "#FFFFFF",
+  text: "#111827",
+  muted: "#6B7280",
+  teal: "#12B886",
+  purple: "#6D5CFF",
+  purpleDeep: "#2C1B6E",
+  chipBorder: "#E5E7EB",
+  border: "#ECEEF2",
+  iconWell: "#F3F4F6",
+  backBg: "#EEF2F6",
+  trustBg: "#F3F4F6",
+  handle: "#D1D5DB",
+  open: "#047857",
+  openText: "#047857",
+  openBg: "#ECFDF5",
+  mint: "#ECFDF5",
+  mintText: "#047857",
+  closed: "#B91C1C",
+  closedText: "#B91C1C",
+  red: "#DC2626",
+  redBg: "#FEE2E2",
+  amber: "#D97706",
+  amberBg: "#FEF3C7",
+  star: "#F5B301",
+  price: "#0F9F6E",
+  blue: "#2F6BFF",
+  green: "#00A86B",
+  mapGreen: "#12B886",
+  verified: "#2563EB",
+  badgeTopRated: "#0F766E",
+  badgeFast: "#2563EB",
+  badgeTrusted: "#6D28D9",
+  dealPink: "#E94B8C",
+  distBg: "rgba(17, 24, 39, 0.62)",
+  shadow: "rgba(17, 24, 39, 0.08)",
+  shadowStrong: "rgba(17, 24, 39, 0.14)",
+  overlay: "rgba(0, 0, 0, 0.45)",
+} as const;
+
+export const gradients = {
+  cta: ["#6D5CFF", "#8B5CF6", "#22D3EE"] as const,
+  glass: ["rgba(74, 58, 255, 0.30)", "rgba(18, 184, 134, 0.30)"] as const,
+  brand: [UI.purple, UI.teal] as const,
+};
+
 const colors = {
   background: "#3b7f95",
   backgroundLight: "#78b2cb",
@@ -162,6 +212,8 @@ export const theme = {
     text: colors.black,
     ...colors,
   },
+  ui: UI,
+  gradients,
   space: spacesMultiplier,
   fontWeights,
   paddings,
@@ -195,20 +247,20 @@ export const Colors = {
 
 // Bottom tab bar — teal gradient aligned with app brand
 export const TabBarColors = {
-  background: "#FFFFFF",
-  border: "#E5E7EB",
-  gradientStart: "#FFFFFF",
-  gradientMid: "#FFFFFF",
-  gradientEnd: "#FFFFFF",
-  gradientAccent: "#FFFFFF",
-  activeTint: "#12B886",
+  background: UI.card,
+  border: UI.chipBorder,
+  gradientStart: UI.card,
+  gradientMid: UI.card,
+  gradientEnd: UI.card,
+  gradientAccent: UI.card,
+  activeTint: UI.teal,
   inactiveTint: "#9CA3AF",
   activeGlow: "#D1FAE5",
   frostOverlay: "transparent",
   shineOverlay: "transparent",
-  topHighlight: "#E5E7EB",
-  activeDot: "#12B886",
-  shadow: "rgba(17, 24, 39, 0.08)",
+  topHighlight: UI.chipBorder,
+  activeDot: UI.teal,
+  shadow: UI.shadow,
   floatMarginH: 0,
   floatMarginBottom: 0,
 };

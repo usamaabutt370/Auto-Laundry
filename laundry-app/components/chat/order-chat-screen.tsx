@@ -34,7 +34,7 @@ import { ChatListScrollView } from "@/components/chat/chat-list-scroll-view";
 import { RiderAssignmentMessage } from "@/components/chat/rider-assignment-message";
 import { WebCameraCaptureModal } from "@/components/chat/web-camera-capture-modal";
 import { GradientLoader } from "@/components/ui/gradient-loader";
-import { theme } from "@/constants/theme";
+import { gradients, theme, UI } from "@/constants/theme";
 import { useAuth } from "@/contexts/auth-context";
 import {
   ensureOrderConversation,
@@ -50,19 +50,6 @@ import {
 import { supabase } from "@/lib/supabase";
 import { pickImagesFromDocument } from "@/utils/pick-images";
 
-const UI = {
-  bg: "#F7F8FA",
-  card: "#FFFFFF",
-  text: "#111827",
-  muted: "#6B7280",
-  teal: "#12B886",
-  chipBorder: "#E5E7EB",
-};
-/** Same translucent purple → green wash as the floating tab pill. */
-const BUBBLE_GLASS_GRADIENT = [
-  "rgba(74, 58, 255, 0.30)",
-  "rgba(18, 184, 134, 0.30)",
-] as const;
 const fs = theme.fontSize;
 const CHAT_INPUT_NATIVE_ID = "order-chat-input";
 const PAD = 20;
@@ -705,7 +692,7 @@ export function OrderChatScreen() {
                       ];
                       return mine ? (
                         <LinearGradient
-                          colors={[...BUBBLE_GLASS_GRADIENT]}
+                          colors={[...gradients.glass]}
                           start={{ x: 0, y: 0 }}
                           end={{ x: 1, y: 1 }}
                           style={bubbleStyle}

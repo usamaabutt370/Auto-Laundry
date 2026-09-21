@@ -30,16 +30,7 @@ import { parsePhoneNumberFromString } from "libphonenumber-js";
 import type { CountryCode } from "libphonenumber-js";
 import { Input } from "@/components";
 import { GradientLoader } from "@/components/ui/gradient-loader";
-
-const UI = {
-  bg: "#F7F8FA",
-  card: "#FFFFFF",
-  text: "#111827",
-  muted: "#6B7280",
-  teal: "#12B886",
-  chipBorder: "#E5E7EB",
-  iconWell: "#F3F4F6",
-};
+import { gradients, UI } from "@/constants/theme";
 
 const AVATAR_BUCKET = "avatars";
 const AVATAR_PATH_PREFIX = "avatar"; // file will be avatar.jpg or avatar.png
@@ -676,7 +667,7 @@ export default function EditProfileScreen() {
               disabled={saving}
             >
               <LinearGradient
-                colors={["#4A3AFF", "#12B886"]}
+                colors={[...gradients.brand]}
                 start={{ x: 0, y: 0.5 }}
                 end={{ x: 1, y: 0.5 }}
                 style={styles.saveBtn}
@@ -756,7 +747,7 @@ export default function EditProfileScreen() {
               disabled={saving}
             >
               <LinearGradient
-                colors={["#4A3AFF", "#12B886"]}
+                colors={[...gradients.brand]}
                 start={{ x: 0, y: 0.5 }}
                 end={{ x: 1, y: 0.5 }}
                 style={styles.saveBtn}

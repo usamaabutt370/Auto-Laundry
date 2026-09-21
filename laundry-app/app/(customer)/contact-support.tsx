@@ -19,15 +19,7 @@ import { AppHeader } from "@/components/app-header";
 import { strings } from "@/constants/strings";
 import { openWhatsApp } from "@/lib/whatsapp";
 import { goBackToCustomerHome } from "@/utils/customer-navigation";
-
-const UI = {
-  bg: "#F7F8FA",
-  card: "#FFFFFF",
-  text: "#111827",
-  muted: "#6B7280",
-  teal: "#12B886",
-  chipBorder: "#E5E7EB",
-};
+import { UI } from "@/constants/theme";
 
 export default function ContactSupportScreen() {
   const router = useRouter();

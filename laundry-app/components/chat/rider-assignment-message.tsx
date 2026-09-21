@@ -4,21 +4,12 @@ import { useRouter } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { PartnerNameWithBadge } from "@/components/partner-name-with-badge";
-import { theme } from "@/constants/theme";
+import { theme, UI } from "@/constants/theme";
 import { useLocale } from "@/contexts/locale-context";
 import type { RiderAssignmentMetadata } from "@/lib/chat";
 import { getStrings } from "@/locales";
 import type { UserRole } from "@/types/user";
 
-const UI = {
-  bg: "#F7F8FA",
-  card: "#FFFFFF",
-  text: "#111827",
-  muted: "#6B7280",
-  teal: "#12B886",
-  chipBorder: "#E5E7EB",
-  mint: "#ECFDF5",
-};
 const fs = theme.fontSize;
 
 type RiderAssignmentMessageProps = {

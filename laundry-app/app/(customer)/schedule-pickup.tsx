@@ -19,12 +19,7 @@ import { AppCtaButton } from "@/components/ui/cta-button";
 import { strings } from "@/constants/strings";
 import { useCustomerOrderDraft } from "@/contexts/customer-order-draft-context";
 import { isBeforeDate, isSameDay } from "@/utils/schedule-datetime";
-
-const UI = {
-  bg: "#F7F8FA",
-  text: "#111827",
-  backBg: "#EEF2F6",
-};
+import { UI } from "@/constants/theme";
 
 export default function SchedulePickupScreen() {
   const router = useRouter();

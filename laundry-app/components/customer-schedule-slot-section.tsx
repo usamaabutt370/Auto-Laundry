@@ -1,4 +1,5 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Modal,
@@ -10,6 +11,7 @@ import {
 } from "react-native";
 
 import { Spacer } from "@/components";
+import { AppCtaButton } from "@/components/ui/cta-button";
 import {
   dateToIso,
   formatTodayString,
@@ -21,17 +23,7 @@ import {
   TIME_SLOTS,
   timeSlotIndexFromLabel,
 } from "@/utils/schedule-datetime";
-
-const UI = {
-  card: "#FFFFFF",
-  text: "#111827",
-  muted: "#6B7280",
-  teal: "#12B886",
-  openBg: "#ECFDF5",
-  chipBorder: "#E5E7EB",
-  iconWell: "#F3F4F6",
-  shadow: "rgba(17, 24, 39, 0.08)",
-};
+import { gradients, UI } from "@/constants/theme";
 
 const CURRENT_YEAR = new Date().getFullYear();
 const CURRENT_MONTH = new Date().getMonth();
@@ -220,12 +212,8 @@ export function CustomerScheduleSlotSection({
         >
           {datesInMonth.map((item, index) => {
             const isSelected = safeSelectedDateIndex === index;
-            return (
-              <Pressable
-                key={`${dateToIso(item.date)}-${index}`}
-                onPress={() => setSelectedDateIndex(index)}
-                style={[styles.datePill, isSelected && styles.datePillSelected]}
-              >
+            const dayText = (
+              <>
                 <Text
                   style={[styles.datePillDay, isSelected && styles.datePillDaySelected]}
                 >
@@ -236,6 +224,26 @@ export function CustomerScheduleSlotSection({
                 >
                   {item.dayNum}
                 </Text>
+              </>
+            );
+            return (
+              <Pressable
+                key={`${dateToIso(item.date)}-${index}`}
+                onPress={() => setSelectedDateIndex(index)}
+                style={styles.datePillPress}
+              >
+                {isSelected ? (
+                  <LinearGradient
+                    colors={gradients.cta}
+                    start={{ x: 0, y: 0.5 }}
+                    end={{ x: 1, y: 0.5 }}
+                    style={styles.datePill}
+                  >
+                    {dayText}
+                  </LinearGradient>
+                ) : (
+                  <View style={[styles.datePill, styles.datePillIdle]}>{dayText}</View>
+                )}
               </Pressable>
             );
           })}
@@ -248,7 +256,7 @@ export function CustomerScheduleSlotSection({
         onPress={() => setTimePickerVisible(true)}
         style={({ pressed }) => [styles.timeSlotRow, pressed && styles.pressed]}
       >
-        <MaterialCommunityIcons name="clock-outline" size={20} color={UI.teal} />
+        <MaterialCommunityIcons name="clock-outline" size={20} color={UI.purple} />
         <Text style={styles.timeSlotLabel}>{dayLabel} :</Text>
         <Text style={styles.timeSlotValue}>{timeSlotLabel}</Text>
         <MaterialCommunityIcons name="chevron-down" size={22} color={UI.muted} />
@@ -293,18 +301,19 @@ export function CustomerScheduleSlotSection({
                       {name}
                     </Text>
                     {selectedMonth === index ? (
-                      <MaterialCommunityIcons name="check" size={20} color={UI.teal} />
+                      <MaterialCommunityIcons name="check" size={20} color={UI.purple} />
                     ) : null}
                   </Pressable>
                 );
               })}
             </ScrollView>
-            <Pressable
-              style={({ pressed }) => [styles.pickerClose, pressed && styles.pressed]}
+            <AppCtaButton
+              label="Close"
               onPress={() => setMonthPickerVisible(false)}
-            >
-              <Text style={styles.pickerCloseText}>Close</Text>
-            </Pressable>
+              width="full"
+              size="sm"
+              style={styles.pickerClose}
+            />
           </Pressable>
         </Pressable>
       </Modal>
@@ -340,17 +349,18 @@ export function CustomerScheduleSlotSection({
                     {year}
                   </Text>
                   {selectedYear === year ? (
-                    <MaterialCommunityIcons name="check" size={20} color={UI.teal} />
+                    <MaterialCommunityIcons name="check" size={20} color={UI.purple} />
                   ) : null}
                 </Pressable>
               ))}
             </ScrollView>
-            <Pressable
-              style={({ pressed }) => [styles.pickerClose, pressed && styles.pressed]}
+            <AppCtaButton
+              label="Close"
               onPress={() => setYearPickerVisible(false)}
-            >
-              <Text style={styles.pickerCloseText}>Close</Text>
-            </Pressable>
+              width="full"
+              size="sm"
+              style={styles.pickerClose}
+            />
           </Pressable>
         </Pressable>
       </Modal>
@@ -395,18 +405,19 @@ export function CustomerScheduleSlotSection({
                       {label}
                     </Text>
                     {isSelected ? (
-                      <MaterialCommunityIcons name="check" size={20} color={UI.teal} />
+                      <MaterialCommunityIcons name="check" size={20} color={UI.purple} />
                     ) : null}
                   </Pressable>
                 );
               })}
             </ScrollView>
-            <Pressable
-              style={({ pressed }) => [styles.pickerClose, pressed && styles.pressed]}
+            <AppCtaButton
+              label="Close"
               onPress={() => setTimePickerVisible(false)}
-            >
-              <Text style={styles.pickerCloseText}>Close</Text>
-            </Pressable>
+              width="full"
+              size="sm"
+              style={styles.pickerClose}
+            />
           </Pressable>
         </Pressable>
       </Modal>
@@ -481,6 +492,10 @@ const styles = StyleSheet.create({
     paddingRight: 8,
     flexDirection: "row",
   },
+  datePillPress: {
+    borderRadius: 12,
+    overflow: "hidden",
+  },
   datePill: {
     gap: 6,
     minWidth: 56,
@@ -488,10 +503,9 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     alignItems: "center",
     paddingHorizontal: 12,
-    backgroundColor: UI.iconWell,
   },
-  datePillSelected: {
-    backgroundColor: UI.teal,
+  datePillIdle: {
+    backgroundColor: UI.iconWell,
   },
   datePillDay: {
     fontSize: 13,
@@ -589,7 +603,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   pickerOptionSelected: {
-    backgroundColor: UI.openBg,
+    backgroundColor: "#F5F3FF",
   },
   pickerOptionDisabled: {
     opacity: 0.45,
@@ -601,18 +615,9 @@ const styles = StyleSheet.create({
   },
   pickerOptionTextSelected: {
     fontFamily: "Poppins-Bold",
-    color: UI.teal,
+    color: UI.purple,
   },
   pickerClose: {
     marginTop: 12,
-    paddingVertical: 14,
-    alignItems: "center",
-    borderRadius: 12,
-    backgroundColor: UI.teal,
-  },
-  pickerCloseText: {
-    fontSize: 16,
-    fontFamily: "Poppins-SemiBold",
-    color: "#FFFFFF",
   },
 });

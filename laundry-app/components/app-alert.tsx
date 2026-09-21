@@ -1,15 +1,8 @@
 import { useEffect, useState } from "react";
 import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 
-const UI = {
-  card: "#FFFFFF",
-  text: "#111827",
-  muted: "#6B7280",
-  teal: "#12B886",
-  chipBorder: "#E5E7EB",
-  bg: "#F7F8FA",
-  red: "#DC2626",
-};
+import { AppCtaButton } from "@/components/ui/cta-button";
+import { UI } from "@/constants/theme";
 
 export type AppAlertButton = {
   text: string;
@@ -81,30 +74,43 @@ export function AppAlertProvider({ children }: { children: React.ReactNode }) {
                 pending.buttons.length > 1 ? styles.actionsRow : styles.actionsColumn,
               ]}
             >
-              {pending.buttons.map((btn, i) => (
-                <Pressable
-                  key={i}
-                  onPress={() => dismiss(btn)}
-                  style={({ pressed }) => [
-                    styles.btn,
-                    btn.style === "cancel" && styles.cancelBtn,
-                    btn.style === "destructive" && styles.destructiveBtn,
-                    btn.style !== "cancel" && btn.style !== "destructive" && styles.defaultBtn,
-                    pressed && styles.pressed,
-                    pending.buttons.length > 1 && styles.btnFlex,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.btnText,
-                      btn.style === "cancel" && styles.cancelText,
-                      btn.style === "destructive" && styles.destructiveText,
+              {pending.buttons.map((btn, i) => {
+                const isDefault = btn.style !== "cancel" && btn.style !== "destructive";
+                if (isDefault) {
+                  return (
+                    <AppCtaButton
+                      key={i}
+                      label={btn.text}
+                      onPress={() => dismiss(btn)}
+                      width={pending.buttons.length > 1 ? "half" : "full"}
+                      size="sm"
+                    />
+                  );
+                }
+                return (
+                  <Pressable
+                    key={i}
+                    onPress={() => dismiss(btn)}
+                    style={({ pressed }) => [
+                      styles.btn,
+                      btn.style === "cancel" && styles.cancelBtn,
+                      btn.style === "destructive" && styles.destructiveBtn,
+                      pressed && styles.pressed,
+                      pending.buttons.length > 1 && styles.btnFlex,
                     ]}
                   >
-                    {btn.text}
-                  </Text>
-                </Pressable>
-              ))}
+                    <Text
+                      style={[
+                        styles.btnText,
+                        btn.style === "cancel" && styles.cancelText,
+                        btn.style === "destructive" && styles.destructiveText,
+                      ]}
+                    >
+                      {btn.text}
+                    </Text>
+                  </Pressable>
+                );
+              })}
             </View>
           </View>
         </View>
@@ -178,9 +184,6 @@ const styles = StyleSheet.create({
   },
   btnFlex: {
     flex: 1,
-  },
-  defaultBtn: {
-    backgroundColor: UI.teal,
   },
   cancelBtn: {
     backgroundColor: UI.bg,

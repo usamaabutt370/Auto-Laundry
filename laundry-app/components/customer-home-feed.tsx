@@ -30,43 +30,26 @@ import {
   getPlaceLabelFromCoordinates,
   type Coordinates,
 } from "@/utils/geocoding";
+import { UI } from "@/constants/theme";
 
 const SCREEN_PAD = 20;
 const CARD_GAP = 10;
 
-const HOME_UI = {
-  bg: "#F7F8FA",
-  card: "#FFFFFF",
-  text: "#111827",
-  muted: "#6B7280",
-  purple: "#5B4DFF",
-  blue: "#2F6BFF",
-  green: "#00A86B",
-  mapGreen: "#12B886",
-  star: "#F5B301",
-  badgeTopRated: "#0F766E",
-  badgeFast: "#2563EB",
-  badgeTrusted: "#6D28D9",
-  trustBg: "#F3F4F6",
-  border: "#ECEEF2",
-  dealPink: "#E94B8C",
-} as const;
-
 const DEAL_TONES = {
   teal: {
-    accent: HOME_UI.mapGreen,
-    badgeBg: "#ECFDF5",
-    badgeText: HOME_UI.green,
+    accent: UI.mapGreen,
+    badgeBg: UI.openBg,
+    badgeText: UI.green,
   },
   purple: {
-    accent: HOME_UI.purple,
+    accent: UI.purple,
     badgeBg: "#F5F3FF",
-    badgeText: HOME_UI.purple,
+    badgeText: UI.purple,
   },
   pink: {
-    accent: HOME_UI.dealPink,
+    accent: UI.dealPink,
     badgeBg: "#FDF2F8",
-    badgeText: HOME_UI.dealPink,
+    badgeText: UI.dealPink,
   },
 } as const;
 
@@ -124,9 +107,9 @@ function formatRatingAvg(value: number): string {
 }
 
 const BADGES = [
-  { key: "top" as const, bg: HOME_UI.badgeTopRated + "90" },
-  { key: "fast" as const, bg: HOME_UI.badgeFast + "90" },
-  { key: "trusted" as const, bg: HOME_UI.badgeTrusted + "90" },
+  { key: "top" as const, bg: UI.badgeTopRated + "90" },
+  { key: "fast" as const, bg: UI.badgeFast + "90" },
+  { key: "trusted" as const, bg: UI.badgeTrusted + "90" },
 ];
 
 type Props = {
@@ -238,11 +221,11 @@ export function CustomerHomeFeed({
               <Text style={styles.greetingEmoji}> 👋</Text>
             </View>
             {/* <Pressable style={styles.locationRow} hitSlop={8}>
-              <MaterialCommunityIcons name="map-marker" size={16} color={HOME_UI.purple} />
+              <MaterialCommunityIcons name="map-marker" size={16} color={UI.purple} />
               <Text style={styles.locationText} numberOfLines={1}>
                 {locationLabel}
               </Text>
-              <MaterialCommunityIcons name="chevron-down" size={16} color={HOME_UI.muted} />
+              <MaterialCommunityIcons name="chevron-down" size={16} color={UI.muted} />
             </Pressable> */}
           </View>
           <View style={styles.headerActions}>
@@ -280,7 +263,7 @@ export function CustomerHomeFeed({
             subtitle={s.categoryLaundrySub}
             image={assets.onboarding.slide1}
             icon="tshirt-crew"
-            accent={HOME_UI.blue}
+            accent={UI.blue}
             width={categoryCardWidth}
             onPress={() => onPressCategory("washAndFold")}
           />
@@ -298,7 +281,7 @@ export function CustomerHomeFeed({
             subtitle={s.categoryIroningSub}
             image={assets.images.home_category_ironing}
             icon="iron"
-            accent={HOME_UI.mapGreen}
+            accent={UI.mapGreen}
             width={categoryCardWidth}
             onPress={() => onPressCategory("press")}
           />
@@ -307,7 +290,7 @@ export function CustomerHomeFeed({
             subtitle={s.categoryTailoringSub}
             image={assets.images.home_category_tailoring}
             icon="scissors-cutting"
-            accent={HOME_UI.purple}
+            accent={UI.purple}
             width={categoryCardWidth}
             onPress={() => onPressCategory("tailoring")}
           />
@@ -431,7 +414,7 @@ function SectionHeader({
       <Text style={styles.sectionTitleNoMargin}>{title}</Text>
       <Pressable onPress={onAction} hitSlop={8} style={styles.seeAllBtn}>
         <Text style={styles.seeAll}>{actionLabel}</Text>
-        <MaterialCommunityIcons name="arrow-right" size={16} color={HOME_UI.purple} />
+        <MaterialCommunityIcons name="arrow-right" size={16} color={UI.purple} />
       </Pressable>
     </View>
   );
@@ -543,7 +526,7 @@ function RecommendedCard({
             <MaterialCommunityIcons
               name="star"
               size={12}
-              color={(partner.ratingCount ?? 0) > 0 ? HOME_UI.star : "#E5E7EB"}
+              color={(partner.ratingCount ?? 0) > 0 ? UI.star : "#E5E7EB"}
             />
             <Text style={styles.recMetaMuted} numberOfLines={1}>
               {(partner.ratingCount ?? 0) > 0
@@ -557,7 +540,7 @@ function RecommendedCard({
             </Text>
           </View>
           <View style={styles.tagRow}>
-            <MaterialCommunityIcons name="tshirt-crew-outline" size={11} color={HOME_UI.blue} />
+            <MaterialCommunityIcons name="tshirt-crew-outline" size={11} color={UI.blue} />
             <Text style={styles.tagText} numberOfLines={1}>
               {pickup ? s.tagWashFold : s.tagLaundry}
             </Text>
@@ -639,7 +622,7 @@ function DealCard({
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: HOME_UI.bg,
+    backgroundColor: UI.bg,
   },
   scroll: {
     paddingHorizontal: SCREEN_PAD,
@@ -679,7 +662,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   locationText: {
-    color: HOME_UI.text,
+    color: UI.text,
     fontSize: 11,
     fontFamily: "Poppins-Regular",
     flexShrink: 1,
@@ -705,13 +688,13 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 20,
     fontFamily: "Poppins-Bold",
-    color: HOME_UI.text,
+    color: UI.text,
     marginBottom: 12,
   },
   sectionTitleNoMargin: {
     fontSize: 20,
     fontFamily: "Poppins-Bold",
-    color: HOME_UI.text,
+    color: UI.text,
     flex: 1,
   },
   sectionHeader: {
@@ -728,7 +711,7 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   seeAll: {
-    color: HOME_UI.purple,
+    color: UI.purple,
     fontSize: 13,
     fontFamily: "Poppins-SemiBold",
   },
@@ -739,7 +722,7 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   categoryCard: {
-    backgroundColor: HOME_UI.card,
+    backgroundColor: UI.card,
     borderRadius: 18,
     overflow: "hidden",
   },
@@ -773,11 +756,11 @@ const styles = StyleSheet.create({
   categoryTitle: {
     fontSize: 15,
     fontFamily: "Poppins-Bold",
-    color: HOME_UI.text,
+    color: UI.text,
   },
   categorySub: {
     fontSize: 12,
-    color: HOME_UI.text,
+    color: UI.text,
     fontFamily: "Poppins-Regular",
   },
   categoryArrow: {
@@ -791,7 +774,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   trustCard: {
-    backgroundColor: HOME_UI.border,
+    backgroundColor: UI.border,
     borderRadius: 18,
     padding: 14,
     flexDirection: "row",
@@ -803,7 +786,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: HOME_UI.green,
+    backgroundColor: UI.green,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -814,16 +797,16 @@ const styles = StyleSheet.create({
   trustTitle: {
     fontSize: 15,
     fontFamily: "Poppins-Bold",
-    color: HOME_UI.text,
+    color: UI.text,
   },
   trustAccent: {
-    color: HOME_UI.green,
+    color: UI.green,
   },
   trustBody: {
     marginTop: 2,
     fontSize: 12,
     lineHeight: 16,
-    color: HOME_UI.muted,
+    color: UI.muted,
     fontFamily: "Poppins-Regular",
   },
   trustImage: {
@@ -835,7 +818,7 @@ const styles = StyleSheet.create({
     marginVertical: 24,
   },
   empty: {
-    color: HOME_UI.muted,
+    color: UI.muted,
     fontFamily: "Poppins-Regular",
     fontSize: 13,
     paddingVertical: 12,
@@ -849,12 +832,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
   },
   hCardShadowHost: {
-    backgroundColor: HOME_UI.card,
+    backgroundColor: UI.card,
     borderRadius: 18,
     ...CARD_SHADOW,
   },
   recCard: {
-    backgroundColor: HOME_UI.card,
+    backgroundColor: UI.card,
     borderRadius: 18,
     overflow: "hidden",
   },
@@ -902,7 +885,7 @@ const styles = StyleSheet.create({
   recName: {
     fontSize: 13,
     fontFamily: "Poppins-SemiBold",
-    color: HOME_UI.text,
+    color: UI.text,
   },
   recMeta: {
     flexDirection: "row",
@@ -911,13 +894,13 @@ const styles = StyleSheet.create({
   },
   recMetaText: {
     fontSize: 10,
-    color: HOME_UI.text,
+    color: UI.text,
     fontFamily: "Poppins-Regular",
   },
   recMetaMuted: {
     flex: 1,
     fontSize: 11,
-    color: HOME_UI.muted,
+    color: UI.muted,
     fontFamily: "Poppins-Regular",
   },
   tagRow: {
@@ -928,7 +911,7 @@ const styles = StyleSheet.create({
   tagText: {
     flex: 1,
     fontSize: 11,
-    color: HOME_UI.text,
+    color: UI.text,
     fontFamily: "Poppins-Regular",
   },
   fromPriceRow: {
@@ -936,16 +919,16 @@ const styles = StyleSheet.create({
   },
   fromLabel: {
     fontSize: 11,
-    color: HOME_UI.muted,
+    color: UI.muted,
     fontFamily: "Poppins-Regular",
   },
   price: {
     fontSize: 11,
     fontFamily: "Poppins-Bold",
-    color: HOME_UI.green,
+    color: UI.green,
   },
   dealCard: {
-    backgroundColor: HOME_UI.card,
+    backgroundColor: UI.card,
     borderRadius: 18,
     padding: 8,
     overflow: "hidden",
@@ -970,11 +953,11 @@ const styles = StyleSheet.create({
     marginTop: 6,
     fontSize: 15,
     fontFamily: "Poppins-Bold",
-    color: HOME_UI.text,
+    color: UI.text,
   },
   dealSub: {
     fontSize: 11,
-    color: HOME_UI.muted,
+    color: UI.muted,
     fontFamily: "Poppins-Regular",
   },
   dealImageWrap: {

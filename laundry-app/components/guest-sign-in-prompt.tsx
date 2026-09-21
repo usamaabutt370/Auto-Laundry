@@ -3,18 +3,10 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { getTabBarBottomInset } from "@/components/bottom-tab-bar";
-import { theme } from "@/constants/theme";
+import { theme, UI } from "@/constants/theme";
 
 const c = theme.colors;
 const fs = theme.fontSize;
-
-const LIGHT = {
-  text: "#111827",
-  muted: "#6B7280",
-  teal: "#12B886",
-  card: "#FFFFFF",
-  border: "#E5E7EB",
-};
 
 export type GuestSignInPromptVariant = "chat" | "orders";
 
@@ -44,7 +36,7 @@ function GuestArt({
         <MaterialCommunityIcons
           name={iconName}
           size={36}
-          color={light ? LIGHT.teal : c.backgroundDark}
+          color={light ? UI.teal : c.backgroundDark}
         />
       </View>
       <View style={[styles.badge, light && styles.badgeLight]}>
@@ -121,8 +113,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   cardLight: {
-    backgroundColor: LIGHT.card,
-    borderColor: LIGHT.border,
+    backgroundColor: UI.card,
+    borderColor: UI.chipBorder,
   },
   cardBack: {
     width: 88,
@@ -153,8 +145,8 @@ const styles = StyleSheet.create({
     borderColor: c.white,
   },
   badgeLight: {
-    backgroundColor: LIGHT.teal,
-    borderColor: LIGHT.card,
+    backgroundColor: UI.teal,
+    borderColor: UI.card,
   },
   badgeText: {
     color: c.white,
@@ -170,7 +162,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   titleLight: {
-    color: LIGHT.text,
+    color: UI.text,
   },
   subtitle: {
     fontSize: fs.xSmallText,
@@ -180,7 +172,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   subtitleLight: {
-    color: LIGHT.muted,
+    color: UI.muted,
   },
   loginBtn: {
     alignSelf: "stretch",
@@ -193,7 +185,7 @@ const styles = StyleSheet.create({
     borderColor: c.filledButtonBorder,
   },
   loginBtnLight: {
-    backgroundColor: LIGHT.teal,
+    backgroundColor: UI.teal,
     borderWidth: 0,
   },
   loginLabel: {

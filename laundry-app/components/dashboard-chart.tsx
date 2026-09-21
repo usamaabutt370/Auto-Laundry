@@ -1,14 +1,8 @@
 import React, { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { theme } from "@/constants/theme";
+import { theme, UI } from "@/constants/theme";
 
-const UI = {
-  text: "#111827",
-  muted: "#6B7280",
-  teal: "#12B886",
-  purple: "#4A3AFF",
-};
 const fs = theme.fontSize;
 
 const DEFAULT_LABELS: [string, string, string, string, string, string, string] = [

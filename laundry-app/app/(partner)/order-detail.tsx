@@ -16,7 +16,7 @@ import { showAppAlert } from "@/components/app-alert";
 import { AppHeader } from "@/components/app-header";
 import { BlockingLoader } from "@/components/blocking-loader";
 import { PartnerRiderPickerModal } from "@/components/partner-rider-picker-modal";
-import { theme } from "@/constants/theme";
+import { theme, UI } from "@/constants/theme";
 import { getOrderDetail, type DemoOrderDetail } from "@/data/demo-order-details";
 import { useAuth } from "@/contexts/auth-context";
 import { useLocale } from "@/contexts/locale-context";
@@ -31,21 +31,6 @@ import { fetchPartnerRiders, type PartnerRider } from "@/lib/partner-riders";
 import { getStrings } from "@/locales";
 import { parsePriceDisplay, currencyPrefixFromDisplay } from "@/utils/parse-price-display";
 
-const UI = {
-  bg: "#F7F8FA",
-  card: "#FFFFFF",
-  text: "#111827",
-  muted: "#6B7280",
-  teal: "#12B886",
-  chipBorder: "#E5E7EB",
-  iconWell: "#F3F4F6",
-  openBg: "#ECFDF5",
-  openText: "#047857",
-  amber: "#D97706",
-  amberBg: "#FEF3C7",
-  red: "#DC2626",
-  redBg: "#FEE2E2",
-};
 const fs = theme.fontSize;
 const H_PAD = 24;
 const CARD_RADIUS = 18;

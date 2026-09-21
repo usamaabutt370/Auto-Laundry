@@ -9,12 +9,12 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 
-import { APP_CTA_GRADIENT_COLORS } from "@/components/ui/cta-button";
+import { gradients } from "@/constants/theme";
 
 const SIZES = { small: 22, large: 38 } as const;
 
 /** Single-color fallback for system widgets that cannot render a gradient (e.g. RefreshControl). */
-export const APP_LOADER_TINT = APP_CTA_GRADIENT_COLORS[1];
+export const APP_LOADER_TINT = gradients.cta[1];
 
 export type GradientLoaderProps = {
   size?: keyof typeof SIZES;
@@ -49,9 +49,9 @@ export function GradientLoader({ size = "large", style }: GradientLoaderProps) {
           height: dim,
           borderRadius: dim / 2,
           borderWidth: size === "large" ? 3.5 : 2.5,
-          borderTopColor: APP_CTA_GRADIENT_COLORS[0],
-          borderRightColor: APP_CTA_GRADIENT_COLORS[1],
-          borderBottomColor: APP_CTA_GRADIENT_COLORS[2],
+          borderTopColor: gradients.cta[0],
+          borderRightColor: gradients.cta[1],
+          borderBottomColor: gradients.cta[2],
           borderLeftColor: "transparent",
         },
         spin,

@@ -51,18 +51,7 @@ import { imageForServiceItem } from "@/lib/service-item-images";
 import type { ServiceJob } from "@/lib/service-jobs";
 import { getStrings } from "@/locales";
 import { formatMoney } from "@/utils/format-money";
-
-const UI = {
-  bg: "#F7F8FA",
-  card: "#FFFFFF",
-  text: "#111827",
-  muted: "#6B7280",
-  teal: "#12B886",
-  purple: "#5B4DFF",
-  chipBorder: "#E5E7EB",
-  iconWell: "#F3F4F6",
-  shadow: "rgba(17, 24, 39, 0.08)",
-};
+import { UI } from "@/constants/theme";
 
 const MAX_PHOTOS = 5;
 

@@ -25,17 +25,8 @@ import { formatDashboardPeriodRange } from "@/lib/dashboard-period-bounds";
 import { getStrings } from "@/locales";
 import { StatusBar } from "expo-status-bar";
 
-import { theme } from "@/constants/theme";
+import { theme, UI } from "@/constants/theme";
 
-const UI = {
-  bg: "#F7F8FA",
-  card: "#FFFFFF",
-  text: "#111827",
-  muted: "#6B7280",
-  teal: "#12B886",
-  purple: "#4A3AFF",
-  chipBorder: "#E5E7EB",
-};
 const fs = theme.fontSize;
 const H_PAD = 24;
 const CARD_RADIUS = 16;

@@ -1,4 +1,4 @@
-import { theme } from "@/constants/theme";
+import { theme, UI } from "@/constants/theme";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useState } from "react";
 import {
@@ -79,14 +79,14 @@ export function Input({
   const [isFocused, setIsFocused] = useState(false);
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const light = appearance === "light";
-  const resolvedBg = backgroundColor ?? (light ? "#FFFFFF" : theme.colors.blue900);
-  const resolvedBorder = borderColor ?? (light ? "#E5E7EB" : theme.colors.outline);
-  const resolvedFocus = light ? "#12B886" : focusUnderlineColor;
-  const resolvedText = textColor ?? (light ? "#111827" : theme.colors.white);
+  const resolvedBg = backgroundColor ?? (light ? UI.card : theme.colors.blue900);
+  const resolvedBorder = borderColor ?? (light ? UI.chipBorder : theme.colors.outline);
+  const resolvedFocus = light ? UI.teal : focusUnderlineColor;
+  const resolvedText = textColor ?? (light ? UI.text : theme.colors.white);
   const resolvedPlaceholder =
-    placeholderTextColor ?? (light ? "#6B7280" : "rgba(255,255,255,0.7)");
+    placeholderTextColor ?? (light ? UI.muted : "rgba(255,255,255,0.7)");
   const resolvedPasswordIcon =
-    passwordIconColor ?? (light ? "#6B7280" : "rgba(255,255,255,0.8)");
+    passwordIconColor ?? (light ? UI.muted : "rgba(255,255,255,0.8)");
 
   const isPhone = variant === "phone";
   const keyboardType = isPhone ? "phone-pad" : rest.keyboardType;

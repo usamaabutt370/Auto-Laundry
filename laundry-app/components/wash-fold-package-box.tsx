@@ -11,7 +11,7 @@ import {
   type ViewStyle,
 } from "react-native";
 
-import { theme } from "@/constants/theme";
+import { theme, UI } from "@/constants/theme";
 
 const c = theme.colors;
 const fs = theme.fontSize;
@@ -58,9 +58,9 @@ export function WashFoldPackageGrid({
 export function WashFoldPackageBox(props: WashFoldPackageBoxProps) {
   const { title, description, style } = props;
   const light = props.mode === "customer" && props.appearance === "light";
-  const accent = light ? "#12B886" : c.lightBlue;
-  const titleColor = light ? "#111827" : c.white;
-  const subColor = light ? "#6B7280" : "rgba(255,255,255,0.6)";
+  const accent = light ? UI.teal : c.lightBlue;
+  const titleColor = light ? UI.text : c.white;
+  const subColor = light ? UI.muted : "rgba(255,255,255,0.6)";
 
   const topRow = (
     <View style={styles.topRow}>
@@ -171,8 +171,8 @@ const styles = StyleSheet.create({
     borderColor: "#E5E7EB",
   },
   boxSelectedLight: {
-    borderColor: "#12B886",
-    backgroundColor: "#ECFDF5",
+    borderColor: UI.teal,
+    backgroundColor: UI.openBg,
   },
   pressed: { opacity: 0.85 },
   topRow: {

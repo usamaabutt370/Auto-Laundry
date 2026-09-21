@@ -30,8 +30,7 @@ import {
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { useSuppressWebScreenHeader } from "@/hooks/use-suppress-web-screen-header";
 import { PartnerRiderPickerModal } from "@/components/partner-rider-picker-modal";
-import { APP_CTA_GRADIENT_COLORS } from "@/components/ui/cta-button";
-import { theme } from "@/constants/theme";
+import { theme, gradients, UI } from "@/constants/theme";
 import { useAuth } from "@/contexts/auth-context";
 import { useLocale } from "@/contexts/locale-context";
 import {
@@ -44,16 +43,6 @@ import { fetchPartnerRiders, type PartnerRider } from "@/lib/partner-riders";
 import { supabase } from "@/lib/supabase";
 import { getStrings } from "@/locales";
 
-const UI = {
-  bg: "#F7F8FA",
-  card: "#FFFFFF",
-  text: "#111827",
-  muted: "#6B7280",
-  teal: "#12B886",
-  chipBorder: "#E5E7EB",
-  mint: "#ECFDF5",
-  red: "#DC2626",
-};
 const fs = theme.fontSize;
 const H_PAD = 24;
 const REJECTION_OPTIONS = [
@@ -124,7 +113,7 @@ export default function PartnerOrderScreen() {
       >
         {selected ? (
           <LinearGradient
-            colors={APP_CTA_GRADIENT_COLORS}
+            colors={gradients.cta}
             start={{ x: 0, y: 0.5 }}
             end={{ x: 1, y: 0.5 }}
             style={styles.filterChip}

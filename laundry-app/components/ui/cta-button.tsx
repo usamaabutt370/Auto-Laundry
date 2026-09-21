@@ -11,8 +11,10 @@ import {
   type ViewStyle,
 } from "react-native";
 
-export const APP_CTA_GRADIENT_COLORS = ["#6D5CFF", "#8B5CF6", "#22D3EE"] as const;
-const PURPLE = "#6D5CFF";
+import { gradients } from "@/constants/theme";
+
+export const APP_CTA_GRADIENT_COLORS = gradients.cta;
+const PURPLE = APP_CTA_GRADIENT_COLORS[0];
 const GRADIENT_COLORS = APP_CTA_GRADIENT_COLORS;
 const BUTTON_HEIGHT = 48;
 const BUTTON_HEIGHT_SM = 32;

@@ -13,7 +13,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { PartnerNameWithBadge } from "@/components/partner-name-with-badge";
 import { usePartnerVerified } from "@/hooks/use-partner-verified";
-import { theme } from "@/constants/theme";
+import { theme, UI } from "@/constants/theme";
 import type { OrderEstimateResult } from "@/lib/customer-order-estimate";
 import { formatMoney } from "@/utils/format-money";
 
@@ -125,7 +125,7 @@ export function CustomerLiveEstimateFooter({
             <MaterialCommunityIcons
               name={open ? "chevron-up" : "chevron-down"}
               size={20}
-              color={light ? "#12B886" : c.lightBlue}
+              color={light ? UI.teal : c.lightBlue}
             />
           </Pressable>
 
@@ -286,7 +286,7 @@ const styles = StyleSheet.create({
     fontFamily: "Poppins-Bold",
   },
   breakdownTextLight: {
-    color: "#12B886",
+    color: UI.teal,
     fontFamily: "Poppins-SemiBold",
   },
   breakdownBoxLight: {
@@ -300,7 +300,7 @@ const styles = StyleSheet.create({
     color: "#6B7280",
   },
   lineAmtLight: {
-    color: "#12B886",
+    color: UI.teal,
     fontFamily: "Poppins-Bold",
   },
   disclaimerLight: {

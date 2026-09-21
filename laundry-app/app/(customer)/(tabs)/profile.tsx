@@ -29,18 +29,7 @@ import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { useSuppressWebScreenHeader } from "@/hooks/use-suppress-web-screen-header";
 import { runAfterModalTeardown } from "@/utils/run-after-modal-teardown";
 import { getStrings } from "@/locales";
-
-const UI = {
-	bg: "#F7F8FA",
-	card: "#FFFFFF",
-	text: "#111827",
-	muted: "#6B7280",
-	teal: "#12B886",
-	chipBorder: "#E5E7EB",
-	openBg: "#ECFDF5",
-	openText: "#047857",
-	shadow: "rgba(17, 24, 39, 0.08)",
-};
+import { UI } from "@/constants/theme";
 
 export default function CustomerProfileMenu() {
 	const router = useRouter();

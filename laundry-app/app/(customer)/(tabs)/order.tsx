@@ -36,24 +36,8 @@ import {
   type CustomerOrderFeedbackType,
 } from "@/lib/customer-orders";
 import { getStrings } from "@/locales";
-import { theme } from "@/constants/theme";
+import { theme, UI } from "@/constants/theme";
 
-const UI = {
-  bg: "#F7F8FA",
-  card: "#FFFFFF",
-  text: "#111827",
-  muted: "#6B7280",
-  teal: "#12B886",
-  chipBorder: "#E5E7EB",
-  openBg: "#ECFDF5",
-  openText: "#047857",
-  amber: "#D97706",
-  amberBg: "#FEF3C7",
-  red: "#B91C1C",
-  redBg: "#FEE2E2",
-  iconWell: "#F3F4F6",
-  shadow: "rgba(17, 24, 39, 0.08)",
-};
 const fs = theme.fontSize;
 const PAD = 16;
 

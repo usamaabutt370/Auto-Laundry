@@ -8,16 +8,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { strings } from "@/constants/strings";
 import { goBackToCustomerHome } from "@/utils/customer-navigation";
 import { AppHeader } from "@/components/app-header";
+import { UI } from "@/constants/theme";
 
-const UI = {
-  bg: "#F7F8FA",
-  card: "#FFFFFF",
-  text: "#111827",
-  muted: "#6B7280",
-  teal: "#12B886",
-  chipBorder: "#E5E7EB",
-  openBg: "#ECFDF5",
-};
 const FAQ_EXPANDED_BG = UI.openBg;
 const FAQ_COLLAPSED_BG = UI.card;
 const ICON_BG = UI.openBg;

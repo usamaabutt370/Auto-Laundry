@@ -1,16 +1,8 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { theme } from "@/constants/theme";
+import { theme, UI } from "@/constants/theme";
 
-const UI = {
-  card: "#FFFFFF",
-  text: "#111827",
-  muted: "#6B7280",
-  teal: "#12B886",
-  chipBorder: "#E5E7EB",
-  mint: "#ECFDF5",
-};
 const fs = theme.fontSize;
 
 type AcceptedPayload = { type: "accepted" };

@@ -17,7 +17,7 @@ import { GuestSignInPrompt } from "@/components/guest-sign-in-prompt";
 import { WebHeaderSpacer } from "@/components/web-header-spacer";
 import { PartnerNameWithBadge } from "@/components/partner-name-with-badge";
 import { GradientLoader, APP_LOADER_TINT } from "@/components/ui/gradient-loader";
-import { theme } from "@/constants/theme";
+import { theme, UI } from "@/constants/theme";
 import { useAuth } from "@/contexts/auth-context";
 import { useLocale } from "@/contexts/locale-context";
 import { useSuppressWebScreenHeader } from "@/hooks/use-suppress-web-screen-header";
@@ -26,21 +26,6 @@ import { fetchMyConversations, type ChatConversationListItem } from "@/lib/chat"
 import { getStrings } from "@/locales";
 import { supabase } from "@/lib/supabase";
 
-const UI = {
-  bg: "#F7F8FA",
-  card: "#FFFFFF",
-  text: "#111827",
-  muted: "#6B7280",
-  teal: "#12B886",
-  chipBorder: "#E5E7EB",
-  openBg: "#ECFDF5",
-  openText: "#047857",
-  amber: "#D97706",
-  amberBg: "#FEF3C7",
-  red: "#B91C1C",
-  redBg: "#FEE2E2",
-  shadow: "rgba(17, 24, 39, 0.08)",
-};
 const fs = theme.fontSize;
 const PAD = 16;
 

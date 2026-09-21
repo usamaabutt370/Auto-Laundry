@@ -29,18 +29,7 @@ import {
 import { usePartnerOrderEstimate } from "@/hooks/use-partner-order-estimate";
 import { getStrings } from "@/locales";
 import { formatMoney } from "@/utils/format-money";
-
-const UI = {
-  bg: "#F7F8FA",
-  card: "#FFFFFF",
-  text: "#111827",
-  muted: "#6B7280",
-  teal: "#12B886",
-  backBg: "#EEF2F6",
-  openBg: "#ECFDF5",
-  chipBorder: "#E5E7EB",
-  shadow: "rgba(17, 24, 39, 0.08)",
-};
+import { UI } from "@/constants/theme";
 
 type SuitPiece = typeof DRY_CLEAN_SUIT_2_PIECE_ID | typeof DRY_CLEAN_SUIT_3_PIECE_ID;
 
