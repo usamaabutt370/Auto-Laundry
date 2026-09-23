@@ -2,7 +2,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useIsFocused } from "@react-navigation/native";
 import { StatusBar } from "expo-status-bar";
 import { useRouter } from "expo-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   KeyboardAvoidingView,
   Modal,
@@ -19,10 +19,10 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { showAppAlert } from "@/components/app-alert";
 import { AppHeader } from "@/components/app-header";
+import { CustomerOrderCard } from "@/components/customer-order-card";
 import { GuestSignInPrompt } from "@/components/guest-sign-in-prompt";
 import { WebHeaderSpacer } from "@/components/web-header-spacer";
 import { useConfirmDialog } from "@/components/confirm-dialog";
-import { PartnerNameWithBadge } from "@/components/partner-name-with-badge";
 import { GradientLoader, APP_LOADER_TINT } from "@/components/ui/gradient-loader";
 import { useAuth } from "@/contexts/auth-context";
 import { useLocale } from "@/contexts/locale-context";
@@ -32,7 +32,6 @@ import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import {
   findOrdersMissingFeedback,
   submitCustomerOrderFeedback,
-  type CustomerOrderDisplayStatus,
   type CustomerOrderFeedbackType,
 } from "@/lib/customer-orders";
 import { getStrings } from "@/locales";
@@ -40,21 +39,6 @@ import { theme, UI } from "@/constants/theme";
 
 const fs = theme.fontSize;
 const PAD = 16;
-
-function statusLabelKey(
-  display: CustomerOrderDisplayStatus,
-): "statusPending" | "statusAccepted" | "statusRejected" | "statusCompleted" {
-  switch (display) {
-    case "pending":
-      return "statusPending";
-    case "accepted":
-      return "statusAccepted";
-    case "rejected":
-      return "statusRejected";
-    case "completed":
-      return "statusCompleted";
-  }
-}
 
 /**
  * Persist dismissed order IDs across screen transitions for the current session.
@@ -122,28 +106,6 @@ export default function CustomerOrderScreen() {
       });
     },
     [router],
-  );
-
-  const statusStyles = useMemo(
-    () => ({
-      pending: {
-        backgroundColor: UI.amberBg,
-        color: UI.amber,
-      },
-      accepted: {
-        backgroundColor: UI.openBg,
-        color: UI.openText,
-      },
-      rejected: {
-        backgroundColor: UI.redBg,
-        color: UI.red,
-      },
-      completed: {
-        backgroundColor: UI.openBg,
-        color: UI.openText,
-      },
-    }),
-    [],
   );
 
   useEffect(() => {
@@ -304,165 +266,60 @@ export default function CustomerOrderScreen() {
             />
           }
         >
-          {orders.map((order) => {
-            const st = statusStyles[order.displayStatus];
-            const label = s[statusLabelKey(order.displayStatus)];
-            const metaItems: {
-              label: string;
-              value: string;
-              fullWidth?: boolean;
-              valueLines?: number;
-            }[] = [
-                {
-                  label: s.services,
-                  value: order.servicesSummary || s.servicesNone,
-                  valueLines: 2,
-                },
-              ];
-            if (order.placedAtIso) {
-              metaItems.push({
-                label: s.placed,
-                value: new Date(order.placedAtIso).toLocaleDateString(
-                  locale === "ur" ? "ur-PK" : "en-US",
-                  {
-                    month: "short",
-                    day: "numeric",
-                    year: "numeric",
-                  },
-                ),
-              });
-            }
-            if (order.pickupFeeLabel) {
-              metaItems.push({
-                label: s.pickupFee,
-                value: order.pickupFeeLabel,
-              });
-            }
-            if (order.notesPreview) {
-              metaItems.push({
-                label: s.notes,
-                value: order.notesPreview,
-                fullWidth: true,
-                valueLines: 2,
-              });
-            }
-            if (order.displayStatus === "rejected" && order.rejectionReasonOption) {
-              const rejectionText = order.rejectionReasonDetails
-                ? `${order.rejectionReasonOption} - ${order.rejectionReasonDetails}`
-                : order.rejectionReasonOption;
-              metaItems.push({
-                label: "Rejection",
-                value: rejectionText,
-                fullWidth: true,
-                valueLines: 3,
-              });
-            }
-            const orderCard = (
-                <Pressable
-                  onPress={() =>
-                    router.push({
-                      pathname: "/(customer)/order-detail",
-                      params: { orderId: order.id },
-                    })
-                  }
-                  style={({ pressed }) => [styles.card, pressed && styles.pressed]}
-                >
-                  <View style={styles.cardTop}>
-                    <Text style={styles.orderRef}>
-                      {s.orderRef.replace("{{ref}}", order.orderRef)}
-                    </Text>
-                    <View style={styles.cardTopActions}>
-                      <View style={[styles.statusPill, st]}>
-                        <Text style={[styles.statusText, { color: st.color }]}>{label}</Text>
-                      </View>
-                      {isWeb ? (
-                        <Pressable
-                          accessibilityRole="button"
-                          accessibilityLabel={s.deleteAction}
-                          onPress={(e) => {
-                            e.stopPropagation();
-                            void confirmDelete(order.id);
-                          }}
-                          hitSlop={8}
-                          style={({ pressed }) => [
-                            styles.webDeleteBtn,
-                            pressed && styles.pressed,
-                          ]}
-                        >
-                          <MaterialCommunityIcons
-                            name="trash-can-outline"
-                            size={22}
-                            color={UI.red}
-                          />
-                        </Pressable>
-                      ) : null}
-                    </View>
-                  </View>
-                  <PartnerNameWithBadge
-                    name={order.partnerName}
-                    verified={order.partnerVerified}
-                    nameStyle={styles.partnerName}
-                  />
-                  {(order.scheduleLines.length > 0
-                    ? order.scheduleLines
-                    : [s.schedulePending]
-                  ).map((line, i) => (
-                    <Text key={i} style={styles.scheduleLine}>
-                      {line}
-                    </Text>
-                  ))}
-                  <View style={styles.metaGrid}>
-                    {metaItems.map((item, index) => (
-                      <View
-                        key={`${item.label}-${index}`}
-                        style={[
-                          styles.metaCell,
-                          item.fullWidth ? styles.metaCellFull : styles.metaCellHalf,
-                        ]}
-                      >
-                        <View style={styles.metaCellRow}>
-                          <Text style={styles.metaLabel}>{item.label}</Text>
-                          <Text style={styles.metaValue} numberOfLines={item.valueLines ?? 1}>
-                            {item.value}
-                          </Text>
-                        </View>
-                      </View>
-                    ))}
-                  </View>
-                  <View style={styles.totalRow}>
-                    <Text style={styles.totalLabel}>{s.estTotal}</Text>
-                    <Text style={styles.totalValue}>{order.estimatedTotalLabel}</Text>
-                  </View>
-                  {order.displayStatus === "rejected" ? (
-                    <Pressable
-                      onPress={() =>
-                        showAppAlert(
-                          "Order rejected",
-                          "This order was rejected by your Laundry Captain. Please place a new order.",
-                          [
-                            { text: s.cancel, style: "cancel" },
-                            {
-                              text: "Reorder now",
-                              onPress: () => router.push("/(customer)/(tabs)"),
-                            },
-                          ],
-                        )
-                      }
-                      style={({ pressed }) => [
-                        styles.reorderButton,
-                        pressed && styles.pressed,
-                      ]}
-                    >
-                      <Text style={styles.reorderButtonText}>{s.reorderAction}</Text>
-                    </Pressable>
-                  ) : null}
-                </Pressable>
-            );
-
-            return (
-              <View key={order.id}>{orderCard}</View>
-            );
-          })}
+          {orders.map((order) => (
+            <CustomerOrderCard
+              key={order.id}
+              order={order}
+              strings={{
+                orderRef: s.orderRef,
+                estTotal: s.estTotal,
+                schedulePending: s.schedulePending,
+                servicesNone: s.servicesNone,
+                statusPending: s.statusPending,
+                statusAccepted: s.statusAccepted,
+                statusRejected: s.statusRejected,
+                statusCompleted: s.statusCompleted,
+                statusWaiting: s.statusWaiting,
+                statusInProgress: s.statusInProgress,
+                statusReady: s.statusReady,
+                chatProvider: s.chatProvider,
+                trackOrder: s.trackOrder,
+                pickupFrom: s.pickupFrom,
+                addOns: s.addOns,
+                addOnOne: s.addOnOne,
+                stepSent: s.stepSent,
+                stepConfirmed: s.stepConfirmed,
+                stepPickedUp: s.stepPickedUp,
+                stepOnTheWay: s.stepOnTheWay,
+                stepCompleted: s.stepCompleted,
+                deleteAction: s.deleteAction,
+                reorderAction: s.reorderAction,
+                reviewsCount: s.reviewsCount,
+                menu: s.menu,
+                viewDetails: s.viewDetails,
+              }}
+              onOpenDetail={() =>
+                router.push({
+                  pathname: "/(customer)/order-detail",
+                  params: { orderId: order.id },
+                })
+              }
+              onTrack={() =>
+                router.push({
+                  pathname: "/(customer)/track-order",
+                  params: { orderId: order.id },
+                })
+              }
+              onChat={() =>
+                router.push({
+                  pathname: "/(customer)/chat/[orderId]",
+                  params: { orderId: order.id },
+                })
+              }
+              onDelete={() => void confirmDelete(order.id)}
+              onReorder={() => handleReorder(order.id, order.fulfillmentMode)}
+            />
+          ))}
         </ScrollView>
       )}
       {feedbackVisible ? (
@@ -629,151 +486,6 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.85,
-  },
-  card: {
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: UI.chipBorder,
-    backgroundColor: UI.card,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    shadowColor: UI.shadow,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 1,
-    shadowRadius: 10,
-    elevation: 2,
-  },
-  cardTop: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 8,
-    marginBottom: 6,
-  },
-  cardTopActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    flexShrink: 0,
-  },
-  webDeleteBtn: {
-    padding: 6,
-    borderRadius: 8,
-    backgroundColor: UI.redBg,
-  },
-  orderRef: {
-    fontSize: fs.smallText,
-    fontFamily: "Poppins-Bold",
-    fontWeight: "700",
-    color: UI.text,
-    letterSpacing: 0.5,
-    flex: 1,
-  },
-  statusPill: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 999,
-    flexShrink: 0,
-  },
-  statusText: {
-    fontSize: fs.xxSmallText,
-    fontFamily: "Poppins-Bold",
-    fontWeight: "700",
-    textTransform: "uppercase",
-    letterSpacing: 0.4,
-  },
-  partnerName: {
-    fontSize: fs.smallTitle,
-    fontFamily: "Poppins-SemiBold",
-    fontWeight: "600",
-    color: UI.text,
-    marginBottom: 4,
-  },
-  scheduleLine: {
-    fontSize: fs.descText,
-    fontFamily: "Poppins-Regular",
-    color: UI.muted,
-    lineHeight: 18,
-    marginBottom: 2,
-  },
-  metaGrid: {
-    marginTop: 6,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: UI.chipBorder,
-    flexDirection: "row",
-    flexWrap: "wrap",
-    rowGap: 6,
-    columnGap: 8,
-  },
-  metaCell: {
-    minWidth: 0,
-  },
-  metaCellRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 6,
-  },
-  metaCellHalf: {
-    flexBasis: "48%",
-    flexGrow: 1,
-  },
-  metaCellFull: {
-    flexBasis: "100%",
-  },
-  metaLabel: {
-    width: 56,
-    fontSize: fs.xxSmallText,
-    fontFamily: "Poppins-Bold",
-    fontWeight: "700",
-    color: UI.muted,
-    textTransform: "uppercase",
-    letterSpacing: 0.35,
-    paddingTop: 1,
-  },
-  metaValue: {
-    flex: 1,
-    fontSize: fs.xxSmallText,
-    fontFamily: "Poppins-Regular",
-    color: UI.text,
-    lineHeight: 15,
-  },
-  totalRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginTop: 8,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: UI.chipBorder,
-  },
-  totalLabel: {
-    fontSize: fs.xxSmallText,
-    fontFamily: "Poppins-SemiBold",
-    fontWeight: "600",
-    color: UI.muted,
-    textTransform: "uppercase",
-    letterSpacing: 0.3,
-  },
-  totalValue: {
-    fontSize: fs.descText,
-    fontFamily: "Poppins-Bold",
-    fontWeight: "700",
-    color: UI.teal,
-  },
-  reorderButton: {
-    marginTop: 12,
-    backgroundColor: UI.teal,
-    borderRadius: 999,
-    paddingVertical: 10,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  reorderButtonText: {
-    color: "#FFFFFF",
-    fontSize: fs.descText,
-    fontFamily: "Poppins-Bold",
-    fontWeight: "700",
   },
   modalOverlay: {
     flex: 1,

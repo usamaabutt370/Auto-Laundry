@@ -18,6 +18,7 @@ import { showAppAlert } from "@/components/app-alert";
 import { CustomerTrustBanner } from "@/components/customer-trust-banner";
 import { PartnerNameWithBadge } from "@/components/partner-name-with-badge";
 import { ReportOrderProblemModal } from "@/components/report-order-problem-modal";
+import { AppCtaButton } from "@/components/ui/cta-button";
 import { GradientLoader } from "@/components/ui/gradient-loader";
 import { useAuth } from "@/contexts/auth-context";
 import { useLocale } from "@/contexts/locale-context";
@@ -315,6 +316,21 @@ export default function CustomerOrderDetailScreen() {
               </View>
             </View>
           </View>
+
+          {order.displayStatus !== "rejected" ? (
+            <AppCtaButton
+              label={sDetail.trackOrder}
+              onPress={() =>
+                router.push({
+                  pathname: "/(customer)/track-order",
+                  params: { orderId: order.id },
+                })
+              }
+              width="full"
+              rightIcon="arrow-right"
+              accessibilityLabel={sDetail.trackOrder}
+            />
+          ) : null}
 
           {order.displayStatus !== "rejected" ? (
             <CustomerTrustBanner appearance="light" verified={order.partnerVerified} />
