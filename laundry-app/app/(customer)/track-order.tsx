@@ -1,4 +1,5 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -16,6 +17,7 @@ import {
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
 
+import { showAppAlert } from "@/components/app-alert";
 import { PartnerNameWithBadge } from "@/components/partner-name-with-badge";
 import { AppCtaButton } from "@/components/ui/cta-button";
 import { GradientLoader, APP_LOADER_TINT } from "@/components/ui/gradient-loader";
@@ -26,10 +28,15 @@ import {
   fetchCustomerOrderDetail,
   type CustomerOrderDbStatus,
   type CustomerOrderDetailData,
+  type CustomerOrderDetailLineItem,
 } from "@/lib/customer-orders";
+import { imageForServiceItem } from "@/lib/service-item-images";
 import { getStrings } from "@/locales";
+import { getDeviceCoordinates } from "@/utils/device-location";
+import type { Coordinates } from "@/utils/geocoding";
+import { getPartnerOpenStatus } from "@/utils/partner-hours";
 
-type TrackStepKey = "sent" | "confirmed" | "processing" | "ready" | "completed";
+type TrackStepKey = "sent" | "confirmed" | "picked" | "onWay" | "completed";
 
 type TrackStep = {
   key: TrackStepKey;
@@ -37,10 +44,10 @@ type TrackStep = {
 };
 
 const STEPS: TrackStep[] = [
-  { key: "sent", icon: "send-check-outline" },
+  { key: "sent", icon: "check" },
   { key: "confirmed", icon: "storefront-outline" },
-  { key: "processing", icon: "washing-machine" },
-  { key: "ready", icon: "truck-delivery-outline" },
+  { key: "picked", icon: "shopping-outline" },
+  { key: "onWay", icon: "truck-delivery-outline" },
   { key: "completed", icon: "check-circle-outline" },
 ];
 
@@ -70,10 +77,10 @@ function formatPlacedAt(iso: string | null): string {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return "";
   return date.toLocaleString(undefined, {
-    day: "numeric",
+    day: "2-digit",
     month: "short",
     year: "numeric",
-    hour: "numeric",
+    hour: "2-digit",
     minute: "2-digit",
   });
 }
@@ -83,6 +90,45 @@ function fill(template: string, vars: Record<string, string | number>) {
     (acc, [key, value]) => acc.replaceAll(`{${key}}`, String(value)),
     template,
   );
+}
+
+function toRadians(value: number) {
+  return (value * Math.PI) / 180;
+}
+
+function distanceKm(from: Coordinates, to: Coordinates) {
+  const earthRadiusKm = 6371;
+  const dLat = toRadians(to.latitude - from.latitude);
+  const dLon = toRadians(to.longitude - from.longitude);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRadians(from.latitude)) *
+      Math.cos(toRadians(to.latitude)) *
+      Math.sin(dLon / 2) ** 2;
+  return 2 * earthRadiusKm * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function formatKm(km: number) {
+  if (km < 1) return `${Math.max(0.1, km).toFixed(1)} km`;
+  return `${km.toFixed(1)} km`;
+}
+
+function parseAddOns(instructions: string) {
+  if (!instructions || instructions === "None") return [];
+  const match = instructions.match(/Add-ons:\s*(.+)/i);
+  if (!match) return [];
+  return match[1]
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function serviceJobFromTitle(title: string) {
+  const lower = title.toLowerCase();
+  if (lower.includes("dry")) return "dryCleaning";
+  if (lower.includes("press") || lower.includes("iron")) return "ironing";
+  if (lower.includes("tailor")) return "tailoring";
+  return "washAndFold";
 }
 
 export default function TrackOrderScreen() {
@@ -98,6 +144,8 @@ export default function TrackOrderScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [order, setOrder] = useState<CustomerOrderDetailData | null>(null);
+  const [userCoords, setUserCoords] = useState<Coordinates | null>(null);
+  const [showAllServices, setShowAllServices] = useState(false);
 
   const footerBottom = Math.max(insets.bottom, initialWindowMetrics?.insets.bottom ?? 0, 12);
 
@@ -130,72 +178,101 @@ export default function TrackOrderScreen() {
     void load("initial");
   }, [load]);
 
+  useEffect(() => {
+    void getDeviceCoordinates().then((coords) => {
+      if (coords) setUserCoords(coords);
+    });
+  }, []);
+
   const activeIndex = order ? stepIndexForStatus(order.rawStatus) : 0;
   const isTerminalBad =
     order?.rawStatus === "rejected" || order?.rawStatus === "cancelled";
 
-  const hero = useMemo(() => {
-    if (!order) return { title: "", subtitle: "" };
-    if (order.rawStatus === "rejected") {
-      return { title: s.heroRejected, subtitle: s.heroRejectedHint };
-    }
-    if (order.rawStatus === "cancelled") {
-      return { title: s.heroCancelled, subtitle: s.heroCancelledHint };
-    }
-    if (order.rawStatus === "submitted" || order.rawStatus === "draft") {
-      return { title: s.heroWaiting, subtitle: s.heroWaitingHint };
-    }
-    if (order.rawStatus === "accepted") {
-      return { title: s.heroConfirmed, subtitle: s.heroConfirmedHint };
-    }
-    if (order.rawStatus === "in_progress") {
-      return { title: s.heroProcessing, subtitle: s.heroProcessingHint };
-    }
-    if (order.rawStatus === "ready") {
-      return {
-        title: order.fulfillmentMode === "pickupDelivery" ? s.heroReadyDelivery : s.heroReadyPickup,
-        subtitle:
-          order.fulfillmentMode === "pickupDelivery"
-            ? s.heroReadyDeliveryHint
-            : s.heroReadyPickupHint,
-      };
-    }
-    return { title: s.heroCompleted, subtitle: s.heroCompletedHint };
-  }, [order, s]);
+  const openStatus = getPartnerOpenStatus(order?.partnerAvailableTime);
+  const ratingLabel =
+    order?.partnerRatingAvg != null && order.partnerRatingCount > 0
+      ? Number.isInteger(order.partnerRatingAvg)
+        ? String(order.partnerRatingAvg)
+        : order.partnerRatingAvg.toFixed(1)
+      : null;
 
-  const nextAction = useMemo(() => {
-    if (!order || isTerminalBad) return null;
-    if (order.rawStatus === "submitted" || order.rawStatus === "draft") {
-      return { icon: "timer-sand" as const, title: s.nextWaiting, body: s.nextWaitingBody };
+  const distanceLabel = useMemo(() => {
+    if (
+      !userCoords ||
+      order?.partnerLatitude == null ||
+      order?.partnerLongitude == null
+    ) {
+      return null;
     }
-    if (order.rawStatus === "accepted") {
-      return {
-        icon: "calendar-clock" as const,
-        title: s.nextPickup,
-        body: order.pickupSchedule || s.nextPickupFallback,
-      };
+    return formatKm(
+      distanceKm(userCoords, {
+        latitude: order.partnerLatitude,
+        longitude: order.partnerLongitude,
+      }),
+    );
+  }, [order?.partnerLatitude, order?.partnerLongitude, userCoords]);
+
+  const statusBadge = useMemo(() => {
+    if (!order) return { label: "", icon: "clock-outline" as const };
+    if (isTerminalBad) {
+      return { label: s.statusCancelledBadge, icon: "close-circle-outline" as const };
     }
-    if (order.rawStatus === "in_progress") {
-      return { icon: "washing-machine" as const, title: s.nextProcessing, body: s.nextProcessingBody };
+    switch (order.rawStatus) {
+      case "accepted":
+        return { label: s.statusConfirmedBadge, icon: "check-circle-outline" as const };
+      case "in_progress":
+        return { label: s.statusProcessingBadge, icon: "progress-clock" as const };
+      case "ready":
+        return { label: s.statusReadyBadge, icon: "truck-delivery-outline" as const };
+      case "completed":
+        return { label: s.statusCompletedBadge, icon: "check-circle" as const };
+      default:
+        return { label: s.waitingForConfirmation, icon: "clock-outline" as const };
     }
-    if (order.rawStatus === "ready") {
-      return {
-        icon: "map-marker-outline" as const,
-        title: s.nextReady,
-        body: order.partnerAddress || s.nextReadyFallback,
-      };
-    }
-    return { icon: "star-outline" as const, title: s.nextDone, body: s.nextDoneBody };
   }, [isTerminalBad, order, s]);
 
-  const stepLabel = (key: TrackStepKey) => {
-    if (key === "sent") return s.stepSent;
-    if (key === "confirmed") return s.stepConfirmed;
-    if (key === "processing") return s.stepProcessing;
-    if (key === "ready") {
-      return order?.fulfillmentMode === "dropoff" ? s.stepReadyPickup : s.stepReady;
+  const serviceItems = useMemo(() => {
+    if (!order) return [] as Array<{
+      item: CustomerOrderDetailLineItem;
+      groupTitle: string;
+      addOns: string[];
+    }>;
+    return order.serviceGroups.flatMap((group) => {
+      const addOns = parseAddOns(group.instructions);
+      return group.items.map((item, index) => ({
+        item,
+        groupTitle: group.title,
+        addOns: index === group.items.length - 1 ? addOns : [],
+      }));
+    });
+  }, [order]);
+
+  const visibleServiceItems = useMemo(() => {
+    if (showAllServices || serviceItems.length <= 3) return serviceItems;
+    return serviceItems.slice(0, 3);
+  }, [serviceItems, showAllServices]);
+
+  const hasMoreServices = serviceItems.length > 3;
+
+  const canEditSchedule =
+    order?.displayStatus === "pending" && order.fulfillmentMode === "pickupDelivery";
+
+  const stepCopy = (key: TrackStepKey) => {
+    const dropoffReady = order?.fulfillmentMode === "dropoff";
+    switch (key) {
+      case "sent":
+        return { title: s.stepSent, hint: s.stepSentHint };
+      case "confirmed":
+        return { title: s.stepConfirmed, hint: s.stepConfirmedHint };
+      case "picked":
+        return { title: s.stepPickedUp, hint: s.stepPickedUpHint };
+      case "onWay":
+        return dropoffReady
+          ? { title: s.stepReadyPickup, hint: s.stepReadyPickupHint }
+          : { title: s.stepOnTheWay, hint: s.stepOnTheWayHint };
+      case "completed":
+        return { title: s.stepCompleted, hint: s.stepCompletedHint };
     }
-    return s.stepCompleted;
   };
 
   const handleBack = () => {
@@ -216,7 +293,10 @@ export default function TrackOrderScreen() {
 
   const openCall = () => {
     const phone = order?.partnerPhone?.trim();
-    if (!phone) return;
+    if (!phone || phone === "Not provided") {
+      showAppAlert(s.callProvider, s.noPhone);
+      return;
+    }
     void Linking.openURL(`tel:${phone.replace(/\s+/g, "")}`);
   };
 
@@ -228,6 +308,27 @@ export default function TrackOrderScreen() {
     });
   };
 
+  const openProvider = () => {
+    if (!order) return;
+    router.push({
+      pathname: "/(customer)/launderer-detail",
+      params: {
+        id: order.partnerId,
+        name: order.partnerName,
+        mode: order.fulfillmentMode,
+      },
+    });
+  };
+
+  const scheduleDay =
+    order?.pickupDayLabel || order?.deliveryDayLabel || s.schedulePending;
+  const scheduleTime = order?.pickupTimeLabel || order?.deliveryTimeLabel || "";
+  const pickupAddress =
+    order?.customerPickupAddress?.trim() ||
+    (order?.fulfillmentMode === "dropoff" ? s.dropoffTitle : order?.partnerAddress);
+
+  const hasPhone = Boolean(order?.partnerPhone?.trim() && order.partnerPhone !== "Not provided");
+
   return (
     <View style={styles.container}>
       <SafeAreaView edges={["top"]} style={styles.headerSafe}>
@@ -238,7 +339,7 @@ export default function TrackOrderScreen() {
             accessibilityRole="button"
             accessibilityLabel={s.back}
           >
-            <MaterialCommunityIcons name="chevron-left" size={24} color={UI.text} />
+            <MaterialCommunityIcons name="arrow-left" size={20} color={UI.text} />
           </Pressable>
           <View style={styles.headerCopy}>
             <Text style={styles.headerTitle}>{s.title}</Text>
@@ -279,163 +380,283 @@ export default function TrackOrderScreen() {
               />
             }
           >
-            <View
-              style={[
-                styles.heroCard,
-                isTerminalBad ? styles.heroCardBad : null,
-                order.rawStatus === "completed" ? styles.heroCardDone : null,
-              ]}
-            >
-              <View style={styles.heroIconWrap}>
-                <MaterialCommunityIcons
-                  name={
-                    isTerminalBad
-                      ? "close-circle-outline"
-                      : order.rawStatus === "completed"
-                        ? "check-circle"
-                        : "progress-clock"
-                  }
-                  size={28}
-                  color={isTerminalBad ? UI.red : UI.teal}
-                />
-              </View>
-              <Text style={styles.heroTitle}>{hero.title}</Text>
-              <Text style={styles.heroSubtitle}>{hero.subtitle}</Text>
-              {order.placedAtIso ? (
-                <Text style={styles.heroMeta}>
-                  {fill(s.updatedAt, { time: formatPlacedAt(order.placedAtIso) })}
-                </Text>
-              ) : null}
-            </View>
-
-            {!isTerminalBad ? (
-              <View style={styles.timelineCard}>
-                <Text style={styles.sectionTitle}>{s.timelineTitle}</Text>
-                {STEPS.map((step, index) => {
-                  const done = activeIndex > index;
-                  const current = activeIndex === index;
-                  const upcoming = activeIndex < index;
-                  return (
-                    <View key={step.key} style={styles.timelineRow}>
-                      <View style={styles.timelineRail}>
-                        <View
-                          style={[
-                            styles.timelineDot,
-                            done && styles.timelineDotDone,
-                            current && styles.timelineDotCurrent,
-                            upcoming && styles.timelineDotUpcoming,
-                          ]}
-                        >
-                          <MaterialCommunityIcons
-                            name={done ? "check" : step.icon}
-                            size={14}
-                            color={done || current ? "#FFFFFF" : UI.muted}
-                          />
-                        </View>
-                        {index < STEPS.length - 1 ? (
-                          <View
-                            style={[
-                              styles.timelineLine,
-                              done && styles.timelineLineDone,
-                            ]}
-                          />
-                        ) : null}
-                      </View>
-                      <View style={styles.timelineCopy}>
+            <View style={styles.card}>
+              <View style={styles.providerRow}>
+                {order.partnerImageUrl ? (
+                  <Image
+                    source={{ uri: order.partnerImageUrl }}
+                    style={styles.providerImage}
+                    contentFit="cover"
+                  />
+                ) : (
+                  <View style={[styles.providerImage, styles.providerImageFallback]}>
+                    <MaterialCommunityIcons name="storefront-outline" size={22} color={UI.muted} />
+                  </View>
+                )}
+                <View style={styles.providerCopy}>
+                  <PartnerNameWithBadge
+                    name={order.partnerName}
+                    verified={order.partnerVerified}
+                    nameStyle={styles.providerName}
+                  />
+                  <View style={styles.metaRow}>
+                    {ratingLabel ? (
+                      <>
+                        <MaterialCommunityIcons name="star" size={13} color={UI.star} />
+                        <Text style={styles.metaStrong}>{ratingLabel}</Text>
+                        <Text style={styles.metaMuted}>
+                          {fill(s.reviewsCount, { count: order.partnerRatingCount })}
+                        </Text>
+                        {distanceLabel ? <Text style={styles.metaDot}>•</Text> : null}
+                      </>
+                    ) : null}
+                    {distanceLabel ? (
+                      <>
+                        <MaterialCommunityIcons name="map-marker-outline" size={13} color={UI.muted} />
+                        <Text style={styles.metaMuted}>{distanceLabel}</Text>
+                      </>
+                    ) : null}
+                  </View>
+                  <View style={styles.metaRow}>
+                    {openStatus === "open" || openStatus === "closed" ? (
+                      <>
                         <Text
                           style={[
-                            styles.timelineLabel,
-                            (done || current) && styles.timelineLabelActive,
+                            styles.openText,
+                            openStatus === "closed" && styles.closedText,
                           ]}
                         >
-                          {stepLabel(step.key)}
+                          {openStatus === "open" ? s.openNow : s.closedNow}
                         </Text>
-                        {current && order.placedAtIso && index === 0 ? (
-                          <Text style={styles.timelineTime}>
-                            {formatPlacedAt(order.placedAtIso)}
-                          </Text>
-                        ) : null}
-                        {current && index > 0 && order.confirmedAt ? (
-                          <Text style={styles.timelineTime}>
-                            {formatPlacedAt(order.confirmedAt)}
-                          </Text>
-                        ) : null}
-                      </View>
-                    </View>
-                  );
-                })}
+                        <Text style={styles.metaDot}>·</Text>
+                      </>
+                    ) : null}
+                    <Text style={styles.metaMuted}>{s.usuallyConfirms}</Text>
+                  </View>
+                </View>
+                <Pressable onPress={openProvider} style={styles.viewProviderBtn} hitSlop={8}>
+                  <Text style={styles.viewProviderText}>{s.viewProvider}</Text>
+                  <MaterialCommunityIcons name="chevron-right" size={16} color={UI.purple} />
+                </Pressable>
               </View>
-            ) : (
-              <View style={styles.timelineCard}>
-                <Text style={styles.sectionTitle}>{s.timelineTitle}</Text>
-                <Text style={styles.muted}>
+
+              <View style={styles.providerActions}>
+                <Pressable
+                  onPress={openChat}
+                  style={({ pressed }) => [styles.providerActionBtn, pressed && styles.pressed]}
+                >
+                  <MaterialCommunityIcons name="chat-processing-outline" size={18} color={UI.purpleDeep} />
+                  <Text style={styles.providerActionText}>{s.chat}</Text>
+                </Pressable>
+                <Pressable
+                  onPress={openCall}
+                  style={({ pressed }) => [styles.providerActionBtn, pressed && styles.pressed]}
+                >
+                  <MaterialCommunityIcons name="phone-outline" size={18} color={UI.purpleDeep} />
+                  <Text style={styles.providerActionText}>{s.call}</Text>
+                </Pressable>
+              </View>
+            </View>
+
+            <View style={styles.card}>
+              <View style={styles.sectionHead}>
+                <Text style={styles.sectionTitle}>{s.orderStatus}</Text>
+                <View style={styles.statusBadge}>
+                  <MaterialCommunityIcons name={statusBadge.icon} size={13} color={UI.purpleDeep} />
+                  <Text style={styles.statusBadgeText}>{statusBadge.label}</Text>
+                </View>
+              </View>
+
+              {isTerminalBad ? (
+                <Text style={styles.mutedLeft}>
                   {order.rejectionReasonDetails ||
                     order.rejectionReasonOption ||
-                    (order.rawStatus === "cancelled" ? s.heroCancelledHint : s.heroRejectedHint)}
+                    s.statusCancelledBadge}
                 </Text>
-              </View>
-            )}
-
-            {nextAction ? (
-              <View style={styles.nextCard}>
-                <View style={styles.nextIcon}>
-                  <MaterialCommunityIcons name={nextAction.icon} size={20} color={UI.purple} />
+              ) : (
+                <View style={styles.timeline}>
+                  {STEPS.map((step, index) => {
+                    const done = activeIndex > index;
+                    const current = activeIndex === index;
+                    const copy = stepCopy(step.key);
+                    const showTime =
+                      (current || done) &&
+                      index === 0 &&
+                      order.placedAtIso
+                        ? formatPlacedAt(order.placedAtIso)
+                        : (current || done) && index === 1 && order.confirmedAt
+                          ? formatPlacedAt(order.confirmedAt)
+                          : null;
+                    return (
+                      <View key={step.key} style={styles.timelineRow}>
+                        <View style={styles.timelineRail}>
+                          <View
+                            style={[
+                              styles.timelineDot,
+                              done && styles.timelineDotDone,
+                              current && styles.timelineDotCurrent,
+                            ]}
+                          >
+                            <MaterialCommunityIcons
+                              name={done ? "check" : step.icon}
+                              size={14}
+                              color={done || current ? "#FFFFFF" : UI.muted}
+                            />
+                          </View>
+                          {index < STEPS.length - 1 ? (
+                            <View
+                              style={[
+                                styles.timelineLine,
+                                (done || current) && styles.timelineLineActive,
+                              ]}
+                            />
+                          ) : null}
+                        </View>
+                        <View style={styles.timelineCopy}>
+                          <Text
+                            style={[
+                              styles.timelineTitle,
+                              (done || current) && styles.timelineTitleActive,
+                            ]}
+                          >
+                            {copy.title}
+                          </Text>
+                          {showTime ? (
+                            <Text style={styles.timelineTime}>{showTime}</Text>
+                          ) : null}
+                          <Text style={styles.timelineHint}>{copy.hint}</Text>
+                        </View>
+                      </View>
+                    );
+                  })}
                 </View>
-                <View style={styles.nextCopy}>
-                  <Text style={styles.nextTitle}>{nextAction.title}</Text>
-                  <Text style={styles.nextBody}>{nextAction.body}</Text>
+              )}
+            </View>
+
+            {order.fulfillmentMode === "pickupDelivery" ? (
+              <View style={styles.card}>
+                <View style={styles.sectionHead}>
+                  <Text style={styles.sectionTitle}>{s.pickupDeliveryDetails}</Text>
+                  {canEditSchedule ? (
+                    <Pressable onPress={openOrderDetail} hitSlop={8}>
+                      <Text style={styles.inlineLinkText}>{s.edit}</Text>
+                    </Pressable>
+                  ) : null}
+                </View>
+                <View style={styles.pickupGrid}>
+                  <View style={styles.pickupLeft}>
+                    <MaterialCommunityIcons name="map-marker-outline" size={16} color={UI.muted} />
+                    <View style={styles.flex1}>
+                      <Text style={styles.pickupLabel}>{s.pickupFrom}</Text>
+                      <Text style={styles.pickupValue}>{pickupAddress}</Text>
+                    </View>
+                  </View>
+                  <View style={styles.pickupDivider} />
+                  <View style={styles.pickupRight}>
+                    <View style={styles.scheduleRow}>
+                      <MaterialCommunityIcons name="calendar-month-outline" size={15} color={UI.muted} />
+                      <Text style={styles.scheduleText}>{scheduleDay}</Text>
+                    </View>
+                    {scheduleTime ? (
+                      <View style={styles.scheduleRow}>
+                        <MaterialCommunityIcons name="clock-outline" size={15} color={UI.muted} />
+                        <Text style={styles.scheduleText}>{scheduleTime}</Text>
+                      </View>
+                    ) : null}
+                  </View>
                 </View>
               </View>
             ) : null}
 
-            <Pressable style={styles.snapshotCard} onPress={openOrderDetail}>
-              <View style={styles.snapshotTop}>
-                <PartnerNameWithBadge
-                  name={order.partnerName}
-                  verified={order.partnerVerified}
-                  nameStyle={styles.snapshotPartner}
-                  containerStyle={styles.flex1}
-                />
-                <MaterialCommunityIcons name="chevron-right" size={20} color={UI.muted} />
-              </View>
-              <View style={styles.snapshotMeta}>
-                <Text style={styles.snapshotMetaText}>
-                  {fill(s.itemsCount, { count: order.totalItems })}
+            <View style={styles.card}>
+              <View style={styles.sectionHead}>
+                <Text style={styles.sectionTitle}>
+                  {s.yourServices} ({serviceItems.length})
                 </Text>
-                <Text style={styles.snapshotDot}>·</Text>
-                <Text style={styles.snapshotMetaText}>{order.estimatedTotalLabel}</Text>
+                <Pressable onPress={openOrderDetail} hitSlop={8} style={styles.inlineLink}>
+                  <Text style={styles.inlineLinkText}>{s.viewDetails}</Text>
+                  <MaterialCommunityIcons name="chevron-right" size={16} color={UI.purple} />
+                </Pressable>
               </View>
-              {(order.pickupSchedule || order.deliverySchedule) && (
-                <View style={styles.snapshotSchedule}>
-                  {order.pickupSchedule ? (
-                    <View style={styles.snapshotScheduleRow}>
-                      <MaterialCommunityIcons name="calendar-month-outline" size={14} color={UI.muted} />
-                      <Text style={styles.snapshotScheduleText}>{order.pickupSchedule}</Text>
+              {visibleServiceItems.map(({ item, groupTitle, addOns }, index) => {
+                const qty = Math.max(1, item.confirmedQuantity ?? item.quantity);
+                return (
+                  <View
+                    key={item.id}
+                    style={[
+                      styles.serviceBlock,
+                      index < visibleServiceItems.length - 1 || hasMoreServices
+                        ? styles.serviceBlockBorder
+                        : null,
+                    ]}
+                  >
+                    <View style={styles.serviceRow}>
+                      <Image
+                        source={imageForServiceItem(undefined, item.name, serviceJobFromTitle(groupTitle))}
+                        style={styles.serviceImage}
+                        contentFit="cover"
+                      />
+                      <View style={styles.serviceCopy}>
+                        <Text style={styles.serviceName} numberOfLines={2}>
+                          {item.name}
+                        </Text>
+                        <Text style={styles.metaMuted}>{fill(s.pieces, { count: qty })}</Text>
+                      </View>
+                      <Text style={styles.lineTotal}>
+                        {item.confirmedPriceLabel || item.estimatedPriceLabel}
+                      </Text>
                     </View>
-                  ) : null}
-                  {order.deliverySchedule ? (
-                    <View style={styles.snapshotScheduleRow}>
-                      <MaterialCommunityIcons name="truck-delivery-outline" size={14} color={UI.muted} />
-                      <Text style={styles.snapshotScheduleText}>{order.deliverySchedule}</Text>
-                    </View>
-                  ) : null}
-                </View>
-              )}
-              <Text style={styles.viewFull}>{s.viewFullOrder}</Text>
-            </Pressable>
+                    {addOns.map((addon) => (
+                      <View key={`${item.id}-${addon}`} style={styles.addonRow}>
+                        <MaterialCommunityIcons name="sparkles" size={14} color={UI.purple} />
+                        <Text style={styles.addonText}>{addon}</Text>
+                      </View>
+                    ))}
+                  </View>
+                );
+              })}
+              {hasMoreServices ? (
+                <Pressable
+                  onPress={() => setShowAllServices((prev) => !prev)}
+                  style={({ pressed }) => [styles.showAllBtn, pressed && styles.pressed]}
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.showAllText}>
+                    {showAllServices ? s.showLess : s.showAll}
+                  </Text>
+                  <MaterialCommunityIcons
+                    name={showAllServices ? "chevron-up" : "chevron-down"}
+                    size={18}
+                    color={UI.purple}
+                  />
+                </Pressable>
+              ) : null}
+            </View>
           </ScrollView>
 
           <View style={[styles.footer, { paddingBottom: footerBottom }]}>
+            <View style={styles.totalCard}>
+              <View style={styles.totalIcon}>
+                <MaterialCommunityIcons name="receipt" size={18} color="#2563EB" />
+              </View>
+              <View style={styles.totalCopy}>
+                <Text style={styles.totalLabel}>{s.estimatedTotal}</Text>
+                <Text style={styles.totalHint}>{s.finalAmountHint}</Text>
+              </View>
+              <Text style={styles.totalValue}>
+                {order.confirmedTotalLabel || order.grandTotalLabel || order.estimatedTotalLabel}
+              </Text>
+            </View>
             <View style={styles.footerRow}>
               <AppCtaButton
-                label={s.chat}
+                label={s.chatProvider}
                 onPress={openChat}
-                width={order.partnerPhone?.trim() ? 55 : "full"}
+                width={hasPhone ? 55 : "full"}
                 leftIcon="chat-processing-outline"
               />
-              {order.partnerPhone?.trim() ? (
+              {hasPhone ? (
                 <AppCtaButton
-                  label={s.call}
+                  label={s.callProvider}
                   onPress={openCall}
                   width={45}
                   variant="outline"
@@ -503,71 +724,136 @@ const styles = StyleSheet.create({
     color: UI.muted,
     textAlign: "center",
   },
-  scroll: { flex: 1 },
-  scrollContent: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 16, gap: 12 },
-  heroCard: {
-    backgroundColor: UI.mint,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: "#A7F3D0",
-    padding: 18,
-    alignItems: "center",
-    gap: 8,
-  },
-  heroCardBad: {
-    backgroundColor: UI.redBg,
-    borderColor: "#FECACA",
-  },
-  heroCardDone: {
-    backgroundColor: UI.mint,
-    borderColor: "#6EE7B7",
-  },
-  heroIconWrap: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: "#FFFFFF",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 4,
-  },
-  heroTitle: {
-    fontSize: 20,
-    fontFamily: "Poppins-Bold",
-    color: UI.text,
-    textAlign: "center",
-  },
-  heroSubtitle: {
+  mutedLeft: {
     fontSize: 13,
-    lineHeight: 19,
     fontFamily: "Poppins-Regular",
     color: UI.muted,
-    textAlign: "center",
+    lineHeight: 19,
   },
-  heroMeta: {
-    marginTop: 2,
-    fontSize: 11,
-    fontFamily: "Poppins-Medium",
-    color: UI.muted,
-  },
-  timelineCard: {
+  scroll: { flex: 1 },
+  scrollContent: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 16, gap: 12 },
+  card: {
     backgroundColor: UI.card,
     borderRadius: 16,
     borderWidth: 1,
     borderColor: UI.chipBorder,
-    padding: 16,
+    padding: 14,
+    gap: 12,
+  },
+  providerRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+  },
+  providerImage: {
+    width: 52,
+    height: 52,
+    borderRadius: 12,
+    backgroundColor: UI.iconWell,
+  },
+  providerImageFallback: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  providerCopy: { flex: 1, minWidth: 0, gap: 3 },
+  providerName: {
+    fontSize: 14,
+    fontFamily: "Poppins-Bold",
+    color: UI.text,
+  },
+  metaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
     gap: 4,
+  },
+  metaStrong: {
+    fontSize: 12,
+    fontFamily: "Poppins-SemiBold",
+    color: UI.text,
+  },
+  metaMuted: {
+    fontSize: 12,
+    fontFamily: "Poppins-Regular",
+    color: UI.muted,
+  },
+  metaDot: {
+    fontSize: 12,
+    color: UI.muted,
+    marginHorizontal: 2,
+  },
+  openText: {
+    fontSize: 12,
+    fontFamily: "Poppins-SemiBold",
+    color: UI.openText,
+  },
+  closedText: {
+    color: UI.red,
+  },
+  viewProviderBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingTop: 2,
+  },
+  viewProviderText: {
+    fontSize: 12,
+    fontFamily: "Poppins-SemiBold",
+    color: UI.purple,
+  },
+  providerActions: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  providerActionBtn: {
+    flex: 1,
+    minHeight: 42,
+    borderRadius: 12,
+    backgroundColor: "#F3F0FF",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  providerActionText: {
+    fontSize: 13,
+    fontFamily: "Poppins-SemiBold",
+    color: UI.purpleDeep,
+  },
+  sectionHead: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
   },
   sectionTitle: {
     fontSize: 15,
     fontFamily: "Poppins-Bold",
     color: UI.text,
-    marginBottom: 10,
+  },
+  statusBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: "#F3F0FF",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+    maxWidth: "58%",
+  },
+  statusBadgeText: {
+    fontSize: 11,
+    fontFamily: "Poppins-SemiBold",
+    color: UI.purpleDeep,
+    flexShrink: 1,
+  },
+  timeline: {
+    gap: 0,
+    paddingTop: 4,
   },
   timelineRow: {
     flexDirection: "row",
     gap: 12,
-    minHeight: 56,
+    minHeight: 72,
   },
   timelineRail: {
     width: 28,
@@ -579,7 +865,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: UI.iconWell,
+    backgroundColor: UI.card,
     borderWidth: 1.5,
     borderColor: UI.chipBorder,
   },
@@ -588,35 +874,33 @@ const styles = StyleSheet.create({
     borderColor: UI.teal,
   },
   timelineDotCurrent: {
-    backgroundColor: UI.purple,
-    borderColor: UI.purple,
-  },
-  timelineDotUpcoming: {
-    backgroundColor: UI.card,
+    backgroundColor: UI.teal,
+    borderColor: UI.teal,
   },
   timelineLine: {
     flex: 1,
-    width: 2,
+    width: 0,
     marginTop: 4,
     marginBottom: 4,
-    backgroundColor: UI.chipBorder,
-    borderRadius: 1,
+    borderLeftWidth: 2,
+    borderStyle: "dashed",
+    borderColor: UI.chipBorder,
   },
-  timelineLineDone: {
-    backgroundColor: UI.teal,
+  timelineLineActive: {
+    borderColor: UI.teal,
   },
   timelineCopy: {
     flex: 1,
-    paddingTop: 4,
-    paddingBottom: 12,
+    paddingTop: 2,
+    paddingBottom: 14,
     gap: 2,
   },
-  timelineLabel: {
+  timelineTitle: {
     fontSize: 14,
     fontFamily: "Poppins-Medium",
     color: UI.muted,
   },
-  timelineLabelActive: {
+  timelineTitleActive: {
     color: UI.text,
     fontFamily: "Poppins-SemiBold",
   },
@@ -625,17 +909,118 @@ const styles = StyleSheet.create({
     fontFamily: "Poppins-Regular",
     color: UI.muted,
   },
-  nextCard: {
+  timelineHint: {
+    fontSize: 12,
+    lineHeight: 17,
+    fontFamily: "Poppins-Regular",
+    color: UI.muted,
+  },
+  pickupGrid: {
+    flexDirection: "row",
+    alignItems: "stretch",
+    gap: 12,
+  },
+  pickupLeft: {
+    flex: 1.2,
     flexDirection: "row",
     alignItems: "flex-start",
+    gap: 8,
+  },
+  pickupRight: {
+    flex: 1,
+    gap: 8,
+    justifyContent: "center",
+  },
+  pickupDivider: {
+    width: StyleSheet.hairlineWidth,
+    backgroundColor: UI.chipBorder,
+    alignSelf: "stretch",
+  },
+  pickupLabel: {
+    fontSize: 11,
+    fontFamily: "Poppins-Medium",
+    color: UI.muted,
+    marginBottom: 2,
+  },
+  pickupValue: {
+    fontSize: 12,
+    lineHeight: 17,
+    fontFamily: "Poppins-SemiBold",
+    color: UI.text,
+  },
+  scheduleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  scheduleText: {
+    flex: 1,
+    fontSize: 12,
+    fontFamily: "Poppins-SemiBold",
+    color: UI.text,
+  },
+  flex1: { flex: 1, minWidth: 0 },
+  inlineLink: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  inlineLinkText: {
+    fontSize: 12,
+    fontFamily: "Poppins-SemiBold",
+    color: UI.purple,
+  },
+  serviceBlock: {
+    gap: 8,
+    paddingBottom: 12,
+  },
+  serviceBlockBorder: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: UI.chipBorder,
+    marginBottom: 4,
+  },
+  serviceRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  serviceImage: {
+    width: 48,
+    height: 48,
+    borderRadius: 10,
+    backgroundColor: UI.iconWell,
+  },
+  serviceCopy: { flex: 1, minWidth: 0, gap: 2 },
+  serviceName: {
+    fontSize: 13,
+    fontFamily: "Poppins-SemiBold",
+    color: UI.text,
+  },
+  lineTotal: {
+    fontSize: 13,
+    fontFamily: "Poppins-Bold",
+    color: UI.text,
+  },
+  addonRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginLeft: 58,
+  },
+  addonText: {
+    flex: 1,
+    fontSize: 12,
+    fontFamily: "Poppins-Regular",
+    color: UI.muted,
+  },
+  totalCard: {
+    flexDirection: "row",
+    alignItems: "center",
     gap: 12,
-    backgroundColor: "#F5F3FF",
+    backgroundColor: "#EEF2FF",
     borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#EDE9FE",
     padding: 14,
   },
-  nextIcon: {
+  totalIcon: {
     width: 40,
     height: 40,
     borderRadius: 12,
@@ -643,65 +1028,22 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  nextCopy: { flex: 1, minWidth: 0, gap: 4 },
-  nextTitle: {
+  totalCopy: { flex: 1, minWidth: 0, gap: 2 },
+  totalLabel: {
     fontSize: 14,
-    fontFamily: "Poppins-SemiBold",
-    color: UI.text,
-  },
-  nextBody: {
-    fontSize: 13,
-    lineHeight: 18,
-    fontFamily: "Poppins-Regular",
-    color: UI.muted,
-  },
-  snapshotCard: {
-    backgroundColor: UI.card,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: UI.chipBorder,
-    padding: 14,
-    gap: 8,
-  },
-  snapshotTop: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  flex1: { flex: 1, minWidth: 0 },
-  snapshotPartner: {
-    fontSize: 15,
     fontFamily: "Poppins-Bold",
     color: UI.text,
   },
-  snapshotMeta: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  snapshotMetaText: {
-    fontSize: 13,
-    fontFamily: "Poppins-Medium",
-    color: UI.muted,
-  },
-  snapshotDot: { color: UI.muted },
-  snapshotSchedule: { gap: 6, marginTop: 2 },
-  snapshotScheduleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  snapshotScheduleText: {
-    flex: 1,
-    fontSize: 12,
+  totalHint: {
+    fontSize: 11,
+    lineHeight: 15,
     fontFamily: "Poppins-Regular",
     color: UI.muted,
   },
-  viewFull: {
-    marginTop: 4,
-    fontSize: 13,
-    fontFamily: "Poppins-SemiBold",
-    color: UI.purple,
+  totalValue: {
+    fontSize: 18,
+    fontFamily: "Poppins-Bold",
+    color: UI.text,
   },
   footer: {
     paddingHorizontal: 16,
@@ -711,9 +1053,23 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: UI.chipBorder,
   },
+  showAllBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+    paddingTop: 4,
+    paddingBottom: 2,
+  },
+  showAllText: {
+    fontSize: 13,
+    fontFamily: "Poppins-SemiBold",
+    color: UI.purple,
+  },
   footerRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
   },
+  pressed: { opacity: 0.85 },
 });
