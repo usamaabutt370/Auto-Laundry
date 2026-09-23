@@ -1,8 +1,9 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { useIsFocused } from "@react-navigation/native";
 import { StatusBar } from "expo-status-bar";
 import { useRouter } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   KeyboardAvoidingView,
   Modal,
@@ -33,12 +34,26 @@ import {
   findOrdersMissingFeedback,
   submitCustomerOrderFeedback,
   type CustomerOrderFeedbackType,
+  type CustomerOrderListItem,
 } from "@/lib/customer-orders";
 import { getStrings } from "@/locales";
-import { theme, UI } from "@/constants/theme";
+import { gradients, theme, UI } from "@/constants/theme";
 
 const fs = theme.fontSize;
 const PAD = 16;
+
+type OrderFilter = "all" | "active" | "completed" | "cancelled";
+
+/** Active = partner has accepted (accepted / in_progress / ready). Pending stays under All only. */
+function orderMatchesFilter(order: CustomerOrderListItem, filter: OrderFilter): boolean {
+  if (filter === "all") return true;
+  if (filter === "completed") return order.displayStatus === "completed";
+  if (filter === "cancelled") {
+    return order.displayStatus === "rejected" || order.rawStatus === "cancelled";
+  }
+  // active (accepted)
+  return order.displayStatus === "accepted";
+}
 
 /**
  * Persist dismissed order IDs across screen transitions for the current session.
@@ -64,6 +79,38 @@ export default function CustomerOrderScreen() {
   const [feedbackType, setFeedbackType] = useState<CustomerOrderFeedbackType>("feedback");
   const [feedbackMessage, setFeedbackMessage] = useState("");
   const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
+  const [filter, setFilter] = useState<OrderFilter>("all");
+
+  const filterCounts = useMemo(() => {
+    let active = 0;
+    let completed = 0;
+    let cancelled = 0;
+    for (const order of orders) {
+      if (order.displayStatus === "completed") completed += 1;
+      else if (order.displayStatus === "rejected" || order.rawStatus === "cancelled") {
+        cancelled += 1;
+      } else if (order.displayStatus === "accepted") {
+        active += 1;
+      }
+    }
+    return { all: orders.length, active, completed, cancelled };
+  }, [orders]);
+
+  const filteredOrders = useMemo(
+    () => orders.filter((order) => orderMatchesFilter(order, filter)),
+    [filter, orders],
+  );
+
+  const filterTabs = useMemo(
+    () =>
+      [
+        { id: "all" as const, label: s.filterAll, count: filterCounts.all },
+        { id: "active" as const, label: s.filterActive, count: filterCounts.active },
+        { id: "completed" as const, label: s.filterCompleted, count: filterCounts.completed },
+        { id: "cancelled" as const, label: s.filterCancelled, count: filterCounts.cancelled },
+      ] as const,
+    [filterCounts, s.filterActive, s.filterAll, s.filterCancelled, s.filterCompleted],
+  );
 
   const onRefresh = useCallback(() => {
     void (async () => {
@@ -251,76 +298,128 @@ export default function CustomerOrderScreen() {
           <Text style={styles.muted}>{s.empty}</Text>
         </View>
       ) : (
-        <ScrollView
-          style={styles.scroll}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl
-              refreshing={isRefreshing}
-              onRefresh={onRefresh}
-              tintColor={APP_LOADER_TINT}
-              colors={[APP_LOADER_TINT]}
-              progressBackgroundColor={UI.card}
-              progressViewOffset={8}
-            />
-          }
-        >
-          {orders.map((order) => (
-            <CustomerOrderCard
-              key={order.id}
-              order={order}
-              strings={{
-                orderRef: s.orderRef,
-                estTotal: s.estTotal,
-                schedulePending: s.schedulePending,
-                servicesNone: s.servicesNone,
-                statusPending: s.statusPending,
-                statusAccepted: s.statusAccepted,
-                statusRejected: s.statusRejected,
-                statusCompleted: s.statusCompleted,
-                statusWaiting: s.statusWaiting,
-                statusInProgress: s.statusInProgress,
-                statusReady: s.statusReady,
-                chatProvider: s.chatProvider,
-                trackOrder: s.trackOrder,
-                pickupFrom: s.pickupFrom,
-                addOns: s.addOns,
-                addOnOne: s.addOnOne,
-                stepSent: s.stepSent,
-                stepConfirmed: s.stepConfirmed,
-                stepPickedUp: s.stepPickedUp,
-                stepOnTheWay: s.stepOnTheWay,
-                stepCompleted: s.stepCompleted,
-                deleteAction: s.deleteAction,
-                reorderAction: s.reorderAction,
-                reviewsCount: s.reviewsCount,
-                menu: s.menu,
-                viewDetails: s.viewDetails,
-              }}
-              onOpenDetail={() =>
-                router.push({
-                  pathname: "/(customer)/order-detail",
-                  params: { orderId: order.id },
-                })
+        <>
+          <View style={styles.filterRow}>
+            {filterTabs.map((tab) => {
+              const selected = filter === tab.id;
+              const label = `${tab.label} (${tab.count})`;
+              return (
+                <Pressable
+                  key={tab.id}
+                  onPress={() => setFilter(tab.id)}
+                  style={[styles.filterChipWrap, selected && styles.filterChipWrapSelected]}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected }}
+                  accessibilityLabel={label}
+                >
+                  {selected ? (
+                    <LinearGradient
+                      colors={[...gradients.cta]}
+                      start={{ x: 0, y: 0.5 }}
+                      end={{ x: 1, y: 0.5 }}
+                      style={styles.filterChip}
+                    >
+                      <Text style={styles.filterChipTextSelected} numberOfLines={1}>
+                        {label}
+                      </Text>
+                    </LinearGradient>
+                  ) : (
+                    <View style={styles.filterChip}>
+                      <Text style={styles.filterChipText} numberOfLines={1}>
+                        {label}
+                      </Text>
+                    </View>
+                  )}
+                </Pressable>
+              );
+            })}
+          </View>
+
+          {filteredOrders.length === 0 ? (
+            <View style={styles.center}>
+              <Text style={styles.muted}>
+                {filter === "all"
+                  ? s.emptyAll
+                  : filter === "active"
+                    ? s.emptyActive
+                    : filter === "completed"
+                      ? s.emptyCompleted
+                      : s.emptyCancelled}
+              </Text>
+            </View>
+          ) : (
+            <ScrollView
+              style={styles.scroll}
+              contentContainerStyle={styles.scrollContent}
+              showsVerticalScrollIndicator={false}
+              refreshControl={
+                <RefreshControl
+                  refreshing={isRefreshing}
+                  onRefresh={onRefresh}
+                  tintColor={APP_LOADER_TINT}
+                  colors={[APP_LOADER_TINT]}
+                  progressBackgroundColor={UI.card}
+                  progressViewOffset={8}
+                />
               }
-              onTrack={() =>
-                router.push({
-                  pathname: "/(customer)/track-order",
-                  params: { orderId: order.id },
-                })
-              }
-              onChat={() =>
-                router.push({
-                  pathname: "/(customer)/chat/[orderId]",
-                  params: { orderId: order.id },
-                })
-              }
-              onDelete={() => void confirmDelete(order.id)}
-              onReorder={() => handleReorder(order.id, order.fulfillmentMode)}
-            />
-          ))}
-        </ScrollView>
+            >
+              {filteredOrders.map((order) => (
+                <CustomerOrderCard
+                  key={order.id}
+                  order={order}
+                  strings={{
+                    orderRef: s.orderRef,
+                    estTotal: s.estTotal,
+                    schedulePending: s.schedulePending,
+                    servicesNone: s.servicesNone,
+                    statusPending: s.statusPending,
+                    statusAccepted: s.statusAccepted,
+                    statusRejected: s.statusRejected,
+                    statusCompleted: s.statusCompleted,
+                    statusWaiting: s.statusWaiting,
+                    statusInProgress: s.statusInProgress,
+                    statusReady: s.statusReady,
+                    chatProvider: s.chatProvider,
+                    trackOrder: s.trackOrder,
+                    pickupFrom: s.pickupFrom,
+                    addOns: s.addOns,
+                    addOnOne: s.addOnOne,
+                    stepSent: s.stepSent,
+                    stepConfirmed: s.stepConfirmed,
+                    stepPickedUp: s.stepPickedUp,
+                    stepOnTheWay: s.stepOnTheWay,
+                    stepCompleted: s.stepCompleted,
+                    deleteAction: s.deleteAction,
+                    reorderAction: s.reorderAction,
+                    reviewsCount: s.reviewsCount,
+                    menu: s.menu,
+                    viewDetails: s.viewDetails,
+                  }}
+                  onOpenDetail={() =>
+                    router.push({
+                      pathname: "/(customer)/order-detail",
+                      params: { orderId: order.id },
+                    })
+                  }
+                  onTrack={() =>
+                    router.push({
+                      pathname: "/(customer)/track-order",
+                      params: { orderId: order.id },
+                    })
+                  }
+                  onChat={() =>
+                    router.push({
+                      pathname: "/(customer)/chat/[orderId]",
+                      params: { orderId: order.id },
+                    })
+                  }
+                  onDelete={() => void confirmDelete(order.id)}
+                  onReorder={() => handleReorder(order.id, order.fulfillmentMode)}
+                />
+              ))}
+            </ScrollView>
+          )}
+        </>
       )}
       {feedbackVisible ? (
       <Modal
@@ -435,6 +534,48 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     textAlign: "center",
     marginBottom: 12,
+  },
+  filterRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: PAD,
+    marginBottom: 12,
+  },
+  filterChipWrap: {
+    flex: 1,
+    borderRadius: 999,
+    overflow: "hidden",
+    backgroundColor: "#F3F0FF",
+    shadowColor: UI.shadow,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  filterChipWrapSelected: {
+    backgroundColor: "transparent",
+  },
+  filterChip: {
+    minHeight: 28,
+    width: "100%",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 4,
+    paddingVertical: 5,
+    borderRadius: 999,
+  },
+  filterChipText: {
+    fontSize: 11,
+    fontFamily: "Poppins-SemiBold",
+    color: UI.purpleDeep,
+    textAlign: "center",
+  },
+  filterChipTextSelected: {
+    fontSize: 11,
+    fontFamily: "Poppins-SemiBold",
+    color: "#FFFFFF",
+    textAlign: "center",
   },
   scroll: {
     flex: 1,

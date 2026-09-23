@@ -242,33 +242,35 @@ export default function OrderConfirmationScreen() {
 
   const leaveToOrder = () => {
     if (!orderId) return;
-    resetDraft();
-    runAfterModalTeardown(() => {
+    try {
       if (typeof router.dismissAll === "function") {
-        try {
-          router.dismissAll();
-        } catch {
-          // ignore
-        }
+        router.dismissAll();
       }
-      router.replace({
-        pathname: "/(customer)/track-order",
-        params: { orderId },
-      });
+    } catch {
+      // ignore
+    }
+    router.replace({
+      pathname: "/(customer)/track-order",
+      params: { orderId },
+    });
+    // Clear after leave so confirmation doesn't flash empty while closing.
+    runAfterModalTeardown(() => {
+      resetDraft();
     });
   };
 
   const leaveToHome = () => {
-    resetDraft();
-    runAfterModalTeardown(() => {
+    try {
       if (typeof router.dismissAll === "function") {
-        try {
-          router.dismissAll();
-        } catch {
-          // ignore
-        }
+        router.dismissAll();
       }
-      router.replace("/(customer)/(tabs)");
+    } catch {
+      // ignore
+    }
+    router.replace("/(customer)/(tabs)");
+    // Clear after leave so confirmation doesn't flash empty while closing.
+    runAfterModalTeardown(() => {
+      resetDraft();
     });
   };
 

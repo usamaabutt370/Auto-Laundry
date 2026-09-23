@@ -103,7 +103,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: CUSTOMER_ORDER_FOOTER_PAD,
   },
   footerLight: {
-    backgroundColor: "#F7F8FA",
+    backgroundColor: "#FFFFFF",
     borderTopColor: "#E5E7EB",
   },
 });

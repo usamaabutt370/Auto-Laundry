@@ -42,6 +42,7 @@ import { formatMoney } from "@/utils/format-money";
 import type { Coordinates } from "@/utils/geocoding";
 import { getPartnerHoursRange, getPartnerOpenStatus } from "@/utils/partner-hours";
 import { runAfterModalTeardown } from "@/utils/run-after-modal-teardown";
+import { openModalAfterDismissingAll } from "@/utils/modal-navigation";
 import { UI } from "@/constants/theme";
 
 function fill(template: string, vars: Record<string, string | number>) {
@@ -236,7 +237,7 @@ export default function OrderSummaryScreen() {
         fail("Unable to submit order", message);
         return;
       }
-      router.replace({
+      openModalAfterDismissingAll(router, {
         pathname: "/(customer)/order-confirmation",
         params: { orderId: result.orderId },
       });

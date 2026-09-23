@@ -477,14 +477,6 @@ export function ServiceBookingView({ job, itemLabel }: Props) {
       >
         <View style={styles.sheet}>
           <View style={styles.headerRow}>
-            <Pressable
-              onPress={persistAndClose}
-              style={styles.roundBtn}
-              accessibilityRole="button"
-              accessibilityLabel="Back"
-            >
-              <MaterialCommunityIcons name="chevron-left" size={24} color={UI.text} />
-            </Pressable>
             <View style={styles.headerCopy}>
               <Text style={styles.headerTitle} numberOfLines={2}>
                 {bannerMeta.title}
@@ -493,14 +485,28 @@ export function ServiceBookingView({ job, itemLabel }: Props) {
                 {bannerMeta.body}
               </Text>
             </View>
+            <Pressable
+              onPress={persistAndClose}
+              style={styles.roundBtn}
+              accessibilityRole="button"
+              accessibilityLabel="Close"
+            >
+              <MaterialCommunityIcons name="close" size={20} color={UI.text} />
+            </Pressable>
           </View>
 
           {loading && tiles.length === 0 ? (
-            <GradientLoader style={{ marginTop: 24 }} />
+            <View style={styles.stateFill}>
+              <GradientLoader />
+            </View>
           ) : !draft.partnerId ? (
-            <Text style={styles.empty}>{s.noPartner}</Text>
+            <View style={styles.stateFill}>
+              <Text style={styles.empty}>{s.noPartner}</Text>
+            </View>
           ) : tiles.length === 0 ? (
-            <Text style={styles.empty}>{s.noRates}</Text>
+            <View style={styles.stateFill}>
+              <Text style={styles.empty}>{s.noRates}</Text>
+            </View>
           ) : (
             <>
               <View style={styles.catalog}>
@@ -526,25 +532,41 @@ export function ServiceBookingView({ job, itemLabel }: Props) {
                           {s.numberOfPieces}
                         </Text>
                       </View>
-                      <View style={styles.qtyStepper}>
+                      <View style={styles.rowActions}>
+                        <View style={styles.qtyStepper}>
+                          <Pressable
+                            onPress={() => changeTileQty(tile, qty - 1)}
+                            hitSlop={8}
+                            style={styles.qtyStepperBtn}
+                            accessibilityRole="button"
+                            accessibilityLabel="Decrease quantity"
+                          >
+                            <MaterialCommunityIcons name="minus" size={18} color={UI.text} />
+                          </Pressable>
+                          <Text style={styles.qtyStepperValue}>{qty}</Text>
+                          <Pressable
+                            onPress={() => changeTileQty(tile, qty + 1)}
+                            hitSlop={8}
+                            style={styles.qtyStepperBtn}
+                            accessibilityRole="button"
+                            accessibilityLabel="Increase quantity"
+                          >
+                            <MaterialCommunityIcons name="plus" size={18} color={UI.purple} />
+                          </Pressable>
+                        </View>
                         <Pressable
-                          onPress={() => changeTileQty(tile, qty - 1)}
+                          onPress={() => changeTileQty(tile, 0)}
+                          disabled={qty === 0}
                           hitSlop={8}
-                          style={styles.qtyStepperBtn}
+                          style={[styles.deleteBtn, qty === 0 && styles.deleteBtnDisabled]}
                           accessibilityRole="button"
-                          accessibilityLabel="Decrease quantity"
+                          accessibilityLabel="Clear quantity"
                         >
-                          <MaterialCommunityIcons name="minus" size={18} color={UI.text} />
-                        </Pressable>
-                        <Text style={styles.qtyStepperValue}>{qty}</Text>
-                        <Pressable
-                          onPress={() => changeTileQty(tile, qty + 1)}
-                          hitSlop={8}
-                          style={styles.qtyStepperBtn}
-                          accessibilityRole="button"
-                          accessibilityLabel="Increase quantity"
-                        >
-                          <MaterialCommunityIcons name="plus" size={18} color={UI.purple} />
+                          <MaterialCommunityIcons
+                            name="trash-can-outline"
+                            size={18}
+                            color={qty === 0 ? UI.muted : UI.red}
+                          />
                         </Pressable>
                       </View>
                     </View>
@@ -748,8 +770,8 @@ function ChoicePair({
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: UI.bg },
-  scrollContent: { paddingBottom: 24 },
+  screen: { flex: 1, backgroundColor: UI.card },
+  scrollContent: { flexGrow: 1, paddingBottom: 24 },
   headerRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -766,10 +788,19 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   sheet: {
+    flex: 1,
     backgroundColor: UI.card,
     paddingHorizontal: 16,
     paddingTop: 8,
     gap: 16,
+  },
+  stateFill: {
+    flexGrow: 1,
+    minHeight: 280,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 24,
+    paddingVertical: 32,
   },
   catalog: { gap: 10 },
   serviceRow: {
@@ -791,13 +822,29 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    minWidth: 118,
+    minWidth: 108,
     height: 44,
     paddingHorizontal: 6,
     borderRadius: 16,
     borderWidth: 1,
     borderColor: UI.chipBorder,
     backgroundColor: UI.bg,
+  },
+  rowActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  deleteBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: UI.redBg,
+  },
+  deleteBtnDisabled: {
+    backgroundColor: UI.iconWell,
   },
   qtyStepperBtn: {
     width: 32,
@@ -897,6 +944,12 @@ const styles = StyleSheet.create({
   photoCount: { fontSize: 10, color: UI.muted, fontFamily: "Poppins-Regular" },
   photoRow: { gap: 8, paddingTop: 4 },
   photoThumb: { width: 56, height: 56, borderRadius: 10, backgroundColor: UI.iconWell },
-  empty: { paddingVertical: 32, textAlign: "center", color: UI.muted, fontFamily: "Poppins-Regular" },
+  empty: {
+    textAlign: "center",
+    color: UI.muted,
+    fontFamily: "Poppins-Regular",
+    fontSize: 14,
+    lineHeight: 20,
+  },
   continueBtn: { marginTop: 4, marginBottom: 8 },
 });

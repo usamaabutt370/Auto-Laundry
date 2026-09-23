@@ -77,7 +77,7 @@ export default function SchedulePickupScreen() {
       dayLabel: deliverySlot.dayLabel,
       instructions: deliverySlot.instructions,
     });
-    router.replace("/(customer)/order-summary");
+    router.push("/(customer)/order-summary");
   };
 
   return (

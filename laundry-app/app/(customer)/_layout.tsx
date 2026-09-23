@@ -47,6 +47,7 @@ export default function CustomerLayout() {
             animation: "slide_from_bottom",
             gestureEnabled: true,
             headerShown: false,
+            contentStyle: { backgroundColor: "#FFFFFF" },
           }}
         />
         <Stack.Screen name="schedule-delivery" />
@@ -57,6 +58,9 @@ export default function CustomerLayout() {
             animation: "slide_from_bottom",
             gestureEnabled: true,
             headerShown: false,
+            contentStyle: { backgroundColor: "#FFFFFF" },
+            // Keep card-height sheet, but don't show the previous modal behind it.
+            detachPreviousScreen: true,
           }}
         />
         <Stack.Screen
@@ -66,6 +70,8 @@ export default function CustomerLayout() {
             animation: "slide_from_bottom",
             gestureEnabled: false,
             headerShown: false,
+            contentStyle: { backgroundColor: "#FFFFFF" },
+            detachPreviousScreen: true,
           }}
         />
         <Stack.Screen name="order-detail" />
