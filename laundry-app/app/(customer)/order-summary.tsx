@@ -4,7 +4,6 @@ import { useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import {
   Alert,
-  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -50,29 +49,6 @@ function fill(template: string, vars: Record<string, string | number>) {
     (acc, [key, value]) => acc.replaceAll(`{${key}}`, String(value)),
     template,
   );
-}
-
-function formatOrderReference(orderId: string): string {
-  return orderId.replace(/-/g, "").slice(0, 8).toUpperCase();
-}
-
-function goToSubmittedOrderDetail(
-  router: ReturnType<typeof useRouter>,
-  orderId: string,
-) {
-  runAfterModalTeardown(() => {
-    if (typeof router.dismissAll === "function") {
-      try {
-        router.dismissAll();
-      } catch {
-        // Some navigators may not support dismissAll in every state.
-      }
-    }
-    router.replace({
-      pathname: "/(customer)/order-detail",
-      params: { orderId },
-    });
-  });
 }
 
 function goToAuthFromOrderSummary(
@@ -162,7 +138,6 @@ export default function OrderSummaryScreen() {
   const { draft, editingOrderId, resetDraft, setSelectedServiceIds, setWashFoldItemizedQuantities, setDryCleanItemizedQuantities, setPressItemizedQuantities, setTailoringItemizedQuantities } =
     useCustomerOrderDraft();
   const [submitting, setSubmitting] = useState(false);
-  const [submittedOrderId, setSubmittedOrderId] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [signInPromptVisible, setSignInPromptVisible] = useState(false);
   const [customerAddress, setCustomerAddress] = useState("");
@@ -235,7 +210,6 @@ export default function OrderSummaryScreen() {
           return;
         }
         const savedOrderId = editingOrderId;
-        setSubmittedOrderId(null);
         resetDraft();
         showAppAlert(s.orderUpdated, s.orderUpdatedMessage, [
           {
@@ -262,7 +236,10 @@ export default function OrderSummaryScreen() {
         fail("Unable to submit order", message);
         return;
       }
-      setSubmittedOrderId(result.orderId);
+      router.replace({
+        pathname: "/(customer)/order-confirmation",
+        params: { orderId: result.orderId },
+      });
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Something went wrong while submitting.";
@@ -270,14 +247,6 @@ export default function OrderSummaryScreen() {
     } finally {
       setSubmitting(false);
     }
-  };
-
-  const handleSubmittedOrderContinue = () => {
-    if (!submittedOrderId) return;
-    const orderId = submittedOrderId;
-    setSubmittedOrderId(null);
-    resetDraft();
-    goToSubmittedOrderDetail(router, orderId);
   };
 
   const serviceLines = useMemo(
@@ -775,39 +744,6 @@ export default function OrderSummaryScreen() {
           setTimeout(() => setSignInPromptVisible(false), 500);
         }}
       />
-
-      {submittedOrderId != null ? (
-        <Modal
-          visible
-          transparent
-          animationType="fade"
-          onRequestClose={handleSubmittedOrderContinue}
-        >
-          <View style={styles.successOverlay}>
-            <View style={styles.successCard}>
-              <View style={styles.successIconRing}>
-                <View style={styles.successIconWrap}>
-                  <MaterialCommunityIcons name="check" size={32} color="#FFFFFF" />
-                </View>
-              </View>
-              <Text style={styles.successTitle}>{s.orderSubmitted}</Text>
-              <Text style={styles.successMessage}>{s.orderSubmittedMessage}</Text>
-              <View style={styles.successRefChip}>
-                <Text style={styles.successRefLabel}>{s.orderSubmittedRef}</Text>
-                <Text style={styles.successRefValue}>
-                  {formatOrderReference(submittedOrderId)}
-                </Text>
-              </View>
-              <AppCtaButton
-                label={s.orderSubmittedOk}
-                onPress={handleSubmittedOrderContinue}
-                width="full"
-                accessibilityLabel={s.orderSubmittedOk}
-              />
-            </View>
-          </View>
-        </Modal>
-      ) : null}
     </View>
   );
 }
@@ -980,82 +916,5 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     marginBottom: 10,
     textAlign: "center",
-  },
-  successOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(17, 24, 39, 0.45)",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 24,
-  },
-  successCard: {
-    width: "100%",
-    maxWidth: 360,
-    backgroundColor: UI.card,
-    borderRadius: 24,
-    paddingHorizontal: 22,
-    paddingTop: 28,
-    paddingBottom: 22,
-    alignItems: "center",
-    shadowColor: UI.shadow,
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 1,
-    shadowRadius: 24,
-    elevation: 8,
-  },
-  successIconRing: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    backgroundColor: "#ECFDF5",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 16,
-  },
-  successIconWrap: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: UI.teal,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  successTitle: {
-    fontSize: 22,
-    fontFamily: "Poppins-Bold",
-    color: UI.text,
-    textAlign: "center",
-    marginBottom: 8,
-  },
-  successMessage: {
-    fontSize: 14,
-    lineHeight: 21,
-    fontFamily: "Poppins-Regular",
-    color: UI.muted,
-    textAlign: "center",
-    marginBottom: 14,
-  },
-  successRefChip: {
-    alignItems: "center",
-    backgroundColor: "#F3F4F6",
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    marginBottom: 20,
-    alignSelf: "stretch",
-  },
-  successRefLabel: {
-    fontSize: 11,
-    fontFamily: "Poppins-SemiBold",
-    color: UI.muted,
-    textTransform: "uppercase",
-    letterSpacing: 0.6,
-    marginBottom: 2,
-  },
-  successRefValue: {
-    fontSize: 16,
-    fontFamily: "Poppins-Bold",
-    color: UI.text,
-    letterSpacing: 1,
   },
 });

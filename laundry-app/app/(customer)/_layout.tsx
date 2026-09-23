@@ -59,7 +59,17 @@ export default function CustomerLayout() {
             headerShown: false,
           }}
         />
+        <Stack.Screen
+          name="order-confirmation"
+          options={{
+            presentation: "modal",
+            animation: "slide_from_bottom",
+            gestureEnabled: false,
+            headerShown: false,
+          }}
+        />
         <Stack.Screen name="order-detail" />
+        <Stack.Screen name="track-order" />
         <Stack.Screen name="chat/[orderId]" />
       </Stack>
     </WebAreaShell>
