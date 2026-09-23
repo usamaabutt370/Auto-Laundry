@@ -61,7 +61,9 @@ function initialMonthState(dateIso?: string | null) {
   return {
     year: base.getFullYear(),
     month: base.getMonth(),
-    dateIndex: Math.max(0, base.getDate() - 1),
+    // Index into the *filtered* upcoming-dates list (past days removed), not day-of-month.
+    // Resolve the real index in an effect once datesInMonth is available.
+    dateIndex: 0,
   };
 }
 
@@ -124,16 +126,22 @@ export function CustomerScheduleSlotSection({
   const timeSlotLabel = TIME_SLOTS[safeTimeSlotIndex] ?? s.timeSlotPlaceholder;
 
   useEffect(() => {
-    if (didApplyInitialDateRef.current || !initialDateIso || datesInMonth.length === 0) {
+    if (didApplyInitialDateRef.current || datesInMonth.length === 0) {
       return;
     }
-    const idx = datesInMonth.findIndex(
-      (item) => dateToIso(item.date) === initialDateIso.trim(),
-    );
-    if (idx >= 0) {
-      setSelectedDateIndex(idx);
-      didApplyInitialDateRef.current = true;
+    if (initialDateIso) {
+      const idx = datesInMonth.findIndex(
+        (item) => dateToIso(item.date) === initialDateIso.trim(),
+      );
+      if (idx >= 0) {
+        setSelectedDateIndex(idx);
+        didApplyInitialDateRef.current = true;
+        return;
+      }
     }
+    // Default to the first selectable day (today / minDate), not a clamped day-of-month.
+    setSelectedDateIndex(0);
+    didApplyInitialDateRef.current = true;
   }, [datesInMonth, initialDateIso]);
 
   useEffect(() => {

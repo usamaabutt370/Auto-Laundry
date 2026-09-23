@@ -83,10 +83,21 @@ export interface CustomerOrderDetailData {
   partnerVerified: boolean;
   partnerPhone: string;
   partnerAddress: string;
+  partnerImageUrl: string | null;
+  partnerRatingAvg: number | null;
+  partnerRatingCount: number;
+  partnerAvailableTime: string | null;
+  partnerLatitude: number | null;
+  partnerLongitude: number | null;
   displayStatus: CustomerOrderDisplayStatus;
   rawStatus: CustomerOrderDbStatus;
   pickupSchedule: string;
   deliverySchedule: string;
+  pickupDayLabel: string | null;
+  pickupTimeLabel: string | null;
+  deliveryDayLabel: string | null;
+  deliveryTimeLabel: string | null;
+  customerPickupAddress: string | null;
   estimatedTotalLabel: string;
   confirmedTotalLabel: string | null;
   confirmedAt: string | null;
@@ -246,6 +257,9 @@ type PartnerRow = {
   image_url?: string | null;
   business_images?: string[] | null;
   updated_at?: string | null;
+  available_time?: string | null;
+  latitude?: number | string | null;
+  longitude?: number | string | null;
 };
 
 type PartnerListMeta = {
@@ -596,15 +610,39 @@ export async function fetchCustomerOrderDetail(
 
   const order = data as OrderRow & { customer_id?: string };
 
-  const [{ data: partnerData }, verifiedPartnerIds] = await Promise.all([
-    supabase
-      .from("partner_profiles")
-      .select("id,business_name,phone_number,address")
-      .eq("id", order.partner_id)
-      .maybeSingle(),
-    fetchVerifiedPartnerIds([order.partner_id]),
-  ]);
+  const [{ data: partnerData }, verifiedPartnerIds, ratings, customerProfile] =
+    await Promise.all([
+      supabase
+        .from("partner_profiles")
+        .select(
+          "id,business_name,phone_number,address,image_url,business_images,updated_at,available_time,latitude,longitude",
+        )
+        .eq("id", order.partner_id)
+        .maybeSingle(),
+      fetchVerifiedPartnerIds([order.partner_id]),
+      fetchPartnerRatingStats([order.partner_id]),
+      supabase
+        .from("profiles")
+        .select("address")
+        .eq("id", customerId)
+        .maybeSingle<{ address: string | null }>(),
+    ]);
   const partner = (partnerData as PartnerRow | null) ?? null;
+  const rating = ratings.get(order.partner_id);
+  const partnerImages = Array.isArray(partner?.business_images)
+    ? partner.business_images.filter(
+        (item): item is string => typeof item === "string" && item.trim().length > 0,
+      )
+    : [];
+  const partnerImageUrl =
+    partnerImages[0] ??
+    (partner?.image_url?.trim()
+      ? `${partner.image_url.trim()}${
+          partner.updated_at ? `?t=${encodeURIComponent(partner.updated_at)}` : ""
+        }`
+      : null);
+  const partnerLatitude = Number(partner?.latitude);
+  const partnerLongitude = Number(partner?.longitude);
 
   const { data: serviceData, error: serviceError } = await supabase
     .from("order_services")
@@ -709,6 +747,12 @@ export async function fetchCustomerOrderDetail(
     partnerVerified: verifiedPartnerIds.has(order.partner_id),
     partnerPhone: partner?.phone_number?.trim() || "Not provided",
     partnerAddress: partner?.address?.trim() || "Address not available",
+    partnerImageUrl,
+    partnerRatingAvg: rating?.avg ?? null,
+    partnerRatingCount: rating?.count ?? 0,
+    partnerAvailableTime: partner?.available_time?.trim() || null,
+    partnerLatitude: Number.isFinite(partnerLatitude) ? partnerLatitude : null,
+    partnerLongitude: Number.isFinite(partnerLongitude) ? partnerLongitude : null,
     displayStatus: mapDbStatusForCustomer(order.status),
     rawStatus: order.status,
     pickupSchedule: formatSchedule(
@@ -721,6 +765,11 @@ export async function fetchCustomerOrderDetail(
       order.delivery_time_slot_label,
       "Not scheduled",
     ),
+    pickupDayLabel: order.pickup_day_label?.trim() || null,
+    pickupTimeLabel: order.pickup_time_slot_label?.trim() || null,
+    deliveryDayLabel: order.delivery_day_label?.trim() || null,
+    deliveryTimeLabel: order.delivery_time_slot_label?.trim() || null,
+    customerPickupAddress: customerProfile.data?.address?.trim() || null,
     estimatedTotalLabel: formatUsd(totalAmount),
     confirmedTotalLabel: confirmedTotal,
     confirmedAt: order.confirmed_at,
