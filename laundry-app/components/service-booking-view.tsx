@@ -532,7 +532,18 @@ export function ServiceBookingView({ job, itemLabel }: Props) {
                           {s.numberOfPieces}
                         </Text>
                       </View>
-                      <View style={styles.rowActions}>
+                      <View style={styles.rowRight}>
+                        {qty > 0 ? (
+                          <Pressable
+                            onPress={() => changeTileQty(tile, 0)}
+                            hitSlop={10}
+                            style={styles.deleteBtn}
+                            accessibilityRole="button"
+                            accessibilityLabel="Clear quantity"
+                          >
+                            <MaterialCommunityIcons name="trash-can-outline" size={16} color={UI.red} />
+                          </Pressable>
+                        ) : null}
                         <View style={styles.qtyStepper}>
                           <Pressable
                             onPress={() => changeTileQty(tile, qty - 1)}
@@ -554,20 +565,6 @@ export function ServiceBookingView({ job, itemLabel }: Props) {
                             <MaterialCommunityIcons name="plus" size={18} color={UI.purple} />
                           </Pressable>
                         </View>
-                        <Pressable
-                          onPress={() => changeTileQty(tile, 0)}
-                          disabled={qty === 0}
-                          hitSlop={8}
-                          style={[styles.deleteBtn, qty === 0 && styles.deleteBtnDisabled]}
-                          accessibilityRole="button"
-                          accessibilityLabel="Clear quantity"
-                        >
-                          <MaterialCommunityIcons
-                            name="trash-can-outline"
-                            size={18}
-                            color={qty === 0 ? UI.muted : UI.red}
-                          />
-                        </Pressable>
                       </View>
                     </View>
                   );
@@ -818,6 +815,12 @@ const styles = StyleSheet.create({
   serviceName: { fontSize: 14, color: UI.text, fontFamily: "Poppins-SemiBold" },
   servicePrice: { marginTop: 4, fontSize: 13, color: UI.purple, fontFamily: "Poppins-SemiBold" },
   serviceDetail: { marginTop: 2, fontSize: 11, color: UI.muted, fontFamily: "Poppins-Regular" },
+  rowRight: {
+    alignItems: "flex-end",
+    justifyContent: "flex-start",
+    gap: 4,
+    alignSelf: "stretch",
+  },
   qtyStepper: {
     flexDirection: "row",
     alignItems: "center",
@@ -830,21 +833,10 @@ const styles = StyleSheet.create({
     borderColor: UI.chipBorder,
     backgroundColor: UI.bg,
   },
-  rowActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
   deleteBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: UI.redBg,
-  },
-  deleteBtnDisabled: {
-    backgroundColor: UI.iconWell,
+    padding: 2,
   },
   qtyStepperBtn: {
     width: 32,

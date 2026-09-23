@@ -343,7 +343,7 @@ export default function OrderSummaryScreen() {
     });
   };
 
-  const openShop = () => {
+  const openShop = (options?: { focus?: "collect" }) => {
     if (!draft.partnerId) return;
     router.push({
       pathname: "/(customer)/launderer-detail",
@@ -351,6 +351,8 @@ export default function OrderSummaryScreen() {
         id: draft.partnerId,
         ...(draft.partnerName ? { name: draft.partnerName } : {}),
         mode: draft.pickupDeliveryRequested ? "pickupDelivery" : "dropoff",
+        presentation: "modal",
+        ...(options?.focus ? { focus: options.focus } : {}),
       },
     });
   };
@@ -639,7 +641,7 @@ export default function OrderSummaryScreen() {
                     {draft.pickupDeliveryRequested ? s.pickupHint : s.dropoffHint}
                   </Text>
                 </View>
-                <Pressable onPress={openShop} hitSlop={8}>
+                <Pressable onPress={() => openShop({ focus: "collect" })} hitSlop={8}>
                   <Text style={styles.inlineLinkText}>{s.change}</Text>
                 </Pressable>
               </View>

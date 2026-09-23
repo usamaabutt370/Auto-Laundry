@@ -19,12 +19,16 @@ export default function LaundererDetailScreen() {
     mode?: string;
     service?: string;
     reorderOrderId?: string;
+    focus?: string;
+    presentation?: string;
   }>();
   const partnerId = Array.isArray(params.id) ? params.id[0] : params.id;
   const reorderOrderId =
     typeof params.reorderOrderId === "string" ? params.reorderOrderId : "";
   const isReassignMode = reorderOrderId.length > 0;
   const prefersPickupDelivery = params.mode === "pickupDelivery";
+  const scrollToCollect = params.focus === "collect";
+  const modalChrome = params.presentation === "modal";
 
   useEffect(() => {
     if (!partnerId || isReassignMode) return;
@@ -89,6 +93,8 @@ export default function LaundererDetailScreen() {
       onSelect={handleSelect}
       isModal
       prefersPickupDelivery={prefersPickupDelivery}
+      scrollToCollect={scrollToCollect}
+      modalChrome={modalChrome}
     />
   );
 }
