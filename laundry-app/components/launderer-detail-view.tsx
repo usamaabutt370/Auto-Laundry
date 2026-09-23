@@ -114,6 +114,10 @@ interface LaundererDetailViewProps {
   ) => void;
   isModal?: boolean;
   prefersPickupDelivery?: boolean;
+  /** Scroll to "How should we collect it?" (e.g. from order review Change). */
+  scrollToCollect?: boolean;
+  /** From order review: close (X) on the right, no share/favorite. */
+  modalChrome?: boolean;
 }
 
 export function LaundererDetailView({
@@ -123,6 +127,8 @@ export function LaundererDetailView({
   onBack,
   onSelect,
   prefersPickupDelivery = false,
+  scrollToCollect = false,
+  modalChrome = false,
 }: LaundererDetailViewProps) {
   const router = useRouter();
   const { user } = useAuth();
@@ -189,6 +195,9 @@ export function LaundererDetailView({
   const [jobOverride, setJobOverride] = useState<ServiceJob | null>(null);
   const [headerSolid, setHeaderSolid] = useState(false);
   const heroScrollRef = useRef<ScrollView | null>(null);
+  const mainScrollRef = useRef<ScrollView | null>(null);
+  const sheetOffsetYRef = useRef(0);
+  const didScrollToCollectRef = useRef(false);
   const scrollY = useRef(new Animated.Value(0)).current;
   const partnerVerified = usePartnerVerified(partnerId);
   const { draft, setPickupDeliveryRequested } = useCustomerOrderDraft();
@@ -418,6 +427,19 @@ export function LaundererDetailView({
     if (prefersPickupDelivery) setPickupDeliveryRequested(true);
   }, [hasPickup, prefersPickupDelivery, profile, setPickupDeliveryRequested]);
 
+  useEffect(() => {
+    didScrollToCollectRef.current = false;
+  }, [partnerId, scrollToCollect]);
+
+  const scrollToCollectSection = useCallback((yInSheet: number) => {
+    if (!scrollToCollect || didScrollToCollectRef.current) return;
+    const y = Math.max(0, sheetOffsetYRef.current + yInSheet - 16);
+    didScrollToCollectRef.current = true;
+    requestAnimationFrame(() => {
+      mainScrollRef.current?.scrollTo({ y, animated: true });
+    });
+  }, [scrollToCollect]);
+
   const pickupEnabled = hasPickup && draft.pickupDeliveryRequested;
 
   const handleContinueOrder = () => {
@@ -450,43 +472,59 @@ export function LaundererDetailView({
     },
   );
 
-  const headerIcons = (btnStyle: object) => (
-    <>
-      <Pressable
-        onPress={onBack}
-        style={({ pressed }) => [btnStyle, pressed && styles.pressed]}
-        accessibilityRole="button"
-        accessibilityLabel="Back"
-      >
-        <MaterialCommunityIcons name="chevron-left" size={26} color={UI.text} />
-      </Pressable>
-      <View style={styles.heroChromeRight}>
+  const headerTopPad = modalChrome ? 10 : insets.top;
+  const heroChromeTopPad = modalChrome ? 10 : insets.top + 8;
+
+  const headerIcons = (btnStyle: object) =>
+    modalChrome ? (
+      <>
+        <View style={styles.heroChromeSide} />
         <Pressable
-          onPress={() => void handleShare()}
+          onPress={onBack}
           style={({ pressed }) => [btnStyle, pressed && styles.pressed]}
           accessibilityRole="button"
-          accessibilityLabel={s.share}
+          accessibilityLabel="Close"
         >
-          <MaterialCommunityIcons name="export-variant" size={20} color={UI.text} />
+          <MaterialCommunityIcons name="close" size={20} color={UI.text} />
         </Pressable>
+      </>
+    ) : (
+      <>
         <Pressable
-          onPress={() => void handleFavorite()}
+          onPress={onBack}
           style={({ pressed }) => [btnStyle, pressed && styles.pressed]}
           accessibilityRole="button"
-          accessibilityLabel={favorited ? s.unfavorite : s.favorite}
+          accessibilityLabel="Back"
         >
-          <MaterialCommunityIcons
-            name={favorited ? "heart" : "heart-outline"}
-            size={20}
-            color={favorited ? "#E11D48" : UI.text}
-          />
+          <MaterialCommunityIcons name="chevron-left" size={26} color={UI.text} />
         </Pressable>
-      </View>
-    </>
-  );
+        <View style={styles.heroChromeRight}>
+          <Pressable
+            onPress={() => void handleShare()}
+            style={({ pressed }) => [btnStyle, pressed && styles.pressed]}
+            accessibilityRole="button"
+            accessibilityLabel={s.share}
+          >
+            <MaterialCommunityIcons name="export-variant" size={20} color={UI.text} />
+          </Pressable>
+          <Pressable
+            onPress={() => void handleFavorite()}
+            style={({ pressed }) => [btnStyle, pressed && styles.pressed]}
+            accessibilityRole="button"
+            accessibilityLabel={favorited ? s.unfavorite : s.favorite}
+          >
+            <MaterialCommunityIcons
+              name={favorited ? "heart" : "heart-outline"}
+              size={20}
+              color={favorited ? "#E11D48" : UI.text}
+            />
+          </Pressable>
+        </View>
+      </>
+    );
 
   const renderHeroChrome = () => (
-    <View pointerEvents="box-none" style={[styles.heroChrome, { paddingTop: insets.top + 8 }]}>
+    <View pointerEvents="box-none" style={[styles.heroChrome, { paddingTop: heroChromeTopPad }]}>
       {headerIcons(styles.heroRoundBtn)}
     </View>
   );
@@ -528,6 +566,7 @@ export function LaundererDetailView({
     <View style={styles.container}>
       <StatusBar style={headerSolid ? "dark" : "light"} />
       <Animated.ScrollView
+        ref={mainScrollRef}
         style={styles.scroll}
         contentContainerStyle={{ paddingBottom: 24 }}
         showsVerticalScrollIndicator={false}
@@ -574,7 +613,12 @@ export function LaundererDetailView({
           ) : null}
         </View>
 
-        <View style={styles.sheet}>
+        <View
+          style={styles.sheet}
+          onLayout={(event) => {
+            sheetOffsetYRef.current = event.nativeEvent.layout.y;
+          }}
+        >
           <View style={styles.identityRow}>
             <View style={styles.avatarWell}>
               <LinearGradient colors={["#A78BFA", "#6366F1"]} style={styles.avatarInner}>
@@ -819,7 +863,12 @@ export function LaundererDetailView({
             </View>
           ) : null}
 
-          <View style={styles.fulfillment}>
+          <View
+            style={styles.fulfillment}
+            onLayout={(event) => {
+              scrollToCollectSection(event.nativeEvent.layout.y);
+            }}
+          >
             <Text style={styles.fulfillmentLabel}>{s.howToCollect}</Text>
             <View style={styles.fulfillmentGrid}>
               <Pressable
@@ -878,54 +927,76 @@ export function LaundererDetailView({
 
       <Animated.View
         pointerEvents="box-none"
-        style={[styles.stickyHeader, { paddingTop: insets.top }]}
+        style={[styles.stickyHeader, { paddingTop: headerTopPad }]}
       >
         <Animated.View
           pointerEvents="none"
           style={[styles.stickyHeaderFill, { opacity: headerOpacity }]}
         />
-        <Pressable
-          onPress={onBack}
-          style={({ pressed }) => [
-            headerSolid ? styles.stickyIconBtn : styles.heroRoundBtn,
-            pressed && styles.pressed,
-          ]}
-          accessibilityRole="button"
-          accessibilityLabel="Back"
-        >
-          <MaterialCommunityIcons name="chevron-left" size={26} color={UI.text} />
-        </Pressable>
-        <Animated.Text style={[styles.stickyTitle, { opacity: headerOpacity }]} numberOfLines={1}>
-          {displayName}
-        </Animated.Text>
-        <View style={styles.heroChromeRight}>
-          <Pressable
-            onPress={() => void handleShare()}
-            style={({ pressed }) => [
-              headerSolid ? styles.stickyIconBtn : styles.heroRoundBtn,
-              pressed && styles.pressed,
-            ]}
-            accessibilityRole="button"
-            accessibilityLabel={s.share}
-          >
-            <MaterialCommunityIcons name="export-variant" size={20} color={UI.text} />
-          </Pressable>
-          <Pressable
-            onPress={() => void handleFavorite()}
-            style={({ pressed }) => [
-              headerSolid ? styles.stickyIconBtn : styles.heroRoundBtn,
-              pressed && styles.pressed,
-            ]}
-            accessibilityRole="button"
-            accessibilityLabel={favorited ? s.unfavorite : s.favorite}
-          >
-            <MaterialCommunityIcons
-              name={favorited ? "heart" : "heart-outline"}
-              size={20}
-              color={favorited ? "#E11D48" : UI.text}
-            />
-          </Pressable>
-        </View>
+        {modalChrome ? (
+          <>
+            <View style={styles.heroChromeSide} />
+            <Animated.Text style={[styles.stickyTitle, { opacity: headerOpacity }]} numberOfLines={1}>
+              {displayName}
+            </Animated.Text>
+            <Pressable
+              onPress={onBack}
+              style={({ pressed }) => [
+                headerSolid ? styles.stickyIconBtn : styles.heroRoundBtn,
+                pressed && styles.pressed,
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel="Close"
+            >
+              <MaterialCommunityIcons name="close" size={20} color={UI.text} />
+            </Pressable>
+          </>
+        ) : (
+          <>
+            <Pressable
+              onPress={onBack}
+              style={({ pressed }) => [
+                headerSolid ? styles.stickyIconBtn : styles.heroRoundBtn,
+                pressed && styles.pressed,
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel="Back"
+            >
+              <MaterialCommunityIcons name="chevron-left" size={26} color={UI.text} />
+            </Pressable>
+            <Animated.Text style={[styles.stickyTitle, { opacity: headerOpacity }]} numberOfLines={1}>
+              {displayName}
+            </Animated.Text>
+            <View style={styles.heroChromeRight}>
+              <Pressable
+                onPress={() => void handleShare()}
+                style={({ pressed }) => [
+                  headerSolid ? styles.stickyIconBtn : styles.heroRoundBtn,
+                  pressed && styles.pressed,
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel={s.share}
+              >
+                <MaterialCommunityIcons name="export-variant" size={20} color={UI.text} />
+              </Pressable>
+              <Pressable
+                onPress={() => void handleFavorite()}
+                style={({ pressed }) => [
+                  headerSolid ? styles.stickyIconBtn : styles.heroRoundBtn,
+                  pressed && styles.pressed,
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel={favorited ? s.unfavorite : s.favorite}
+              >
+                <MaterialCommunityIcons
+                  name={favorited ? "heart" : "heart-outline"}
+                  size={20}
+                  color={favorited ? "#E11D48" : UI.text}
+                />
+              </Pressable>
+            </View>
+          </>
+        )}
       </Animated.View>
 
       <View style={[styles.footer, { paddingBottom: footerBottomPad }]}>
@@ -1003,6 +1074,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   heroChromeRight: { flexDirection: "row", gap: 10 },
+  heroChromeSide: { width: 40, height: 40 },
   stickyHeader: {
     position: "absolute",
     left: 0,

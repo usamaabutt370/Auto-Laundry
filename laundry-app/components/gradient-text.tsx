@@ -1,6 +1,6 @@
 import MaskedView from "@react-native-masked-view/masked-view";
 import { LinearGradient } from "expo-linear-gradient";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Text, View, type TextStyle, type ViewStyle } from "react-native";
 
 export interface GradientTextProps {
@@ -14,6 +14,10 @@ export interface GradientTextProps {
   accessibilityLabel?: string;
 }
 
+/** Extra room so custom fonts (e.g. Poppins Bold) aren’t clipped by MaskedView. */
+const MASK_PAD_Y = 3;
+const MASK_PAD_X = 1;
+
 export function GradientText({
   children,
   colors,
@@ -26,33 +30,56 @@ export function GradientText({
 }: GradientTextProps) {
   const [size, setSize] = useState<{ width: number; height: number } | null>(null);
 
+  // Remeasure when copy/style changes (font load / locale / name).
+  useEffect(() => {
+    setSize(null);
+  }, [children, style?.fontSize, style?.fontFamily, style?.lineHeight]);
+
   return (
     <View
-      style={containerStyle}
+      style={[{ overflow: "visible" }, containerStyle]}
       accessible
       accessibilityLabel={accessibilityLabel ?? children}
     >
-      {/* Step 1: measure the text with an invisible native Text */}
+      {/* Measure with an invisible native Text */}
       <Text
         style={[style, { position: "absolute", opacity: 0 }]}
         accessible={false}
         onLayout={(e) => {
           const { width, height } = e.nativeEvent.layout;
-          setSize({ width, height });
+          if (width <= 0 || height <= 0) return;
+          setSize((prev) =>
+            prev && prev.width === width && prev.height === height
+              ? prev
+              : { width, height },
+          );
         }}
       >
         {children}
       </Text>
 
-      {/* Step 2: once measured, render MaskedView at exact text size */}
-      {size && (
+      {size ? (
         <MaskedView
           accessible={false}
-          style={{ width: size.width, height: size.height }}
+          style={{
+            width: size.width + MASK_PAD_X * 2,
+            height: size.height + MASK_PAD_Y * 2,
+            overflow: "visible",
+          }}
           maskElement={
-            <Text style={[style, { backgroundColor: "transparent" }]} numberOfLines={1}>
-              {children}
-            </Text>
+            <View
+              style={{
+                flex: 1,
+                backgroundColor: "transparent",
+                justifyContent: "center",
+                paddingHorizontal: MASK_PAD_X,
+                paddingVertical: MASK_PAD_Y,
+              }}
+            >
+              <Text style={[style, { backgroundColor: "transparent" }]} numberOfLines={1}>
+                {children}
+              </Text>
+            </View>
           }
         >
           <LinearGradient
@@ -60,13 +87,13 @@ export function GradientText({
             locations={locations}
             start={start}
             end={end}
-            style={{ width: size.width, height: size.height }}
+            style={{
+              width: size.width + MASK_PAD_X * 2,
+              height: size.height + MASK_PAD_Y * 2,
+            }}
           />
         </MaskedView>
-      )}
-
-      {/* Reserve space before measurement */}
-      {!size && (
+      ) : (
         <Text style={[style, { opacity: 0 }]} accessible={false}>
           {children}
         </Text>

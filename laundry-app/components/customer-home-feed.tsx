@@ -626,8 +626,7 @@ const styles = StyleSheet.create({
   },
   scroll: {
     paddingHorizontal: SCREEN_PAD,
-    paddingTop: 4,
-    // backgroundColor: "green",
+    paddingTop: 8,
   },
   hScroll: {
     overflow: "visible",
@@ -636,24 +635,32 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 15,
+    overflow: "visible",
   },
   headerText: {
     flex: 1,
+    minWidth: 0,
+    overflow: "visible",
+    paddingRight: 8,
   },
   greetingRow: {
     flexDirection: "row",
     alignItems: "center",
     flexShrink: 1,
+    overflow: "visible",
+    minHeight: 34,
   },
   greeting: {
     fontSize: 18,
-    lineHeight: 30,
+    lineHeight: 28,
     fontFamily: "Poppins-Bold",
+    includeFontPadding: false,
   },
   greetingEmoji: {
     fontSize: 18,
-    lineHeight: 30,
+    lineHeight: 28,
   },
   locationRow: {
     flexDirection: "row",
