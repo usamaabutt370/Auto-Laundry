@@ -1,4 +1,7 @@
 import { Platform, useWindowDimensions } from "react-native";
+import { useMemo } from "react";
+
+import { createScaleFns } from "@/utils/ui-scale";
 
 /** Viewport width at which web switches to desktop layout (sidebar, split panels). */
 export const WEB_DESKTOP_BREAKPOINT = 1024;
@@ -11,6 +14,7 @@ export function useResponsiveLayout() {
   const isWeb = Platform.OS === "web";
   const isWebDesktop = isWeb && width >= WEB_DESKTOP_BREAKPOINT;
   const isWebTablet = isWeb && width >= 768 && width < WEB_DESKTOP_BREAKPOINT;
+  const scaleFns = useMemo(() => createScaleFns(width), [width]);
 
   return {
     width,
@@ -20,6 +24,14 @@ export function useResponsiveLayout() {
     isWebTablet,
     /** Bottom tabs are hidden on desktop web; use a smaller content inset. */
     hideBottomTabBar: isWebDesktop,
+    /** True on SE-class / small Android widths (&lt; 375). */
+    isNarrow: scaleFns.isNarrow,
+    /** 0.85–1.0 shrink factor from 375pt design width. */
+    uiScale: scaleFns.uiScale,
+    /** Scale layout chrome (images, paddings, control widths). */
+    s: scaleFns.s,
+    /** Milder scale for fonts. */
+    ms: scaleFns.ms,
   };
 }
 

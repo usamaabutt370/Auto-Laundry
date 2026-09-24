@@ -8,13 +8,10 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from "react-native";
-import {
-  initialWindowMetrics,
-  SafeAreaView,
-  useSafeAreaInsets,
-} from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { showAppAlert } from "@/components/app-alert";
 import { PartnerNameWithBadge } from "@/components/partner-name-with-badge";
@@ -42,7 +39,7 @@ import { formatMoney } from "@/utils/format-money";
 import type { Coordinates } from "@/utils/geocoding";
 import { getPartnerHoursRange, getPartnerOpenStatus } from "@/utils/partner-hours";
 import { runAfterModalTeardown } from "@/utils/run-after-modal-teardown";
-import { openModalAfterDismissingAll } from "@/utils/modal-navigation";
+import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { UI } from "@/constants/theme";
 
 function fill(template: string, vars: Record<string, string | number>) {
@@ -134,6 +131,8 @@ const JOB_ORDER: ServiceJob[] = ["washAndFold", "dryCleaning", "ironing", "tailo
 export default function OrderSummaryScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { height } = useWindowDimensions();
+  const { isNarrow } = useResponsiveLayout();
   const { user } = useAuth();
   const { locale } = useLocale();
   const { draft, editingOrderId, resetDraft, setSelectedServiceIds, setWashFoldItemizedQuantities, setDryCleanItemizedQuantities, setPressItemizedQuantities, setTailoringItemizedQuantities } =
@@ -146,7 +145,10 @@ export default function OrderSummaryScreen() {
   const isEditing = Boolean(editingOrderId);
   const s = getStrings(locale).customer.orderSummary;
   const sHome = getStrings(locale).customer.home;
-  const footerBottom = Math.max(insets.bottom, initialWindowMetrics?.insets.bottom ?? 0, 12);
+  const sheetHeight = Math.round(height * 0.9);
+  const footerBottom = Math.max(insets.bottom, 12);
+
+  const close = () => router.back();
 
   const partnerVerified = usePartnerVerified(draft.partnerId);
   const { loading, error, estimate, profile, services, reload } = usePartnerOrderEstimate(
@@ -237,7 +239,7 @@ export default function OrderSummaryScreen() {
         fail("Unable to submit order", message);
         return;
       }
-      openModalAfterDismissingAll(router, {
+      router.replace({
         pathname: "/(customer)/order-confirmation",
         params: { orderId: result.orderId },
       });
@@ -357,6 +359,13 @@ export default function OrderSummaryScreen() {
     });
   };
 
+  const openPickupSchedule = () => {
+    router.push({
+      pathname: "/(customer)/schedule-pickup",
+      params: { from: "review" },
+    });
+  };
+
   const removeLine = (key: string) => {
     const parsed = parseLineKey(key);
     if (!parsed) return;
@@ -425,8 +434,18 @@ export default function OrderSummaryScreen() {
       : s.continueToPayment;
 
   return (
-    <View style={styles.container}>
-      <SafeAreaView edges={["top"]} style={styles.headerSafe}>
+    <View style={styles.backdrop}>
+      <Pressable
+        style={styles.dismiss}
+        onPress={close}
+        accessibilityRole="button"
+        accessibilityLabel="Close"
+      />
+      <View style={[styles.sheet, { height: sheetHeight }]}>
+        <View style={styles.handleWrap}>
+          <View style={styles.handle} />
+        </View>
+
         <View style={styles.headerRow}>
           <View style={styles.roundBtn} />
           <View style={styles.headerCopy}>
@@ -438,7 +457,7 @@ export default function OrderSummaryScreen() {
             </Text>
           </View>
           <Pressable
-            onPress={() => router.back()}
+            onPress={close}
             style={styles.roundBtn}
             accessibilityRole="button"
             accessibilityLabel="Close"
@@ -446,7 +465,6 @@ export default function OrderSummaryScreen() {
             <MaterialCommunityIcons name="close" size={20} color={UI.text} />
           </Pressable>
         </View>
-      </SafeAreaView>
 
       <ScrollView
         style={styles.scroll}
@@ -481,9 +499,22 @@ export default function OrderSummaryScreen() {
             <View style={styles.card}>
               <View style={styles.providerRow}>
                 {partnerImage ? (
-                  <Image source={{ uri: partnerImage }} style={styles.providerImage} contentFit="cover" />
+                  <Image
+                    source={{ uri: partnerImage }}
+                    style={[
+                      styles.providerImage,
+                      isNarrow && styles.providerImageNarrow,
+                    ]}
+                    contentFit="cover"
+                  />
                 ) : (
-                  <View style={[styles.providerImage, styles.providerImageFallback]} />
+                  <View
+                    style={[
+                      styles.providerImage,
+                      isNarrow && styles.providerImageNarrow,
+                      styles.providerImageFallback,
+                    ]}
+                  />
                 )}
                 <View style={styles.providerCopy}>
                   <PartnerNameWithBadge
@@ -578,7 +609,10 @@ export default function OrderSummaryScreen() {
                           <View style={styles.serviceRow}>
                             <Image
                               source={imageForServiceItem(parsed?.id, line.title, group.job)}
-                              style={styles.serviceImage}
+                              style={[
+                                styles.serviceImage,
+                                isNarrow && styles.serviceImageNarrow,
+                              ]}
                               contentFit="cover"
                             />
                             <View style={styles.serviceCopy}>
@@ -641,7 +675,14 @@ export default function OrderSummaryScreen() {
                     {draft.pickupDeliveryRequested ? s.pickupHint : s.dropoffHint}
                   </Text>
                 </View>
-                <Pressable onPress={() => openShop({ focus: "collect" })} hitSlop={8}>
+                <Pressable
+                  onPress={() =>
+                    draft.pickupDeliveryRequested
+                      ? openPickupSchedule()
+                      : openShop({ focus: "collect" })
+                  }
+                  hitSlop={8}
+                >
                   <Text style={styles.inlineLinkText}>{s.change}</Text>
                 </Pressable>
               </View>
@@ -663,9 +704,6 @@ export default function OrderSummaryScreen() {
                       <MaterialCommunityIcons name="calendar-month-outline" size={18} color={UI.purple} />
                     </View>
                     <Text style={[styles.infoBody, styles.infoCopy]}>{scheduleLabel}</Text>
-                    <Pressable onPress={() => router.push("/(customer)/schedule-pickup")} hitSlop={8}>
-                      <Text style={styles.inlineLinkText}>{s.change}</Text>
-                    </Pressable>
                   </View>
                 </>
               ) : null}
@@ -747,18 +785,43 @@ export default function OrderSummaryScreen() {
           setTimeout(() => setSignInPromptVisible(false), 500);
         }}
       />
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: UI.bg },
-  headerSafe: { backgroundColor: UI.bg },
+  backdrop: {
+    flex: 1,
+    justifyContent: "flex-end",
+    backgroundColor: "rgba(15, 23, 42, 0.45)",
+  },
+  dismiss: {
+    flex: 1,
+  },
+  sheet: {
+    backgroundColor: UI.bg,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    overflow: "hidden",
+  },
+  handleWrap: {
+    alignItems: "center",
+    paddingTop: 8,
+    paddingBottom: 4,
+    backgroundColor: UI.bg,
+  },
+  handle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "#D1D5DB",
+  },
   headerRow: {
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 16,
-    paddingTop: 16,
+    paddingTop: 8,
     paddingBottom: 8,
     gap: 10,
   },
@@ -802,6 +865,7 @@ const styles = StyleSheet.create({
   },
   providerRow: { flexDirection: "row", gap: 12 },
   providerImage: { width: 64, height: 64, borderRadius: 14, backgroundColor: UI.iconWell },
+  providerImageNarrow: { width: 48, height: 48, borderRadius: 12 },
   providerImageFallback: { backgroundColor: "#EDE9FE" },
   providerCopy: { flex: 1, minWidth: 0, gap: 4 },
   providerName: { fontSize: 16, fontFamily: "Poppins-Bold", color: UI.text },
@@ -846,6 +910,7 @@ const styles = StyleSheet.create({
   serviceBlockBorder: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: UI.chipBorder },
   serviceRow: { flexDirection: "row", gap: 10, alignItems: "center" },
   serviceImage: { width: 56, height: 56, borderRadius: 12, backgroundColor: UI.iconWell },
+  serviceImageNarrow: { width: 44, height: 44, borderRadius: 10 },
   serviceCopy: { flex: 1, minWidth: 0 },
   serviceTitleRow: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 8 },
   serviceName: { flex: 1, fontSize: 15, color: UI.text, fontFamily: "Poppins-SemiBold" },

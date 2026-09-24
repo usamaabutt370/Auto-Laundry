@@ -10,6 +10,7 @@ import {
 } from "@/components/customer-itemized-order-layout";
 import { CustomerLiveEstimateFooter } from "@/components/customer-live-estimate-footer";
 import { AppCtaButton } from "@/components/ui/cta-button";
+import { QtyStepper } from "@/components/ui/qty-stepper";
 import {
   DRY_CLEAN_SUIT_2_PIECE_ID,
   DRY_CLEAN_SUIT_3_PIECE_ID,
@@ -27,6 +28,7 @@ import {
   partnerHasDryCleaningRates,
 } from "@/lib/customer-order-estimate";
 import { usePartnerOrderEstimate } from "@/hooks/use-partner-order-estimate";
+import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { getStrings } from "@/locales";
 import { formatMoney } from "@/utils/format-money";
 import { UI } from "@/constants/theme";
@@ -45,6 +47,7 @@ function packageIncludesForSuit(
 export default function DryCleanItemizedByUserScreen() {
   const router = useRouter();
   const { locale } = useLocale();
+  const { isNarrow, ms } = useResponsiveLayout();
   const strings = getStrings(locale);
   const {
     draft,
@@ -174,9 +177,11 @@ export default function DryCleanItemizedByUserScreen() {
       unit != null && qty > 0 ? Math.round(unit * qty * 100) / 100 : null;
 
     return (
-      <View key={item.id} style={styles.itemCard}>
+      <View key={item.id} style={[styles.itemCard, isNarrow && styles.itemCardNarrow]}>
         <View style={styles.itemLeft}>
-          <Text style={styles.itemName}>{item.name}</Text>
+          <Text style={[styles.itemName, { fontSize: ms(isNarrow ? 14 : 16) }]} numberOfLines={2}>
+            {item.name}
+          </Text>
           <Text style={styles.unitPrice}>
             {unit != null
               ? `${formatMoney(currencyPrefix || "", unit)} each · ${priceLabel}`
@@ -188,26 +193,12 @@ export default function DryCleanItemizedByUserScreen() {
             </Text>
           ) : null}
         </View>
-        <View style={styles.stepper}>
-          <Pressable
-            onPress={() => setQty(item.id, -1)}
-            style={styles.stepperBtn}
-            disabled={qty <= 0}
-          >
-            <MaterialCommunityIcons
-              name="minus"
-              size={20}
-              color={qty <= 0 ? "#D1D5DB" : UI.text}
-            />
-          </Pressable>
-          <Text style={styles.stepperValue}>{qty}</Text>
-          <Pressable
-            onPress={() => setQty(item.id, 1)}
-            style={styles.stepperBtn}
-          >
-            <MaterialCommunityIcons name="plus" size={20} color={UI.teal} />
-          </Pressable>
-        </View>
+        <QtyStepper
+          value={qty}
+          onDecrement={() => setQty(item.id, -1)}
+          onIncrement={() => setQty(item.id, 1)}
+          incrementColor={UI.teal}
+        />
       </View>
     );
   };
@@ -218,7 +209,9 @@ export default function DryCleanItemizedByUserScreen() {
     if (!hasSuitRates || !activeSuitId) {
       return (
         <View style={styles.suitCard}>
-          <Text style={styles.itemName}>{s.suitCardTitle}</Text>
+          <Text style={[styles.itemName, { fontSize: ms(isNarrow ? 14 : 16) }]} numberOfLines={2}>
+            {s.suitCardTitle}
+          </Text>
           <Text style={styles.suitHint}>{s.suitRatesNotSet}</Text>
         </View>
       );
@@ -235,7 +228,9 @@ export default function DryCleanItemizedByUserScreen() {
 
     return (
       <View style={styles.suitCard}>
-        <Text style={styles.itemName}>{s.suitCardTitle}</Text>
+        <Text style={[styles.itemName, { fontSize: ms(isNarrow ? 14 : 16) }]} numberOfLines={2}>
+          {s.suitCardTitle}
+        </Text>
 
         <View style={styles.pieceRow}>
           {can2 ? (
@@ -301,26 +296,12 @@ export default function DryCleanItemizedByUserScreen() {
               </Text>
             ) : null}
           </View>
-          <View style={styles.stepper}>
-            <Pressable
-              onPress={() => setQty(activeSuitId, -1)}
-              style={styles.stepperBtn}
-              disabled={qty <= 0}
-            >
-              <MaterialCommunityIcons
-                name="minus"
-                size={20}
-                color={qty <= 0 ? "#D1D5DB" : UI.text}
-              />
-            </Pressable>
-            <Text style={styles.stepperValue}>{qty}</Text>
-            <Pressable
-              onPress={() => setQty(activeSuitId, 1)}
-              style={styles.stepperBtn}
-            >
-              <MaterialCommunityIcons name="plus" size={20} color={UI.teal} />
-            </Pressable>
-          </View>
+          <QtyStepper
+            value={qty}
+            onDecrement={() => setQty(activeSuitId, -1)}
+            onIncrement={() => setQty(activeSuitId, 1)}
+            incrementColor={UI.teal}
+          />
         </View>
       </View>
     );
@@ -531,9 +512,12 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 2,
   },
-  itemLeft: { flex: 1, paddingRight: 12 },
+  itemCardNarrow: {
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+  },
+  itemLeft: { flex: 1, minWidth: 0, paddingRight: 12 },
   itemName: {
-    fontSize: 16,
     fontFamily: "Poppins-SemiBold",
     color: UI.text,
   },
@@ -577,22 +561,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: "Poppins-Regular",
     marginBottom: 12,
-  },
-  stepper: { flexDirection: "row", alignItems: "center", gap: 10 },
-  stepperBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: UI.backBg,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  stepperValue: {
-    fontSize: 17,
-    fontFamily: "Poppins-Bold",
-    color: UI.text,
-    minWidth: 28,
-    textAlign: "center",
   },
   confirmBtn: {
     marginTop: 8,

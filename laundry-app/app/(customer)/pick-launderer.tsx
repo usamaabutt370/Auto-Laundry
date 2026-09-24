@@ -220,7 +220,7 @@ export default function PickLaundererScreen() {
   const { editingOrderId } = useCustomerOrderDraft();
   const params = useLocalSearchParams<{ reorderOrderId?: string; mode?: string; service?: string }>();
   const s = strings.customer.pickLaunderer;
-  const { isWebDesktop } = useResponsiveLayout();
+  const { isWebDesktop, isNarrow } = useResponsiveLayout();
   const insets = useSafeAreaInsets();
   const { firstName, avatarUri, isLoggedIn } = useHomeProfile();
   const { width: windowWidth } = useWindowDimensions();
@@ -247,7 +247,7 @@ export default function PickLaundererScreen() {
     categories: isServiceCategory(params.service) ? [params.service] : [],
   }));
   const geocodeCacheRef = useRef<Map<string, Coordinates | null>>(new Map());
-  const columns = isWebDesktop ? 3 : 2;
+  const columns = isWebDesktop ? 3 : isNarrow ? 1 : 2;
   const cardWidth = (windowWidth - H_PAD * 2 - CARD_GAP * (columns - 1)) / columns;
   const headerTitle = isReassignMode ? s.reassignTitle : s.serviceProviders;
   const sHome = strings.customer.home;

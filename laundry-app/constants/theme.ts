@@ -286,3 +286,13 @@ export const Fonts = Platform.select({
     mono: "SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
   },
 });
+
+/** Re-export for screens that scale chrome from theme imports. */
+export {
+  getUiScale,
+  isNarrowWidth,
+  moderateScale,
+  scale,
+  UI_NARROW_WIDTH,
+  UI_SCALE_BASE_WIDTH,
+} from "@/utils/ui-scale";

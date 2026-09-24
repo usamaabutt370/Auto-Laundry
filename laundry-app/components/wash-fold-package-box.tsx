@@ -12,6 +12,7 @@ import {
 } from "react-native";
 
 import { theme, UI } from "@/constants/theme";
+import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 
 const c = theme.colors;
 const fs = theme.fontSize;
@@ -57,10 +58,12 @@ export function WashFoldPackageGrid({
 
 export function WashFoldPackageBox(props: WashFoldPackageBoxProps) {
   const { title, description, style } = props;
+  const { isNarrow } = useResponsiveLayout();
   const light = props.mode === "customer" && props.appearance === "light";
   const accent = light ? UI.teal : c.lightBlue;
   const titleColor = light ? UI.text : c.white;
   const subColor = light ? UI.muted : "rgba(255,255,255,0.6)";
+  const boxMinWidth = isNarrow ? 0 : 150;
 
   const topRow = (
     <View style={styles.topRow}>
@@ -128,6 +131,7 @@ export function WashFoldPackageBox(props: WashFoldPackageBoxProps) {
         onPress={props.onPress}
         style={({ pressed }) => [
           styles.box,
+          { minWidth: boxMinWidth },
           light && styles.boxLight,
           props.selected && (light ? styles.boxSelectedLight : styles.boxSelected),
           pressed && styles.pressed,
@@ -142,7 +146,7 @@ export function WashFoldPackageBox(props: WashFoldPackageBoxProps) {
     );
   }
 
-  return <View style={[styles.box, style]}>{body}</View>;
+  return <View style={[styles.box, { minWidth: boxMinWidth }, style]}>{body}</View>;
 }
 
 const styles = StyleSheet.create({
@@ -154,7 +158,6 @@ const styles = StyleSheet.create({
   },
   box: {
     width: "48%",
-    minWidth: 150,
     backgroundColor: c.blue900,
     borderRadius: 16,
     borderWidth: 1.5,

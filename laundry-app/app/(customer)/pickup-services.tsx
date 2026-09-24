@@ -281,7 +281,10 @@ export default function PickupServicesScreen() {
       return;
     }
     if (draft.pickupDeliveryRequested) {
-      router.replace("/(customer)/schedule-pickup");
+      router.replace({
+        pathname: "/(customer)/schedule-pickup",
+        params: { next: "summary" },
+      });
       return;
     }
     router.replace("/(customer)/order-summary");

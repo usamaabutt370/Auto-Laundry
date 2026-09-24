@@ -12,6 +12,7 @@ import {
 } from "react-native";
 
 import { gradients } from "@/constants/theme";
+import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 
 export const APP_CTA_GRADIENT_COLORS = gradients.cta;
 const PURPLE = APP_CTA_GRADIENT_COLORS[0];
@@ -58,22 +59,26 @@ export function AppCtaButton({
   style,
   accessibilityLabel,
 }: AppCtaButtonProps) {
+  const { s, ms, isNarrow } = useResponsiveLayout();
   const isDisabled = disabled || loading;
   const isOutline = variant === "outline";
   const isSm = size === "sm";
   const iconColor = isOutline ? PURPLE : "#FFFFFF";
+  const btnH = s(isSm ? BUTTON_HEIGHT_SM : isNarrow ? 44 : BUTTON_HEIGHT);
+  const labelSize = ms(isSm ? 12 : isNarrow ? 12 : 13);
+  const iconSize = isSm ? 14 : isNarrow ? 15 : 16;
 
   const content = (
     <>
       {loading ? (
         <ActivityIndicator size="small" color={iconColor} />
       ) : leftIcon != null ? (
-        <MaterialCommunityIcons name={leftIcon} size={isSm ? 14 : 16} color={iconColor} />
+        <MaterialCommunityIcons name={leftIcon} size={iconSize} color={iconColor} />
       ) : null}
       <Text
         style={[
           styles.label,
-          isSm && styles.labelSm,
+          { fontSize: labelSize, lineHeight: labelSize + 5 },
           isOutline ? styles.labelOutline : styles.labelGradient,
         ]}
         numberOfLines={1}
@@ -81,7 +86,11 @@ export function AppCtaButton({
         {label}
       </Text>
       {!loading && rightIcon != null ? (
-        <MaterialCommunityIcons name={rightIcon} size={isSm ? 12 : 14} color={iconColor} />
+        <MaterialCommunityIcons
+          name={rightIcon}
+          size={isSm ? 12 : isNarrow ? 13 : 14}
+          color={iconColor}
+        />
       ) : null}
     </>
   );
@@ -93,7 +102,10 @@ export function AppCtaButton({
       style={({ pressed }) => [
         style,
         styles.wrap,
-        isSm && styles.wrapSm,
+        {
+          height: btnH,
+          borderRadius: btnH / 2,
+        },
         widthStyle(width),
         isOutline && styles.outline,
         pressed && !isDisabled && styles.pressed,
@@ -121,15 +133,9 @@ export function AppCtaButton({
 
 const styles = StyleSheet.create({
   wrap: {
-    height: BUTTON_HEIGHT,
-    borderRadius: BUTTON_HEIGHT / 2,
     overflow: "hidden",
     justifyContent: "center",
     flexShrink: 0,
-  },
-  wrapSm: {
-    height: BUTTON_HEIGHT_SM,
-    borderRadius: BUTTON_HEIGHT_SM / 2,
   },
   outline: {
     borderWidth: 1.5,
@@ -148,14 +154,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   label: {
-    fontSize: 13,
-    lineHeight: 18,
     fontFamily: "Poppins-Bold",
     includeFontPadding: false,
-  },
-  labelSm: {
-    fontSize: 12,
-    lineHeight: 16,
   },
   labelGradient: { color: "#FFFFFF" },
   labelOutline: { color: PURPLE },

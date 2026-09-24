@@ -10,12 +10,14 @@ import {
 } from "@/components/customer-itemized-order-layout";
 import { CustomerLiveEstimateFooter } from "@/components/customer-live-estimate-footer";
 import { AppCtaButton } from "@/components/ui/cta-button";
+import { QtyStepper } from "@/components/ui/qty-stepper";
 import { strings } from "@/constants/strings";
 import { initialTailoringQuantities, isLadiesTailoringItem } from "@/constants/tailoring-items";
 import type { CustomerOrderDraft } from "@/contexts/customer-order-draft-context";
 import { useCustomerOrderDraft } from "@/contexts/customer-order-draft-context";
 import { useLocale } from "@/contexts/locale-context";
 import { usePartnerOrderEstimate } from "@/hooks/use-partner-order-estimate";
+import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import {
   listPricedTailoringDefs,
   tailoringUnitForItem,
@@ -27,6 +29,7 @@ import { UI } from "@/constants/theme";
 export default function TailoringItemizedByUserScreen() {
   const router = useRouter();
   const { locale } = useLocale();
+  const { isNarrow, ms } = useResponsiveLayout();
   const onboardingStrings = getStrings(locale).partner.onboarding;
   const {
     draft,
@@ -164,9 +167,11 @@ export default function TailoringItemizedByUserScreen() {
               {showHeader ? (
                 <Text style={styles.sectionHeader}>{ladiesLabel}</Text>
               ) : null}
-            <View style={styles.itemCard}>
+            <View style={[styles.itemCard, isNarrow && styles.itemCardNarrow]}>
               <View style={styles.itemLeft}>
-                <Text style={styles.itemName}>{displayName(item)}</Text>
+                <Text style={[styles.itemName, { fontSize: ms(isNarrow ? 14 : 16) }]} numberOfLines={2}>
+                  {displayName(item)}
+                </Text>
                 <Text style={styles.unitPrice}>
                   {unit != null
                     ? `${formatMoney(currencyPrefix || "", unit)} each · ${priceLabel}`
@@ -178,26 +183,12 @@ export default function TailoringItemizedByUserScreen() {
                   </Text>
                 ) : null}
               </View>
-              <View style={styles.stepper}>
-                <Pressable
-                  onPress={() => setQty(item.id, -1)}
-                  style={styles.stepperBtn}
-                  disabled={qty <= 0}
-                >
-                  <MaterialCommunityIcons
-                    name="minus"
-                    size={20}
-                    color={qty <= 0 ? "#D1D5DB" : UI.text}
-                  />
-                </Pressable>
-                <Text style={styles.stepperValue}>{qty}</Text>
-                <Pressable
-                  onPress={() => setQty(item.id, 1)}
-                  style={styles.stepperBtn}
-                >
-                  <MaterialCommunityIcons name="plus" size={20} color={UI.teal} />
-                </Pressable>
-              </View>
+              <QtyStepper
+                value={qty}
+                onDecrement={() => setQty(item.id, -1)}
+                onIncrement={() => setQty(item.id, 1)}
+                incrementColor={UI.teal}
+              />
             </View>
             </React.Fragment>
           );
@@ -310,9 +301,12 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 2,
   },
-  itemLeft: { flex: 1, paddingRight: 12 },
+  itemCardNarrow: {
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+  },
+  itemLeft: { flex: 1, minWidth: 0, paddingRight: 12 },
   itemName: {
-    fontSize: 16,
     fontFamily: "Poppins-SemiBold",
     color: UI.text,
   },
@@ -333,22 +327,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: "Poppins-Regular",
     marginBottom: 12,
-  },
-  stepper: { flexDirection: "row", alignItems: "center", gap: 10 },
-  stepperBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: UI.backBg,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  stepperValue: {
-    fontSize: 17,
-    fontFamily: "Poppins-Bold",
-    color: UI.text,
-    minWidth: 28,
-    textAlign: "center",
   },
   confirmBtn: {
     marginTop: 8,

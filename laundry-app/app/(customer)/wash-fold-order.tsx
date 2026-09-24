@@ -7,10 +7,12 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { CustomerItemizedOrderLayout } from "@/components/customer-itemized-order-layout";
 import { CustomerLiveEstimateFooter } from "@/components/customer-live-estimate-footer";
 import { AppCtaButton } from "@/components/ui/cta-button";
+import { QtyStepper } from "@/components/ui/qty-stepper";
 import {
   WashFoldPackageBox,
   WashFoldPackageGrid,
 } from "@/components/wash-fold-package-box";
+import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import type { CustomerOrderDraft } from "@/contexts/customer-order-draft-context";
 import { useCustomerOrderDraft } from "@/contexts/customer-order-draft-context";
 import { useLocale } from "@/contexts/locale-context";
@@ -30,6 +32,7 @@ import { UI } from "@/constants/theme";
 export default function WashFoldOrderScreen() {
   const router = useRouter();
   const { locale } = useLocale();
+  const { isNarrow, ms } = useResponsiveLayout();
   const s = getStrings(locale).customer.washFoldOrder;
   const sDet = getStrings(locale).customer.laundryBagDetail;
   const sLive = getStrings(locale).customer.liveEstimate;
@@ -181,9 +184,11 @@ export default function WashFoldOrderScreen() {
       unit != null && qty > 0 ? Math.round(unit * qty * 100) / 100 : null;
 
     return (
-      <View key={def.id} style={styles.itemCard}>
+      <View key={def.id} style={[styles.itemCard, isNarrow && styles.itemCardNarrow]}>
         <View style={styles.itemLeft}>
-          <Text style={styles.itemName}>{displayName(def)}</Text>
+          <Text style={[styles.itemName, { fontSize: ms(isNarrow ? 14 : 16) }]} numberOfLines={2}>
+            {displayName(def)}
+          </Text>
           {unit != null ? (
             <Text style={styles.unitPrice}>
               {formatMoney(currencyPrefix || "", unit)}
@@ -195,23 +200,12 @@ export default function WashFoldOrderScreen() {
             </Text>
           ) : null}
         </View>
-        <View style={styles.stepper}>
-          <Pressable
-            onPress={() => setQty(def.id, -1)}
-            style={styles.stepperBtn}
-            disabled={qty <= 0}
-          >
-            <MaterialCommunityIcons
-              name="minus"
-              size={20}
-              color={qty <= 0 ? "#D1D5DB" : UI.text}
-            />
-          </Pressable>
-          <Text style={styles.stepperValue}>{qty}</Text>
-          <Pressable onPress={() => setQty(def.id, 1)} style={styles.stepperBtn}>
-            <MaterialCommunityIcons name="plus" size={20} color={UI.teal} />
-          </Pressable>
-        </View>
+        <QtyStepper
+          value={qty}
+          onDecrement={() => setQty(def.id, -1)}
+          onIncrement={() => setQty(def.id, 1)}
+          incrementColor={UI.teal}
+        />
       </View>
     );
   };
@@ -464,9 +458,12 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 2,
   },
-  itemLeft: { flex: 1, paddingRight: 12 },
+  itemCardNarrow: {
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+  },
+  itemLeft: { flex: 1, minWidth: 0, paddingRight: 12 },
   itemName: {
-    fontSize: 16,
     fontFamily: "Poppins-SemiBold",
     color: UI.text,
   },
@@ -489,22 +486,6 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     textAlign: "center",
     paddingVertical: 24,
-  },
-  stepper: { flexDirection: "row", alignItems: "center", gap: 10 },
-  stepperBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: UI.backBg,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  stepperValue: {
-    fontSize: 17,
-    fontFamily: "Poppins-Bold",
-    color: UI.text,
-    minWidth: 28,
-    textAlign: "center",
   },
   confirmBtn: {
     marginTop: 8,

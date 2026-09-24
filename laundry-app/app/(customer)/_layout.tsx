@@ -43,35 +43,32 @@ export default function CustomerLayout() {
         <Stack.Screen
           name="schedule-pickup"
           options={{
-            presentation: "modal",
+            presentation: "transparentModal",
             animation: "slide_from_bottom",
             gestureEnabled: true,
             headerShown: false,
-            contentStyle: { backgroundColor: "#FFFFFF" },
+            contentStyle: { backgroundColor: "transparent" },
           }}
         />
         <Stack.Screen name="schedule-delivery" />
         <Stack.Screen
           name="order-summary"
           options={{
-            presentation: "modal",
+            presentation: "transparentModal",
             animation: "slide_from_bottom",
             gestureEnabled: true,
             headerShown: false,
-            contentStyle: { backgroundColor: "#FFFFFF" },
-            // Keep card-height sheet, but don't show the previous modal behind it.
-            detachPreviousScreen: true,
+            contentStyle: { backgroundColor: "transparent" },
           }}
         />
         <Stack.Screen
           name="order-confirmation"
           options={{
-            presentation: "modal",
+            presentation: "transparentModal",
             animation: "slide_from_bottom",
             gestureEnabled: false,
             headerShown: false,
-            contentStyle: { backgroundColor: "#FFFFFF" },
-            detachPreviousScreen: true,
+            contentStyle: { backgroundColor: "transparent" },
           }}
         />
         <Stack.Screen name="order-detail" />

@@ -299,7 +299,12 @@ export default function CustomerOrderScreen() {
         </View>
       ) : (
         <>
-          <View style={styles.filterRow}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.filterScroll}
+            contentContainerStyle={styles.filterRow}
+          >
             {filterTabs.map((tab) => {
               const selected = filter === tab.id;
               const label = `${tab.label} (${tab.count})`;
@@ -319,21 +324,17 @@ export default function CustomerOrderScreen() {
                       end={{ x: 1, y: 0.5 }}
                       style={styles.filterChip}
                     >
-                      <Text style={styles.filterChipTextSelected} numberOfLines={1}>
-                        {label}
-                      </Text>
+                      <Text style={styles.filterChipTextSelected}>{label}</Text>
                     </LinearGradient>
                   ) : (
                     <View style={styles.filterChip}>
-                      <Text style={styles.filterChipText} numberOfLines={1}>
-                        {label}
-                      </Text>
+                      <Text style={styles.filterChipText}>{label}</Text>
                     </View>
                   )}
                 </Pressable>
               );
             })}
-          </View>
+          </ScrollView>
 
           {filteredOrders.length === 0 ? (
             <View style={styles.center}>
@@ -535,15 +536,19 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginBottom: 12,
   },
+  filterScroll: {
+    flexGrow: 0,
+    marginBottom: 12,
+  },
   filterRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
     paddingHorizontal: PAD,
-    marginBottom: 12,
   },
   filterChipWrap: {
-    flex: 1,
+    flexGrow: 0,
+    flexShrink: 0,
     borderRadius: 999,
     overflow: "hidden",
     backgroundColor: "#F3F0FF",
@@ -558,21 +563,20 @@ const styles = StyleSheet.create({
   },
   filterChip: {
     minHeight: 28,
-    width: "100%",
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 4,
+    paddingHorizontal: 14,
     paddingVertical: 5,
     borderRadius: 999,
   },
   filterChipText: {
-    fontSize: 11,
+    fontSize: 12,
     fontFamily: "Poppins-SemiBold",
     color: UI.purpleDeep,
     textAlign: "center",
   },
   filterChipTextSelected: {
-    fontSize: 11,
+    fontSize: 12,
     fontFamily: "Poppins-SemiBold",
     color: "#FFFFFF",
     textAlign: "center",

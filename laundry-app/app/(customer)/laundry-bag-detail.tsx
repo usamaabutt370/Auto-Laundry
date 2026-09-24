@@ -18,6 +18,7 @@ import { Image } from "expo-image";
 import { assets } from "@/assets/assets";
 import { strings } from "@/constants/strings";
 import { theme } from "@/constants/theme";
+import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 
 const c = theme.colors;
 
@@ -38,9 +39,12 @@ const MAX_ITEMS = 999;
 
 export default function LaundryBagDetailScreen() {
   const router = useRouter();
+  const { isNarrow, ms, s: scale } = useResponsiveLayout();
   const params = useLocalSearchParams<{ bag?: string }>();
   const bagNumber = params.bag ? parseInt(params.bag, 10) : 1;
   const s = strings.customer.laundryBagDetail;
+  const stepperBtn = scale(isNarrow ? 30 : 36);
+  const iconSize = isNarrow ? 18 : 22;
 
   const [weightIndex, setWeightIndex] = useState(3); // 40 lb
   const [itemCount, setItemCount] = useState(2);
@@ -95,63 +99,107 @@ export default function LaundryBagDetailScreen() {
           keyboardShouldPersistTaps="handled"
         >
         {/* Weight */}
-        <Text style={styles.sectionTitle}>{s.weight}</Text>
+        <Text style={[styles.sectionTitle, { fontSize: ms(isNarrow ? 15 : 17) }]}>
+          {s.weight}
+        </Text>
         <Pressable
-          style={styles.inputRow}
+          style={[styles.inputRow, isNarrow && styles.inputRowNarrow]}
           onPress={() => setWeightPickerVisible(true)}
         >
           <MaterialCommunityIcons
             name="information-outline"
-            size={22}
+            size={iconSize}
             color={c.white}
             style={styles.inputIcon}
           />
-          <Text style={styles.inputLabel}>{s.estimatedWeight}</Text>
-          <Text style={styles.inputValue}>{weightLabel}</Text>
+          <Text
+            style={[styles.inputLabel, { fontSize: ms(isNarrow ? 14 : 16) }]}
+            numberOfLines={1}
+          >
+            {s.estimatedWeight}
+          </Text>
+          <Text style={[styles.inputValue, { fontSize: ms(isNarrow ? 14 : 16) }]}>
+            {weightLabel}
+          </Text>
           <MaterialCommunityIcons
             name="chevron-down"
-            size={22}
+            size={iconSize}
             color={c.white}
           />
         </Pressable>
 
         {/* Items */}
-        <Text style={styles.sectionTitle}>{s.items}</Text>
-        <View style={styles.inputRow}>
+        <Text style={[styles.sectionTitle, { fontSize: ms(isNarrow ? 15 : 17) }]}>
+          {s.items}
+        </Text>
+        <View style={[styles.inputRow, isNarrow && styles.inputRowNarrow]}>
           <MaterialCommunityIcons
             name="information-outline"
-            size={22}
+            size={iconSize}
             color={c.white}
             style={styles.inputIcon}
           />
-          <Text style={styles.inputLabel}>{s.numberOfItems}</Text>
-          <View style={styles.stepper}>
+          <Text
+            style={[styles.inputLabel, { fontSize: ms(isNarrow ? 14 : 16) }]}
+            numberOfLines={1}
+          >
+            {s.numberOfItems}
+          </Text>
+          <View style={[styles.stepper, { gap: scale(isNarrow ? 8 : 12) }]}>
             <Pressable
               onPress={() =>
                 setItemCount((prev) => Math.max(prev - 1, MIN_ITEMS))
               }
               style={({ pressed }) => [
                 styles.stepperBtn,
+                {
+                  width: stepperBtn,
+                  height: stepperBtn,
+                  borderRadius: stepperBtn / 2,
+                },
                 pressed && styles.pressed,
                 itemCount <= MIN_ITEMS && styles.stepperBtnDisabled,
               ]}
               disabled={itemCount <= MIN_ITEMS}
             >
-              <MaterialCommunityIcons name="minus" size={22} color={c.white} />
+              <MaterialCommunityIcons
+                name="minus"
+                size={isNarrow ? 18 : 22}
+                color={c.white}
+              />
             </Pressable>
-            <Text style={styles.stepperValue}>{itemCount}</Text>
+            <Text
+              style={[
+                styles.stepperValue,
+                {
+                  fontSize: ms(isNarrow ? 15 : 18),
+                  minWidth: scale(isNarrow ? 28 : 36),
+                },
+              ]}
+            >
+              {itemCount}
+            </Text>
             <Pressable
               onPress={() =>
                 setItemCount((prev) => Math.min(prev + 1, MAX_ITEMS))
               }
               style={({ pressed }) => [
                 styles.stepperBtn,
+                {
+                  width: stepperBtn,
+                  height: stepperBtn,
+                  borderRadius: stepperBtn / 2,
+                },
                 pressed && styles.pressed,
                 itemCount >= MAX_ITEMS && styles.stepperBtnDisabled,
               ]}
               disabled={itemCount >= MAX_ITEMS}
             >
-              <MaterialCommunityIcons name="plus" size={22} color={c.white} />
+              <MaterialCommunityIcons
+                name="plus"
+                size={isNarrow ? 18 : 22}
+                color={c.white}
+              />
             </Pressable>
           </View>
         </View>
@@ -298,9 +346,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.2)",
   },
+  inputRowNarrow: {
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+  },
   inputIcon: { marginRight: 10 },
   inputLabel: {
     flex: 1,
+    minWidth: 0,
     fontSize: 16,
     color: c.white,
     fontWeight: "500",
@@ -310,26 +363,22 @@ const styles = StyleSheet.create({
     color: c.white,
     fontWeight: "600",
     marginRight: 8,
+    flexShrink: 0,
   },
   stepper: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    flexShrink: 0,
   },
   stepperBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
     backgroundColor: "rgba(255,255,255,0.2)",
     alignItems: "center",
     justifyContent: "center",
   },
   stepperBtnDisabled: { opacity: 0.5 },
   stepperValue: {
-    fontSize: 18,
     fontWeight: "700",
     color: c.white,
-    minWidth: 36,
     textAlign: "center",
   },
   preferencesBox: {

@@ -6,6 +6,7 @@ import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { PartnerNameWithBadge } from "@/components/partner-name-with-badge";
 import { AppCtaButton } from "@/components/ui/cta-button";
 import { UI } from "@/constants/theme";
+import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { imageForServiceItem } from "@/lib/service-item-images";
 import type {
   CustomerOrderDbStatus,
@@ -126,10 +127,13 @@ export function CustomerOrderCard({
   onDelete,
   onReorder,
 }: CustomerOrderCardProps) {
+  const { s: scaleSize, ms, isNarrow } = useResponsiveLayout();
   const [menuOpen, setMenuOpen] = useState(false);
   const status = useMemo(() => statusCopy(order, s), [order, s]);
   const activeStep = progressIndex(order.rawStatus);
   const showTrack = order.displayStatus !== "rejected";
+  const partnerImg = scaleSize(isNarrow ? 44 : 52);
+  const thumb = scaleSize(isNarrow ? 36 : 40);
 
   const itemsLabel =
     order.itemPreview.length > 0
@@ -164,19 +168,25 @@ export function CustomerOrderCard({
         {order.partnerImageUrl ? (
           <Image
             source={{ uri: order.partnerImageUrl }}
-            style={styles.partnerImage}
+            style={[styles.partnerImage, { width: partnerImg, height: partnerImg }]}
             contentFit="cover"
           />
         ) : (
-          <View style={[styles.partnerImage, styles.partnerImageFallback]}>
-            <MaterialCommunityIcons name="storefront-outline" size={22} color={UI.muted} />
+          <View
+            style={[
+              styles.partnerImage,
+              styles.partnerImageFallback,
+              { width: partnerImg, height: partnerImg },
+            ]}
+          >
+            <MaterialCommunityIcons name="storefront-outline" size={isNarrow ? 18 : 22} color={UI.muted} />
           </View>
         )}
         <View style={styles.headerCopy}>
           <PartnerNameWithBadge
             name={order.partnerName}
             verified={order.partnerVerified}
-            nameStyle={styles.partnerName}
+            nameStyle={[styles.partnerName, { fontSize: ms(isNarrow ? 14 : 15) }]}
           />
           <Text style={styles.orderRef}>{fill(s.orderRef, { ref: order.orderRef })}</Text>
           <View style={styles.metaRow}>
@@ -223,7 +233,11 @@ export function CustomerOrderCard({
               <Image
                 key={`${item.name}-${index}`}
                 source={imageForServiceItem(undefined, item.name)}
-                style={[styles.itemThumb, index > 0 && styles.itemThumbOverlap]}
+                style={[
+                  styles.itemThumb,
+                  { width: thumb, height: thumb, borderRadius: scaleSize(10) },
+                  index > 0 && styles.itemThumbOverlap,
+                ]}
                 contentFit="cover"
               />
             ))}

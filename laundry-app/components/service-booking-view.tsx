@@ -6,7 +6,6 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ComponentProps 
 import {
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   TextInput,
   View,
@@ -37,6 +36,7 @@ import {
 } from "@/contexts/customer-order-draft-context";
 import { useLocale } from "@/contexts/locale-context";
 import { usePartnerOrderEstimate } from "@/hooks/use-partner-order-estimate";
+import { useScaledStyles, type ScaledStyleHelpers } from "@/hooks/use-scaled-styles";
 import {
   dryCleanUnitForItem,
   listPricedDryCleanDefs,
@@ -95,6 +95,7 @@ type Props = {
 };
 
 export function ServiceBookingView({ job, itemLabel }: Props) {
+  const styles = useBookingStyles();
   const router = useRouter();
   const { locale } = useLocale();
   const s = getStrings(locale).customer.bookService;
@@ -525,46 +526,33 @@ export function ServiceBookingView({ job, itemLabel }: Props) {
                         <Text style={styles.serviceName} numberOfLines={2}>
                           {tile.name}
                         </Text>
-                        <Text style={styles.servicePrice} numberOfLines={1}>
+                        <Text style={styles.servicePrice} numberOfLines={2}>
                           {priceLine}
                         </Text>
                         <Text style={styles.serviceDetail} numberOfLines={1}>
                           {s.numberOfPieces}
                         </Text>
                       </View>
-                      <View style={styles.rowRight}>
-                        {qty > 0 ? (
-                          <Pressable
-                            onPress={() => changeTileQty(tile, 0)}
-                            hitSlop={10}
-                            style={styles.deleteBtn}
-                            accessibilityRole="button"
-                            accessibilityLabel="Clear quantity"
-                          >
-                            <MaterialCommunityIcons name="trash-can-outline" size={16} color={UI.red} />
-                          </Pressable>
-                        ) : null}
-                        <View style={styles.qtyStepper}>
-                          <Pressable
-                            onPress={() => changeTileQty(tile, qty - 1)}
-                            hitSlop={8}
-                            style={styles.qtyStepperBtn}
-                            accessibilityRole="button"
-                            accessibilityLabel="Decrease quantity"
-                          >
-                            <MaterialCommunityIcons name="minus" size={18} color={UI.text} />
-                          </Pressable>
-                          <Text style={styles.qtyStepperValue}>{qty}</Text>
-                          <Pressable
-                            onPress={() => changeTileQty(tile, qty + 1)}
-                            hitSlop={8}
-                            style={styles.qtyStepperBtn}
-                            accessibilityRole="button"
-                            accessibilityLabel="Increase quantity"
-                          >
-                            <MaterialCommunityIcons name="plus" size={18} color={UI.purple} />
-                          </Pressable>
-                        </View>
+                      <View style={styles.qtyStepper}>
+                        <Pressable
+                          onPress={() => changeTileQty(tile, qty - 1)}
+                          hitSlop={8}
+                          style={styles.qtyStepperBtn}
+                          accessibilityRole="button"
+                          accessibilityLabel="Decrease quantity"
+                        >
+                          <MaterialCommunityIcons name="minus" size={18} color={UI.text} />
+                        </Pressable>
+                        <Text style={styles.qtyStepperValue}>{qty}</Text>
+                        <Pressable
+                          onPress={() => changeTileQty(tile, qty + 1)}
+                          hitSlop={8}
+                          style={styles.qtyStepperBtn}
+                          accessibilityRole="button"
+                          accessibilityLabel="Increase quantity"
+                        >
+                          <MaterialCommunityIcons name="plus" size={18} color={UI.purple} />
+                        </Pressable>
                       </View>
                     </View>
                   );
@@ -718,6 +706,7 @@ function ChoicePair({
   rightIcon: IconName;
   disableLeft?: boolean;
 }) {
+  const styles = useBookingStyles();
   return (
     <View style={styles.block}>
       <Text style={styles.sectionTitle}>{title}</Text>
@@ -766,182 +755,221 @@ function ChoicePair({
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: UI.card },
-  scrollContent: { flexGrow: 1, paddingBottom: 24 },
-  headerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  headerCopy: { flex: 1, minWidth: 0 },
-  headerTitle: { fontSize: 18, color: UI.text, fontFamily: "Poppins-Bold" },
-  roundBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: UI.iconWell,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  sheet: {
-    flex: 1,
-    backgroundColor: UI.card,
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    gap: 16,
-  },
-  stateFill: {
-    flexGrow: 1,
-    minHeight: 280,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 24,
-    paddingVertical: 32,
-  },
-  catalog: { gap: 10 },
-  serviceRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    borderWidth: 1,
-    borderColor: UI.chipBorder,
-    borderRadius: 16,
-    backgroundColor: UI.card,
-    padding: 10,
-  },
-  serviceImage: { width: 72, height: 72, borderRadius: 12, backgroundColor: UI.iconWell },
-  serviceCopy: { flex: 1, minWidth: 0 },
-  serviceName: { fontSize: 14, color: UI.text, fontFamily: "Poppins-SemiBold" },
-  servicePrice: { marginTop: 4, fontSize: 13, color: UI.purple, fontFamily: "Poppins-SemiBold" },
-  serviceDetail: { marginTop: 2, fontSize: 11, color: UI.muted, fontFamily: "Poppins-Regular" },
-  rowRight: {
-    alignItems: "flex-end",
-    justifyContent: "flex-start",
-    gap: 4,
-    alignSelf: "stretch",
-  },
-  qtyStepper: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    minWidth: 108,
-    height: 44,
-    paddingHorizontal: 6,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: UI.chipBorder,
-    backgroundColor: UI.bg,
-  },
-  deleteBtn: {
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 2,
-  },
-  qtyStepperBtn: {
-    width: 32,
-    height: 32,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  qtyStepperValue: {
-    minWidth: 28,
-    textAlign: "center",
-    fontSize: 16,
-    color: UI.text,
-    fontFamily: "Poppins-Bold",
-  },
-  sectionTitle: { fontSize: 16, color: UI.text, fontFamily: "Poppins-Bold" },
-  sectionHint: { marginTop: 2, fontSize: 12, color: UI.muted, fontFamily: "Poppins-Regular" },
-  block: { gap: 8 },
-  addOnGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  addOnCard: {
-    flexBasis: "47%",
-    flexGrow: 1,
-    maxWidth: "49%",
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    borderWidth: 1,
-    borderColor: UI.chipBorder,
-    borderRadius: 999,
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    backgroundColor: UI.card,
-  },
-  addOnLabel: { flex: 1, fontSize: 12, color: UI.text, fontFamily: "Poppins-SemiBold" },
-  choiceGrid: { gap: 8 },
-  choiceCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    borderWidth: 1,
-    borderColor: UI.chipBorder,
-    borderRadius: 16,
-    padding: 12,
-    backgroundColor: UI.card,
-  },
-  choiceCardActive: { borderColor: UI.purple, backgroundColor: "#F5F3FF" },
-  choiceDisabled: { opacity: 0.45 },
-  choiceTitle: { fontSize: 13, color: UI.text, fontFamily: "Poppins-SemiBold" },
-  choiceTitleActive: { color: UI.purple },
-  choiceBody: { fontSize: 11, color: UI.muted, fontFamily: "Poppins-Regular", marginTop: 2 },
-  unchecked: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    borderWidth: 1,
-    borderColor: UI.chipBorder,
-  },
-  chipWrap: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  styleChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    borderWidth: 1,
-    borderColor: UI.chipBorder,
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  styleChipActive: { backgroundColor: UI.purple, borderColor: UI.purple },
-  styleChipText: { fontSize: 12, color: UI.text, fontFamily: "Poppins-Medium" },
-  styleChipTextActive: { color: "#FFFFFF" },
-  notesRow: { flexDirection: "row", gap: 10, alignItems: "stretch" },
-  notes: {
-    flex: 1,
-    minHeight: 84,
-    maxHeight: CUSTOMER_ORDER_NOTES_MAX_HEIGHT,
-    borderWidth: 1,
-    borderColor: UI.chipBorder,
-    borderRadius: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    color: UI.text,
-    fontFamily: "Poppins-Regular",
-    fontSize: 13,
-    textAlignVertical: "top",
-  },
-  photoBtn: {
-    width: 84,
-    borderWidth: 1,
-    borderColor: UI.chipBorder,
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 4,
-    backgroundColor: UI.card,
-  },
-  photoBtnText: { fontSize: 10, color: UI.muted, fontFamily: "Poppins-Medium", textAlign: "center" },
-  photoCount: { fontSize: 10, color: UI.muted, fontFamily: "Poppins-Regular" },
-  photoRow: { gap: 8, paddingTop: 4 },
-  photoThumb: { width: 56, height: 56, borderRadius: 10, backgroundColor: UI.iconWell },
-  empty: {
-    textAlign: "center",
-    color: UI.muted,
-    fontFamily: "Poppins-Regular",
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  continueBtn: { marginTop: 4, marginBottom: 8 },
-});
+function createBookingStyles({ s, ms, isNarrow }: ScaledStyleHelpers) {
+  const imageSize = s(isNarrow ? 56 : 68);
+  const stepperMin = s(isNarrow ? 92 : 108);
+  const stepperH = Math.max(40, s(isNarrow ? 40 : 44));
+
+  return {
+    screen: { flex: 1, backgroundColor: UI.card },
+    scrollContent: { flexGrow: 1, paddingBottom: s(24) },
+    headerRow: {
+      flexDirection: "row" as const,
+      alignItems: "center" as const,
+      gap: s(12),
+    },
+    headerCopy: { flex: 1, minWidth: 0 },
+    headerTitle: { fontSize: ms(18), color: UI.text, fontFamily: "Poppins-Bold" },
+    roundBtn: {
+      width: s(40),
+      height: s(40),
+      borderRadius: s(20),
+      backgroundColor: UI.iconWell,
+      alignItems: "center" as const,
+      justifyContent: "center" as const,
+    },
+    sheet: {
+      flex: 1,
+      backgroundColor: UI.card,
+      paddingHorizontal: s(16),
+      paddingTop: s(8),
+      gap: s(16),
+    },
+    stateFill: {
+      flexGrow: 1,
+      minHeight: s(280),
+      alignItems: "center" as const,
+      justifyContent: "center" as const,
+      paddingHorizontal: s(24),
+      paddingVertical: s(32),
+    },
+    catalog: { gap: s(10) },
+    serviceRow: {
+      flexDirection: "row" as const,
+      alignItems: "center" as const,
+      gap: s(isNarrow ? 8 : 12),
+      borderWidth: 1,
+      borderColor: UI.chipBorder,
+      borderRadius: s(16),
+      backgroundColor: UI.card,
+      padding: s(isNarrow ? 8 : 10),
+    },
+    serviceImage: {
+      width: imageSize,
+      height: imageSize,
+      borderRadius: s(12),
+      backgroundColor: UI.iconWell,
+    },
+    serviceCopy: { flex: 1, minWidth: 0 },
+    serviceName: {
+      fontSize: ms(isNarrow ? 13 : 14),
+      color: UI.text,
+      fontFamily: "Poppins-SemiBold",
+    },
+    servicePrice: {
+      marginTop: 2,
+      fontSize: ms(isNarrow ? 12 : 13),
+      color: UI.purple,
+      fontFamily: "Poppins-SemiBold",
+    },
+    serviceDetail: {
+      marginTop: 2,
+      fontSize: ms(11),
+      color: UI.muted,
+      fontFamily: "Poppins-Regular",
+    },
+    qtyStepper: {
+      flexDirection: "row" as const,
+      alignItems: "center" as const,
+      justifyContent: "space-between" as const,
+      minWidth: stepperMin,
+      height: stepperH,
+      paddingHorizontal: s(6),
+      borderRadius: s(16),
+      borderWidth: 1,
+      borderColor: UI.chipBorder,
+      backgroundColor: UI.bg,
+      flexShrink: 0,
+    },
+    qtyStepperBtn: {
+      width: s(isNarrow ? 28 : 32),
+      height: s(isNarrow ? 28 : 32),
+      alignItems: "center" as const,
+      justifyContent: "center" as const,
+    },
+    qtyStepperValue: {
+      minWidth: s(24),
+      textAlign: "center" as const,
+      fontSize: ms(isNarrow ? 14 : 16),
+      color: UI.text,
+      fontFamily: "Poppins-Bold",
+    },
+    sectionTitle: { fontSize: ms(16), color: UI.text, fontFamily: "Poppins-Bold" },
+    sectionHint: {
+      marginTop: 2,
+      fontSize: ms(12),
+      color: UI.muted,
+      fontFamily: "Poppins-Regular",
+    },
+    block: { gap: s(8) },
+    addOnGrid: { flexDirection: "row" as const, flexWrap: "wrap" as const, gap: s(8) },
+    addOnCard: {
+      flexBasis: "47%" as const,
+      flexGrow: 1,
+      maxWidth: "49%" as const,
+      flexDirection: "row" as const,
+      alignItems: "center" as const,
+      gap: s(8),
+      borderWidth: 1,
+      borderColor: UI.chipBorder,
+      borderRadius: 999,
+      paddingVertical: s(12),
+      paddingHorizontal: s(12),
+      backgroundColor: UI.card,
+    },
+    addOnLabel: { flex: 1, fontSize: ms(12), color: UI.text, fontFamily: "Poppins-SemiBold" },
+    choiceGrid: { gap: s(8) },
+    choiceCard: {
+      flexDirection: "row" as const,
+      alignItems: "center" as const,
+      gap: s(10),
+      borderWidth: 1,
+      borderColor: UI.chipBorder,
+      borderRadius: s(16),
+      padding: s(12),
+      backgroundColor: UI.card,
+    },
+    choiceCardActive: { borderColor: UI.purple, backgroundColor: "#F5F3FF" },
+    choiceDisabled: { opacity: 0.45 },
+    choiceTitle: { fontSize: ms(13), color: UI.text, fontFamily: "Poppins-SemiBold" },
+    choiceTitleActive: { color: UI.purple },
+    choiceBody: {
+      fontSize: ms(11),
+      color: UI.muted,
+      fontFamily: "Poppins-Regular",
+      marginTop: 2,
+    },
+    unchecked: {
+      width: 18,
+      height: 18,
+      borderRadius: 9,
+      borderWidth: 1,
+      borderColor: UI.chipBorder,
+    },
+    chipWrap: { flexDirection: "row" as const, flexWrap: "wrap" as const, gap: s(8) },
+    styleChip: {
+      flexDirection: "row" as const,
+      alignItems: "center" as const,
+      gap: 4,
+      borderWidth: 1,
+      borderColor: UI.chipBorder,
+      borderRadius: 999,
+      paddingHorizontal: s(12),
+      paddingVertical: s(8),
+    },
+    styleChipActive: { backgroundColor: UI.purple, borderColor: UI.purple },
+    styleChipText: { fontSize: ms(12), color: UI.text, fontFamily: "Poppins-Medium" },
+    styleChipTextActive: { color: "#FFFFFF" },
+    notesRow: { flexDirection: "row" as const, gap: s(10), alignItems: "stretch" as const },
+    notes: {
+      flex: 1,
+      minHeight: s(84),
+      maxHeight: CUSTOMER_ORDER_NOTES_MAX_HEIGHT,
+      borderWidth: 1,
+      borderColor: UI.chipBorder,
+      borderRadius: s(16),
+      paddingHorizontal: s(12),
+      paddingVertical: s(10),
+      color: UI.text,
+      fontFamily: "Poppins-Regular",
+      fontSize: ms(13),
+      textAlignVertical: "top" as const,
+    },
+    photoBtn: {
+      width: s(isNarrow ? 72 : 84),
+      borderWidth: 1,
+      borderColor: UI.chipBorder,
+      borderRadius: s(16),
+      alignItems: "center" as const,
+      justifyContent: "center" as const,
+      gap: 4,
+      backgroundColor: UI.card,
+    },
+    photoBtnText: {
+      fontSize: ms(10),
+      color: UI.muted,
+      fontFamily: "Poppins-Medium",
+      textAlign: "center" as const,
+    },
+    photoCount: { fontSize: ms(10), color: UI.muted, fontFamily: "Poppins-Regular" },
+    photoRow: { gap: s(8), paddingTop: 4 },
+    photoThumb: {
+      width: s(56),
+      height: s(56),
+      borderRadius: s(10),
+      backgroundColor: UI.iconWell,
+    },
+    empty: {
+      textAlign: "center" as const,
+      color: UI.muted,
+      fontFamily: "Poppins-Regular",
+      fontSize: ms(14),
+      lineHeight: ms(20),
+    },
+    continueBtn: { marginTop: 4, marginBottom: 8 },
+  };
+}
+
+function useBookingStyles() {
+  return useScaledStyles(createBookingStyles);
+}
