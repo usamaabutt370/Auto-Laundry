@@ -89,7 +89,7 @@ export function AppHeader({
   rightAccessibilityLabel,
   appearance = "dark",
 }: AppHeaderProps) {
-  const { hideBottomTabBar, isWeb } = useResponsiveLayout();
+  const { hideBottomTabBar, isWeb, ms, isNarrow } = useResponsiveLayout();
   const light = appearance === "light";
   const iconColor = light ? "#111827" : c.white;
   const showSubtitle = subtitle != null && subtitle.length > 0;
@@ -98,6 +98,8 @@ export function AppHeader({
     showBrandLogo && !hideBottomTabBar && leftElement == null && leftIcon == null;
   const showLeftSlot = showLeftBrand || leftElement != null || leftIcon != null;
   const showTitleText = Boolean(title?.trim()) && !(hideTitleOnWeb && isWeb);
+  const titleSize = ms(isNarrow ? fs.xSmallText + 2 : fs.smallTitle);
+  const iconSize = isNarrow ? 22 : ICON_SIZE;
 
   if (hideTitleOnWeb && isWeb && !showLeftSlot && rightElement == null && !showRightIcon) {
     return null;
@@ -109,7 +111,10 @@ export function AppHeader({
         {showTitleText ? (
           <View style={styles.titleWrap} pointerEvents="none">
             <View style={styles.titleRow}>
-              <Text style={[styles.title, light && styles.titleLight]} numberOfLines={1}>
+              <Text
+                style={[styles.title, light && styles.titleLight, { fontSize: titleSize }]}
+                numberOfLines={1}
+              >
                 {title}
               </Text>
               {titleVerified ? <PartnerVerifiedBadge size={11} /> : null}
@@ -134,7 +139,7 @@ export function AppHeader({
                 accessibilityRole="button"
                 accessibilityLabel={leftAccessibilityLabel}
               >
-                <MaterialCommunityIcons name={leftIcon} size={ICON_SIZE} color={iconColor} />
+                <MaterialCommunityIcons name={leftIcon} size={iconSize} color={iconColor} />
               </Pressable>
             ) : null
           ) : null}
@@ -153,7 +158,7 @@ export function AppHeader({
               accessibilityRole="button"
               accessibilityLabel={rightAccessibilityLabel}
             >
-              <MaterialCommunityIcons name={rightIcon} size={ICON_SIZE} color={iconColor} />
+              <MaterialCommunityIcons name={rightIcon!} size={iconSize} color={iconColor} />
             </Pressable>
           ) : null}
         </View>

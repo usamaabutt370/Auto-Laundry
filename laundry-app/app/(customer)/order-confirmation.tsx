@@ -10,6 +10,7 @@ import {
   Share,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from "react-native";
 import Animated, {
@@ -20,11 +21,7 @@ import Animated, {
   withSpring,
   withTiming,
 } from "react-native-reanimated";
-import {
-  initialWindowMetrics,
-  SafeAreaView,
-  useSafeAreaInsets,
-} from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { PartnerNameWithBadge } from "@/components/partner-name-with-badge";
 import { AppCtaButton } from "@/components/ui/cta-button";
@@ -132,13 +129,15 @@ const STATUS_STEPS = [
 export default function OrderConfirmationScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { height } = useWindowDimensions();
   const { orderId: orderIdParam } = useLocalSearchParams<{ orderId?: string }>();
   const orderId = typeof orderIdParam === "string" ? orderIdParam : "";
   const { user } = useAuth();
   const { locale } = useLocale();
   const { draft, resetDraft } = useCustomerOrderDraft();
   const s = getStrings(locale).customer.orderSummary;
-  const footerBottom = Math.max(insets.bottom, initialWindowMetrics?.insets.bottom ?? 0, 12);
+  const sheetHeight = Math.round(height * 0.9);
+  const footerBottom = Math.max(insets.bottom, 12);
 
   const [userCoords, setUserCoords] = useState<Coordinates | null>(null);
   const [customerAddress, setCustomerAddress] = useState("");
@@ -291,8 +290,12 @@ export default function OrderConfirmationScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <SafeAreaView edges={["top"]} style={styles.headerSafe}>
+    <View style={styles.backdrop}>
+      <View style={[styles.sheet, { height: sheetHeight }]}>
+        <View style={styles.handleWrap}>
+          <View style={styles.handle} />
+        </View>
+
         <View style={styles.headerRow}>
           <View style={styles.headerSide} />
           <View style={styles.headerCopy} />
@@ -305,7 +308,6 @@ export default function OrderConfirmationScreen() {
             <MaterialCommunityIcons name="close" size={20} color={UI.text} />
           </Pressable>
         </View>
-      </SafeAreaView>
 
       <ScrollView
         style={styles.scroll}
@@ -547,18 +549,40 @@ export default function OrderConfirmationScreen() {
           style={styles.homeBtn}
         />
       </View>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: UI.bg },
-  headerSafe: { backgroundColor: UI.bg },
+  backdrop: {
+    flex: 1,
+    justifyContent: "flex-end",
+    backgroundColor: "rgba(15, 23, 42, 0.45)",
+  },
+  sheet: {
+    backgroundColor: UI.bg,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    overflow: "hidden",
+  },
+  handleWrap: {
+    alignItems: "center",
+    paddingTop: 8,
+    paddingBottom: 4,
+    backgroundColor: UI.bg,
+  },
+  handle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "#D1D5DB",
+  },
   headerRow: {
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 16,
-    paddingTop: 12,
+    paddingTop: 4,
     paddingBottom: 4,
     gap: 10,
   },

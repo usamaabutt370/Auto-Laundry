@@ -136,12 +136,21 @@ export function LaundererDetailView({
   const s = getStrings(locale).customer.laundererDetail;
   const sHome = getStrings(locale).customer.home;
   const sBook = getStrings(locale).customer.bookService;
-  const { isWeb } = useResponsiveLayout();
+  const JOB_GRID_GAP = 10;
+  const { isWeb, isNarrow } = useResponsiveLayout();
   const insets = useSafeAreaInsets();
   const { width: windowWidth } = useWindowDimensions();
   const footerBottomPad = Math.max(insets.bottom, 16);
   const heroHeight = isWeb ? 420 : Math.round(windowWidth * 0.72);
-  const jobCardWidth = Math.round((windowWidth - 40 - 10) / 2);
+  /** Measured grid width keeps a true 2-col layout when sheet ≠ window width. */
+  const [jobGridWidth, setJobGridWidth] = useState(0);
+  const jobCardWidth = useMemo(() => {
+    const gap = JOB_GRID_GAP;
+    const available =
+      jobGridWidth > 0 ? jobGridWidth : Math.max(0, windowWidth - 40);
+    return Math.max(120, Math.floor((available - gap) / 2));
+  }, [jobGridWidth, windowWidth]);
+  const jobImageHeight = isNarrow ? 52 : 64;
 
   const jobMeta: Record<
     ServiceJob,
@@ -259,8 +268,6 @@ export function LaundererDetailView({
   const offeredJobs = useMemo(() => offeredJobsFromTypes(serviceTypes), [serviceTypes]);
   const activeJob = jobOverride ?? resolveActiveJob(serviceTypes, intentService);
 
-  const primaryCategoryLabel = jobMeta[activeJob].title;
-
   const businessImageUris = useMemo(
     () =>
       Array.isArray(profile?.business_images)
@@ -290,9 +297,6 @@ export function LaundererDetailView({
   const hasOffer = partnerHasActiveOffer(profile?.offerPercent);
   const aboutText = profile?.business_description?.trim() ?? "";
   const address = profile?.address?.trim() || "—";
-  const pickupAmount = profile?.pickup_delivery_amount?.trim() ?? "";
-  const pickupLooksFree = !pickupAmount || /free|^0(\.0+)?$/i.test(pickupAmount);
-
   const partnerCoords =
     profile && Number.isFinite(profile.latitude) && Number.isFinite(profile.longitude)
       ? { latitude: Number(profile.latitude), longitude: Number(profile.longitude) }
@@ -323,32 +327,6 @@ export function LaundererDetailView({
       : openStatus === "closed" && hours
         ? fill(s.opensAt, { time: hours.startLabel })
         : hours?.rangeLabel ?? null;
-
-  const features = useMemo(
-    () => [
-      {
-        icon: "truck-delivery-outline" as const,
-        label: hasPickup && pickupLooksFree ? s.featureFreePickup : s.featurePickup,
-        color: "#2563EB",
-      },
-      {
-        icon: "shield-check-outline" as const,
-        label: s.featureQuality,
-        color: "#2563EB",
-      },
-      {
-        icon: "leaf" as const,
-        label: s.featureEco,
-        color: "#16A34A",
-      },
-      {
-        icon: "clock-outline" as const,
-        label: s.featureOnTime,
-        color: "#2563EB",
-      },
-    ],
-    [hasPickup, pickupLooksFree, s],
-  );
 
   const handleHeroScrollEnd = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const width = event.nativeEvent.layoutMeasurement.width;
@@ -441,14 +419,39 @@ export function LaundererDetailView({
   }, [scrollToCollect]);
 
   const pickupEnabled = hasPickup && draft.pickupDeliveryRequested;
+  const hasPickupSchedule = Boolean(
+    draft.pickup?.dateIso &&
+      draft.pickup?.timeSlotLabel &&
+      draft.delivery?.dateIso &&
+      draft.delivery?.timeSlotLabel,
+  );
+  const pickupScheduleSummary = useMemo(() => {
+    if (!hasPickupSchedule || !draft.pickup || !draft.delivery) return null;
+    const pickupDay = draft.pickup.dayLabel || draft.pickup.dateIso;
+    const deliveryDay = draft.delivery.dayLabel || draft.delivery.dateIso;
+    return [
+      fill(s.schedulePickupLine, {
+        day: pickupDay,
+        time: draft.pickup.timeSlotLabel,
+      }),
+      fill(s.scheduleDeliveryLine, {
+        day: deliveryDay,
+        time: draft.delivery.timeSlotLabel,
+      }),
+    ].join("\n");
+  }, [draft.delivery, draft.pickup, hasPickupSchedule, s.scheduleDeliveryLine, s.schedulePickupLine]);
+
+  const openPickupSchedule = () => {
+    router.push("/(customer)/schedule-pickup");
+  };
 
   const handleContinueOrder = () => {
     if (!orderDraftHasItems(draft)) {
       showAppAlert(s.continueOrder, s.needItemsToContinue);
       return;
     }
-    if (pickupEnabled) {
-      router.push("/(customer)/schedule-pickup");
+    if (pickupEnabled && !hasPickupSchedule) {
+      showAppAlert(s.continueOrder, s.needScheduleToContinue);
       return;
     }
     router.push("/(customer)/order-summary");
@@ -620,20 +623,30 @@ export function LaundererDetailView({
           }}
         >
           <View style={styles.identityRow}>
-            <View style={styles.avatarWell}>
-              <LinearGradient colors={["#A78BFA", "#6366F1"]} style={styles.avatarInner}>
-                <MaterialCommunityIcons name="washing-machine" size={28} color="#FFFFFF" />
+            <View
+              style={[
+                styles.avatarWell,
+                isNarrow && { width: 56, height: 56, borderRadius: 28 },
+              ]}
+            >
+              <LinearGradient
+                colors={["#A78BFA", "#6366F1"]}
+                style={[
+                  styles.avatarInner,
+                  isNarrow && { width: 46, height: 46, borderRadius: 23 },
+                ]}
+              >
+                <MaterialCommunityIcons
+                  name="washing-machine"
+                  size={isNarrow ? 22 : 28}
+                  color="#FFFFFF"
+                />
               </LinearGradient>
             </View>
             <View style={styles.identityText}>
-              <View style={styles.nameLine}>
-                <Text style={styles.name} numberOfLines={1}>
-                  {displayName}
-                </Text>
-                <View style={styles.categoryChip}>
-                  <Text style={styles.categoryChipText}>{primaryCategoryLabel}</Text>
-                </View>
-              </View>
+              <Text style={styles.name} numberOfLines={2}>
+                {displayName}
+              </Text>
               {partnerVerified ? (
                 <View style={styles.verifiedRow}>
                   <MaterialCommunityIcons name="check-decagram" size={14} color={UI.teal} />
@@ -645,7 +658,7 @@ export function LaundererDetailView({
                 <Text style={styles.metaStrong}>{ratingLabel ?? "—"}</Text>
                 <Text style={styles.metaMuted}>({reviewsLabel})</Text>
               </View>
-              <View style={styles.locHoursRow}>
+              <View style={styles.locHoursBlock}>
                 {distanceLabel ? (
                   <View style={styles.metaCluster}>
                     <MaterialCommunityIcons name="map-marker-outline" size={14} color={UI.purple} />
@@ -654,7 +667,6 @@ export function LaundererDetailView({
                     </Text>
                   </View>
                 ) : null}
-                {distanceLabel && hoursHint ? <View style={styles.metaDivider} /> : null}
                 <View style={styles.metaCluster}>
                   <MaterialCommunityIcons
                     name="clock-outline"
@@ -683,21 +695,16 @@ export function LaundererDetailView({
             </View>
           </View>
 
-          <View style={styles.featureRow}>
-            {features.map((item) => (
-              <View key={item.label} style={styles.featureChip}>
-                <MaterialCommunityIcons name={item.icon} size={16} color={item.color} />
-                <Text style={styles.featureLabel} numberOfLines={2}>
-                  {item.label}
-                </Text>
-              </View>
-            ))}
-          </View>
-
           {offeredJobs.length > 0 ? (
             <View style={styles.jobSwitch}>
               <Text style={styles.jobSwitchLabel}>{s.jobSwitcherLabel}</Text>
-              <View style={styles.jobGrid}>
+              <View
+                style={[styles.jobGrid, { gap: JOB_GRID_GAP }]}
+                onLayout={(event) => {
+                  const next = Math.round(event.nativeEvent.layout.width);
+                  setJobGridWidth((prev) => (prev === next ? prev : next));
+                }}
+              >
                 {offeredJobs.map((job) => {
                   const meta = jobMeta[job];
                   const active = job === activeJob;
@@ -714,7 +721,11 @@ export function LaundererDetailView({
                       accessibilityRole="button"
                       accessibilityState={{ selected: active }}
                     >
-                      <Image source={meta.image} style={styles.jobCardImage} contentFit="cover" />
+                      <Image
+                        source={meta.image}
+                        style={[styles.jobCardImage, { height: jobImageHeight }]}
+                        contentFit="cover"
+                      />
                       <View style={[styles.jobCardIcon, { backgroundColor: meta.accent }]}>
                         <MaterialCommunityIcons name={meta.icon} size={14} color="#FFFFFF" />
                       </View>
@@ -723,7 +734,14 @@ export function LaundererDetailView({
                           <MaterialCommunityIcons name="check" size={12} color="#FFFFFF" />
                         </View>
                       ) : null}
-                      <Text style={[styles.jobCardTitle, (active || hasItems) && styles.jobCardTitleActive]}>
+                      <Text
+                        style={[
+                          styles.jobCardTitle,
+                          isNarrow && styles.jobCardTitleNarrow,
+                          (active || hasItems) && styles.jobCardTitleActive,
+                        ]}
+                        numberOfLines={2}
+                      >
                         {meta.title}
                       </Text>
                       <Text style={styles.jobCardSub} numberOfLines={2}>
@@ -876,6 +894,7 @@ export function LaundererDetailView({
                   if (!hasPickup) return;
                   fulfillmentTouchedRef.current = true;
                   setPickupDeliveryRequested(true);
+                  openPickupSchedule();
                 }}
                 disabled={!hasPickup}
                 style={[
@@ -885,15 +904,21 @@ export function LaundererDetailView({
                 ]}
               >
                 <MaterialCommunityIcons name="truck-delivery-outline" size={18} color={UI.purple} />
-                <View style={{ flex: 1 }}>
+                <View style={{ flex: 1, minWidth: 0 }}>
                   <Text
                     style={[styles.fulfillmentTitle, pickupEnabled && styles.fulfillmentTitleActive]}
                     numberOfLines={2}
                   >
                     {sBook.pickupTitle}
                   </Text>
-                  <Text style={styles.fulfillmentBody} numberOfLines={2}>
-                    {sBook.pickupBody}
+                  <Text
+                    style={[
+                      styles.fulfillmentBody,
+                      pickupScheduleSummary && styles.fulfillmentSchedule,
+                    ]}
+                    numberOfLines={pickupScheduleSummary ? 4 : 2}
+                  >
+                    {pickupScheduleSummary ?? sBook.pickupBody}
                   </Text>
                 </View>
               </Pressable>
@@ -1165,36 +1190,17 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   identityText: { flex: 1, minWidth: 0 },
-  nameLine: { flexDirection: "row", alignItems: "center", gap: 8 },
   name: {
-    flex: 1,
-    minWidth: 0,
     fontSize: 18,
     color: UI.text,
     fontFamily: "Poppins-Bold",
     lineHeight: 24,
   },
-  categoryChip: {
-    borderWidth: 1,
-    borderColor: "#DDD6FE",
-    backgroundColor: "#F5F3FF",
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    flexShrink: 0,
-  },
-  categoryChipText: { fontSize: 11, color: UI.purple, fontFamily: "Poppins-SemiBold" },
   verifiedRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 },
   verifiedText: { fontSize: 12, color: UI.teal, fontFamily: "Poppins-SemiBold" },
   ratingRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 6 },
-  locHoursRow: { flexDirection: "row", alignItems: "center", flexWrap: "nowrap", marginTop: 4 },
+  locHoursBlock: { marginTop: 4, gap: 4 },
   metaCluster: { flexDirection: "row", alignItems: "center", gap: 4, flexShrink: 1 },
-  metaDivider: {
-    width: 1,
-    height: 12,
-    backgroundColor: "#E5E7EB",
-    marginHorizontal: 8,
-  },
   metaStrong: { fontSize: 13, color: UI.text, fontFamily: "Poppins-Bold" },
   metaMuted: { fontSize: 12, color: UI.muted, fontFamily: "Poppins-Regular" },
   metaDot: { color: UI.muted, marginHorizontal: 2, fontSize: 12 },
@@ -1203,7 +1209,11 @@ const styles = StyleSheet.create({
   mutedText: { color: UI.muted },
   jobSwitch: { marginTop: 16, gap: 10 },
   jobSwitchLabel: { fontSize: 16, color: UI.text, fontFamily: "Poppins-Bold" },
-  jobGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  jobGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "stretch",
+  },
   jobCard: {
     borderWidth: 1,
     borderColor: UI.chipBorder,
@@ -1211,9 +1221,11 @@ const styles = StyleSheet.create({
     backgroundColor: UI.card,
     padding: 8,
     paddingBottom: 10,
+    flexGrow: 0,
+    flexShrink: 0,
   },
   jobCardActive: { borderColor: UI.purple, backgroundColor: "#F5F3FF" },
-  jobCardImage: { height: 64, borderRadius: 12, backgroundColor: UI.iconWell },
+  jobCardImage: { borderRadius: 12, backgroundColor: UI.iconWell },
   jobCardIcon: {
     position: "absolute",
     top: 14,
@@ -1241,28 +1253,11 @@ const styles = StyleSheet.create({
     color: UI.text,
     fontFamily: "Poppins-SemiBold",
   },
+  jobCardTitleNarrow: {
+    fontSize: 12,
+  },
   jobCardTitleActive: { color: UI.purple },
   jobCardSub: { marginTop: 2, fontSize: 11, color: UI.muted, fontFamily: "Poppins-Regular" },
-  featureRow: { flexDirection: "row", marginTop: 16, gap: 6 },
-  featureChip: {
-    width: "25%",
-    minWidth: 0,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    backgroundColor: "#F3F4F6",
-    borderRadius: 14,
-    paddingVertical: 8,
-    paddingHorizontal: 6,
-  },
-  featureLabel: {
-    flex: 1,
-    minWidth: 0,
-    fontSize: 9,
-    color: UI.text,
-    fontFamily: "Poppins-Regular",
-    lineHeight: 12,
-  },
   tabRow: {
     flexDirection: "row",
     marginTop: 20,
@@ -1368,6 +1363,12 @@ const styles = StyleSheet.create({
   fulfillmentTitle: { fontSize: 12, color: UI.text, fontFamily: "Poppins-SemiBold" },
   fulfillmentTitleActive: { color: UI.purple },
   fulfillmentBody: { marginTop: 2, fontSize: 10, color: UI.muted, fontFamily: "Poppins-Regular" },
+  fulfillmentSchedule: {
+    fontSize: 10,
+    lineHeight: 14,
+    color: UI.purpleDeep,
+    fontFamily: "Poppins-Medium",
+  },
   footerActions: { flexDirection: "row", alignItems: "center", gap: 10 },
   pressed: { opacity: 0.88 },
   centered: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 24, gap: 12 },

@@ -21,6 +21,7 @@ import {
   type PartnerMapMarker,
 } from "@/hooks/use-customer-home-map-data";
 import { usePartnerVerified } from "@/hooks/use-partner-verified";
+import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import type { Coordinates } from "@/utils/geocoding";
 import { getPartnerOpenStatus } from "@/utils/partner-hours";
 import { isPartnerTopRated } from "@/utils/partner-offers";
@@ -119,6 +120,7 @@ function MapPartnerPreviewCard({
 }) {
   const sHome = strings.customer.home;
   const sList = strings.customer.pickLaunderer;
+  const { isNarrow } = useResponsiveLayout();
   const partnerVerified = usePartnerVerified(partner.id);
   const imageUrl = getPartnerPrimaryImage(partner);
   const openStatus = getPartnerOpenStatus(partner.available_time);
@@ -158,7 +160,7 @@ function MapPartnerPreviewCard({
     >
       <View style={styles.handle} />
       <View style={styles.cardRow}>
-        <View style={styles.media}>
+        <View style={[styles.media, isNarrow && styles.mediaNarrow]}>
           {imageUrl ? (
             <Image source={{ uri: imageUrl }} style={styles.mediaImage} contentFit="cover" />
           ) : (
@@ -468,6 +470,11 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     backgroundColor: UI.bg,
     flexShrink: 0,
+  },
+  mediaNarrow: {
+    width: 72,
+    height: 84,
+    borderRadius: 14,
   },
   mediaImage: {
     ...StyleSheet.absoluteFillObject,

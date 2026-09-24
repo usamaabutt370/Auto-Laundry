@@ -26,6 +26,7 @@ import {
   type PartnerMapMarker,
 } from "@/hooks/use-customer-home-map-data";
 import { useHomeProfile } from "@/hooks/use-home-profile";
+import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import {
   getPlaceLabelFromCoordinates,
   type Coordinates,
@@ -133,9 +134,11 @@ export function CustomerHomeFeed({
 }: Props) {
   const s = strings.customer.home;
   const { width: windowWidth } = useWindowDimensions();
-  const categoryCardWidth = (windowWidth - SCREEN_PAD * 2 - CARD_GAP) / 2.2;
+  const { isNarrow, ms } = useResponsiveLayout();
+  const screenPad = isNarrow ? 16 : SCREEN_PAD;
+  const categoryCardWidth = (windowWidth - screenPad * 2 - CARD_GAP) / (isNarrow ? 2.05 : 2.2);
   const recCardWidth = categoryCardWidth;
-  const nearbyCardWidth = (windowWidth - SCREEN_PAD * 2 - CARD_GAP) / 1.5;
+  const nearbyCardWidth = (windowWidth - screenPad * 2 - CARD_GAP) / (isNarrow ? 1.35 : 1.5);
   const { firstName, avatarUri, isLoggedIn } = useHomeProfile();
   const [locationLabel, setLocationLabel] = useState<string>(s.locationFallback);
   const [favorites, setFavorites] = useState<Record<string, boolean>>({});
@@ -204,7 +207,10 @@ export function CustomerHomeFeed({
       <StatusBar style="dark" />
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.scroll, { paddingBottom: bottomInset + 20 }]}
+        contentContainerStyle={[
+          styles.scroll,
+          { paddingBottom: bottomInset + 20, paddingHorizontal: screenPad },
+        ]}
       >
         <View style={styles.header}>
           <View style={styles.headerText}>
@@ -213,12 +219,12 @@ export function CustomerHomeFeed({
                 colors={["#5a11f6", "#005aec", "#00a473"]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
-                style={styles.greeting}
+                style={[styles.greeting, { fontSize: ms(isNarrow ? 16 : 18), lineHeight: ms(isNarrow ? 24 : 28) }]}
                 accessibilityLabel={greetingLine}
               >
                 {greetingLine}
               </GradientText>
-              <Text style={styles.greetingEmoji}> 👋</Text>
+              <Text style={[styles.greetingEmoji, { fontSize: ms(isNarrow ? 16 : 18) }]}> 👋</Text>
             </View>
             {/* <Pressable style={styles.locationRow} hitSlop={8}>
               <MaterialCommunityIcons name="map-marker" size={16} color={UI.purple} />
@@ -297,20 +303,32 @@ export function CustomerHomeFeed({
 
         </ScrollView>
 
-        <View style={styles.trustCard}>
-          <View style={styles.trustBadge}>
-            <MaterialCommunityIcons name="shield-check" size={28} color="#FFFFFF" />
+        <View style={[styles.trustCard, isNarrow && styles.trustCardNarrow]}>
+          <View style={[styles.trustBadge, isNarrow && styles.trustBadgeNarrow]}>
+            <MaterialCommunityIcons
+              name="shield-check"
+              size={isNarrow ? 22 : 28}
+              color="#FFFFFF"
+            />
           </View>
           <View style={styles.trustCopy}>
-            <Text style={styles.trustTitle}>
+            <Text
+              style={[styles.trustTitle, { fontSize: ms(isNarrow ? 13 : 15) }]}
+              numberOfLines={2}
+            >
               {s.trustTitleBefore}
               <Text style={styles.trustAccent}>{s.trustTitleAccent}</Text>
             </Text>
-            <Text style={styles.trustBody}>{s.trustBody}</Text>
+            <Text
+              style={[styles.trustBody, { fontSize: ms(isNarrow ? 11 : 12) }]}
+              numberOfLines={3}
+            >
+              {s.trustBody}
+            </Text>
           </View>
           <Image
             source={assets.images.top_facilities}
-            style={styles.trustImage}
+            style={[styles.trustImage, isNarrow && styles.trustImageNarrow]}
             contentFit="cover"
           />
         </View>
@@ -625,7 +643,6 @@ const styles = StyleSheet.create({
     backgroundColor: UI.bg,
   },
   scroll: {
-    paddingHorizontal: SCREEN_PAD,
     paddingTop: 8,
   },
   hScroll: {
@@ -789,6 +806,10 @@ const styles = StyleSheet.create({
     gap: 10,
     overflow: "hidden",
   },
+  trustCardNarrow: {
+    padding: 10,
+    gap: 8,
+  },
   trustBadge: {
     width: 44,
     height: 44,
@@ -796,9 +817,16 @@ const styles = StyleSheet.create({
     backgroundColor: UI.green,
     alignItems: "center",
     justifyContent: "center",
+    flexShrink: 0,
+  },
+  trustBadgeNarrow: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
   },
   trustCopy: {
     flex: 1,
+    minWidth: 0,
     backgroundColor: "transparent",
   },
   trustTitle: {
@@ -820,6 +848,12 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 12,
+    flexShrink: 0,
+  },
+  trustImageNarrow: {
+    width: 48,
+    height: 48,
+    borderRadius: 10,
   },
   loader: {
     marginVertical: 24,

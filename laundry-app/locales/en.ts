@@ -328,6 +328,10 @@ export const en = {
       howToCollect: "How should we collect it?",
       continueOrder: "Continue",
       needItemsToContinue: "Select at least one service before continuing.",
+      needScheduleToContinue:
+        "Choose pickup and delivery times before continuing.",
+      schedulePickupLine: "Pickup: {day}, {time}",
+      scheduleDeliveryLine: "Delivery: {day}, {time}",
     },
     bookService: {
       continue: "Continue",
@@ -579,6 +583,8 @@ export const en = {
       estimatedLabel: "Estimated total",
       viewBreakdown: "View price breakdown",
       hideBreakdown: "Hide breakdown",
+      breakdownTitle: "Order summary",
+      breakdownSubtitle: "Prices for the services you’ve selected",
       emptySelection: "No services selected yet",
       loading: "Loading partner prices…",
       noPartner:
@@ -658,7 +664,7 @@ export const en = {
       dropoffTitle: "I'll drop off & pick up",
       estimatedTotal: "Estimated Total",
       submitOrder: "Submit Order",
-      continueToPayment: "Continue to Payment",
+      continueToPayment: "Checkout",
       totalAmount: "Total Amount",
       secureNote: "Secure checkout · Your data is protected",
       saveChanges: "Save changes",

@@ -35,6 +35,7 @@ import { getStrings } from "@/locales";
 import { getDeviceCoordinates } from "@/utils/device-location";
 import type { Coordinates } from "@/utils/geocoding";
 import { getPartnerOpenStatus } from "@/utils/partner-hours";
+import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 
 type TrackStepKey = "sent" | "confirmed" | "picked" | "onWay" | "completed";
 
@@ -134,6 +135,7 @@ function serviceJobFromTitle(title: string) {
 export default function TrackOrderScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { isNarrow } = useResponsiveLayout();
   const { user } = useAuth();
   const { locale } = useLocale();
   const s = getStrings(locale).customer.trackOrder;
@@ -385,12 +387,22 @@ export default function TrackOrderScreen() {
                 {order.partnerImageUrl ? (
                   <Image
                     source={{ uri: order.partnerImageUrl }}
-                    style={styles.providerImage}
+                    style={[styles.providerImage, isNarrow && styles.providerImageNarrow]}
                     contentFit="cover"
                   />
                 ) : (
-                  <View style={[styles.providerImage, styles.providerImageFallback]}>
-                    <MaterialCommunityIcons name="storefront-outline" size={22} color={UI.muted} />
+                  <View
+                    style={[
+                      styles.providerImage,
+                      isNarrow && styles.providerImageNarrow,
+                      styles.providerImageFallback,
+                    ]}
+                  >
+                    <MaterialCommunityIcons
+                      name="storefront-outline"
+                      size={isNarrow ? 18 : 22}
+                      color={UI.muted}
+                    />
                   </View>
                 )}
                 <View style={styles.providerCopy}>
@@ -431,13 +443,23 @@ export default function TrackOrderScreen() {
                         <Text style={styles.metaDot}>·</Text>
                       </>
                     ) : null}
-                    <Text style={styles.metaMuted}>{s.usuallyConfirms}</Text>
+                    <Text style={styles.metaMuted} numberOfLines={1}>
+                      {s.usuallyConfirms}
+                    </Text>
                   </View>
+                  {isNarrow ? (
+                    <Pressable onPress={openProvider} style={styles.viewProviderBtnInline} hitSlop={8}>
+                      <Text style={styles.viewProviderText}>{s.viewProvider}</Text>
+                      <MaterialCommunityIcons name="chevron-right" size={16} color={UI.purple} />
+                    </Pressable>
+                  ) : null}
                 </View>
-                <Pressable onPress={openProvider} style={styles.viewProviderBtn} hitSlop={8}>
-                  <Text style={styles.viewProviderText}>{s.viewProvider}</Text>
-                  <MaterialCommunityIcons name="chevron-right" size={16} color={UI.purple} />
-                </Pressable>
+                {!isNarrow ? (
+                  <Pressable onPress={openProvider} style={styles.viewProviderBtn} hitSlop={8}>
+                    <Text style={styles.viewProviderText}>{s.viewProvider}</Text>
+                    <MaterialCommunityIcons name="chevron-right" size={16} color={UI.purple} />
+                  </Pressable>
+                ) : null}
               </View>
 
               <View style={styles.providerActions}>
@@ -593,7 +615,7 @@ export default function TrackOrderScreen() {
                     <View style={styles.serviceRow}>
                       <Image
                         source={imageForServiceItem(undefined, item.name, serviceJobFromTitle(groupTitle))}
-                        style={styles.serviceImage}
+                        style={[styles.serviceImage, isNarrow && styles.serviceImageNarrow]}
                         contentFit="cover"
                       />
                       <View style={styles.serviceCopy}>
@@ -750,6 +772,12 @@ const styles = StyleSheet.create({
     height: 52,
     borderRadius: 12,
     backgroundColor: UI.iconWell,
+    flexShrink: 0,
+  },
+  providerImageNarrow: {
+    width: 42,
+    height: 42,
+    borderRadius: 10,
   },
   providerImageFallback: {
     alignItems: "center",
@@ -794,6 +822,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingTop: 2,
+    flexShrink: 0,
+  },
+  viewProviderBtnInline: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 4,
+    alignSelf: "flex-start",
   },
   viewProviderText: {
     fontSize: 12,
@@ -988,6 +1023,12 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: 10,
     backgroundColor: UI.iconWell,
+    flexShrink: 0,
+  },
+  serviceImageNarrow: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
   },
   serviceCopy: { flex: 1, minWidth: 0, gap: 2 },
   serviceName: {

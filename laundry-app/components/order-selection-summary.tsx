@@ -50,9 +50,13 @@ export function OrderSelectionSummary({ estimate, loading = false }: Props) {
           contentContainerStyle={styles.breakdown}
           nestedScrollEnabled
         >
+          <View style={styles.breakdownHeader}>
+            <Text style={styles.breakdownTitle}>{s.breakdownTitle}</Text>
+            <Text style={styles.breakdownSubtitle}>{s.breakdownSubtitle}</Text>
+          </View>
           {estimate.lines.map((line) => (
             <View key={line.key} style={styles.breakdownRow}>
-              <Text style={styles.breakdownLabel} numberOfLines={1}>
+              <Text style={styles.breakdownLabel} numberOfLines={2}>
                 {line.title}
                 {line.qtyLabel ? ` · ${line.qtyLabel}` : ""}
               </Text>
@@ -99,14 +103,48 @@ const styles = StyleSheet.create({
   totalValueRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 },
   totalValue: { fontSize: 20, color: UI.text, fontFamily: "Poppins-Bold" },
   emptyHint: { marginTop: 2, fontSize: 11, color: UI.muted, fontFamily: "Poppins-Regular" },
-  breakdownScroll: { maxHeight: 160 },
-  breakdown: {
-    paddingBottom: 4,
-    gap: 6,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: UI.chipBorder,
+  breakdownScroll: {
+    maxHeight: 220,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    backgroundColor: UI.card,
+    borderWidth: 1,
+    borderColor: UI.chipBorder,
+    borderBottomWidth: 0,
+    overflow: "hidden",
   },
-  breakdownRow: { flexDirection: "row", justifyContent: "space-between", gap: 12 },
-  breakdownLabel: { flex: 1, fontSize: 12, color: UI.muted, fontFamily: "Poppins-Regular" },
+  breakdown: {
+    paddingHorizontal: 12,
+    paddingTop: 12,
+    paddingBottom: 8,
+  },
+  breakdownHeader: {
+    marginBottom: 6,
+    paddingBottom: 8,
+  },
+  breakdownTitle: {
+    fontSize: 16,
+    color: UI.text,
+    fontFamily: "Poppins-Bold",
+  },
+  breakdownSubtitle: {
+    marginTop: 2,
+    fontSize: 12,
+    color: UI.muted,
+    fontFamily: "Poppins-Regular",
+  },
+  breakdownRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 8,
+  },
+  breakdownLabel: {
+    flex: 1,
+    fontSize: 12,
+    color: UI.text,
+    fontFamily: "Poppins-Regular",
+  },
   breakdownValue: { fontSize: 12, color: UI.text, fontFamily: "Poppins-SemiBold" },
 });

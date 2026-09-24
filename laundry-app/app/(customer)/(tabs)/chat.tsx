@@ -61,7 +61,8 @@ function statusTone(status: string): { text: string; bg: string } {
 export default function CustomerChatScreen() {
   const router = useRouter();
   const { user } = useAuth();
-  const { isWeb } = useResponsiveLayout();
+  const { isWeb, isNarrow, ms } = useResponsiveLayout();
+  const avatarSize = isNarrow ? 40 : 48;
   useSuppressWebScreenHeader();
   const { locale } = useLocale();
   const tabStrings = getStrings(locale).tabs.customer;
@@ -211,17 +212,19 @@ export default function CustomerChatScreen() {
                 <AvatarImage
                   uri={item.counterpartyAvatarUrl}
                   name={item.counterpartyName}
-                  size={48}
+                  size={avatarSize}
                 />
                 <View style={styles.mainContent}>
                   <View style={styles.rowTop}>
                     <PartnerNameWithBadge
                       name={item.counterpartyName}
                       verified={item.counterpartyVerified}
-                      nameStyle={styles.nameText}
+                      nameStyle={[styles.nameText, isNarrow && { fontSize: ms(13) }]}
                       containerStyle={styles.nameRow}
                     />
-                    <Text style={styles.timeText}>{formatShortDate(item.lastMessageAt)}</Text>
+                    <Text style={[styles.timeText, isNarrow && { fontSize: ms(11) }]}>
+                      {formatShortDate(item.lastMessageAt)}
+                    </Text>
                   </View>
 
                   <View style={styles.metaRow}>

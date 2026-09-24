@@ -326,6 +326,10 @@ export const ur = {
       howToCollect: "سامان کیسے جمع کریں؟",
       continueOrder: "جاری رکھیں",
       needItemsToContinue: "جاری رکھنے سے پہلے کم از کم ایک سروس منتخب کریں۔",
+      needScheduleToContinue:
+        "جاری رکھنے سے پہلے پک اپ اور ڈیلیوری کا وقت منتخب کریں۔",
+      schedulePickupLine: "پک اپ: {day}، {time}",
+      scheduleDeliveryLine: "ڈیلیوری: {day}، {time}",
     },
     bookService: {
       continue: "جاری رکھیں",
@@ -576,6 +580,8 @@ export const ur = {
       estimatedLabel: "تخمینی کل",
       viewBreakdown: "قیمت کی تفصیل دیکھیں",
       hideBreakdown: "تفصیل چھپائیں",
+      breakdownTitle: "آرڈر کا خلاصہ",
+      breakdownSubtitle: "آپ کی منتخب کردہ سروسز کی قیمتیں",
       emptySelection: "ابھی کوئی سروس منتخب نہیں ہوئی",
       loading: "پارٹنر کی قیمتیں لوڈ ہو رہی ہیں…",
       noPartner: "لائیو قیمتوں کے لیے پہلے نقشے سے لانڈر منتخب کریں۔",
