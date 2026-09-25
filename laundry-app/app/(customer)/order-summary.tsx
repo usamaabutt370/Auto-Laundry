@@ -348,13 +348,28 @@ export default function OrderSummaryScreen() {
 
   const openShop = (options?: { focus?: "collect" }) => {
     if (!draft.partnerId) return;
-    router.push({
+    if (options?.focus === "collect") {
+      requestLaundererCollectFocus();
+    }
+    // Close review so the user lands on the existing launderer detail (add services / view provider).
+    try {
+      if (typeof router.canDismiss === "function" && router.canDismiss()) {
+        router.dismiss();
+        return;
+      }
+    } catch {
+      // ignore
+    }
+    if (typeof router.canGoBack === "function" && router.canGoBack()) {
+      router.back();
+      return;
+    }
+    router.navigate({
       pathname: "/(customer)/launderer-detail",
       params: {
         id: draft.partnerId,
         ...(draft.partnerName ? { name: draft.partnerName } : {}),
         mode: draft.pickupDeliveryRequested ? "pickupDelivery" : "dropoff",
-        presentation: "modal",
         ...(options?.focus ? { focus: options.focus } : {}),
       },
     });
@@ -778,24 +793,14 @@ export default function OrderSummaryScreen() {
 
       <View style={[styles.footer, { paddingBottom: footerBottom }]}>
         {submitError ? <Text style={styles.submitError}>{submitError}</Text> : null}
-        <View style={styles.footerRow}>
-          <View style={styles.footerTotal}>
-            <Text style={styles.footerTotalLabel}>{s.totalAmount}</Text>
-            <Text style={styles.footerTotalValue}>{totalDisplay}</Text>
-          </View>
-          <AppCtaButton
-            label={submitLabel}
-            onPress={handleSubmitOrder}
-            disabled={submitDisabled}
-            loading={submitting}
-            width="auto"
-            rightIcon={isEditing ? undefined : "arrow-right"}
-          />
-        </View>
-        <View style={styles.secureRow}>
-          <MaterialCommunityIcons name="lock-outline" size={12} color={UI.muted} />
-          <Text style={styles.secureText}>{s.secureNote}</Text>
-        </View>
+        <AppCtaButton
+          label={submitLabel}
+          onPress={handleSubmitOrder}
+          disabled={submitDisabled}
+          loading={submitting}
+          width="full"
+          rightIcon={isEditing ? undefined : "arrow-right"}
+        />
       </View>
 
       <SignInRequiredModal
@@ -996,12 +1001,6 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: UI.chipBorder,
   },
-  footerRow: { flexDirection: "row", alignItems: "center", gap: 12 },
-  footerTotal: { flex: 1, minWidth: 0 },
-  footerTotalLabel: { fontSize: 11, color: UI.muted, fontFamily: "Poppins-Medium" },
-  footerTotalValue: { fontSize: 18, color: UI.text, fontFamily: "Poppins-Bold" },
-  secureRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4, marginTop: 8 },
-  secureText: { fontSize: 11, color: UI.muted, fontFamily: "Poppins-Regular" },
   submitError: {
     color: "#B91C1C",
     fontSize: 13,

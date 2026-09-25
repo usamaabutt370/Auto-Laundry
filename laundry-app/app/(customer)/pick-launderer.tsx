@@ -106,14 +106,12 @@ function LaundererCard({
   onPress,
   favorited,
   onToggleFavorite,
-  isPickup,
 }: {
   partner: PartnerPublicRow;
   distanceLabel: string;
   onPress: () => void;
   favorited: boolean;
   onToggleFavorite: () => void;
-  isPickup: boolean;
 }) {
   const s = strings.customer.pickLaunderer;
   const businessImageUri = Array.isArray(partner.business_images)
@@ -126,11 +124,8 @@ function LaundererCard({
   const openStatus = getPartnerOpenStatus(partner.available_time);
   const openLabel =
     openStatus === "open" ? s.openNow : openStatus === "closed" ? s.closed : s.hoursUnknown;
-  const hasOffer = partnerHasActiveOffer(partner.offerPercent);
-  const topRated = isPartnerTopRated(partner.ratingAvg, partner.ratingCount);
   const areaLabel = shortAddress(partner.address);
   const locationLine = [areaLabel, distanceLabel].filter(Boolean).join(" · ");
-  const typeLabel = isPickup ? s.tagWashFold : s.tagDropoff;
   const ratingAvgLabel =
     partner.ratingCount > 0
       ? Number.isInteger(partner.ratingAvg)
@@ -138,11 +133,6 @@ function LaundererCard({
         : partner.ratingAvg.toFixed(1)
       : null;
   const minPrice = typeof partner.minPrice === "number" ? Math.round(partner.minPrice) : null;
-  const offerPct = hasOffer ? partner.offerPercent ?? 0 : 0;
-  const wasPrice =
-    minPrice != null && offerPct > 0 && offerPct < 100
-      ? Math.round(minPrice / (1 - offerPct / 100))
-      : null;
 
   return (
     <Pressable
@@ -170,19 +160,29 @@ function LaundererCard({
           />
         </Pressable>
 
-        {hasOffer ? (
-          <View style={styles.saveBadge}>
-            <Text style={styles.saveBadgeText} numberOfLines={1}>
-              {fill(s.percentOff, { pct: offerPct })}
+        {openStatus === "open" ? (
+          <LinearGradient
+            colors={[...gradients.brand]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.statusBadge}
+          >
+            <Text style={styles.statusBadgeText} numberOfLines={1}>
+              {openLabel}
+            </Text>
+          </LinearGradient>
+        ) : (
+          <View
+            style={[
+              styles.statusBadge,
+              openStatus === "closed" ? styles.closedBadge : styles.unknownBadge,
+            ]}
+          >
+            <Text style={styles.statusBadgeText} numberOfLines={1}>
+              {openLabel}
             </Text>
           </View>
-        ) : topRated ? (
-          <View style={styles.saveBadge}>
-            <Text style={styles.saveBadgeText} numberOfLines={1}>
-              {s.badgeTopRated}
-            </Text>
-          </View>
-        ) : null}
+        )}
       </View>
 
       <View style={styles.cardBody}>
@@ -195,81 +195,39 @@ function LaundererCard({
             badgeSize={14}
             numberOfLines={2}
           />
-          <View style={styles.typePill}>
-            <Text style={styles.typePillText} numberOfLines={1}>
-              {s.tagLaundry}
-            </Text>
-          </View>
         </View>
 
-        {ratingAvgLabel ? (
-          <View style={styles.ratingRow}>
-            <MaterialCommunityIcons name="star" size={14} color={UI.star} />
-            <Text style={styles.ratingValue}>{ratingAvgLabel}</Text>
-            {partner.ratingCount > 0 ? (
-              <Text style={styles.ratingCount}>
-                ({fill(s.reviewsCount, { count: partner.ratingCount })})
-              </Text>
+        <View style={styles.metaPriceRow}>
+          <View style={styles.metaCol}>
+            {ratingAvgLabel ? (
+              <View style={styles.ratingRow}>
+                <MaterialCommunityIcons name="star" size={14} color={UI.star} />
+                <Text style={styles.ratingValue}>{ratingAvgLabel}</Text>
+                {partner.ratingCount > 0 ? (
+                  <Text style={styles.ratingCount}>
+                    ({fill(s.reviewsCount, { count: partner.ratingCount })})
+                  </Text>
+                ) : null}
+              </View>
             ) : null}
-          </View>
-        ) : null}
 
-        {locationLine ? (
-          <View style={styles.locationRow}>
-            <MaterialCommunityIcons name="map-marker-outline" size={14} color={UI.muted} />
-            <Text style={styles.locationText} numberOfLines={1}>
-              {locationLine}
-            </Text>
-          </View>
-        ) : null}
-
-        <View style={styles.cardDivider} />
-
-        <View style={styles.detailsRow}>
-          <View style={styles.featuresCol}>
-            <View style={styles.featureItem}>
-              <MaterialCommunityIcons
-                name={isPickup ? "truck-delivery-outline" : "storefront-outline"}
-                size={15}
-                color={UI.text}
-              />
-              <Text style={styles.featureText} numberOfLines={1}>
-                {typeLabel}
-              </Text>
-            </View>
-            <View style={styles.featureItem}>
-              <MaterialCommunityIcons
-                name="clock-outline"
-                size={15}
-                color={openStatus === "open" ? UI.openText : UI.muted}
-              />
-              <Text
-                style={[
-                  styles.featureText,
-                  openStatus === "open" && styles.featureTextOpen,
-                  openStatus === "closed" && styles.featureTextClosed,
-                ]}
-                numberOfLines={1}
-              >
-                {openLabel}
-              </Text>
-            </View>
+            {locationLine ? (
+              <View style={styles.locationRow}>
+                <MaterialCommunityIcons name="map-marker-outline" size={14} color={UI.muted} />
+                <Text style={styles.locationText} numberOfLines={1}>
+                  {locationLine}
+                </Text>
+              </View>
+            ) : null}
           </View>
 
           <View style={styles.priceCol}>
             <Text style={styles.priceMeta} numberOfLines={1}>
               {s.fromLabel}
             </Text>
-            {minPrice != null ? (
-              <View style={styles.priceRow}>
-                {wasPrice != null && wasPrice > minPrice ? (
-                  <Text style={styles.priceWas}>Rs {wasPrice}</Text>
-                ) : null}
-                <Text style={styles.priceNow}>Rs {minPrice}</Text>
-              </View>
-            ) : (
-              <Text style={styles.priceNow}>{s.seePrices}</Text>
-            )}
+            <Text style={styles.priceNow}>
+              {minPrice != null ? `Rs ${minPrice}` : s.seePrices}
+            </Text>
           </View>
         </View>
       </View>
@@ -842,7 +800,6 @@ export default function PickLaundererScreen() {
                   onToggleFavorite={() =>
                     setFavorites((prev) => ({ ...prev, [partner.id]: !prev[partner.id] }))
                   }
-                  isPickup={fulfillmentMode === "pickupDelivery"}
                 />
               </View>
             ))}
@@ -1062,17 +1019,22 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  saveBadge: {
+  statusBadge: {
     position: "absolute",
+    top: 12,
     left: 12,
-    bottom: 22,
-    backgroundColor: "#0D9488",
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 8,
     maxWidth: "70%",
   },
-  saveBadgeText: {
+  closedBadge: {
+    backgroundColor: "#B91C1C",
+  },
+  unknownBadge: {
+    backgroundColor: "rgba(17, 24, 39, 0.72)",
+  },
+  statusBadgeText: {
     color: "#FFFFFF",
     fontSize: 11,
     fontFamily: "Poppins-Bold",
@@ -1083,9 +1045,9 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 18,
     borderTopRightRadius: 18,
     paddingHorizontal: 14,
-    paddingTop: 14,
-    paddingBottom: 14,
-    gap: 8,
+    paddingTop: 10,
+    paddingBottom: 10,
+    gap: 4,
   },
   titleRow: {
     flexDirection: "row",
@@ -1101,20 +1063,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: "Poppins-Bold",
     color: UI.text,
-    lineHeight: 22,
+    lineHeight: 20,
   },
-  typePill: {
-    borderWidth: 1,
-    borderColor: UI.chipBorder,
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    flexShrink: 0,
+  metaPriceRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
   },
-  typePillText: {
-    fontSize: 11,
-    color: UI.muted,
-    fontFamily: "Poppins-SemiBold",
+  metaCol: {
+    flex: 1,
+    minWidth: 0,
+    gap: 2,
   },
   ratingRow: {
     flexDirection: "row",
@@ -1142,60 +1102,14 @@ const styles = StyleSheet.create({
     color: UI.muted,
     fontFamily: "Poppins-Regular",
   },
-  cardDivider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: UI.chipBorder,
-    marginVertical: 2,
-  },
-  detailsRow: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-    justifyContent: "space-between",
-    gap: 12,
-  },
-  featuresCol: {
-    flex: 1,
-    minWidth: 0,
-    gap: 6,
-  },
-  featureItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  featureText: {
-    flex: 1,
-    fontSize: 12,
-    color: UI.text,
-    fontFamily: "Poppins-Medium",
-  },
-  featureTextOpen: {
-    color: UI.openText,
-  },
-  featureTextClosed: {
-    color: "#B91C1C",
-  },
   priceCol: {
     alignItems: "flex-end",
     flexShrink: 0,
-    maxWidth: "46%",
   },
   priceMeta: {
     fontSize: 11,
     color: UI.muted,
     fontFamily: "Poppins-Regular",
-  },
-  priceRow: {
-    flexDirection: "row",
-    alignItems: "baseline",
-    gap: 6,
-    marginTop: 2,
-  },
-  priceWas: {
-    fontSize: 12,
-    color: UI.muted,
-    fontFamily: "Poppins-Regular",
-    textDecorationLine: "line-through",
   },
   priceNow: {
     fontSize: 18,
