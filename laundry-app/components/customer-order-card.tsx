@@ -7,7 +7,6 @@ import { PartnerNameWithBadge } from "@/components/partner-name-with-badge";
 import { AppCtaButton } from "@/components/ui/cta-button";
 import { UI } from "@/constants/theme";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
-import { imageForServiceItem } from "@/lib/service-item-images";
 import type {
   CustomerOrderDbStatus,
   CustomerOrderListItem,
@@ -18,6 +17,7 @@ type OrderCardStrings = {
   estTotal: string;
   schedulePending: string;
   servicesNone: string;
+  yourServices: string;
   statusPending: string;
   statusAccepted: string;
   statusRejected: string;
@@ -124,14 +124,13 @@ export function CustomerOrderCard({
   const activeStep = progressIndex(order.rawStatus);
   const showTrack = order.displayStatus !== "rejected";
   const partnerImg = scaleSize(isNarrow ? 44 : 52);
-  const thumb = scaleSize(isNarrow ? 36 : 40);
 
-  const itemsLabel =
-    order.itemPreview.length > 0
-      ? order.itemPreview
-          .map((item) => `${item.name} × ${item.quantity}`)
-          .join(" · ")
-      : order.servicesSummary || s.servicesNone;
+  const previewItems = (order.itemPreview.length > 0
+    ? order.itemPreview
+    : order.servicesSummary
+      ? [{ name: order.servicesSummary, quantity: 0, priceLabel: null as string | null }]
+      : []
+  ).slice(0, 2);
 
   const ratingLabel =
     order.partnerRatingAvg != null && order.partnerRatingCount > 0
@@ -206,29 +205,26 @@ export function CustomerOrderCard({
         </View>
       </View>
 
-      <View style={styles.divider} />
-
-      <View style={styles.itemsRow}>
-        <View style={styles.itemThumbs}>
-          {(order.itemPreview.length > 0 ? order.itemPreview : [{ name: "Laundry", quantity: 1 }])
-            .slice(0, 2)
-            .map((item, index) => (
-              <Image
-                key={`${item.name}-${index}`}
-                source={imageForServiceItem(undefined, item.name)}
-                style={[
-                  styles.itemThumb,
-                  { width: thumb, height: thumb, borderRadius: scaleSize(10) },
-                  index > 0 && styles.itemThumbOverlap,
-                ]}
-                contentFit="cover"
-              />
-            ))}
-        </View>
-        <View style={styles.itemsCopy}>
-          <Text style={styles.itemsText} numberOfLines={2}>
-            {itemsLabel}
-          </Text>
+      <View style={styles.servicesSection}>
+        <View style={styles.divider} />
+        <View style={styles.servicesBlock}>
+          <Text style={styles.servicesHeading}>{s.yourServices}</Text>
+          {previewItems.length > 0 ? (
+            previewItems.map((item, index) => (
+              <View key={`${item.name}-${index}`} style={styles.serviceRow}>
+                <Text style={styles.serviceLine} numberOfLines={1}>
+                  {item.quantity > 0 ? `${item.name} × ${item.quantity}` : item.name}
+                </Text>
+                {item.priceLabel ? (
+                  <Text style={styles.servicePrice} numberOfLines={1}>
+                    {item.priceLabel}
+                  </Text>
+                ) : null}
+              </View>
+            ))
+          ) : (
+            <Text style={styles.serviceLine}>{s.servicesNone}</Text>
+          )}
           {order.addOnCount > 0 ? (
             <Text style={styles.addOnText}>
               {order.addOnCount === 1
@@ -353,7 +349,7 @@ const styles = StyleSheet.create({
     borderColor: UI.chipBorder,
     backgroundColor: UI.card,
     padding: 14,
-    gap: 12,
+    gap: 6,
     shadowColor: UI.shadow,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 1,
@@ -385,6 +381,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: "Poppins-Medium",
     color: UI.muted,
+    marginTop: 5,
   },
   metaRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 },
   metaStrong: { fontSize: 12, fontFamily: "Poppins-SemiBold", color: UI.text },
@@ -398,6 +395,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     maxWidth: 150,
     flexShrink: 0,
+    marginTop: -15,
   },
   statusText: {
     fontSize: 10,
@@ -408,20 +406,33 @@ const styles = StyleSheet.create({
     height: StyleSheet.hairlineWidth,
     backgroundColor: UI.chipBorder,
   },
-  itemsRow: { flexDirection: "row", alignItems: "center", gap: 10 },
-  itemThumbs: { flexDirection: "row", alignItems: "center" },
-  itemThumb: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
-    backgroundColor: UI.iconWell,
-    borderWidth: 2,
-    borderColor: UI.card,
+  servicesSection: { gap: 5 },
+  servicesBlock: { gap: 2 },
+  servicesHeading: {
+    fontSize: 12,
+    fontFamily: "Poppins-SemiBold",
+    color: UI.muted,
   },
-  itemThumbOverlap: { marginLeft: -10 },
-  itemsCopy: { flex: 1, minWidth: 0, gap: 2 },
-  itemsText: { fontSize: 13, fontFamily: "Poppins-SemiBold", color: UI.text },
-  addOnText: { fontSize: 12, fontFamily: "Poppins-Medium", color: UI.purple },
+  serviceRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  serviceLine: {
+    flex: 1,
+    minWidth: 0,
+    fontSize: 13,
+    fontFamily: "Poppins-SemiBold",
+    color: UI.text,
+  },
+  servicePrice: {
+    flexShrink: 0,
+    fontSize: 13,
+    fontFamily: "Poppins-SemiBold",
+    color: UI.muted,
+  },
+  addOnText: { marginTop: 2, fontSize: 12, fontFamily: "Poppins-Medium", color: UI.purple },
   infoRow: {
     flexDirection: "row",
     alignItems: "center",

@@ -28,7 +28,6 @@ import { GradientLoader } from "@/components/ui/gradient-loader";
 import { StarRating } from "@/components/star-rating";
 import { assets } from "@/assets/assets";
 import type { LaundererServiceType } from "@/constants/launderers";
-import { useAuth } from "@/contexts/auth-context";
 import { consumeLaundererCollectFocus } from "@/utils/launderer-detail-focus";
 import {
   orderDraftHasItems,
@@ -40,7 +39,6 @@ import { usePartnerOrderEstimate } from "@/hooks/use-partner-order-estimate";
 import { usePartnerVerified } from "@/hooks/use-partner-verified";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { avatarUrlWithCacheBuster } from "@/lib/avatar";
-import { findLatestCustomerOrderIdWithPartner } from "@/lib/customer-orders";
 import {
   fetchPartnerDetail,
   fetchPartnerPublicReviews,
@@ -133,7 +131,6 @@ export function LaundererDetailView({
   modalChrome = false,
 }: LaundererDetailViewProps) {
   const router = useRouter();
-  const { user } = useAuth();
   const { locale } = useLocale();
   const s = getStrings(locale).customer.laundererDetail;
   const sHome = getStrings(locale).customer.home;
@@ -380,21 +377,6 @@ export function LaundererDetailView({
     } catch {
       showAppAlert(s.location, s.directionsError);
     }
-  };
-
-  const handleChat = async () => {
-    if (!user) {
-      router.push("/(auth)/login");
-      return;
-    }
-    const orderId = await findLatestCustomerOrderIdWithPartner(user.id, partnerId);
-    if (orderId) {
-      router.push({ pathname: "/(customer)/chat/[orderId]", params: { orderId } });
-      return;
-    }
-    showAppAlert(s.chatNeedsBookingTitle, s.chatNeedsBookingMessage, [
-      { text: s.bookService, onPress: () => handleSelect() },
-    ]);
   };
 
   useEffect(() => {
@@ -1083,22 +1065,18 @@ export function LaundererDetailView({
       </Animated.View>
 
       <View style={[styles.footer, { paddingBottom: footerBottomPad }]}>
-        <OrderSelectionSummary estimate={estimate} loading={estimateLoading} />
-        <View style={styles.footerActions}>
-          <AppCtaButton
-            label={s.chat}
-            variant="outline"
-            width={40}
-            leftIcon="chat-outline"
-            onPress={() => void handleChat()}
-          />
-          <AppCtaButton
-            label={s.continueOrder}
-            width={60}
-            rightIcon="arrow-right"
-            onPress={handleContinueOrder}
-          />
-        </View>
+        <OrderSelectionSummary
+          estimate={estimate}
+          loading={estimateLoading}
+          action={
+            <AppCtaButton
+              label={s.continueOrder}
+              width="full"
+              rightIcon="arrow-right"
+              onPress={handleContinueOrder}
+            />
+          }
+        />
       </View>
     </View>
   );
@@ -1282,7 +1260,7 @@ const styles = StyleSheet.create({
     flexGrow: 0,
     flexShrink: 0,
   },
-  jobCardActive: { borderColor: UI.purple, backgroundColor: "#F5F3FF" },
+  jobCardActive: { borderColor: "transparent", backgroundColor: "#F5F3FF" },
   jobCardImage: { borderRadius: 12, backgroundColor: UI.iconWell },
   jobCardIcon: {
     position: "absolute",
@@ -1397,7 +1375,7 @@ const styles = StyleSheet.create({
   footer: {
     gap: 12,
     paddingTop: 12,
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     backgroundColor: UI.card,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: UI.chipBorder,
@@ -1416,7 +1394,7 @@ const styles = StyleSheet.create({
     padding: 12,
     backgroundColor: UI.card,
   },
-  fulfillmentCardActive: { borderColor: UI.purple, backgroundColor: "#F5F3FF" },
+  fulfillmentCardActive: { borderColor: "transparent", backgroundColor: "#F5F3FF" },
   fulfillmentDisabled: { opacity: 0.45 },
   fulfillmentTitle: { fontSize: 12, color: UI.text, fontFamily: "Poppins-SemiBold" },
   fulfillmentTitleActive: { color: UI.purple },
@@ -1427,7 +1405,6 @@ const styles = StyleSheet.create({
     color: UI.purpleDeep,
     fontFamily: "Poppins-Medium",
   },
-  footerActions: { flexDirection: "row", alignItems: "center", gap: 10 },
   pressed: { opacity: 0.88 },
   centered: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 24, gap: 12 },
   notFoundText: { fontSize: 15, color: UI.muted, fontFamily: "Poppins-Regular", textAlign: "center" },

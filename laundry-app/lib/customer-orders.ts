@@ -40,7 +40,7 @@ export interface CustomerOrderListItem {
   /** Comma-separated service names (Wash & Fold, etc.) */
   servicesSummary: string;
   /** Top item lines for the card preview */
-  itemPreview: { name: string; quantity: number }[];
+  itemPreview: { name: string; quantity: number; priceLabel: string | null }[];
   addOnCount: number;
   /** ISO timestamp for placed-on display */
   placedAtIso: string | null;
@@ -447,23 +447,28 @@ export async function fetchCustomerOrders(customerId: string): Promise<CustomerO
     .map((service) => service.id);
   const itemsByServiceId = new Map<
     string,
-    Array<{ name: string; quantity: number }>
+    Array<{ name: string; quantity: number; priceLabel: string | null }>
   >();
   if (serviceIds.length > 0) {
     const { data: itemData, error: itemErr } = await supabase
       .from("order_service_items")
-      .select("order_service_id,item_name,quantity")
+      .select("order_service_id,item_name,quantity,line_total_amount")
       .in("order_service_id", serviceIds);
     if (!itemErr && itemData) {
       for (const item of itemData as Array<{
         order_service_id: string;
         item_name: string;
         quantity: number;
+        line_total_amount: number | null;
       }>) {
         const list = itemsByServiceId.get(item.order_service_id) ?? [];
         list.push({
           name: item.item_name,
           quantity: item.quantity,
+          priceLabel:
+            item.line_total_amount != null && Number.isFinite(item.line_total_amount)
+              ? formatUsd(item.line_total_amount)
+              : null,
         });
         itemsByServiceId.set(item.order_service_id, list);
       }

@@ -1,5 +1,5 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import {
   LayoutAnimation,
   Platform,
@@ -27,9 +27,11 @@ if (
 type Props = {
   estimate: OrderEstimateResult;
   loading?: boolean;
+  /** Optional trailing control (e.g. Continue) shown beside the estimated total. */
+  action?: ReactNode;
 };
 
-export function OrderSelectionSummary({ estimate, loading = false }: Props) {
+export function OrderSelectionSummary({ estimate, loading = false, action }: Props) {
   const { locale } = useLocale();
   const s = getStrings(locale).customer.liveEstimate;
   const [open, setOpen] = useState(false);
@@ -67,38 +69,47 @@ export function OrderSelectionSummary({ estimate, loading = false }: Props) {
           ))}
         </ScrollView>
       ) : null}
-      <Pressable
-        onPress={() => {
-          if (!hasLines) return;
-          LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-          setOpen((value) => !value);
-        }}
-        style={styles.totalBtn}
-        accessibilityRole="button"
-        accessibilityLabel={open ? s.hideBreakdown : s.viewBreakdown}
-      >
-        <Text style={styles.totalLabel}>{s.estimatedLabel}</Text>
-        <View style={styles.totalValueRow}>
-          <Text style={styles.totalValue}>{loading ? "…" : totalDisplay}</Text>
-          {hasLines ? (
-            <MaterialCommunityIcons
-              name={open ? "chevron-up" : "chevron-down"}
-              size={18}
-              color={UI.muted}
-            />
+      <View style={styles.totalRow}>
+        <Pressable
+          onPress={() => {
+            if (!hasLines) return;
+            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+            setOpen((value) => !value);
+          }}
+          style={styles.totalBtn}
+          accessibilityRole="button"
+          accessibilityLabel={open ? s.hideBreakdown : s.viewBreakdown}
+        >
+          <Text style={styles.totalLabel}>{s.estimatedLabel}</Text>
+          <View style={styles.totalValueRow}>
+            <Text style={styles.totalValue}>{loading ? "…" : totalDisplay}</Text>
+            {hasLines ? (
+              <MaterialCommunityIcons
+                name={open ? "chevron-up" : "chevron-down"}
+                size={18}
+                color={UI.muted}
+              />
+            ) : null}
+          </View>
+          {!hasLines && !loading ? (
+            <Text style={styles.emptyHint}>{s.emptySelection}</Text>
           ) : null}
-        </View>
-        {!hasLines && !loading ? (
-          <Text style={styles.emptyHint}>{s.emptySelection}</Text>
-        ) : null}
-      </Pressable>
+        </Pressable>
+        {action ? <View style={styles.actionSlot}>{action}</View> : null}
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   wrap: { gap: 8, alignSelf: "stretch" },
-  totalBtn: { minWidth: 0 },
+  totalRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  totalBtn: { flex: 1, minWidth: 0, paddingLeft: 4 },
+  actionSlot: { width: "58%", flexShrink: 0 },
   totalLabel: { fontSize: 11, color: UI.muted, fontFamily: "Poppins-Medium" },
   totalValueRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 },
   totalValue: { fontSize: 20, color: UI.text, fontFamily: "Poppins-Bold" },

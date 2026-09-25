@@ -338,6 +338,7 @@ export default function CustomerOrderScreen() {
                     estTotal: s.estTotal,
                     schedulePending: s.schedulePending,
                     servicesNone: s.servicesNone,
+                    yourServices: s.yourServices,
                     statusPending: s.statusPending,
                     statusAccepted: s.statusAccepted,
                     statusRejected: s.statusRejected,
