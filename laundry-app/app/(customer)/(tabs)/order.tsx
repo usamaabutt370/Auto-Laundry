@@ -23,7 +23,6 @@ import { AppHeader } from "@/components/app-header";
 import { CustomerOrderCard } from "@/components/customer-order-card";
 import { GuestSignInPrompt } from "@/components/guest-sign-in-prompt";
 import { WebHeaderSpacer } from "@/components/web-header-spacer";
-import { useConfirmDialog } from "@/components/confirm-dialog";
 import { GradientLoader, APP_LOADER_TINT } from "@/components/ui/gradient-loader";
 import { useAuth } from "@/contexts/auth-context";
 import { useLocale } from "@/contexts/locale-context";
@@ -67,8 +66,7 @@ export default function CustomerOrderScreen() {
   const { user } = useAuth();
   const { locale } = useLocale();
   const s = getStrings(locale).customer.ordersTab;
-  const { orders, loading, error, refresh, deleteOrder } = useCustomerOrders(user?.id);
-  const { confirm, dialog } = useConfirmDialog();
+  const { orders, loading, error, refresh } = useCustomerOrders(user?.id);
   const { isWeb } = useResponsiveLayout();
   useSuppressWebScreenHeader();
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -122,38 +120,6 @@ export default function CustomerOrderScreen() {
       }
     })();
   }, [refresh]);
-
-  const confirmDelete = useCallback(
-    async (orderId: string) => {
-      const ok = await confirm({
-        title: s.deleteTitle,
-        message: s.deleteMessage,
-        confirmLabel: s.deleteAction,
-        cancelLabel: s.cancel,
-        destructive: true,
-      });
-      if (!ok) return;
-      try {
-        await deleteOrder(orderId);
-      } catch (e) {
-        showAppAlert(s.deleteError, e instanceof Error ? e.message : String(e));
-      }
-    },
-    [confirm, deleteOrder, s.cancel, s.deleteAction, s.deleteError, s.deleteMessage, s.deleteTitle],
-  );
-
-  const handleReorder = useCallback(
-    (orderId: string, fulfillmentMode: "dropoff" | "pickupDelivery") => {
-      router.push({
-        pathname: "/(customer)/pick-launderer",
-        params: {
-          reorderOrderId: orderId,
-          mode: fulfillmentMode,
-        },
-      });
-    },
-    [router],
-  );
 
   useEffect(() => {
     if (!isFocused || !user?.id || orders.length === 0) return;
@@ -252,7 +218,6 @@ export default function CustomerOrderScreen() {
   return (
     <View style={styles.container}>
       <StatusBar style="dark" />
-      {dialog}
       {!isWeb ? (
         <SafeAreaView style={styles.safeTop} edges={["top"]}>
           <AppHeader appearance="light" title={s.title} />
@@ -390,11 +355,7 @@ export default function CustomerOrderScreen() {
                     stepPickedUp: s.stepPickedUp,
                     stepOnTheWay: s.stepOnTheWay,
                     stepCompleted: s.stepCompleted,
-                    deleteAction: s.deleteAction,
-                    reorderAction: s.reorderAction,
                     reviewsCount: s.reviewsCount,
-                    menu: s.menu,
-                    viewDetails: s.viewDetails,
                   }}
                   onOpenDetail={() =>
                     router.push({
@@ -414,8 +375,6 @@ export default function CustomerOrderScreen() {
                       params: { orderId: order.id },
                     })
                   }
-                  onDelete={() => void confirmDelete(order.id)}
-                  onReorder={() => handleReorder(order.id, order.fulfillmentMode)}
                 />
               ))}
             </ScrollView>

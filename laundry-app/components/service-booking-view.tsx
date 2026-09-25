@@ -541,7 +541,7 @@ export function ServiceBookingView({ job, itemLabel }: Props) {
                           accessibilityRole="button"
                           accessibilityLabel="Decrease quantity"
                         >
-                          <MaterialCommunityIcons name="minus" size={18} color={UI.text} />
+                          <MaterialCommunityIcons name="minus" size={16} color={UI.text} />
                         </Pressable>
                         <Text style={styles.qtyStepperValue}>{qty}</Text>
                         <Pressable
@@ -551,7 +551,7 @@ export function ServiceBookingView({ job, itemLabel }: Props) {
                           accessibilityRole="button"
                           accessibilityLabel="Increase quantity"
                         >
-                          <MaterialCommunityIcons name="plus" size={18} color={UI.purple} />
+                          <MaterialCommunityIcons name="plus" size={16} color={UI.purple} />
                         </Pressable>
                       </View>
                     </View>
@@ -757,8 +757,8 @@ function ChoicePair({
 
 function createBookingStyles({ s, ms, isNarrow }: ScaledStyleHelpers) {
   const imageSize = s(isNarrow ? 56 : 68);
-  const stepperMin = s(isNarrow ? 92 : 108);
-  const stepperH = Math.max(40, s(isNarrow ? 40 : 44));
+  const stepperMin = s(isNarrow ? 76 : 88);
+  const stepperH = Math.max(32, s(isNarrow ? 32 : 34));
 
   return {
     screen: { flex: 1, backgroundColor: UI.card },
@@ -834,23 +834,23 @@ function createBookingStyles({ s, ms, isNarrow }: ScaledStyleHelpers) {
       justifyContent: "space-between" as const,
       minWidth: stepperMin,
       height: stepperH,
-      paddingHorizontal: s(6),
-      borderRadius: s(16),
+      paddingHorizontal: s(4),
+      borderRadius: s(14),
       borderWidth: 1,
       borderColor: UI.chipBorder,
       backgroundColor: UI.bg,
       flexShrink: 0,
     },
     qtyStepperBtn: {
-      width: s(isNarrow ? 28 : 32),
-      height: s(isNarrow ? 28 : 32),
+      width: s(isNarrow ? 22 : 24),
+      height: s(isNarrow ? 22 : 24),
       alignItems: "center" as const,
       justifyContent: "center" as const,
     },
     qtyStepperValue: {
-      minWidth: s(24),
+      minWidth: s(18),
       textAlign: "center" as const,
-      fontSize: ms(isNarrow ? 14 : 16),
+      fontSize: ms(isNarrow ? 13 : 14),
       color: UI.text,
       fontFamily: "Poppins-Bold",
     },

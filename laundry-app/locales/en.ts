@@ -247,6 +247,7 @@ export const en = {
       tagDropoff: "Drop-off",
       favorite: "Save provider",
       unfavorite: "Remove saved provider",
+      reviewsCount: "{count} reviews",
       addressPlaceholder: "1465 5th Avenue APt 5C",
       hoursPlaceholder: "Hours not set",
       emptyList:
@@ -747,7 +748,7 @@ export const en = {
       statusAccepted: "Confirmed",
       statusRejected: "Rejected",
       statusCompleted: "Completed",
-      statusWaiting: "Waiting for confirmation",
+      statusWaiting: "Pending",
       statusInProgress: "In progress",
       statusReady: "Ready",
       filterAll: "All",

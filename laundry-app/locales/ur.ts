@@ -246,6 +246,7 @@ export const ur = {
       tagDropoff: "ڈراپ آف",
       favorite: "محفوظ کریں",
       unfavorite: "محفوظ ہٹائیں",
+      reviewsCount: "{count} ریویوز",
       addressPlaceholder: "1465 5th Avenue APt 5C",
       hoursPlaceholder: "اوقات متعین نہیں",
       emptyList:

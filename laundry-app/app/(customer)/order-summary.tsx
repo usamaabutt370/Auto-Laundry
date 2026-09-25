@@ -39,6 +39,7 @@ import { formatMoney } from "@/utils/format-money";
 import type { Coordinates } from "@/utils/geocoding";
 import { getPartnerHoursRange, getPartnerOpenStatus } from "@/utils/partner-hours";
 import { runAfterModalTeardown } from "@/utils/run-after-modal-teardown";
+import { requestLaundererCollectFocus } from "@/utils/launderer-detail-focus";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { UI } from "@/constants/theme";
 
@@ -366,6 +367,37 @@ export default function OrderSummaryScreen() {
     });
   };
 
+  /** Drop-off Change: close review and return to detail so user can pick fulfillment. */
+  const changeFulfillmentFromReview = () => {
+    if (!draft.partnerId) return;
+    if (draft.pickupDeliveryRequested) {
+      openPickupSchedule();
+      return;
+    }
+    requestLaundererCollectFocus();
+    try {
+      if (typeof router.canDismiss === "function" && router.canDismiss()) {
+        router.dismiss();
+        return;
+      }
+    } catch {
+      // ignore
+    }
+    if (typeof router.canGoBack === "function" && router.canGoBack()) {
+      router.back();
+      return;
+    }
+    router.navigate({
+      pathname: "/(customer)/launderer-detail",
+      params: {
+        id: draft.partnerId,
+        ...(draft.partnerName ? { name: draft.partnerName } : {}),
+        mode: "dropoff",
+        focus: "collect",
+      },
+    });
+  };
+
   const removeLine = (key: string) => {
     const parsed = parseLineKey(key);
     if (!parsed) return;
@@ -675,14 +707,7 @@ export default function OrderSummaryScreen() {
                     {draft.pickupDeliveryRequested ? s.pickupHint : s.dropoffHint}
                   </Text>
                 </View>
-                <Pressable
-                  onPress={() =>
-                    draft.pickupDeliveryRequested
-                      ? openPickupSchedule()
-                      : openShop({ focus: "collect" })
-                  }
-                  hitSlop={8}
-                >
+                <Pressable onPress={changeFulfillmentFromReview} hitSlop={8}>
                   <Text style={styles.inlineLinkText}>{s.change}</Text>
                 </Pressable>
               </View>
