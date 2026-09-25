@@ -28,8 +28,8 @@ export function QtyStepper({
   accessibilityLabelIncrement = "Increase quantity",
 }: Props) {
   const { s, ms, isNarrow } = useResponsiveLayout();
-  const btn = s(isNarrow ? 30 : 36);
-  const gap = s(isNarrow ? 6 : 10);
+  const btn = s(isNarrow ? 24 : 28);
+  const gap = s(isNarrow ? 4 : 6);
   const canDecrement = !(disabledDecrement ?? value <= 0);
 
   return (
@@ -47,7 +47,7 @@ export function QtyStepper({
       >
         <MaterialCommunityIcons
           name="minus"
-          size={isNarrow ? 17 : 20}
+          size={isNarrow ? 14 : 16}
           color={canDecrement ? UI.text : "#D1D5DB"}
         />
       </Pressable>
@@ -55,8 +55,8 @@ export function QtyStepper({
         style={[
           styles.value,
           {
-            fontSize: ms(isNarrow ? 15 : 17),
-            minWidth: s(isNarrow ? 22 : 28),
+            fontSize: ms(isNarrow ? 13 : 14),
+            minWidth: s(isNarrow ? 18 : 22),
           },
         ]}
       >
@@ -74,7 +74,7 @@ export function QtyStepper({
       >
         <MaterialCommunityIcons
           name="plus"
-          size={isNarrow ? 17 : 20}
+          size={isNarrow ? 14 : 16}
           color={incrementColor}
         />
       </Pressable>

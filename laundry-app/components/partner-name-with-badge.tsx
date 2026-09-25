@@ -23,7 +23,10 @@ export function PartnerNameWithBadge({
 }: PartnerNameWithBadgeProps) {
   return (
     <View style={[styles.row, containerStyle]}>
-      <Text style={[styles.name, nameStyle]} numberOfLines={numberOfLines}>
+      <Text
+        style={[styles.name, nameStyle]}
+        {...(numberOfLines > 0 ? { numberOfLines } : {})}
+      >
         {name}
       </Text>
       {verified ? <PartnerVerifiedBadge size={badgeSize} color={badgeColor} /> : null}

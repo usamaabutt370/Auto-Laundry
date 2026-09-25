@@ -51,7 +51,6 @@ import {
   type PartnerMapMarker,
 } from "@/hooks/use-customer-home-map-data";
 import { getDeviceCoordinatesWithStatus } from "@/utils/device-location";
-import { StarRating } from "@/components/star-rating";
 import { getPartnerOpenStatus, isPartnerOpenNow } from "@/utils/partner-hours";
 import { isPartnerTopRated, partnerHasActiveOffer } from "@/utils/partner-offers";
 
@@ -61,6 +60,18 @@ const H_PAD = 16;
 const CARD_GAP = 12;
 
 type ProviderChip = "all" | "open" | "rated" | "offers";
+
+function fill(template: string, vars: Record<string, string | number>) {
+  return template.replace(/\{(\w+)\}/g, (_, key: string) => String(vars[key] ?? `{${key}}`));
+}
+
+function shortAddress(address: string | null | undefined): string | null {
+  const trimmed = address?.trim();
+  if (!trimmed) return null;
+  const first = trimmed.split(",")[0]?.trim();
+  if (!first) return null;
+  return first.length > 28 ? `${first.slice(0, 27)}…` : first;
+}
 
 function toRadians(value: number): number {
   return (value * Math.PI) / 180;
@@ -87,12 +98,6 @@ function formatDistanceKm(distanceKm: number | null | undefined): string {
     return `${Math.max(0.1, distanceKm).toFixed(1)} km`;
   }
   return `${distanceKm.toFixed(1)} km`;
-}
-
-type LaundererCardVariant = "list" | "grid";
-
-function fill(template: string, vars: Record<string, string | number>) {
-  return template.replace(/\{(\w+)\}/g, (_, key: string) => String(vars[key] ?? `{${key}}`));
 }
 
 function LaundererCard({
@@ -123,6 +128,21 @@ function LaundererCard({
     openStatus === "open" ? s.openNow : openStatus === "closed" ? s.closed : s.hoursUnknown;
   const hasOffer = partnerHasActiveOffer(partner.offerPercent);
   const topRated = isPartnerTopRated(partner.ratingAvg, partner.ratingCount);
+  const areaLabel = shortAddress(partner.address);
+  const locationLine = [areaLabel, distanceLabel].filter(Boolean).join(" · ");
+  const typeLabel = isPickup ? s.tagWashFold : s.tagDropoff;
+  const ratingAvgLabel =
+    partner.ratingCount > 0
+      ? Number.isInteger(partner.ratingAvg)
+        ? String(partner.ratingAvg)
+        : partner.ratingAvg.toFixed(1)
+      : null;
+  const minPrice = typeof partner.minPrice === "number" ? Math.round(partner.minPrice) : null;
+  const offerPct = hasOffer ? partner.offerPercent ?? 0 : 0;
+  const wasPrice =
+    minPrice != null && offerPct > 0 && offerPct < 100
+      ? Math.round(minPrice / (1 - offerPct / 100))
+      : null;
 
   return (
     <Pressable
@@ -135,21 +155,7 @@ function LaundererCard({
         ) : (
           <Image source={assets.onboarding.slide1} style={styles.cardImage} contentFit="cover" />
         )}
-        {hasOffer ? (
-          <View style={[styles.cardBadge, styles.offerBadge]}>
-            <MaterialCommunityIcons name="tag-outline" size={11} color="#BE185D" />
-            <Text style={[styles.cardBadgeText, { color: "#BE185D" }]} numberOfLines={1}>
-              {fill(s.percentOff, { pct: partner.offerPercent ?? 0 })}
-            </Text>
-          </View>
-        ) : topRated ? (
-          <View style={[styles.cardBadge, styles.topRatedBadge]}>
-            <MaterialCommunityIcons name="crown-outline" size={11} color="#047857" />
-            <Text style={[styles.cardBadgeText, { color: "#047857" }]} numberOfLines={1}>
-              {s.badgeTopRated}
-            </Text>
-          </View>
-        ) : null}
+
         <Pressable
           onPress={onToggleFavorite}
           style={styles.heartBtn}
@@ -159,56 +165,112 @@ function LaundererCard({
         >
           <MaterialCommunityIcons
             name={favorited ? "heart" : "heart-outline"}
-            size={16}
+            size={18}
             color={favorited ? "#E11D48" : "#FFFFFF"}
           />
         </Pressable>
-        <View style={styles.distancePill}>
-          <MaterialCommunityIcons name="map-marker" size={11} color="#FFFFFF" />
-          <Text style={styles.distancePillText} numberOfLines={1}>
-            {distanceLabel}
-          </Text>
-        </View>
-      </View>
-      <View style={styles.cardBody}>
-        <PartnerNameWithBadge
-          name={partner.business_name.trim()}
-          verified
-          nameStyle={styles.cardName}
-          badgeSize={12}
-        />
-        <StarRating value={partner.ratingCount > 0 ? partner.ratingAvg : 0} size={13} />
-        <Text style={styles.tagText} numberOfLines={1}>
-          {isPickup ? `${s.tagLaundry} • ${s.tagWashFold}` : `${s.tagLaundry} • ${s.tagDropoff}`}
-        </Text>
-        <View style={styles.cardFooter}>
-          <View
-            style={[
-              styles.openPill,
-              openStatus === "closed" && styles.openPillClosed,
-              openStatus === "unknown" && styles.openPillMuted,
-            ]}
-          >
-            <Text
-              style={[
-                styles.openPillText,
-                openStatus === "closed" && styles.openPillTextClosed,
-                openStatus === "unknown" && styles.openPillTextMuted,
-              ]}
-            >
-              {openLabel}
+
+        {hasOffer ? (
+          <View style={styles.saveBadge}>
+            <Text style={styles.saveBadgeText} numberOfLines={1}>
+              {fill(s.percentOff, { pct: offerPct })}
             </Text>
           </View>
-          {typeof partner.minPrice === "number" ? (
-            <Text style={styles.fromPriceRow} numberOfLines={1}>
-              <Text style={styles.fromLabel}>{s.fromLabel} </Text>
-              <Text style={styles.price}>Rs {Math.round(partner.minPrice)}</Text>
+        ) : topRated ? (
+          <View style={styles.saveBadge}>
+            <Text style={styles.saveBadgeText} numberOfLines={1}>
+              {s.badgeTopRated}
             </Text>
-          ) : (
-            <Text style={styles.price} numberOfLines={1}>
-              {s.seePrices}
+          </View>
+        ) : null}
+      </View>
+
+      <View style={styles.cardBody}>
+        <View style={styles.titleRow}>
+          <PartnerNameWithBadge
+            name={partner.business_name.trim()}
+            verified
+            nameStyle={styles.cardName}
+            containerStyle={styles.cardNameWrap}
+            badgeSize={14}
+            numberOfLines={2}
+          />
+          <View style={styles.typePill}>
+            <Text style={styles.typePillText} numberOfLines={1}>
+              {s.tagLaundry}
             </Text>
-          )}
+          </View>
+        </View>
+
+        {ratingAvgLabel ? (
+          <View style={styles.ratingRow}>
+            <MaterialCommunityIcons name="star" size={14} color={UI.star} />
+            <Text style={styles.ratingValue}>{ratingAvgLabel}</Text>
+            {partner.ratingCount > 0 ? (
+              <Text style={styles.ratingCount}>
+                ({fill(s.reviewsCount, { count: partner.ratingCount })})
+              </Text>
+            ) : null}
+          </View>
+        ) : null}
+
+        {locationLine ? (
+          <View style={styles.locationRow}>
+            <MaterialCommunityIcons name="map-marker-outline" size={14} color={UI.muted} />
+            <Text style={styles.locationText} numberOfLines={1}>
+              {locationLine}
+            </Text>
+          </View>
+        ) : null}
+
+        <View style={styles.cardDivider} />
+
+        <View style={styles.detailsRow}>
+          <View style={styles.featuresCol}>
+            <View style={styles.featureItem}>
+              <MaterialCommunityIcons
+                name={isPickup ? "truck-delivery-outline" : "storefront-outline"}
+                size={15}
+                color={UI.text}
+              />
+              <Text style={styles.featureText} numberOfLines={1}>
+                {typeLabel}
+              </Text>
+            </View>
+            <View style={styles.featureItem}>
+              <MaterialCommunityIcons
+                name="clock-outline"
+                size={15}
+                color={openStatus === "open" ? UI.openText : UI.muted}
+              />
+              <Text
+                style={[
+                  styles.featureText,
+                  openStatus === "open" && styles.featureTextOpen,
+                  openStatus === "closed" && styles.featureTextClosed,
+                ]}
+                numberOfLines={1}
+              >
+                {openLabel}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.priceCol}>
+            <Text style={styles.priceMeta} numberOfLines={1}>
+              {s.fromLabel}
+            </Text>
+            {minPrice != null ? (
+              <View style={styles.priceRow}>
+                {wasPrice != null && wasPrice > minPrice ? (
+                  <Text style={styles.priceWas}>Rs {wasPrice}</Text>
+                ) : null}
+                <Text style={styles.priceNow}>Rs {minPrice}</Text>
+              </View>
+            ) : (
+              <Text style={styles.priceNow}>{s.seePrices}</Text>
+            )}
+          </View>
         </View>
       </View>
     </Pressable>
@@ -220,7 +282,7 @@ export default function PickLaundererScreen() {
   const { editingOrderId } = useCustomerOrderDraft();
   const params = useLocalSearchParams<{ reorderOrderId?: string; mode?: string; service?: string }>();
   const s = strings.customer.pickLaunderer;
-  const { isWebDesktop, isNarrow } = useResponsiveLayout();
+  const { isWebDesktop } = useResponsiveLayout();
   const insets = useSafeAreaInsets();
   const { firstName, avatarUri, isLoggedIn } = useHomeProfile();
   const { width: windowWidth } = useWindowDimensions();
@@ -247,7 +309,7 @@ export default function PickLaundererScreen() {
     categories: isServiceCategory(params.service) ? [params.service] : [],
   }));
   const geocodeCacheRef = useRef<Map<string, Coordinates | null>>(new Map());
-  const columns = isWebDesktop ? 3 : isNarrow ? 1 : 2;
+  const columns = isWebDesktop ? 2 : 1;
   const cardWidth = (windowWidth - H_PAD * 2 - CARD_GAP * (columns - 1)) / columns;
   const headerTitle = isReassignMode ? s.reassignTitle : s.serviceProviders;
   const sHome = strings.customer.home;
@@ -973,134 +1035,171 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: UI.card,
-    borderRadius: 16,
+    borderRadius: 20,
     overflow: "hidden",
-    shadowColor: "rgba(17, 24, 39, 0.08)",
-    shadowOffset: { width: 0, height: 6 },
+    shadowColor: "rgba(17, 24, 39, 0.12)",
+    shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 1,
-    shadowRadius: 12,
-    elevation: 3,
+    shadowRadius: 16,
+    elevation: 4,
   },
   cardImageWrap: {
-    height: 118,
+    height: 168,
   },
   cardImage: {
     width: "100%",
     height: "100%",
     backgroundColor: "#E5E7EB",
   },
-  cardBadge: {
-    position: "absolute",
-    top: 8,
-    left: 8,
-    maxWidth: "72%",
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 999,
-  },
-  offerBadge: {
-    backgroundColor: "#FCE7F3",
-  },
-  topRatedBadge: {
-    backgroundColor: "#D1FAE5",
-  },
-  cardBadgeText: {
-    fontSize: 10,
-    fontFamily: "Poppins-SemiBold",
-  },
   heartBtn: {
     position: "absolute",
-    top: 8,
-    right: 8,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: "rgba(0,0,0,0.28)",
+    top: 12,
+    right: 12,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: "rgba(17, 24, 39, 0.42)",
     alignItems: "center",
     justifyContent: "center",
   },
-  distancePill: {
+  saveBadge: {
     position: "absolute",
-    left: 8,
-    bottom: 8,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: UI.distBg,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 999,
-    maxWidth: "80%",
+    left: 12,
+    bottom: 22,
+    backgroundColor: "#0D9488",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    maxWidth: "70%",
   },
-  distancePillText: {
+  saveBadgeText: {
     color: "#FFFFFF",
-    fontSize: 10,
-    fontFamily: "Poppins-SemiBold",
+    fontSize: 11,
+    fontFamily: "Poppins-Bold",
   },
   cardBody: {
-    paddingHorizontal: 8,
-    paddingTop: 10,
-    paddingBottom: 12,
-    gap: 4,
+    marginTop: -14,
+    backgroundColor: UI.card,
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
+    paddingHorizontal: 14,
+    paddingTop: 14,
+    paddingBottom: 14,
+    gap: 8,
+  },
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+  },
+  cardNameWrap: {
+    flex: 1,
+    minWidth: 0,
   },
   cardName: {
-    fontSize: 13,
+    flex: 1,
+    fontSize: 16,
     fontFamily: "Poppins-Bold",
     color: UI.text,
+    lineHeight: 22,
   },
-  tagText: {
+  typePill: {
+    borderWidth: 1,
+    borderColor: UI.chipBorder,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    flexShrink: 0,
+  },
+  typePillText: {
     fontSize: 11,
     color: UI.muted,
-    fontFamily: "Poppins-Regular",
+    fontFamily: "Poppins-SemiBold",
   },
-  cardFooter: {
+  ratingRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
     gap: 4,
-    marginTop: 4,
   },
-  openPill: {
-    backgroundColor: UI.openBg,
-    paddingHorizontal: 6,
-    paddingVertical: 4,
-    borderRadius: 999,
-    flexShrink: 0,
-  },
-  openPillMuted: {
-    backgroundColor: "#F3F4F6",
-  },
-  openPillClosed: {
-    backgroundColor: "#FEE2E2",
-  },
-  openPillText: {
-    fontSize: 10,
-    color: UI.openText,
+  ratingValue: {
+    fontSize: 13,
+    color: UI.text,
     fontFamily: "Poppins-SemiBold",
-    flexShrink: 0,
   },
-  openPillTextMuted: {
+  ratingCount: {
+    fontSize: 12,
     color: UI.muted,
+    fontFamily: "Poppins-Regular",
   },
-  openPillTextClosed: {
+  locationRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  locationText: {
+    flex: 1,
+    fontSize: 12,
+    color: UI.muted,
+    fontFamily: "Poppins-Regular",
+  },
+  cardDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: UI.chipBorder,
+    marginVertical: 2,
+  },
+  detailsRow: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  featuresCol: {
+    flex: 1,
+    minWidth: 0,
+    gap: 6,
+  },
+  featureItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  featureText: {
+    flex: 1,
+    fontSize: 12,
+    color: UI.text,
+    fontFamily: "Poppins-Medium",
+  },
+  featureTextOpen: {
+    color: UI.openText,
+  },
+  featureTextClosed: {
     color: "#B91C1C",
   },
-  fromPriceRow: {
-    flexShrink: 1,
-    minWidth: 0,
-    textAlign: "right",
+  priceCol: {
+    alignItems: "flex-end",
+    flexShrink: 0,
+    maxWidth: "46%",
   },
-  fromLabel: {
+  priceMeta: {
     fontSize: 11,
     color: UI.muted,
     fontFamily: "Poppins-Regular",
   },
-  price: {
+  priceRow: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    gap: 6,
+    marginTop: 2,
+  },
+  priceWas: {
     fontSize: 12,
+    color: UI.muted,
+    fontFamily: "Poppins-Regular",
+    textDecorationLine: "line-through",
+  },
+  priceNow: {
+    fontSize: 18,
+    color: "#DB2777",
     fontFamily: "Poppins-Bold",
-    color: UI.price,
   },
 });

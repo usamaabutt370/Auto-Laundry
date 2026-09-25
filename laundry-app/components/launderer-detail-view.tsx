@@ -19,6 +19,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useFocusEffect } from "@react-navigation/native";
 
 import { showAppAlert } from "@/components/app-alert";
 import { OrderSelectionSummary } from "@/components/order-selection-summary";
@@ -28,6 +29,7 @@ import { StarRating } from "@/components/star-rating";
 import { assets } from "@/assets/assets";
 import type { LaundererServiceType } from "@/constants/launderers";
 import { useAuth } from "@/contexts/auth-context";
+import { consumeLaundererCollectFocus } from "@/utils/launderer-detail-focus";
 import {
   orderDraftHasItems,
   quantitiesHaveItems,
@@ -409,14 +411,70 @@ export function LaundererDetailView({
     didScrollToCollectRef.current = false;
   }, [partnerId, scrollToCollect]);
 
-  const scrollToCollectSection = useCallback((yInSheet: number) => {
-    if (!scrollToCollect || didScrollToCollectRef.current) return;
+  const collectYInSheetRef = useRef(0);
+
+  const pendingCollectScrollRef = useRef(false);
+
+  const runScrollToCollect = useCallback((animated = true) => {
+    const yInSheet = collectYInSheetRef.current;
+    // Wait until fulfillment onLayout has measured a real offset.
+    if (yInSheet <= 0) return false;
+    if (!mainScrollRef.current) return false;
     const y = Math.max(0, sheetOffsetYRef.current + yInSheet - 16);
-    didScrollToCollectRef.current = true;
-    requestAnimationFrame(() => {
-      mainScrollRef.current?.scrollTo({ y, animated: true });
-    });
-  }, [scrollToCollect]);
+    mainScrollRef.current.scrollTo({ y, animated });
+    return true;
+  }, []);
+
+  const scrollToCollectSection = useCallback(
+    (yInSheet: number) => {
+      collectYInSheetRef.current = yInSheet;
+      if (!pendingCollectScrollRef.current && !scrollToCollect) return;
+      if (didScrollToCollectRef.current) return;
+      if (!runScrollToCollect(true)) return;
+      didScrollToCollectRef.current = true;
+      pendingCollectScrollRef.current = false;
+    },
+    [runScrollToCollect, scrollToCollect],
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      const fromParam = scrollToCollect;
+      const fromSignal = consumeLaundererCollectFocus();
+      if (!fromParam && !fromSignal) return;
+
+      pendingCollectScrollRef.current = true;
+      didScrollToCollectRef.current = false;
+      let cancelled = false;
+      let attempt = 0;
+      const timers: ReturnType<typeof setTimeout>[] = [];
+
+      const tryScroll = () => {
+        if (cancelled || didScrollToCollectRef.current) return;
+        if (runScrollToCollect(true)) {
+          didScrollToCollectRef.current = true;
+          pendingCollectScrollRef.current = false;
+          return;
+        }
+        attempt += 1;
+        if (attempt < 24) {
+          timers.push(setTimeout(tryScroll, 50));
+        }
+      };
+
+      // Wait for modal teardown + layout before scrolling into view.
+      timers.push(
+        setTimeout(() => {
+          requestAnimationFrame(tryScroll);
+        }, 120),
+      );
+
+      return () => {
+        cancelled = true;
+        timers.forEach(clearTimeout);
+      };
+    }, [runScrollToCollect, scrollToCollect]),
+  );
 
   const pickupEnabled = hasPickup && draft.pickupDeliveryRequested;
   const hasPickupSchedule = Boolean(

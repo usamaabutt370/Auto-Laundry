@@ -1,7 +1,7 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
-import { useMemo, useState } from "react";
-import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { useMemo } from "react";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { PartnerNameWithBadge } from "@/components/partner-name-with-badge";
 import { AppCtaButton } from "@/components/ui/cta-button";
@@ -35,11 +35,7 @@ type OrderCardStrings = {
   stepPickedUp: string;
   stepOnTheWay: string;
   stepCompleted: string;
-  deleteAction: string;
-  reorderAction: string;
   reviewsCount: string;
-  menu: string;
-  viewDetails: string;
 };
 
 type CustomerOrderCardProps = {
@@ -48,8 +44,6 @@ type CustomerOrderCardProps = {
   onOpenDetail: () => void;
   onTrack: () => void;
   onChat: () => void;
-  onDelete?: () => void;
-  onReorder?: () => void;
 };
 
 const PROGRESS_STEPS = [
@@ -124,11 +118,8 @@ export function CustomerOrderCard({
   onOpenDetail,
   onTrack,
   onChat,
-  onDelete,
-  onReorder,
 }: CustomerOrderCardProps) {
   const { s: scaleSize, ms, isNarrow } = useResponsiveLayout();
-  const [menuOpen, setMenuOpen] = useState(false);
   const status = useMemo(() => statusCopy(order, s), [order, s]);
   const activeStep = progressIndex(order.rawStatus);
   const showTrack = order.displayStatus !== "rejected";
@@ -186,9 +177,21 @@ export function CustomerOrderCard({
           <PartnerNameWithBadge
             name={order.partnerName}
             verified={order.partnerVerified}
+            numberOfLines={1}
             nameStyle={[styles.partnerName, { fontSize: ms(isNarrow ? 14 : 15) }]}
+            containerStyle={styles.partnerNameRow}
           />
-          <Text style={styles.orderRef}>{fill(s.orderRef, { ref: order.orderRef })}</Text>
+          <View style={styles.orderStatusRow}>
+            <Text style={styles.orderRef} numberOfLines={1}>
+              {fill(s.orderRef, { ref: order.orderRef })}
+            </Text>
+            <View style={[styles.statusPill, { backgroundColor: status.bg }]}>
+              <MaterialCommunityIcons name={status.icon} size={12} color={status.color} />
+              <Text style={[styles.statusText, { color: status.color }]} numberOfLines={1}>
+                {status.label}
+              </Text>
+            </View>
+          </View>
           <View style={styles.metaRow}>
             {ratingLabel ? (
               <>
@@ -199,26 +202,6 @@ export function CustomerOrderCard({
                 </Text>
               </>
             ) : null}
-          </View>
-        </View>
-        <View style={styles.headerRight}>
-          <Pressable
-            onPress={(e) => {
-              e.stopPropagation();
-              setMenuOpen(true);
-            }}
-            hitSlop={8}
-            style={styles.menuBtn}
-            accessibilityRole="button"
-            accessibilityLabel={s.menu}
-          >
-            <MaterialCommunityIcons name="dots-horizontal" size={20} color={UI.muted} />
-          </Pressable>
-          <View style={[styles.statusPill, { backgroundColor: status.bg }]}>
-            <MaterialCommunityIcons name={status.icon} size={12} color={status.color} />
-            <Text style={[styles.statusText, { color: status.color }]} numberOfLines={1}>
-              {status.label}
-            </Text>
           </View>
         </View>
       </View>
@@ -359,47 +342,6 @@ export function CustomerOrderCard({
           />
         ) : null}
       </View>
-
-      <Modal visible={menuOpen} transparent animationType="fade" onRequestClose={() => setMenuOpen(false)}>
-        <Pressable style={styles.menuOverlay} onPress={() => setMenuOpen(false)}>
-          <View style={styles.menuSheet}>
-            {onDelete && order.displayStatus === "pending" ? (
-              <Pressable
-                style={styles.menuItem}
-                onPress={() => {
-                  setMenuOpen(false);
-                  onDelete();
-                }}
-              >
-                <MaterialCommunityIcons name="trash-can-outline" size={18} color={UI.red} />
-                <Text style={[styles.menuItemText, { color: UI.red }]}>{s.deleteAction}</Text>
-              </Pressable>
-            ) : null}
-            {onReorder && order.displayStatus === "rejected" ? (
-              <Pressable
-                style={styles.menuItem}
-                onPress={() => {
-                  setMenuOpen(false);
-                  onReorder();
-                }}
-              >
-                <MaterialCommunityIcons name="refresh" size={18} color={UI.purple} />
-                <Text style={styles.menuItemText}>{s.reorderAction}</Text>
-              </Pressable>
-            ) : null}
-            <Pressable
-              style={styles.menuItem}
-              onPress={() => {
-                setMenuOpen(false);
-                onOpenDetail();
-              }}
-            >
-              <MaterialCommunityIcons name="file-document-outline" size={18} color={UI.text} />
-                <Text style={styles.menuItemText}>{s.viewDetails}</Text>
-            </Pressable>
-          </View>
-        </Pressable>
-      </Modal>
     </Pressable>
   );
 }
@@ -428,19 +370,25 @@ const styles = StyleSheet.create({
   },
   partnerImageFallback: { alignItems: "center", justifyContent: "center" },
   headerCopy: { flex: 1, minWidth: 0, gap: 2 },
+  partnerNameRow: { alignItems: "center", width: "100%" },
   partnerName: { fontSize: 15, fontFamily: "Poppins-Bold", color: UI.text },
-  orderRef: { fontSize: 12, fontFamily: "Poppins-Medium", color: UI.muted },
+  orderStatusRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+    marginTop: 2,
+  },
+  orderRef: {
+    flex: 1,
+    minWidth: 0,
+    fontSize: 12,
+    fontFamily: "Poppins-Medium",
+    color: UI.muted,
+  },
   metaRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 },
   metaStrong: { fontSize: 12, fontFamily: "Poppins-SemiBold", color: UI.text },
   metaMuted: { fontSize: 12, fontFamily: "Poppins-Regular", color: UI.muted },
-  headerRight: { alignItems: "flex-end", gap: 8, maxWidth: 140 },
-  menuBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    alignItems: "center",
-    justifyContent: "center",
-  },
   statusPill: {
     flexDirection: "row",
     alignItems: "center",
@@ -448,7 +396,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 5,
     borderRadius: 999,
-    maxWidth: 140,
+    maxWidth: 150,
+    flexShrink: 0,
   },
   statusText: {
     fontSize: 10,
@@ -563,29 +512,5 @@ const styles = StyleSheet.create({
   },
   actionBtn: {
     minHeight: 40,
-  },
-  menuOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(17,24,39,0.35)",
-    justifyContent: "flex-end",
-    padding: 16,
-  },
-  menuSheet: {
-    backgroundColor: UI.card,
-    borderRadius: 16,
-    paddingVertical: 8,
-    overflow: "hidden",
-  },
-  menuItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  menuItemText: {
-    fontSize: 14,
-    fontFamily: "Poppins-SemiBold",
-    color: UI.text,
   },
 });
