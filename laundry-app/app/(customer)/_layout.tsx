@@ -21,6 +21,17 @@ export default function CustomerLayout() {
         <Stack.Screen name="contact-support" />
         <Stack.Screen name="faq" />
         <Stack.Screen name="edit-profile" />
+        <Stack.Screen name="addresses" />
+        <Stack.Screen
+          name="address-edit"
+          options={{
+            presentation: "transparentModal",
+            animation: "fade",
+            gestureEnabled: true,
+            headerShown: false,
+            contentStyle: { backgroundColor: "transparent" },
+          }}
+        />
         <Stack.Screen name="pickup-services" />
         <Stack.Screen name="pick-launderer" />
         <Stack.Screen name="launderer-detail" />

@@ -88,3 +88,84 @@ export async function getPlaceLabelFromCoordinates(
     return null;
   }
 }
+
+export type ReverseGeocodeDetails = {
+  displayName: string;
+  houseNo: string;
+  street: string;
+  city: string;
+  coords: Coordinates;
+};
+
+type NominatimAddress = {
+  house_number?: string;
+  road?: string;
+  neighbourhood?: string;
+  suburb?: string;
+  city?: string;
+  town?: string;
+  village?: string;
+  county?: string;
+  state?: string;
+  country?: string;
+};
+
+function detailsFromNominatim(
+  coords: Coordinates,
+  displayName: string | undefined,
+  address: NominatimAddress,
+): ReverseGeocodeDetails {
+  const city =
+    address.city ||
+    address.town ||
+    address.village ||
+    address.county ||
+    address.state ||
+    "";
+  const street = [address.road, address.neighbourhood || address.suburb]
+    .filter((part) => typeof part === "string" && part.trim().length > 0)
+    .join(", ");
+  const composed =
+    displayName?.trim() ||
+    [address.house_number, street, city, address.country].filter(Boolean).join(", ");
+  return {
+    displayName: composed,
+    houseNo: address.house_number?.trim() ?? "",
+    street,
+    city,
+    coords,
+  };
+}
+
+/** Street-level reverse geocode for the address form. */
+export async function reverseGeocodeDetails(
+  coords: Coordinates,
+): Promise<ReverseGeocodeDetails | null> {
+  try {
+    const url =
+      "https://nominatim.openstreetmap.org/reverse" +
+      `?format=jsonv2&lat=${coords.latitude}&lon=${coords.longitude}` +
+      "&zoom=18&addressdetails=1&accept-language=en";
+    const response = await fetch(url);
+    if (!response.ok) return null;
+    const data = (await response.json()) as {
+      display_name?: string;
+      address?: NominatimAddress;
+    };
+    return detailsFromNominatim(coords, data.display_name, data.address ?? {});
+  } catch {
+    return null;
+  }
+}
+
+/** Search an address query and return pin + parsed parts. */
+export async function searchAddressDetails(
+  query: string,
+): Promise<ReverseGeocodeDetails | null> {
+  const trimmed = query.trim();
+  if (!trimmed) return null;
+  const coords = await getCoordinatesFromOpenStreetMap(trimmed);
+  if (!coords) return null;
+  const details = await reverseGeocodeDetails(coords);
+  return details ?? { displayName: trimmed, houseNo: "", street: trimmed, city: "", coords };
+}

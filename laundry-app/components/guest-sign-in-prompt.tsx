@@ -1,8 +1,9 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { getTabBarBottomInset } from "@/components/bottom-tab-bar";
+import { AppCtaButton } from "@/components/ui/cta-button";
 import { theme, UI } from "@/constants/theme";
 
 const c = theme.colors;
@@ -65,18 +66,7 @@ export function GuestSignInPrompt({
         <GuestArt variant={variant} light={light} />
         <Text style={[styles.title, light && styles.titleLight]}>{title}</Text>
         <Text style={[styles.subtitle, light && styles.subtitleLight]}>{subtitle}</Text>
-        <Pressable
-          onPress={onPressLogin}
-          style={({ pressed }) => [
-            styles.loginBtn,
-            light && styles.loginBtnLight,
-            pressed && styles.pressed,
-          ]}
-          accessibilityRole="button"
-          accessibilityLabel={buttonLabel}
-        >
-          <Text style={styles.loginLabel}>{buttonLabel}</Text>
-        </Pressable>
+        <AppCtaButton label={buttonLabel} onPress={onPressLogin} width="full" />
       </View>
     </View>
   );
@@ -173,28 +163,5 @@ const styles = StyleSheet.create({
   },
   subtitleLight: {
     color: UI.muted,
-  },
-  loginBtn: {
-    alignSelf: "stretch",
-    backgroundColor: c.lightBlue,
-    borderRadius: 14,
-    paddingVertical: 16,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: c.filledButtonBorder,
-  },
-  loginBtnLight: {
-    backgroundColor: UI.teal,
-    borderWidth: 0,
-  },
-  loginLabel: {
-    color: c.white,
-    fontSize: 16,
-    fontFamily: "Poppins-Bold",
-    fontWeight: "700",
-  },
-  pressed: {
-    opacity: 0.9,
   },
 });

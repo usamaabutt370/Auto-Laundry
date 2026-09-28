@@ -62,12 +62,11 @@ export default function RootLayout() {
                 <Stack.Screen
                   name="(auth)"
                   options={{
-                    presentation: "modal",
-                    animation: "slide_from_bottom",
-                    gestureEnabled: true,
-                    ...(Platform.OS === "ios"
-                      ? { gestureDirection: "vertical" as const }
-                      : {}),
+                    // transparentModal so Android stays a sheet (stack `modal` is full-screen there).
+                    presentation: "transparentModal",
+                    animation: "none",
+                    gestureEnabled: false,
+                    contentStyle: { backgroundColor: "transparent" },
                   }}
                 />
                 <Stack.Screen name="(customer)" />
