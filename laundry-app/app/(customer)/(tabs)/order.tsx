@@ -220,12 +220,17 @@ export default function CustomerOrderScreen() {
       <StatusBar style="dark" />
       {!isWeb ? (
         <SafeAreaView style={styles.safeTop} edges={["top"]}>
-          <AppHeader appearance="light" title={s.title} />
+          <AppHeader
+            appearance="light"
+            title={s.title}
+            subtitle={user?.id ? s.liveHint : null}
+            titleAlign="left"
+            titleStyle={styles.screenTitle}
+          />
         </SafeAreaView>
       ) : (
         <WebHeaderSpacer />
       )}
-      {!isWeb && user?.id ? <Text style={styles.hint}>{s.liveHint}</Text> : null}
       {!user?.id ? (
         <GuestSignInPrompt
           appearance="light"
@@ -485,16 +490,12 @@ const styles = StyleSheet.create({
   },
   safeTop: {
     backgroundColor: UI.bg,
-    paddingBottom: 4,
   },
-  hint: {
-    marginHorizontal: PAD,
-    fontSize: fs.descText,
-    fontFamily: "Poppins-Regular",
-    color: UI.muted,
-    lineHeight: 18,
-    textAlign: "center",
-    marginBottom: 12,
+  screenTitle: {
+    fontSize: 26,
+    lineHeight: 30,
+    fontFamily: "Poppins-Bold",
+    fontWeight: "700",
   },
   filterScroll: {
     flexGrow: 0,
