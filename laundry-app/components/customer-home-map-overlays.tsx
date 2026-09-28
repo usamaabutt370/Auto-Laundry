@@ -22,6 +22,10 @@ import {
 } from "@/hooks/use-customer-home-map-data";
 import { usePartnerVerified } from "@/hooks/use-partner-verified";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
+import {
+  getSavedProviderMap,
+  toggleSavedProvider,
+} from "@/lib/saved-providers";
 import type { Coordinates } from "@/utils/geocoding";
 import { getPartnerOpenStatus } from "@/utils/partner-hours";
 import { isPartnerTopRated } from "@/utils/partner-offers";
@@ -267,6 +271,10 @@ export function CustomerHomeMapOverlays({
   const cardBottom = Math.max(mapBottomInset, 10);
   const fabBottom = cardVisible ? cardBottom + 168 : recenterBottomOffset;
 
+  useEffect(() => {
+    void getSavedProviderMap().then(setFavorites);
+  }, []);
+
   const browsePartners = useMemo(() => {
     const markerIds = new Set(mapMarkers.map((marker) => marker.id));
     const listed = partners.filter((partner) => markerIds.has(partner.id));
@@ -369,12 +377,12 @@ export function CustomerHomeMapOverlays({
                     partner={item}
                     userCoordinates={userCoordinates}
                     favorited={Boolean(favorites[item.id])}
-                    onToggleFavorite={() =>
-                      setFavorites((prev) => ({
-                        ...prev,
-                        [item.id]: !prev[item.id],
-                      }))
-                    }
+                    onToggleFavorite={() => {
+                      void (async () => {
+                        const next = await toggleSavedProvider(item.id);
+                        setFavorites((prev) => ({ ...prev, [item.id]: next }));
+                      })();
+                    }}
                     onClosePartner={onClosePartner}
                     onPartnerPress={onPartnerPress}
                   />

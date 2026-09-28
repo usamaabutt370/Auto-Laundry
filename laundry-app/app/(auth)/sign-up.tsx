@@ -228,7 +228,7 @@ export default function SignUpScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
+    <SafeAreaView style={styles.container} edges={["bottom"]}>
       <StatusBar style="dark" />
       <AuthErrorModal
         visible={Boolean(authError)}
@@ -356,7 +356,7 @@ export default function SignUpScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: UI.bg,
+    backgroundColor: "transparent",
   },
   header: {
     paddingHorizontal: 16,

@@ -178,7 +178,7 @@ export default function LoginScreen() {
     dismissAuthSheet(navigation, router, returnTo);
   };
   return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
+    <SafeAreaView style={styles.container} edges={["bottom"]}>
       <StatusBar style="dark" />
       <View style={styles.screenBody}>
       <AuthErrorModal
@@ -306,7 +306,7 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: UI.bg,
+    backgroundColor: "transparent",
   },
   screenBody: {
     flex: 1,

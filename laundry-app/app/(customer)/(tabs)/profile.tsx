@@ -14,6 +14,7 @@ import { useRouter, useFocusEffect } from "expo-router";
 import { useIsFocused } from "@react-navigation/native";
 
 import { DeleteAccountButton } from "@/components/delete-account-button";
+import { AppCtaButton } from "@/components/ui/cta-button";
 import { GradientLoader } from "@/components/ui/gradient-loader";
 import { useAuth } from "@/contexts/auth-context";
 import { useLocale } from "@/contexts/locale-context";
@@ -30,6 +31,9 @@ import { useSuppressWebScreenHeader } from "@/hooks/use-suppress-web-screen-head
 import { runAfterModalTeardown } from "@/utils/run-after-modal-teardown";
 import { getStrings } from "@/locales";
 import { UI } from "@/constants/theme";
+
+const PAD = 20;
+const ICON_WELL = "#EEF2FF";
 
 export default function CustomerProfileMenu() {
 	const router = useRouter();
@@ -207,30 +211,78 @@ export default function CustomerProfileMenu() {
 			? roleSwitchValue
 			: (user?.user_metadata?.role ?? "customer") === "launderer";
 
-	const MenuItem = ({
+	const MenuRow = ({
 		icon,
+		iconColor,
+		iconBg,
 		label,
+		hint,
 		onPress,
 	}: {
-		icon: string;
+		icon: React.ComponentProps<typeof MaterialCommunityIcons>["name"];
+		iconColor: string;
+		iconBg: string;
 		label: string;
+		hint: string;
 		onPress?: () => void;
 	}) => (
 		<Pressable
-			style={({ pressed }) => [styles.menuItem, pressed && styles.pressed]}
+			style={({ pressed }) => [styles.menuCard, pressed && styles.pressed]}
 			onPress={onPress}
+			accessibilityRole="button"
+			accessibilityLabel={label}
 		>
-			<MaterialCommunityIcons name={icon as any} size={22} color={UI.teal} />
-			<Text style={styles.menuLabel}>{label}</Text>
+			<View style={[styles.menuIconWell, { backgroundColor: iconBg }]}>
+				<MaterialCommunityIcons name={icon} size={20} color={iconColor} />
+			</View>
+			<View style={styles.menuCopy}>
+				<Text style={styles.menuLabel}>{label}</Text>
+				<Text style={styles.menuHint} numberOfLines={1}>
+					{hint}
+				</Text>
+			</View>
 			<MaterialCommunityIcons name="chevron-right" size={20} color={UI.muted} />
 		</Pressable>
 	);
 
+	const ProfileHeader = () =>
+		!isWeb ? (
+			<SafeAreaView edges={["top"]} style={styles.safeArea}>
+				<View style={styles.header}>
+					<View style={styles.headerCopy}>
+						<Text style={styles.title}>{s.title}</Text>
+						<Text style={styles.subtitle}>{s.subtitle}</Text>
+					</View>
+					<View style={styles.headerActions}>
+						<Pressable
+							onPress={() => router.push("/(customer)/settings")}
+							style={styles.iconBtn}
+							accessibilityRole="button"
+							accessibilityLabel={s.notificationsA11y}
+						>
+							<MaterialCommunityIcons name="bell-outline" size={20} color={UI.text} />
+							<View style={styles.notifDot} />
+						</Pressable>
+						<Pressable
+							onPress={() => router.push("/(customer)/settings")}
+							style={styles.iconBtn}
+							accessibilityRole="button"
+							accessibilityLabel={s.settingsA11y}
+						>
+							<MaterialCommunityIcons name="cog-outline" size={20} color={UI.text} />
+						</Pressable>
+					</View>
+				</View>
+			</SafeAreaView>
+		) : (
+			<WebHeaderSpacer />
+		);
+
 	if (!user?.id) {
 		return (
-			<SafeAreaView style={styles.container} edges={isWeb ? [] : ["top"]}>
+			<View style={styles.container}>
 				<StatusBar style="dark" />
-				{isWeb ? <WebHeaderSpacer /> : null}
+				<ProfileHeader />
 				<ScrollView
 					contentContainerStyle={[styles.content, isWeb && styles.contentWeb]}
 					showsVerticalScrollIndicator={false}
@@ -239,119 +291,133 @@ export default function CustomerProfileMenu() {
 						<Text style={styles.guestTitle}>{s.guestTitle}</Text>
 						<Text style={styles.guestSubtitle}>{s.guestSubtitle}</Text>
 						<View style={styles.guestActions}>
-							<Pressable
+							<AppCtaButton
+								label={s.logIn}
+								leftIcon="key-variant"
+								width="half"
 								onPress={() =>
 									router.push({
 										pathname: "/(auth)/login",
 										params: { returnTo: "profile" },
 									})
 								}
-								style={({ pressed }) => [
-									styles.guestPrimaryBtn,
-									pressed && styles.pressed,
-								]}
-								accessibilityRole="button"
-								accessibilityLabel={s.logIn}
-							>
-								<MaterialCommunityIcons name="key-variant" size={18} color="#FFFFFF" />
-								<Text style={styles.guestPrimaryLabel}>{s.logIn}</Text>
-							</Pressable>
-							<Pressable
+							/>
+							<AppCtaButton
+								label={s.signUp}
+								leftIcon="account-outline"
+								width="half"
 								onPress={() =>
 									router.push({
 										pathname: "/(auth)/sign-up",
 										params: { returnTo: "profile" },
 									})
 								}
-								style={({ pressed }) => [
-									styles.guestSecondaryBtn,
-									pressed && styles.pressed,
-								]}
-								accessibilityRole="button"
-								accessibilityLabel={s.signUp}
-							>
-								<MaterialCommunityIcons
-									name="account-outline"
-									size={18}
-									color={UI.teal}
-								/>
-								<Text style={styles.guestSecondaryLabel}>{s.signUp}</Text>
-							</Pressable>
+							/>
 						</View>
 					</View>
 
-					<View style={styles.divider} />
-					<View style={styles.menuGroup}>
-						<MenuItem
+					<View style={styles.menuList}>
+						<MenuRow
 							icon="help-circle-outline"
+							iconColor={UI.blue}
+							iconBg="#EEF2FF"
 							label={s.faq}
+							hint={s.helpSupportHint}
 							onPress={() => router.push("/(customer)/faq")}
 						/>
-						<MenuItem
+						<MenuRow
 							icon="headphones"
+							iconColor={UI.blue}
+							iconBg="#EEF2FF"
 							label={s.contactSupport}
+							hint={s.helpSupportHint}
 							onPress={() => router.push("/(customer)/contact-support")}
 						/>
 					</View>
 				</ScrollView>
-			</SafeAreaView>
+			</View>
 		);
 	}
 
 	return (
-		<SafeAreaView style={styles.container} edges={isWeb ? [] : ["top"]}>
+		<View style={styles.container}>
 			<StatusBar style="dark" />
-			{isWeb ? <WebHeaderSpacer /> : null}
+			<ProfileHeader />
 			<ScrollView
 				contentContainerStyle={[styles.content, isWeb && styles.contentWeb]}
 				showsVerticalScrollIndicator={false}
 			>
 				<Pressable
-					style={[styles.profileCard, isWeb && styles.profileCardWeb]}
+					style={({ pressed }) => [
+						styles.profileCard,
+						pressed && styles.pressed,
+					]}
 					onPress={() => router.push("/(customer)/edit-profile")}
+					accessibilityRole="button"
+					accessibilityLabel={s.editProfileA11y}
 				>
 					<View style={styles.avatarWrap}>
-						<AvatarImage uri={avatarUri} name={displayName} size={80} style={styles.avatar} />
-						<View style={styles.editBadge}>
-							<MaterialCommunityIcons name="pencil" size={12} color="#FFFFFF" />
+						<AvatarImage
+							uri={avatarUri}
+							name={displayName}
+							size={64}
+							style={styles.avatar}
+						/>
+						<View style={styles.cameraBadge}>
+							<MaterialCommunityIcons name="camera" size={12} color="#FFFFFF" />
 						</View>
 					</View>
-					<Text style={styles.name}>{displayName}</Text>
-					<View style={styles.editPill}>
-						<MaterialCommunityIcons name="pencil-outline" size={13} color={UI.teal} />
-						<Text style={styles.editPillText}>Edit profile</Text>
+					<View style={styles.profileMeta}>
+						<Text style={styles.name} numberOfLines={1}>
+							{displayName}
+						</Text>
+						{displayPhone ? (
+							<Text style={styles.metaLine} numberOfLines={1}>
+								{displayPhone}
+							</Text>
+						) : null}
 					</View>
+					<MaterialCommunityIcons name="chevron-right" size={22} color={UI.text} />
 				</Pressable>
 
-				<View style={styles.divider} />
-				<View style={styles.menuGroup}>
-					<MenuItem
-						icon="calendar-sync-outline"
-						label="Recurring options"
-						onPress={() => router.push("/(customer)/recurring")}
+				<View style={styles.menuList}>
+					<MenuRow
+						icon="map-marker-outline"
+						iconColor={UI.blue}
+						iconBg="#EEF2FF"
+						label={s.addresses}
+						hint={s.addressesHint}
+						onPress={() => router.push("/(customer)/addresses")}
 					/>
-					<MenuItem
-						icon="cog-outline"
-						label="Settings"
-						onPress={() => router.push("/(customer)/settings")}
+					<MenuRow
+						icon="heart-outline"
+						iconColor="#E11D48"
+						iconBg="#FEE2E2"
+						label={s.favourites}
+						hint={s.favouritesHint}
+						onPress={() =>
+							router.push({
+								pathname: "/(customer)/pick-launderer",
+								params: { chip: "favourites", from: "profile" },
+							})
+						}
 					/>
-					<MenuItem
-						icon="help-circle-outline"
-						label="FAQs"
-						onPress={() => router.push("/(customer)/faq")}
-					/>
-					<MenuItem
+					<MenuRow
 						icon="headphones"
-						label="Contact & Support"
+						iconColor={UI.blue}
+						iconBg="#EEF2FF"
+						label={s.helpSupport}
+						hint={s.helpSupportHint}
 						onPress={() => router.push("/(customer)/contact-support")}
 					/>
 				</View>
+
 				<View style={styles.roleCard}>
 					<Pressable
 						style={({ pressed }) => [styles.roleRow, pressed && styles.pressed]}
 						onPress={() => !isUpdatingRole && handleRoleToggle(!isPartnerSwitchOn)}
 					>
-						<Text style={styles.roleLabel}>Become a Laundry Captain</Text>
+						<Text style={styles.roleLabel}>{s.becomeCaptain}</Text>
 						<View style={styles.switchWrap}>
 							{isUpdatingRole ? (
 								<GradientLoader size="small" />
@@ -367,57 +433,102 @@ export default function CustomerProfileMenu() {
 							)}
 						</View>
 					</Pressable>
-					<Text style={styles.roleHint}>
-						Offer laundry services and manage orders as a Laundry Captain.
-					</Text>
+					<Text style={styles.roleHint}>{s.becomeCaptainHint}</Text>
 				</View>
+
 				{!isWeb ? (
-					<>
-						<View style={styles.divider} />
-
-						<View style={styles.accountActionsRow}>
-							<Pressable
-								style={({ pressed }) => [styles.signOutBtn, pressed && styles.pressed]}
-								onPress={() => {
-									showAppAlert("Sign out", "Are you sure you want to sign out?", [
-										{ text: "Cancel", style: "cancel" },
-										{
-											text: "Sign out",
-											style: "destructive",
-											onPress: async () => {
-												await signOut();
-												runAfterModalTeardown(() => {
-													if (router.canDismiss && router.canDismiss()) {
-														router.dismissAll && router.dismissAll();
-													}
-													router.replace("/(customer)");
-												});
-											},
+					<View style={styles.accountActionsRow}>
+						<Pressable
+							style={({ pressed }) => [styles.signOutBtn, pressed && styles.pressed]}
+							onPress={() => {
+								showAppAlert(s.signOutConfirmTitle, s.signOutConfirmMessage, [
+									{ text: s.cancel, style: "cancel" },
+									{
+										text: s.signOut,
+										style: "destructive",
+										onPress: async () => {
+											await signOut();
+											runAfterModalTeardown(() => {
+												if (router.canDismiss && router.canDismiss()) {
+													router.dismissAll && router.dismissAll();
+												}
+												router.replace("/(customer)");
+											});
 										},
-									]);
-								}}
-							>
-								<MaterialCommunityIcons name="logout" size={16} color={UI.teal} />
-								<Text style={styles.signOutLabel}>Sign out</Text>
-							</Pressable>
+									},
+								]);
+							}}
+						>
+							<MaterialCommunityIcons name="logout" size={16} color={UI.teal} />
+							<Text style={styles.signOutLabel}>{s.signOut}</Text>
+						</Pressable>
 
-							<DeleteAccountButton />
-						</View>
-					</>
+						<DeleteAccountButton />
+					</View>
 				) : null}
 			</ScrollView>
 			{confirmDialog}
-		</SafeAreaView>
+		</View>
 	);
 }
 
 const styles = StyleSheet.create({
-	container: { flex: 1, backgroundColor: UI.bg },
-	content: { padding: 20, paddingBottom: 120 },
+	container: { flex: 1, backgroundColor: "#FFFFFF" },
+	safeArea: { backgroundColor: "#FFFFFF" },
+	header: {
+		paddingHorizontal: PAD,
+		paddingTop: 4,
+		paddingBottom: 12,
+		flexDirection: "row",
+		alignItems: "flex-start",
+		gap: 12,
+	},
+	headerCopy: {
+		flex: 1,
+		minWidth: 0,
+		gap: 2,
+	},
+	title: {
+		fontSize: 28,
+		lineHeight: 34,
+		color: UI.text,
+		fontFamily: "Poppins-Bold",
+	},
+	subtitle: {
+		fontSize: 13,
+		color: UI.muted,
+		fontFamily: "Poppins-Regular",
+	},
+	headerActions: {
+		flexDirection: "row",
+		alignItems: "center",
+		gap: 8,
+		paddingTop: 4,
+	},
+	iconBtn: {
+		width: 40,
+		height: 40,
+		borderRadius: 20,
+		backgroundColor: ICON_WELL,
+		alignItems: "center",
+		justifyContent: "center",
+	},
+	notifDot: {
+		position: "absolute",
+		top: 10,
+		right: 11,
+		width: 7,
+		height: 7,
+		borderRadius: 4,
+		backgroundColor: UI.red,
+		borderWidth: 1.5,
+		borderColor: "#FFFFFF",
+	},
+	content: { paddingHorizontal: PAD, paddingBottom: 120, gap: 14 },
 	contentWeb: { paddingTop: 0 },
 	guestPromo: {
-		marginBottom: 8,
-		marginTop: 8,
+		marginTop: 4,
+		marginBottom: 4,
 	},
 	guestTitle: {
 		fontSize: 24,
@@ -437,140 +548,105 @@ const styles = StyleSheet.create({
 		flexDirection: "row",
 		gap: 10,
 	},
-	guestPrimaryBtn: {
-		flex: 1,
+	profileCard: {
 		flexDirection: "row",
 		alignItems: "center",
-		justifyContent: "center",
-		gap: 8,
-		backgroundColor: UI.teal,
-		borderRadius: 999,
-		paddingVertical: 14,
-	},
-	guestPrimaryLabel: {
-		color: "#FFFFFF",
-		fontSize: 15,
-		fontFamily: "Poppins-Bold",
-		fontWeight: "700",
-	},
-	guestSecondaryBtn: {
-		flex: 1,
-		flexDirection: "row",
-		alignItems: "center",
-		justifyContent: "center",
-		gap: 8,
+		gap: 14,
 		backgroundColor: UI.card,
-		borderRadius: 999,
-		paddingVertical: 14,
+		borderRadius: 18,
+		padding: 14,
 		borderWidth: 1,
 		borderColor: UI.chipBorder,
-	},
-	guestSecondaryLabel: {
-		color: UI.text,
-		fontSize: 15,
-		fontFamily: "Poppins-Bold",
-		fontWeight: "700",
-	},
-	profileCard: { alignItems: "center", paddingVertical: 20, marginBottom: 8 },
-	profileCardWeb: { paddingTop: 0 },
-	avatarWrap: {
-		width: 80,
-		height: 80,
-		borderRadius: 40,
-		overflow: "visible",
-		marginBottom: 12,
-	},
-	avatar: {
-		width: 80,
-		height: 80,
-		borderRadius: 40,
-		borderWidth: 2,
-		borderColor: UI.teal,
-	},
-	editBadge: {
-		position: "absolute",
-		bottom: 0,
-		right: 0,
-		width: 24,
-		height: 24,
-		borderRadius: 12,
-		backgroundColor: UI.teal,
-		borderWidth: 1.5,
-		borderColor: UI.card,
-		alignItems: "center",
-		justifyContent: "center",
-	},
-	name: {
-		fontSize: 20,
-		fontFamily: "Poppins-Bold",
-		fontWeight: "700",
-		color: UI.text,
-		textAlign: "center",
-	},
-	phone: {
-		fontSize: 14,
-		fontFamily: "Poppins-Regular",
-		color: UI.muted,
-		marginTop: 4,
-		textAlign: "center",
-	},
-	editPill: {
-		flexDirection: "row",
-		alignItems: "center",
-		gap: 4,
-		marginTop: 10,
-		paddingHorizontal: 14,
-		paddingVertical: 6,
-		borderRadius: 20,
-		backgroundColor: UI.card,
-		borderWidth: 1,
-		borderColor: UI.chipBorder,
-	},
-	editPillText: {
-		fontSize: 13,
-		fontFamily: "Poppins-SemiBold",
-		color: UI.teal,
-		fontWeight: "500",
-	},
-	accountActionsRow: {
-		flexDirection: "row",
-		justifyContent: "center",
-		gap: 12,
-		marginTop: 4,
-	},
-	divider: {
-		height: 12,
-	},
-	menuGroup: {
-		backgroundColor: UI.card,
-		borderRadius: 16,
-		borderWidth: 1,
-		borderColor: UI.chipBorder,
-		overflow: "hidden",
 		shadowColor: UI.shadow,
 		shadowOffset: { width: 0, height: 4 },
 		shadowOpacity: 1,
 		shadowRadius: 10,
 		elevation: 2,
 	},
-	menuItem: {
+	avatarWrap: {
+		width: 64,
+		height: 64,
+		borderRadius: 32,
+		overflow: "visible",
+	},
+	avatar: {
+		width: 64,
+		height: 64,
+		borderRadius: 32,
+	},
+	cameraBadge: {
+		position: "absolute",
+		bottom: 0,
+		right: 0,
+		width: 22,
+		height: 22,
+		borderRadius: 11,
+		backgroundColor: UI.purple,
+		borderWidth: 2,
+		borderColor: "#FFFFFF",
+		alignItems: "center",
+		justifyContent: "center",
+	},
+	profileMeta: {
+		flex: 1,
+		minWidth: 0,
+		gap: 2,
+	},
+	name: {
+		fontSize: 17,
+		fontFamily: "Poppins-Bold",
+		fontWeight: "700",
+		color: UI.text,
+	},
+	metaLine: {
+		fontSize: 13,
+		fontFamily: "Poppins-Regular",
+		color: UI.muted,
+	},
+	menuList: {
+		gap: 10,
+	},
+	menuCard: {
 		flexDirection: "row",
 		alignItems: "center",
 		gap: 12,
+		backgroundColor: UI.card,
+		borderRadius: 16,
 		paddingVertical: 14,
-		paddingHorizontal: 16,
+		paddingHorizontal: 14,
+		borderWidth: 1,
+		borderColor: UI.chipBorder,
+		shadowColor: UI.shadow,
+		shadowOffset: { width: 0, height: 2 },
+		shadowOpacity: 1,
+		shadowRadius: 6,
+		elevation: 1,
+	},
+	menuIconWell: {
+		width: 40,
+		height: 40,
+		borderRadius: 12,
+		alignItems: "center",
+		justifyContent: "center",
+	},
+	menuCopy: {
+		flex: 1,
+		minWidth: 0,
+		gap: 2,
 	},
 	menuLabel: {
 		color: UI.text,
-		fontSize: 16,
+		fontSize: 15,
 		fontFamily: "Poppins-SemiBold",
 		fontWeight: "600",
-		flex: 1,
+	},
+	menuHint: {
+		color: UI.muted,
+		fontSize: 12,
+		fontFamily: "Poppins-Regular",
 	},
 	pressed: { opacity: 0.7 },
 	roleCard: {
-		marginTop: 12,
-		marginBottom: 12,
 		padding: 16,
 		borderRadius: 16,
 		backgroundColor: UI.openBg,
@@ -584,7 +660,7 @@ const styles = StyleSheet.create({
 		gap: 12,
 	},
 	roleLabel: {
-		fontSize: 17,
+		fontSize: 16,
 		fontFamily: "Poppins-Bold",
 		color: UI.text,
 		fontWeight: "700",
@@ -597,6 +673,12 @@ const styles = StyleSheet.create({
 		color: UI.openText,
 		lineHeight: 18,
 		marginTop: 8,
+	},
+	accountActionsRow: {
+		flexDirection: "row",
+		justifyContent: "center",
+		gap: 12,
+		marginTop: 4,
 	},
 	signOutBtn: {
 		flex: 1,

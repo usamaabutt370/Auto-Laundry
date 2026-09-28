@@ -1,5 +1,5 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter, useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   KeyboardAvoidingView,
@@ -42,6 +42,10 @@ import {
   type PartnerFulfillmentMode,
   type PartnerPublicRow,
 } from "@/lib/partner-discovery";
+import {
+  getSavedProviderMap,
+  toggleSavedProvider,
+} from "@/lib/saved-providers";
 import { getCoordinatesWithFallback, type Coordinates } from "@/utils/geocoding";
 import {
   formatPartnerUpdatedAt,
@@ -59,7 +63,7 @@ const PARTNER_DISTANCE_PLACEHOLDER = `${DISTANCE_PLACEHOLDER} km`;
 const H_PAD = 16;
 const CARD_GAP = 12;
 
-type ProviderChip = "all" | "open" | "rated" | "offers";
+type ProviderChip = "all" | "open" | "rated" | "offers" | "favourites";
 
 function fill(template: string, vars: Record<string, string | number>) {
   return template.replace(/\{(\w+)\}/g, (_, key: string) => String(vars[key] ?? `{${key}}`));
@@ -238,15 +242,30 @@ function LaundererCard({
 export default function PickLaundererScreen() {
   const router = useRouter();
   const { editingOrderId } = useCustomerOrderDraft();
-  const params = useLocalSearchParams<{ reorderOrderId?: string; mode?: string; service?: string }>();
+  const params = useLocalSearchParams<{
+    reorderOrderId?: string;
+    mode?: string;
+    service?: string;
+    chip?: string;
+    from?: string;
+  }>();
   const s = strings.customer.pickLaunderer;
   const { isWebDesktop } = useResponsiveLayout();
   const insets = useSafeAreaInsets();
   const { firstName, avatarUri, isLoggedIn } = useHomeProfile();
   const { width: windowWidth } = useWindowDimensions();
   const reorderOrderId = typeof params.reorderOrderId === "string" ? params.reorderOrderId : "";
+  const fromProfile = params.from === "profile";
   const fulfillmentMode: PartnerFulfillmentMode =
     params.mode === "pickupDelivery" ? "pickupDelivery" : "dropoff";
+  const initialChip: ProviderChip =
+    params.chip === "favourites" ||
+    params.chip === "open" ||
+    params.chip === "rated" ||
+    params.chip === "offers" ||
+    params.chip === "all"
+      ? params.chip
+      : "all";
   const isReassignMode = reorderOrderId.length > 0;
   const [partners, setPartners] = useState<PartnerPublicRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -256,7 +275,7 @@ export default function PickLaundererScreen() {
   const [partnerCoordinates, setPartnerCoordinates] = useState<Record<string, Coordinates | null>>(
     {}
   );
-  const [chip, setChip] = useState<ProviderChip>("all");
+  const [chip, setChip] = useState<ProviderChip>(initialChip);
   const [favorites, setFavorites] = useState<Record<string, boolean>>({});
   const [sheetPane, setSheetPane] = useState<ProviderSheetPane | null>(null);
   const [applyingFilters, setApplyingFilters] = useState(false);
@@ -274,12 +293,13 @@ export default function PickLaundererScreen() {
   const chips: {
     id: ProviderChip;
     label: string;
-    icon?: "clock-outline" | "star-outline" | "tag-outline";
+    icon?: "clock-outline" | "star-outline" | "tag-outline" | "heart-outline";
   }[] = [
     { id: "all", label: s.filterAll },
     { id: "open", label: s.filterOpenNow, icon: "clock-outline" },
     { id: "rated", label: s.filterTopRated, icon: "star-outline" },
     { id: "offers", label: s.filterOffers, icon: "tag-outline" },
+    { id: "favourites", label: s.filterFavourites, icon: "heart-outline" },
   ];
 
   const serviceFilter = isServiceCategory(params.service) ? params.service : undefined;
@@ -287,17 +307,21 @@ export default function PickLaundererScreen() {
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const { data, error: err } = serviceFilter
-      ? await fetchMapPartners()
-      : await fetchPartnersByFulfillmentMode(fulfillmentMode);
+    // Profile → Favourites uses the full discovery list so All / other chips
+    // keep working the same as the normal service-providers flow.
+    const { data, error: err } =
+      serviceFilter || fromProfile || initialChip === "favourites"
+        ? await fetchMapPartners()
+        : await fetchPartnersByFulfillmentMode(fulfillmentMode);
     if (err) {
       setError(err);
       setPartners([]);
     } else {
       setPartners(data ?? []);
     }
+    setFavorites(await getSavedProviderMap());
     setLoading(false);
-  }, [fulfillmentMode, serviceFilter]);
+  }, [fulfillmentMode, fromProfile, initialChip, serviceFilter]);
 
   useEffect(() => {
     if (!serviceFilter) return;
@@ -311,6 +335,16 @@ export default function PickLaundererScreen() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    setChip(initialChip);
+  }, [initialChip]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void getSavedProviderMap().then(setFavorites);
+    }, []),
+  );
 
   useEffect(() => {
     if (editingOrderId && !isReassignMode) {
@@ -448,6 +482,25 @@ export default function PickLaundererScreen() {
 
   const filteredPartners = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
+
+    // Favourites is an explicit list — skip distance/sheet filters so saved
+    // providers always appear regardless of mode or radius.
+    if (chip === "favourites") {
+      let list = partners.filter((partner) => Boolean(favorites[partner.id]));
+      if (query) {
+        list = list.filter((partner) =>
+          (partner.business_name ?? "").trim().toLowerCase().startsWith(query),
+        );
+      }
+      return [...list].sort((a, b) => {
+        const aKm = partnerDistanceKm[a.id];
+        const bKm = partnerDistanceKm[b.id];
+        const aVal = typeof aKm === "number" && Number.isFinite(aKm) ? aKm : Number.POSITIVE_INFINITY;
+        const bVal = typeof bKm === "number" && Number.isFinite(bKm) ? bKm : Number.POSITIVE_INFINITY;
+        return aVal - bVal;
+      });
+    }
+
     let list = applyProviderFilters(partners, appliedFilters, partnerDistanceKm);
     if (query) {
       list = list.filter((partner) =>
@@ -470,7 +523,7 @@ export default function PickLaundererScreen() {
       const bVal = typeof bKm === "number" && Number.isFinite(bKm) ? bKm : Number.POSITIVE_INFINITY;
       return aVal - bVal;
     });
-  }, [appliedFilters, chip, partnerDistanceKm, partners, searchQuery]);
+  }, [appliedFilters, chip, favorites, partnerDistanceKm, partners, searchQuery]);
 
   const toMapPartner = useCallback(
     (partner: PartnerPublicRow): PartnerMapMarker => ({
@@ -566,9 +619,11 @@ export default function PickLaundererScreen() {
         ? s.emptyTopRated
         : chip === "offers" || appliedFilters.offers
           ? s.emptyOffers
-          : appliedFilters.categories.length > 0
-            ? s.emptyService
-            : s.emptyList;
+          : chip === "favourites"
+            ? s.emptyFavourites
+            : appliedFilters.categories.length > 0
+              ? s.emptyService
+              : s.emptyList;
 
   const matchCount = useCallback(
     (filters: ProviderFilters) => {
@@ -641,7 +696,13 @@ export default function PickLaundererScreen() {
       <SafeAreaView style={styles.header} edges={["top"]}>
         <View style={styles.topRow}>
           <Pressable
-            onPress={() => router.back()}
+            onPress={() => {
+              if (fromProfile) {
+                router.replace("/(customer)/(tabs)");
+                return;
+              }
+              router.back();
+            }}
             style={styles.backBtn}
             accessibilityRole="button"
             accessibilityLabel="Close"
@@ -797,9 +858,12 @@ export default function PickLaundererScreen() {
                   distanceLabel={partnerDistanceLabels[partner.id] ?? PARTNER_DISTANCE_PLACEHOLDER}
                   onPress={() => void handlePartnerPress(partner)}
                   favorited={Boolean(favorites[partner.id])}
-                  onToggleFavorite={() =>
-                    setFavorites((prev) => ({ ...prev, [partner.id]: !prev[partner.id] }))
-                  }
+                  onToggleFavorite={() => {
+                    void (async () => {
+                      const next = await toggleSavedProvider(partner.id);
+                      setFavorites((prev) => ({ ...prev, [partner.id]: next }));
+                    })();
+                  }}
                 />
               </View>
             ))}

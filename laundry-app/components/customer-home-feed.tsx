@@ -28,6 +28,10 @@ import {
 import { useHomeProfile } from "@/hooks/use-home-profile";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import {
+  getSavedProviderMap,
+  toggleSavedProvider,
+} from "@/lib/saved-providers";
+import {
   getPlaceLabelFromCoordinates,
   type Coordinates,
 } from "@/utils/geocoding";
@@ -151,6 +155,7 @@ export function CustomerHomeFeed({
   useFocusEffect(
     useCallback(() => {
       refreshGreetingHour();
+      void getSavedProviderMap().then(setFavorites);
       const intervalId = setInterval(refreshGreetingHour, 60_000);
       return () => clearInterval(intervalId);
     }, [refreshGreetingHour]),
@@ -364,9 +369,12 @@ export function CustomerHomeFeed({
                   badgeLabel={badgeLabel}
                   badgeColor={badge.bg}
                   favorited={Boolean(favorites[partner.id])}
-                  onToggleFavorite={() =>
-                    setFavorites((prev) => ({ ...prev, [partner.id]: !prev[partner.id] }))
-                  }
+                  onToggleFavorite={() => {
+                    void (async () => {
+                      const next = await toggleSavedProvider(partner.id);
+                      setFavorites((prev) => ({ ...prev, [partner.id]: next }));
+                    })();
+                  }}
                   onPress={() => onPressPartner(partner)}
                   strings={s}
                 />
