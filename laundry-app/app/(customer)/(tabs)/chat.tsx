@@ -1,23 +1,25 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { Image } from "expo-image";
+import { LinearGradient } from "expo-linear-gradient";
 import { StatusBar } from "expo-status-bar";
 import { useFocusEffect, useRouter } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { AppHeader } from "@/components/app-header";
-import { AvatarImage } from "@/components/avatar-image";
+
 import { GuestSignInPrompt } from "@/components/guest-sign-in-prompt";
-import { WebHeaderSpacer } from "@/components/web-header-spacer";
 import { PartnerNameWithBadge } from "@/components/partner-name-with-badge";
+import { WebHeaderSpacer } from "@/components/web-header-spacer";
 import { GradientLoader, APP_LOADER_TINT } from "@/components/ui/gradient-loader";
-import { theme, UI } from "@/constants/theme";
+import { gradients, UI } from "@/constants/theme";
 import { useAuth } from "@/contexts/auth-context";
 import { useLocale } from "@/contexts/locale-context";
 import { useSuppressWebScreenHeader } from "@/hooks/use-suppress-web-screen-header";
@@ -26,51 +28,111 @@ import { fetchMyConversations, type ChatConversationListItem } from "@/lib/chat"
 import { getStrings } from "@/locales";
 import { supabase } from "@/lib/supabase";
 
-const fs = theme.fontSize;
 const PAD = 16;
+const AVATAR = 52;
 
-function formatShortDate(valueIso: string): string {
-  const d = new Date(valueIso);
-  if (Number.isNaN(d.getTime())) return "";
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(d);
+type ChatFilter = "all" | "active" | "onTheWay" | "completed" | "cancelled";
+
+function fill(template: string, vars: Record<string, string | number>) {
+  return Object.entries(vars).reduce(
+    (acc, [key, value]) =>
+      acc.replaceAll(`{{${key}}}`, String(value)).replaceAll(`{${key}}`, String(value)),
+    template,
+  );
 }
 
-function statusTone(status: string): { text: string; bg: string } {
-  const key = status.toLowerCase();
-  if (key.includes("reject") || key.includes("cancel")) {
-    return { text: UI.red, bg: UI.redBg };
+function matchesChatFilter(key: string, filter: ChatFilter): boolean {
+  if (filter === "all") return true;
+  const k = key.toLowerCase();
+  if (filter === "onTheWay") return k === "ready";
+  if (filter === "completed") return k === "completed";
+  if (filter === "cancelled") return k === "cancelled" || k === "rejected";
+  // active: still in progress before out for delivery
+  return k === "submitted" || k === "draft" || k === "accepted" || k === "in_progress";
+}
+
+function statusPresentation(
+  key: string,
+  s: {
+    statusPending: string;
+    statusConfirmed: string;
+    statusInProgress: string;
+    statusOnTheWay: string;
+    statusCompleted: string;
+    statusCancelled: string;
+  },
+): { label: string; color: string; bg: string } {
+  const k = key.toLowerCase();
+  if (k === "cancelled" || k === "rejected") {
+    return { label: s.statusCancelled, color: "#B91C1C", bg: "#FEE2E2" };
   }
-  if (
-    key.includes("accept") ||
-    key.includes("complete") ||
-    key.includes("deliver")
-  ) {
-    return { text: UI.openText, bg: UI.openBg };
+  if (k === "completed") {
+    return { label: s.statusCompleted, color: "#7C3AED", bg: "#F3E8FF" };
   }
-  if (key.includes("submit") || key.includes("pending")) {
-    return { text: UI.amber, bg: UI.amberBg };
+  if (k === "ready") {
+    return { label: s.statusOnTheWay, color: "#2563EB", bg: "#DBEAFE" };
   }
-  return { text: UI.muted, bg: "#F3F4F6" };
+  if (k === "in_progress") {
+    return { label: s.statusInProgress, color: "#0F766E", bg: "#CCFBF1" };
+  }
+  if (k === "accepted") {
+    return { label: s.statusConfirmed, color: "#047857", bg: "#D1FAE5" };
+  }
+  // submitted / draft / unknown
+  return { label: s.statusPending, color: "#B45309", bg: "#FEF3C7" };
+}
+
+function formatRelativeTime(
+  valueIso: string,
+  s: {
+    timeJustNow: string;
+    timeMinutesAgo: string;
+    timeHoursAgo: string;
+    timeYesterday: string;
+  },
+): string {
+  const date = new Date(valueIso);
+  if (Number.isNaN(date.getTime())) return "";
+  const diffMs = Date.now() - date.getTime();
+  const mins = Math.max(0, Math.floor(diffMs / 60_000));
+  if (mins < 1) return s.timeJustNow;
+  if (mins < 60) return fill(s.timeMinutesAgo, { count: mins });
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return fill(s.timeHoursAgo, { count: hours });
+  const days = Math.floor(hours / 24);
+  if (days === 1) return s.timeYesterday;
+  return new Intl.DateTimeFormat("en-US", { day: "numeric", month: "short" }).format(date);
+}
+
+function ChatAvatar({ uri, name }: { uri?: string | null; name: string }) {
+  const initial = name.trim().charAt(0).toUpperCase() || "?";
+  return (
+    <View style={styles.avatar}>
+      {uri ? (
+        <Image source={{ uri }} style={styles.avatarImage} contentFit="cover" />
+      ) : (
+        <View style={styles.avatarFallback}>
+          <Text style={styles.avatarInitial}>{initial}</Text>
+        </View>
+      )}
+    </View>
+  );
 }
 
 export default function CustomerChatScreen() {
   const router = useRouter();
   const { user } = useAuth();
-  const { isWeb, isNarrow, ms } = useResponsiveLayout();
-  const avatarSize = isNarrow ? 40 : 48;
+  const { isWeb } = useResponsiveLayout();
   useSuppressWebScreenHeader();
   const { locale } = useLocale();
-  const tabStrings = getStrings(locale).tabs.customer;
   const s = getStrings(locale).customer.chatTab;
   const [items, setItems] = useState<ChatConversationListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [filter, setFilter] = useState<ChatFilter>("all");
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const load = useCallback(async () => {
     if (!user?.id) {
@@ -133,16 +195,79 @@ export default function CustomerChatScreen() {
     })();
   }, [load]);
 
+  const filteredItems = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    return items.filter((item) => {
+      if (!matchesChatFilter(item.orderStatusKey, filter)) return false;
+      if (!query) return true;
+      return (
+        item.counterpartyName.toLowerCase().includes(query) ||
+        item.orderRef.toLowerCase().includes(query) ||
+        item.lastMessageBody.toLowerCase().includes(query)
+      );
+    });
+  }, [filter, items, searchQuery]);
+
+  const emptyCopy =
+    searchQuery.trim().length > 0
+      ? s.emptySearch
+      : filter === "active"
+        ? s.emptyActive
+        : filter === "onTheWay"
+          ? s.emptyOnTheWay
+          : filter === "completed"
+            ? s.emptyCompleted
+            : filter === "cancelled"
+              ? s.emptyCancelled
+              : s.empty;
+
+  const filters: { id: ChatFilter; label: string }[] = [
+    { id: "all", label: s.filterAll },
+    { id: "active", label: s.filterActive },
+    { id: "onTheWay", label: s.filterOnTheWay },
+    { id: "completed", label: s.filterCompleted },
+    { id: "cancelled", label: s.filterCancelled },
+  ];
+
   return (
     <View style={styles.container}>
       <StatusBar style="dark" />
       {!isWeb ? (
         <SafeAreaView edges={["top"]} style={styles.safeArea}>
-          <AppHeader appearance="light" title={tabStrings.chat} />
+          <View style={styles.header}>
+            <View style={styles.headerCopy}>
+              <Text style={styles.title}>{s.title}</Text>
+              <Text style={styles.subtitle}>{s.subtitle}</Text>
+            </View>
+            <View style={styles.headerActions}>
+              <Pressable
+                onPress={() => {
+                  setSearchOpen((open) => {
+                    if (open) setSearchQuery("");
+                    return !open;
+                  });
+                }}
+                style={styles.iconBtn}
+                accessibilityRole="button"
+                accessibilityLabel={s.searchA11y}
+              >
+                <MaterialCommunityIcons name="magnify" size={20} color={UI.text} />
+              </Pressable>
+              <Pressable
+                onPress={() => router.push("/(customer)/(tabs)/order")}
+                style={styles.iconBtn}
+                accessibilityRole="button"
+                accessibilityLabel={s.composeA11y}
+              >
+                <MaterialCommunityIcons name="square-edit-outline" size={18} color={UI.text} />
+              </Pressable>
+            </View>
+          </View>
         </SafeAreaView>
       ) : (
         <WebHeaderSpacer />
       )}
+
       {!user?.id ? (
         <GuestSignInPrompt
           appearance="light"
@@ -157,115 +282,162 @@ export default function CustomerChatScreen() {
             })
           }
         />
-      ) : loading && items.length === 0 ? (
-        <View style={styles.center}>
-          <GradientLoader />
-          <Text style={styles.muted}>{s.loading}</Text>
-        </View>
-      ) : error ? (
-        <View style={styles.center}>
-          <Text style={styles.errorText}>{error}</Text>
-          <Pressable
-            onPress={onRefresh}
-            style={({ pressed }) => [styles.retryBtn, pressed && styles.pressed]}
-          >
-            <Text style={styles.retryLabel}>{s.retry}</Text>
-          </Pressable>
-        </View>
-      ) : items.length === 0 ? (
-        <View style={styles.center}>
-          <View style={styles.emptyIcon}>
-            <MaterialCommunityIcons name="message-text-outline" size={32} color={UI.teal} />
-          </View>
-          <Text style={styles.muted}>{s.empty}</Text>
-        </View>
       ) : (
-        <ScrollView
-          style={styles.scroll}
-          contentContainerStyle={styles.content}
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              tintColor={APP_LOADER_TINT}
-              colors={[APP_LOADER_TINT]}
-              progressBackgroundColor={UI.card}
-              title=""
-              titleColor={UI.muted}
-            />
-          }
-        >
-          {items.map((item) => {
-            const tone = statusTone(item.orderStatus);
-            return (
-              <Pressable
-                key={item.conversationId}
-                onPress={() =>
-                  router.push({
-                    pathname: "/(customer)/chat/[orderId]",
-                    params: { orderId: item.orderId, memberName: item.counterpartyName },
-                  })
-                }
-                style={({ pressed }) => [styles.row, pressed && styles.pressed]}
-              >
-                <AvatarImage
-                  uri={item.counterpartyAvatarUrl}
-                  name={item.counterpartyName}
-                  size={avatarSize}
-                />
-                <View style={styles.mainContent}>
-                  <View style={styles.rowTop}>
-                    <PartnerNameWithBadge
-                      name={item.counterpartyName}
-                      verified={item.counterpartyVerified}
-                      nameStyle={[styles.nameText, isNarrow && { fontSize: ms(13) }]}
-                      containerStyle={styles.nameRow}
-                    />
-                    <Text style={[styles.timeText, isNarrow && { fontSize: ms(11) }]}>
-                      {formatShortDate(item.lastMessageAt)}
-                    </Text>
-                  </View>
+        <>
+          {searchOpen ? (
+            <View style={styles.searchWrap}>
+              <MaterialCommunityIcons name="magnify" size={18} color={UI.muted} />
+              <TextInput
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                placeholder={s.searchPlaceholder}
+                placeholderTextColor={UI.muted}
+                style={styles.searchInput}
+                autoFocus
+                returnKeyType="search"
+              />
+            </View>
+          ) : null}
 
-                  <View style={styles.metaRow}>
-                    <Text style={styles.metaText} numberOfLines={1}>
-                      Order #{item.orderRef}
-                    </Text>
-                    <View style={[styles.statusPill, { backgroundColor: tone.bg }]}>
-                      <Text style={[styles.statusText, { color: tone.text }]}>
-                        {item.orderStatus}
-                      </Text>
-                    </View>
-                  </View>
-
-                  <View style={styles.orderMetaRow}>
-                    <Text style={styles.orderMetaText} numberOfLines={1}>
-                      {item.servicesSummary}
-                    </Text>
-                    <Text style={styles.orderMetaValue}>{item.estimatedTotalLabel}</Text>
-                  </View>
-
-                  <View style={styles.rowBottom}>
-                    <Text
-                      style={[
-                        styles.previewText,
-                        item.unreadCount > 0 && styles.previewUnread,
-                      ]}
-                      numberOfLines={1}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.filterRow}
+            style={styles.filterScroll}
+          >
+            {filters.map((chip) => {
+              const selected = filter === chip.id;
+              if (selected) {
+                return (
+                  <Pressable key={chip.id} onPress={() => setFilter(chip.id)}>
+                    <LinearGradient
+                      colors={[...gradients.cta]}
+                      start={{ x: 0, y: 0.5 }}
+                      end={{ x: 1, y: 0.5 }}
+                      style={styles.filterChipActive}
                     >
-                      {item.lastMessageBody}
-                    </Text>
-                    {item.unreadCount > 0 ? (
-                      <View style={styles.unreadBadge}>
-                        <Text style={styles.unreadBadgeText}>{item.unreadCount}</Text>
-                      </View>
-                    ) : null}
-                  </View>
-                </View>
+                      <Text style={styles.filterChipTextActive}>{chip.label}</Text>
+                    </LinearGradient>
+                  </Pressable>
+                );
+              }
+              return (
+                <Pressable
+                  key={chip.id}
+                  onPress={() => setFilter(chip.id)}
+                  style={styles.filterChip}
+                >
+                  <Text style={styles.filterChipText}>{chip.label}</Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+
+          {loading && items.length === 0 ? (
+            <View style={styles.center}>
+              <GradientLoader />
+              <Text style={styles.muted}>{s.loading}</Text>
+            </View>
+          ) : error ? (
+            <View style={styles.center}>
+              <Text style={styles.errorText}>{error}</Text>
+              <Pressable
+                onPress={onRefresh}
+                style={({ pressed }) => [styles.retryBtn, pressed && styles.pressed]}
+              >
+                <Text style={styles.retryLabel}>{s.retry}</Text>
               </Pressable>
-            );
-          })}
-        </ScrollView>
+            </View>
+          ) : filteredItems.length === 0 ? (
+            <View style={styles.center}>
+              <View style={styles.emptyIcon}>
+                <MaterialCommunityIcons name="message-text-outline" size={32} color={UI.teal} />
+              </View>
+              <Text style={styles.muted}>{emptyCopy}</Text>
+            </View>
+          ) : (
+            <ScrollView
+              style={styles.scroll}
+              contentContainerStyle={styles.content}
+              showsVerticalScrollIndicator={false}
+              refreshControl={
+                <RefreshControl
+                  refreshing={refreshing}
+                  onRefresh={onRefresh}
+                  tintColor={APP_LOADER_TINT}
+                  colors={[APP_LOADER_TINT]}
+                  progressBackgroundColor={UI.card}
+                  title=""
+                  titleColor={UI.muted}
+                />
+              }
+            >
+              {filteredItems.map((item) => {
+                const status = statusPresentation(item.orderStatusKey, s);
+                return (
+                  <Pressable
+                    key={item.conversationId}
+                    onPress={() =>
+                      router.push({
+                        pathname: "/(customer)/chat/[orderId]",
+                        params: {
+                          orderId: item.orderId,
+                          memberName: item.counterpartyName,
+                        },
+                      })
+                    }
+                    style={({ pressed }) => [styles.row, pressed && styles.pressed]}
+                  >
+                    <ChatAvatar
+                      uri={item.counterpartyAvatarUrl}
+                      name={item.counterpartyName}
+                    />
+                    <View style={styles.mainContent}>
+                      <View style={styles.rowTop}>
+                        <PartnerNameWithBadge
+                          name={item.counterpartyName}
+                          verified={item.counterpartyVerified}
+                          numberOfLines={1}
+                          badgeSize={14}
+                          badgeColor="#22C55E"
+                          nameStyle={styles.nameText}
+                          containerStyle={styles.nameRow}
+                        />
+                        <Text style={styles.timeText}>
+                          {formatRelativeTime(item.lastMessageAt, s)}
+                        </Text>
+                      </View>
+
+                      <View style={styles.metaRow}>
+                        <Text style={styles.orderRef} numberOfLines={1}>
+                          {fill(s.orderRef, { ref: item.orderRef })}
+                        </Text>
+                        <View style={[styles.statusPill, { backgroundColor: status.bg }]}>
+                          <Text style={[styles.statusText, { color: status.color }]}>
+                            {status.label}
+                          </Text>
+                        </View>
+                      </View>
+
+                      <View style={styles.previewRow}>
+                        <Text
+                          style={[
+                            styles.previewText,
+                            item.unreadCount > 0 && styles.previewUnread,
+                          ]}
+                          numberOfLines={2}
+                        >
+                          {item.lastMessageBody}
+                        </Text>
+                        {item.unreadCount > 0 ? <View style={styles.unreadDot} /> : null}
+                      </View>
+                    </View>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          )}
+        </>
       )}
     </View>
   );
@@ -274,11 +446,96 @@ export default function CustomerChatScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: UI.bg,
+    backgroundColor: "#FFFFFF",
   },
   safeArea: {
-    backgroundColor: UI.bg,
-    paddingBottom: 4,
+    backgroundColor: "#FFFFFF",
+  },
+  header: {
+    paddingHorizontal: PAD,
+    paddingTop: 4,
+    paddingBottom: 12,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
+  },
+  headerCopy: {
+    flex: 1,
+    minWidth: 0,
+    gap: 2,
+  },
+  title: {
+    fontSize: 28,
+    lineHeight: 34,
+    color: UI.text,
+    fontFamily: "Poppins-Bold",
+  },
+  subtitle: {
+    fontSize: 13,
+    color: UI.muted,
+    fontFamily: "Poppins-Regular",
+  },
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingTop: 4,
+  },
+  iconBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#EEF2FF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  searchWrap: {
+    marginHorizontal: PAD,
+    marginBottom: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#F3F4F6",
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 14,
+    color: UI.text,
+    fontFamily: "Poppins-Regular",
+    padding: 0,
+  },
+  filterScroll: {
+    flexGrow: 0,
+  },
+  filterRow: {
+    paddingHorizontal: PAD,
+    paddingBottom: 8,
+    gap: 8,
+    alignItems: "center",
+  },
+  filterChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: 999,
+    backgroundColor: "#F3F4F6",
+  },
+  filterChipActive: {
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: 999,
+  },
+  filterChipText: {
+    fontSize: 13,
+    color: UI.text,
+    fontFamily: "Poppins-SemiBold",
+  },
+  filterChipTextActive: {
+    fontSize: 13,
+    color: "#FFFFFF",
+    fontFamily: "Poppins-SemiBold",
   },
   center: {
     flex: 1,
@@ -296,13 +553,13 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   muted: {
-    fontSize: fs.smallText,
+    fontSize: 14,
     fontFamily: "Poppins-Regular",
     color: UI.muted,
     textAlign: "center",
   },
   errorText: {
-    fontSize: fs.smallText,
+    fontSize: 14,
     fontFamily: "Poppins-Regular",
     color: UI.red,
     textAlign: "center",
@@ -318,129 +575,118 @@ const styles = StyleSheet.create({
   retryLabel: {
     color: UI.text,
     fontFamily: "Poppins-SemiBold",
-    fontWeight: "600",
   },
   scroll: {
     flex: 1,
   },
   content: {
-    paddingHorizontal: PAD,
-    paddingTop: 4,
     paddingBottom: 100,
-    gap: 12,
   },
   row: {
-    backgroundColor: UI.card,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: UI.chipBorder,
-    padding: 14,
     flexDirection: "row",
-    gap: 12,
     alignItems: "flex-start",
-    shadowColor: UI.shadow,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 1,
-    shadowRadius: 10,
-    elevation: 2,
+    gap: 12,
+    paddingHorizontal: PAD,
+    paddingVertical: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: UI.chipBorder,
+    backgroundColor: "#FFFFFF",
   },
-  rowTop: {
-    flexDirection: "row",
-    justifyContent: "space-between",
+  avatar: {
+    width: AVATAR,
+    height: AVATAR,
+    borderRadius: 14,
+    overflow: "hidden",
+    backgroundColor: UI.iconWell,
+  },
+  avatarImage: {
+    width: "100%",
+    height: "100%",
+  },
+  avatarFallback: {
+    flex: 1,
     alignItems: "center",
-    gap: 8,
+    justifyContent: "center",
+    backgroundColor: "#EEF2FF",
+  },
+  avatarInitial: {
+    fontSize: 18,
+    color: UI.purple,
+    fontFamily: "Poppins-Bold",
   },
   mainContent: {
     flex: 1,
-    gap: 4,
     minWidth: 0,
+    gap: 3,
+  },
+  rowTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
   },
   nameRow: {
     flex: 1,
-    flexShrink: 1,
+    minWidth: 0,
   },
   nameText: {
     color: UI.text,
-    fontSize: fs.smallText,
+    fontSize: 15,
     fontFamily: "Poppins-Bold",
-    fontWeight: "700",
   },
   timeText: {
     color: UI.muted,
-    fontSize: fs.xxSmallText,
+    fontSize: 12,
     fontFamily: "Poppins-Regular",
+    flexShrink: 0,
   },
   metaRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-  },
-  metaText: {
-    flexShrink: 1,
-    color: UI.muted,
-    fontSize: fs.xxSmallText,
-    fontFamily: "Poppins-Regular",
-  },
-  statusPill: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 999,
-  },
-  statusText: {
-    fontSize: 10,
-    fontFamily: "Poppins-SemiBold",
-    fontWeight: "600",
-  },
-  rowBottom: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginTop: 2,
-  },
-  orderMetaRow: {
-    flexDirection: "row",
-    alignItems: "center",
     justifyContent: "space-between",
     gap: 8,
   },
-  orderMetaText: {
+  orderRef: {
     flex: 1,
+    minWidth: 0,
     color: UI.muted,
-    fontSize: fs.xxSmallText,
-    fontFamily: "Poppins-Regular",
+    fontSize: 12,
+    fontFamily: "Poppins-Medium",
   },
-  orderMetaValue: {
-    color: UI.teal,
-    fontSize: fs.xxSmallText,
-    fontFamily: "Poppins-Bold",
-    fontWeight: "700",
+  statusPill: {
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 999,
+    flexShrink: 0,
+  },
+  statusText: {
+    fontSize: 11,
+    fontFamily: "Poppins-SemiBold",
+  },
+  previewRow: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    gap: 8,
+    marginTop: 2,
   },
   previewText: {
     flex: 1,
     color: UI.muted,
-    fontSize: fs.descText,
+    fontSize: 13,
+    lineHeight: 18,
     fontFamily: "Poppins-Regular",
   },
   previewUnread: {
     color: UI.text,
-    fontFamily: "Poppins-SemiBold",
+    fontFamily: "Poppins-Medium",
   },
-  unreadBadge: {
-    minWidth: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: UI.teal,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 6,
-  },
-  unreadBadgeText: {
-    color: "#FFFFFF",
-    fontSize: fs.xxSmallText,
-    fontFamily: "Poppins-Bold",
-    fontWeight: "700",
+  unreadDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#3B82F6",
+    marginBottom: 4,
   },
   pressed: {
-    opacity: 0.9,
+    opacity: 0.88,
   },
 });

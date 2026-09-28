@@ -1,7 +1,7 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import React, { type ComponentProps } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View, type StyleProp, type TextStyle } from "react-native";
 
 import { assets } from "@/assets/assets";
 import { PartnerVerifiedBadge } from "@/components/partner-verified-badge";
@@ -21,6 +21,9 @@ export interface AppHeaderProps {
   title?: string;
   titleVerified?: boolean;
   subtitle?: string | null;
+  titleStyle?: StyleProp<TextStyle>;
+  /** Default centers the title; use `left` for screens like Orders. */
+  titleAlign?: "center" | "left";
   /** Tap2Laundry logo on the left (mobile web / native when sidebar is hidden). */
   showBrandLogo?: boolean;
   /** Hide centered title on web only (sidebar labels are enough on desktop). */
@@ -77,6 +80,8 @@ export function AppHeader({
   title,
   titleVerified = false,
   subtitle,
+  titleStyle,
+  titleAlign = "center",
   showBrandLogo = false,
   hideTitleOnWeb = false,
   leftIcon,
@@ -100,27 +105,42 @@ export function AppHeader({
   const showTitleText = Boolean(title?.trim()) && !(hideTitleOnWeb && isWeb);
   const titleSize = ms(isNarrow ? fs.xSmallText + 2 : fs.smallTitle);
   const iconSize = isNarrow ? 22 : ICON_SIZE;
+  const leftTitle = titleAlign === "left";
 
   if (hideTitleOnWeb && isWeb && !showLeftSlot && rightElement == null && !showRightIcon) {
     return null;
   }
 
+  const titleNode = showTitleText ? (
+    <View
+      style={[
+        leftTitle ? styles.titleWrapLeft : styles.titleWrap,
+        leftTitle && showLeftSlot && styles.titleWrapLeftWithSlot,
+      ]}
+      pointerEvents="none"
+    >
+      <View style={[styles.titleRow, leftTitle && styles.titleRowLeft]}>
+        <Text
+          style={[
+            styles.title,
+            light && styles.titleLight,
+            { fontSize: titleSize },
+            leftTitle && styles.titleLeft,
+            titleStyle,
+          ]}
+          numberOfLines={1}
+        >
+          {title}
+        </Text>
+        {titleVerified ? <PartnerVerifiedBadge size={11} /> : null}
+      </View>
+    </View>
+  ) : null;
+
   return (
     <View style={styles.container}>
-      <View style={styles.row}>
-        {showTitleText ? (
-          <View style={styles.titleWrap} pointerEvents="none">
-            <View style={styles.titleRow}>
-              <Text
-                style={[styles.title, light && styles.titleLight, { fontSize: titleSize }]}
-                numberOfLines={1}
-              >
-                {title}
-              </Text>
-              {titleVerified ? <PartnerVerifiedBadge size={11} /> : null}
-            </View>
-          </View>
-        ) : null}
+      <View style={[styles.row, leftTitle && styles.rowCompact]}>
+        {!leftTitle ? titleNode : null}
 
         <View style={styles.slot}>
           {showLeftSlot ? (
@@ -145,7 +165,7 @@ export function AppHeader({
           ) : null}
         </View>
 
-        <View style={styles.spacer} />
+        {leftTitle ? titleNode : <View style={styles.spacer} />}
 
         <View style={[styles.slotRight, rightElement != null && styles.slotRightElement]}>
           {rightElement != null ? (
@@ -165,8 +185,16 @@ export function AppHeader({
       </View>
 
       {showSubtitle && showTitleText ? (
-        <View style={styles.subtitleWrap}>
-          <Text style={[styles.subtitle, light && styles.subtitleLight]}>{subtitle}</Text>
+        <View style={[styles.subtitleWrap, leftTitle && styles.subtitleWrapLeft]}>
+          <Text
+            style={[
+              styles.subtitle,
+              light && styles.subtitleLight,
+              leftTitle && styles.subtitleLeft,
+            ]}
+          >
+            {subtitle}
+          </Text>
         </View>
       ) : null}
     </View>
@@ -183,11 +211,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
+  rowCompact: {
+    paddingTop: 4,
+    paddingBottom: 0,
+  },
   titleWrap: {
     ...StyleSheet.absoluteFillObject,
     justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: 60,
+  },
+  titleWrapLeft: {
+    flex: 1,
+    minWidth: 0,
+    justifyContent: "center",
+    alignItems: "flex-start",
+  },
+  titleWrapLeftWithSlot: {
+    marginLeft: 8,
   },
   titleRow: {
     flexDirection: "row",
@@ -196,12 +237,18 @@ const styles = StyleSheet.create({
     gap: 6,
     maxWidth: "100%",
   },
+  titleRowLeft: {
+    justifyContent: "flex-start",
+  },
   title: {
     flexShrink: 1,
     fontSize: fs.smallTitle,
     fontWeight: "700",
     color: c.white,
     textAlign: "center",
+  },
+  titleLeft: {
+    textAlign: "left",
   },
   titleLight: {
     color: "#111827",
@@ -211,9 +258,18 @@ const styles = StyleSheet.create({
     paddingTop: 4,
     paddingBottom: 12,
   },
+  subtitleWrapLeft: {
+    paddingHorizontal: 16,
+    paddingTop: 2,
+    paddingBottom: 8,
+  },
   subtitle: {
     fontSize: fs.smallText,
     color: c.blue500,
+    textAlign: "center",
+  },
+  subtitleLeft: {
+    textAlign: "left",
   },
   subtitleLight: {
     color: "#6B7280",
