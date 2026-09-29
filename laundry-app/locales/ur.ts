@@ -1141,7 +1141,7 @@ export const ur = {
     },
     onboarding: {
       step1Title: "کاروباری تفصیلات",
-      step1Subtitle: "اپنے لانڈری کاروبار کے بارے میں بتائیں۔",
+      step1Subtitle: "اپنے کاروبار کے بارے میں بتائیں۔ اگلے مرحلے میں سروسز شامل کر سکتے ہیں۔",
       businessNamePlaceholder: "کاروبار کا نام",
       businessDescriptionPlaceholder: "کاروباری تفصیل",
       phoneNumberPlaceholder: "فون نمبر",
