@@ -1151,8 +1151,8 @@ export const en = {
       rejectedButton: "Update and resubmit",
     },
     onboarding: {
-      step1Title: "Business details",
-      step1Subtitle: "laundry business.",
+      step1Title: "Business Details",
+      step1Subtitle: "Tell us about your business. You can add services in the next step.",
       businessNamePlaceholder: "Business Name",
       businessDescriptionPlaceholder: "Business description",
       phoneNumberPlaceholder: "Phone Number",
