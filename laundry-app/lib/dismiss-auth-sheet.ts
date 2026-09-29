@@ -1,5 +1,13 @@
-import type { NavigationProp, ParamListBase } from "@react-navigation/native";
 import type { Router } from "expo-router";
+
+/**
+ * expo-router's `useNavigation()` can return a state of `undefined`, which is
+ * not assignable to React Navigation's `NavigationProp`. This only needs the
+ * parent dismiss methods.
+ */
+type AuthSheetNavigation = {
+  getParent(): { canGoBack(): boolean; goBack(): void } | undefined;
+};
 
 /**
  * Close the auth modal group, even if login → sign-up (or similar) is stacked
@@ -7,7 +15,7 @@ import type { Router } from "expo-router";
  * screen.
  */
 export function dismissAuthSheet(
-  navigation: NavigationProp<ParamListBase>,
+  navigation: AuthSheetNavigation,
   router: Router,
   returnTo?: string,
 ) {

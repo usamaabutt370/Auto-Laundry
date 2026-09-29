@@ -302,6 +302,19 @@ export default function PickLaundererScreen() {
     { id: "favourites", label: s.filterFavourites, icon: "heart-outline" },
   ];
 
+  const chipScrollRef = useRef<ScrollView>(null);
+  const chipOffsetsRef = useRef<Partial<Record<ProviderChip, number>>>({});
+  const initialChipRevealedRef = useRef(initialChip === "all");
+
+  /** Scrolls a preselected chip (Profile → Favourites) into view so the active filter is visible. */
+  const revealInitialChip = useCallback(() => {
+    if (initialChipRevealedRef.current) return;
+    const offset = chipOffsetsRef.current[initialChip];
+    if (offset === undefined) return;
+    initialChipRevealedRef.current = true;
+    chipScrollRef.current?.scrollTo({ x: Math.max(offset - H_PAD, 0), animated: false });
+  }, [initialChip]);
+
   const serviceFilter = isServiceCategory(params.service) ? params.service : undefined;
 
   const load = useCallback(async () => {
@@ -698,7 +711,7 @@ export default function PickLaundererScreen() {
           <Pressable
             onPress={() => {
               if (fromProfile) {
-                router.replace("/(customer)/(tabs)");
+                router.replace("/(customer)/(tabs)/profile");
                 return;
               }
               router.back();
@@ -738,10 +751,12 @@ export default function PickLaundererScreen() {
 
         <View style={styles.chipBar}>
           <ScrollView
+            ref={chipScrollRef}
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.chipRow}
             style={styles.chipScroll}
+            onContentSizeChange={revealInitialChip}
           >
             {chips.map((item) => {
               const selected = chip === item.id;
@@ -762,6 +777,9 @@ export default function PickLaundererScreen() {
               return (
                 <Pressable
                   key={item.id}
+                  onLayout={(event) => {
+                    chipOffsetsRef.current[item.id] = event.nativeEvent.layout.x;
+                  }}
                   onPress={() => {
                     setChip(item.id);
                     if (item.id === "all") {

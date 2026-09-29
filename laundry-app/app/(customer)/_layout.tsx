@@ -17,11 +17,11 @@ export default function CustomerLayout() {
         <Stack.Screen name="index" />
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="recurring" />
-        <Stack.Screen name="settings" />
-        <Stack.Screen name="contact-support" />
-        <Stack.Screen name="faq" />
-        <Stack.Screen name="edit-profile" />
-        <Stack.Screen name="addresses" />
+        <Stack.Screen name="settings" options={{ animation: "none" }} />
+        <Stack.Screen name="contact-support" options={{ animation: "none" }} />
+        <Stack.Screen name="faq" options={{ animation: "none" }} />
+        <Stack.Screen name="edit-profile" options={{ animation: "none" }} />
+        <Stack.Screen name="addresses" options={{ animation: "none" }} />
         <Stack.Screen
           name="address-edit"
           options={{
@@ -33,7 +33,14 @@ export default function CustomerLayout() {
           }}
         />
         <Stack.Screen name="pickup-services" />
-        <Stack.Screen name="pick-launderer" />
+        <Stack.Screen
+          name="pick-launderer"
+          options={({ route }) =>
+            (route.params as { from?: string } | undefined)?.from === "profile"
+              ? { animation: "none" }
+              : {}
+          }
+        />
         <Stack.Screen name="launderer-detail" />
         <Stack.Screen
           name="book-service"

@@ -7,7 +7,7 @@ import {
 	View,
 	Switch,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { StatusBar } from "expo-status-bar";
 import { useRouter, useFocusEffect } from "expo-router";
@@ -43,6 +43,7 @@ export default function CustomerProfileMenu() {
 	const { confirm, dialog: confirmDialog } = useConfirmDialog();
 	const { isWeb } = useResponsiveLayout();
 	const isFocused = useIsFocused();
+	const insets = useSafeAreaInsets();
 	useSuppressWebScreenHeader();
 
 	const [isUpdatingRole, setIsUpdatingRole] = useState(false);
@@ -245,9 +246,12 @@ export default function CustomerProfileMenu() {
 		</Pressable>
 	);
 
+	// Pads with the provider inset instead of SafeAreaView: the native view
+	// reports a 0 top inset for one frame while Android swaps screens, which
+	// snaps the title under the status bar.
 	const ProfileHeader = () =>
 		!isWeb ? (
-			<SafeAreaView edges={["top"]} style={styles.safeArea}>
+			<View style={[styles.safeArea, { paddingTop: insets.top }]}>
 				<View style={styles.header}>
 					<View style={styles.headerCopy}>
 						<Text style={styles.title}>{s.title}</Text>
@@ -273,7 +277,7 @@ export default function CustomerProfileMenu() {
 						</Pressable>
 					</View>
 				</View>
-			</SafeAreaView>
+			</View>
 		) : (
 			<WebHeaderSpacer />
 		);

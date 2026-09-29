@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Linking } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { StatusBar } from "expo-status-bar";
 import { useRouter, useFocusEffect } from "expo-router";
@@ -36,6 +36,7 @@ export default function PartnerProfileMenu() {
 	const { user, signOut, refreshRole } = useAuth();
 	const { isWeb } = useResponsiveLayout();
 	const isFocused = useIsFocused();
+	const insets = useSafeAreaInsets();
 	useSuppressWebScreenHeader();
 
 	const [isUpdatingRole, setIsUpdatingRole] = useState(false);
@@ -171,7 +172,7 @@ export default function PartnerProfileMenu() {
 	);
 
 	return (
-		<SafeAreaView style={styles.container} edges={isWeb ? [] : ["top"]}>
+		<View style={[styles.container, { paddingTop: isWeb ? 0 : insets.top }]}>
 			<StatusBar style="dark" />
 			{isWeb ? <WebHeaderSpacer /> : null}
 			<ScrollView
@@ -271,7 +272,7 @@ export default function PartnerProfileMenu() {
 				</View>
 
 			</ScrollView>
-		</SafeAreaView>
+		</View>
 	);
 }
 
