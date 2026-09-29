@@ -531,6 +531,7 @@ export const en = {
         "This order can no longer be edited because your launderer has already accepted it.",
       reorderAction: "Reorder with another Laundry Captain",
       trackOrder: "Track Order",
+      pickupFrom: "Pickup from",
     },
     trackOrder: {
       title: "Track Order",
@@ -763,7 +764,7 @@ export const en = {
       emptyActive: "No accepted orders right now.",
       emptyCompleted: "No completed orders yet.",
       emptyCancelled: "No cancelled orders.",
-      chatProvider: "Chat with Provider",
+      chatProvider: "Chat",
       trackOrder: "Track Order",
       pickupFrom: "Pickup from",
       addOns: "+ {count} add-ons",
