@@ -353,7 +353,6 @@ export default function CustomerOrderScreen() {
                     statusReady: s.statusReady,
                     chatProvider: s.chatProvider,
                     trackOrder: s.trackOrder,
-                    pickupFrom: s.pickupFrom,
                     addOns: s.addOns,
                     addOnOne: s.addOnOne,
                     stepSent: s.stepSent,

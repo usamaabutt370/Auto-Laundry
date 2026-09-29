@@ -1,16 +1,14 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
-import { LinearGradient } from "expo-linear-gradient";
 import { StatusBar } from "expo-status-bar";
 import { useFocusEffect, useRouter } from "expo-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -19,7 +17,7 @@ import { GuestSignInPrompt } from "@/components/guest-sign-in-prompt";
 import { PartnerNameWithBadge } from "@/components/partner-name-with-badge";
 import { WebHeaderSpacer } from "@/components/web-header-spacer";
 import { GradientLoader, APP_LOADER_TINT } from "@/components/ui/gradient-loader";
-import { gradients, UI } from "@/constants/theme";
+import { UI } from "@/constants/theme";
 import { useAuth } from "@/contexts/auth-context";
 import { useLocale } from "@/contexts/locale-context";
 import { useSuppressWebScreenHeader } from "@/hooks/use-suppress-web-screen-header";
@@ -31,24 +29,12 @@ import { supabase } from "@/lib/supabase";
 const PAD = 16;
 const AVATAR = 52;
 
-type ChatFilter = "all" | "active" | "onTheWay" | "completed" | "cancelled";
-
 function fill(template: string, vars: Record<string, string | number>) {
   return Object.entries(vars).reduce(
     (acc, [key, value]) =>
       acc.replaceAll(`{{${key}}}`, String(value)).replaceAll(`{${key}}`, String(value)),
     template,
   );
-}
-
-function matchesChatFilter(key: string, filter: ChatFilter): boolean {
-  if (filter === "all") return true;
-  const k = key.toLowerCase();
-  if (filter === "onTheWay") return k === "ready";
-  if (filter === "completed") return k === "completed";
-  if (filter === "cancelled") return k === "cancelled" || k === "rejected";
-  // active: still in progress before out for delivery
-  return k === "submitted" || k === "draft" || k === "accepted" || k === "in_progress";
 }
 
 function statusPresentation(
@@ -130,9 +116,6 @@ export default function CustomerChatScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState<ChatFilter>("all");
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
 
   const load = useCallback(async () => {
     if (!user?.id) {
@@ -195,40 +178,6 @@ export default function CustomerChatScreen() {
     })();
   }, [load]);
 
-  const filteredItems = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
-    return items.filter((item) => {
-      if (!matchesChatFilter(item.orderStatusKey, filter)) return false;
-      if (!query) return true;
-      return (
-        item.counterpartyName.toLowerCase().includes(query) ||
-        item.orderRef.toLowerCase().includes(query) ||
-        item.lastMessageBody.toLowerCase().includes(query)
-      );
-    });
-  }, [filter, items, searchQuery]);
-
-  const emptyCopy =
-    searchQuery.trim().length > 0
-      ? s.emptySearch
-      : filter === "active"
-        ? s.emptyActive
-        : filter === "onTheWay"
-          ? s.emptyOnTheWay
-          : filter === "completed"
-            ? s.emptyCompleted
-            : filter === "cancelled"
-              ? s.emptyCancelled
-              : s.empty;
-
-  const filters: { id: ChatFilter; label: string }[] = [
-    { id: "all", label: s.filterAll },
-    { id: "active", label: s.filterActive },
-    { id: "onTheWay", label: s.filterOnTheWay },
-    { id: "completed", label: s.filterCompleted },
-    { id: "cancelled", label: s.filterCancelled },
-  ];
-
   return (
     <View style={styles.container}>
       <StatusBar style="dark" />
@@ -238,29 +187,6 @@ export default function CustomerChatScreen() {
             <View style={styles.headerCopy}>
               <Text style={styles.title}>{s.title}</Text>
               <Text style={styles.subtitle}>{s.subtitle}</Text>
-            </View>
-            <View style={styles.headerActions}>
-              <Pressable
-                onPress={() => {
-                  setSearchOpen((open) => {
-                    if (open) setSearchQuery("");
-                    return !open;
-                  });
-                }}
-                style={styles.iconBtn}
-                accessibilityRole="button"
-                accessibilityLabel={s.searchA11y}
-              >
-                <MaterialCommunityIcons name="magnify" size={20} color={UI.text} />
-              </Pressable>
-              <Pressable
-                onPress={() => router.push("/(customer)/(tabs)/order")}
-                style={styles.iconBtn}
-                accessibilityRole="button"
-                accessibilityLabel={s.composeA11y}
-              >
-                <MaterialCommunityIcons name="square-edit-outline" size={18} color={UI.text} />
-              </Pressable>
             </View>
           </View>
         </SafeAreaView>
@@ -284,55 +210,6 @@ export default function CustomerChatScreen() {
         />
       ) : (
         <>
-          {searchOpen ? (
-            <View style={styles.searchWrap}>
-              <MaterialCommunityIcons name="magnify" size={18} color={UI.muted} />
-              <TextInput
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-                placeholder={s.searchPlaceholder}
-                placeholderTextColor={UI.muted}
-                style={styles.searchInput}
-                autoFocus
-                returnKeyType="search"
-              />
-            </View>
-          ) : null}
-
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.filterRow}
-            style={styles.filterScroll}
-          >
-            {filters.map((chip) => {
-              const selected = filter === chip.id;
-              if (selected) {
-                return (
-                  <Pressable key={chip.id} onPress={() => setFilter(chip.id)}>
-                    <LinearGradient
-                      colors={[...gradients.cta]}
-                      start={{ x: 0, y: 0.5 }}
-                      end={{ x: 1, y: 0.5 }}
-                      style={styles.filterChipActive}
-                    >
-                      <Text style={styles.filterChipTextActive}>{chip.label}</Text>
-                    </LinearGradient>
-                  </Pressable>
-                );
-              }
-              return (
-                <Pressable
-                  key={chip.id}
-                  onPress={() => setFilter(chip.id)}
-                  style={styles.filterChip}
-                >
-                  <Text style={styles.filterChipText}>{chip.label}</Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
-
           {loading && items.length === 0 ? (
             <View style={styles.center}>
               <GradientLoader />
@@ -348,12 +225,12 @@ export default function CustomerChatScreen() {
                 <Text style={styles.retryLabel}>{s.retry}</Text>
               </Pressable>
             </View>
-          ) : filteredItems.length === 0 ? (
+          ) : items.length === 0 ? (
             <View style={styles.center}>
               <View style={styles.emptyIcon}>
                 <MaterialCommunityIcons name="message-text-outline" size={32} color={UI.teal} />
               </View>
-              <Text style={styles.muted}>{emptyCopy}</Text>
+              <Text style={styles.muted}>{s.empty}</Text>
             </View>
           ) : (
             <ScrollView
@@ -372,7 +249,7 @@ export default function CustomerChatScreen() {
                 />
               }
             >
-              {filteredItems.map((item) => {
+              {items.map((item) => {
                 const status = statusPresentation(item.orderStatusKey, s);
                 return (
                   <Pressable
@@ -455,13 +332,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: PAD,
     paddingTop: 4,
     paddingBottom: 12,
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 12,
   },
   headerCopy: {
-    flex: 1,
-    minWidth: 0,
     gap: 2,
   },
   title: {
@@ -474,68 +346,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: UI.muted,
     fontFamily: "Poppins-Regular",
-  },
-  headerActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingTop: 4,
-  },
-  iconBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#EEF2FF",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  searchWrap: {
-    marginHorizontal: PAD,
-    marginBottom: 10,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    backgroundColor: "#F3F4F6",
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 14,
-    color: UI.text,
-    fontFamily: "Poppins-Regular",
-    padding: 0,
-  },
-  filterScroll: {
-    flexGrow: 0,
-  },
-  filterRow: {
-    paddingHorizontal: PAD,
-    paddingBottom: 8,
-    gap: 8,
-    alignItems: "center",
-  },
-  filterChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 9,
-    borderRadius: 999,
-    backgroundColor: "#F3F4F6",
-  },
-  filterChipActive: {
-    paddingHorizontal: 16,
-    paddingVertical: 9,
-    borderRadius: 999,
-  },
-  filterChipText: {
-    fontSize: 13,
-    color: UI.text,
-    fontFamily: "Poppins-SemiBold",
-  },
-  filterChipTextActive: {
-    fontSize: 13,
-    color: "#FFFFFF",
-    fontFamily: "Poppins-SemiBold",
   },
   center: {
     flex: 1,

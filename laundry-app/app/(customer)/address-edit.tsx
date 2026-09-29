@@ -274,6 +274,14 @@ export default function AddressEditScreen() {
           </View>
 
           <View style={styles.header}>
+            {/* Invisible spacer mirrors the close button width so the title stays centered. */}
+            <View style={styles.headerSpacer} />
+            <View style={styles.headerCopy}>
+              <Text style={styles.title}>
+                {editingId ? s.formEditTitle : s.formAddTitle}
+              </Text>
+              <Text style={styles.subtitle}>{s.formSubtitle}</Text>
+            </View>
             <Pressable
               onPress={() => router.back()}
               style={styles.headerBtn}
@@ -282,14 +290,6 @@ export default function AddressEditScreen() {
             >
               <MaterialCommunityIcons name="close" size={20} color={UI.text} />
             </Pressable>
-            <View style={styles.headerCopy}>
-              <Text style={styles.title}>
-                {editingId ? s.formEditTitle : s.formAddTitle}
-              </Text>
-              <Text style={styles.subtitle}>{s.formSubtitle}</Text>
-            </View>
-            {/* Invisible spacer mirrors the close button width so the title stays centered. */}
-            <View style={styles.headerSpacer} />
           </View>
 
           {loading ? (

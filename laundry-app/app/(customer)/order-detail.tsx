@@ -395,6 +395,15 @@ export default function CustomerOrderDetailScreen() {
                 <Text style={styles.detailValue}>{order.pickupSchedule}</Text>
               </View>
             </View>
+            {order.fulfillmentMode === "pickupDelivery" && order.customerPickupAddress ? (
+              <View style={styles.detailRow}>
+                <MaterialCommunityIcons name="map-marker-outline" size={16} color={UI.purple} />
+                <View style={styles.flex1}>
+                  <Text style={styles.detailMeta}>{sDetail.pickupFrom}</Text>
+                  <Text style={styles.detailValue}>{order.customerPickupAddress}</Text>
+                </View>
+              </View>
+            ) : null}
             <View style={styles.detailRow}>
               <MaterialCommunityIcons name="package-variant-closed" size={16} color={UI.purple} />
               <View style={styles.flex1}>

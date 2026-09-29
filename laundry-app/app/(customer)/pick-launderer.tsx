@@ -2,6 +2,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter, useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  FlatList,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -62,6 +63,8 @@ const DISTANCE_PLACEHOLDER = "—";
 const PARTNER_DISTANCE_PLACEHOLDER = `${DISTANCE_PLACEHOLDER} km`;
 const H_PAD = 16;
 const CARD_GAP = 12;
+const PAGE_SIZE = 10;
+const LOAD_MORE_DELAY_MS = 450;
 
 type ProviderChip = "all" | "open" | "rated" | "offers" | "favourites";
 
@@ -131,7 +134,7 @@ function LaundererCard({
   const areaLabel = shortAddress(partner.address);
   const locationLine = [areaLabel, distanceLabel].filter(Boolean).join(" · ");
   const ratingAvgLabel =
-    partner.ratingCount > 0
+    partner.ratingCount > 0 && partner.ratingAvg != null
       ? Number.isInteger(partner.ratingAvg)
         ? String(partner.ratingAvg)
         : partner.ratingAvg.toFixed(1)
@@ -538,6 +541,47 @@ export default function PickLaundererScreen() {
     });
   }, [appliedFilters, chip, favorites, partnerDistanceKm, partners, searchQuery]);
 
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const loadingMoreRef = useRef(false);
+  const loadMoreTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (loadMoreTimerRef.current) {
+      clearTimeout(loadMoreTimerRef.current);
+      loadMoreTimerRef.current = null;
+    }
+    loadingMoreRef.current = false;
+    setLoadingMore(false);
+    setVisibleCount(PAGE_SIZE);
+  }, [appliedFilters, chip, partners, searchQuery]);
+
+  useEffect(() => {
+    return () => {
+      if (loadMoreTimerRef.current) clearTimeout(loadMoreTimerRef.current);
+    };
+  }, []);
+
+  const visiblePartners = useMemo(
+    () => filteredPartners.slice(0, visibleCount),
+    [filteredPartners, visibleCount],
+  );
+
+  const hasMore = visibleCount < filteredPartners.length;
+
+  const loadMore = useCallback(() => {
+    if (loadingMoreRef.current || !hasMore) return;
+    loadingMoreRef.current = true;
+    setLoadingMore(true);
+    if (loadMoreTimerRef.current) clearTimeout(loadMoreTimerRef.current);
+    loadMoreTimerRef.current = setTimeout(() => {
+      setVisibleCount((prev) => Math.min(prev + PAGE_SIZE, filteredPartners.length));
+      setLoadingMore(false);
+      loadingMoreRef.current = false;
+      loadMoreTimerRef.current = null;
+    }, LOAD_MORE_DELAY_MS);
+  }, [filteredPartners.length, hasMore]);
+
   const toMapPartner = useCallback(
     (partner: PartnerPublicRow): PartnerMapMarker => ({
       ...partner,
@@ -864,13 +908,28 @@ export default function PickLaundererScreen() {
             <Text style={styles.emptyText}>{emptyMessage}</Text>
           </View>
         ) : (
-          <ScrollView
+          <FlatList
+            data={visiblePartners}
+            key={columns}
+            keyExtractor={(item) => item.id}
+            numColumns={columns}
             style={styles.scroll}
             contentContainerStyle={styles.scrollContent}
+            columnWrapperStyle={columns > 1 ? styles.columnRow : undefined}
             showsVerticalScrollIndicator={false}
-          >
-            {filteredPartners.map((partner) => (
-              <View key={partner.id} style={{ width: cardWidth }}>
+            onEndReached={loadMore}
+            onEndReachedThreshold={0.35}
+            ListFooterComponent={
+              loadingMore ? (
+                <View style={styles.loadMoreFooter}>
+                  <GradientLoader size="small" />
+                </View>
+              ) : (
+                <View style={styles.loadMoreSpacer} />
+              )
+            }
+            renderItem={({ item: partner }) => (
+              <View style={{ width: cardWidth, marginBottom: CARD_GAP }}>
                 <LaundererCard
                   partner={partner}
                   distanceLabel={partnerDistanceLabels[partner.id] ?? PARTNER_DISTANCE_PLACEHOLDER}
@@ -884,8 +943,8 @@ export default function PickLaundererScreen() {
                   }}
                 />
               </View>
-            ))}
-          </ScrollView>
+            )}
+          />
         )}
       </View>
 
@@ -1041,9 +1100,17 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: H_PAD,
     paddingBottom: 96,
-    flexDirection: "row",
-    flexWrap: "wrap",
+  },
+  columnRow: {
     gap: CARD_GAP,
+  },
+  loadMoreFooter: {
+    paddingVertical: 20,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  loadMoreSpacer: {
+    height: 8,
   },
   centerBlock: {
     flex: 1,
@@ -1139,9 +1206,10 @@ const styles = StyleSheet.create({
   cardNameWrap: {
     flex: 1,
     minWidth: 0,
+    gap: 15,
   },
   cardName: {
-    flex: 1,
+    flexShrink: 1,
     fontSize: 16,
     fontFamily: "Poppins-Bold",
     color: UI.text,

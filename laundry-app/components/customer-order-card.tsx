@@ -27,7 +27,6 @@ type OrderCardStrings = {
   statusReady: string;
   chatProvider: string;
   trackOrder: string;
-  pickupFrom: string;
   addOns: string;
   addOnOne: string;
   stepSent: string;
@@ -94,16 +93,6 @@ function statusCopy(
   return { label: s.statusWaiting, color: UI.amber, bg: UI.amberBg, icon: "clock-outline" };
 }
 
-function shortAddress(address: string | null): string {
-  if (!address?.trim()) return "";
-  const parts = address
-    .split(",")
-    .map((part) => part.trim())
-    .filter(Boolean);
-  if (parts.length >= 2) return parts.slice(-2).join(", ");
-  return parts[0] ?? address;
-}
-
 function fill(template: string, vars: Record<string, string | number>) {
   return Object.entries(vars).reduce(
     (acc, [key, value]) =>
@@ -147,7 +136,6 @@ export function CustomerOrderCard({
   const scheduleTime = isCompleted
     ? order.deliveryTimeLabel || order.pickupTimeLabel
     : order.pickupTimeLabel || order.deliveryTimeLabel;
-  const pickupArea = shortAddress(order.customerPickupAddress);
 
   return (
     <Pressable
@@ -237,7 +225,7 @@ export function CustomerOrderCard({
 
       {showLogistics ? (
         <View style={styles.infoRow}>
-          <View style={styles.infoCol}>
+          <View style={styles.infoColLeft}>
             <MaterialCommunityIcons name="calendar-month-outline" size={16} color="#2563EB" style={styles.infoIcon} />
             <View style={styles.infoCopy}>
               <Text style={styles.infoPrimary} numberOfLines={1}>
@@ -248,28 +236,13 @@ export function CustomerOrderCard({
               </Text>
             </View>
           </View>
-          <View style={styles.infoDivider} />
-          <View style={styles.infoCol}>
-            <MaterialCommunityIcons name="map-marker-outline" size={16} color="#2563EB" style={styles.infoIcon} />
-            <View style={styles.infoCopy}>
-              <Text style={styles.infoSecondary} numberOfLines={1}>
-                {s.pickupFrom}
-              </Text>
-              <Text style={styles.infoPrimary} numberOfLines={1}>
-                {pickupArea || "—"}
-              </Text>
-            </View>
-          </View>
-          <View style={styles.infoDivider} />
-          <View style={styles.infoCol}>
-            <View style={styles.infoCopy}>
-              <Text style={styles.infoSecondary} numberOfLines={1}>
-                {s.estTotal}
-              </Text>
-              <Text style={styles.totalValue} numberOfLines={1}>
-                {order.estimatedTotalLabel}
-              </Text>
-            </View>
+          <View style={styles.infoColRight}>
+            <Text style={styles.infoSecondary} numberOfLines={1}>
+              {s.estTotal}
+            </Text>
+            <Text style={styles.totalValue} numberOfLines={1}>
+              {order.estimatedTotalLabel}
+            </Text>
           </View>
         </View>
       ) : (
@@ -436,27 +409,26 @@ const styles = StyleSheet.create({
   infoRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 0,
+    justifyContent: "space-between",
+    gap: 12,
     paddingVertical: 2,
   },
-  infoCol: {
-    flex: 1,
+  infoColLeft: {
+    flexShrink: 1,
     minWidth: 0,
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    paddingHorizontal: 4,
+  },
+  infoColRight: {
+    flexShrink: 0,
+    alignItems: "flex-end",
+    gap: 2,
   },
   infoIcon: {
     marginTop: 1,
   },
-  infoCopy: { flex: 1, minWidth: 0, gap: 2 },
-  infoDivider: {
-    width: StyleSheet.hairlineWidth,
-    height: 34,
-    backgroundColor: UI.chipBorder,
-    marginHorizontal: 2,
-  },
+  infoCopy: { flexShrink: 1, minWidth: 0, gap: 2 },
   infoPrimary: { fontSize: 12, fontFamily: "Poppins-SemiBold", color: UI.text, lineHeight: 16 },
   infoSecondary: { fontSize: 11, fontFamily: "Poppins-Regular", color: UI.muted, lineHeight: 14 },
   totalValue: { fontSize: 14, fontFamily: "Poppins-Bold", color: UI.text, lineHeight: 18 },

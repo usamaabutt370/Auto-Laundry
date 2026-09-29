@@ -27,7 +27,17 @@ type ProfileNameRow = {
 type PartnerNameRow = {
   business_name: string | null;
   image_url?: string | null;
+  business_images?: string[] | null;
 };
+
+function firstBusinessImage(images: string[] | null | undefined): string | null {
+  if (!Array.isArray(images)) return null;
+  return (
+    images.find(
+      (item): item is string => typeof item === "string" && item.trim().length > 0,
+    ) ?? null
+  );
+}
 
 export type ChatMessageType = "text" | "rider_assignment";
 
@@ -351,11 +361,7 @@ export async function fetchOrderChatHeader(
     ]);
     title = partnerData?.business_name?.trim() || "Laundry Captain";
     titleVerified = verifiedPartnerIds.has(order.partner_id);
-    const businessImage = Array.isArray(partnerData?.business_images)
-      ? partnerData.business_images.find(
-          (item): item is string => typeof item === "string" && item.trim().length > 0,
-        )
-      : null;
+    const businessImage = firstBusinessImage(partnerData?.business_images);
     avatarUrl = businessImage ?? partnerData?.image_url ?? null;
     phoneNumber = partnerData?.phone_number?.trim() || null;
   } else {
@@ -545,7 +551,7 @@ export async function fetchMyConversations(
   if (counterpartPartnerIds.size > 0) {
     const { data } = await supabase
       .from("partner_profiles")
-      .select("id,business_name,image_url")
+      .select("id,business_name,image_url,business_images")
       .in("id", Array.from(counterpartPartnerIds));
     for (const row of (data ?? []) as Array<PartnerNameRow & { id: string }>) {
       partnerNameMap.set(row.id, row);
@@ -609,7 +615,8 @@ export async function fetchMyConversations(
       const pProfile = partnerProfileMap.get(order.partner_id);
       counterpartyName = p?.business_name?.trim() || "Laundry Captain";
       counterpartyVerified = verifiedPartnerIds.has(order.partner_id);
-      counterpartyAvatarUrl = p?.image_url ?? pProfile?.image_url ?? null;
+      counterpartyAvatarUrl =
+        firstBusinessImage(p?.business_images) ?? p?.image_url ?? pProfile?.image_url ?? null;
     } else if (order?.partner_id === userId) {
       const c = customerProfileMap.get(order.customer_id);
       counterpartyName = formatCustomerName(c ?? null);
