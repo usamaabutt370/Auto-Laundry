@@ -165,7 +165,7 @@ export default function AddressEditScreen() {
     else setSelectedLocation(`${next.latitude.toFixed(5)}, ${next.longitude.toFixed(5)}`);
   };
 
-  const useCurrentLocation = async () => {
+  const handleUseCurrentLocation = async () => {
     setLocating(true);
     try {
       const result = await getDeviceCoordinatesWithStatus();
@@ -288,7 +288,8 @@ export default function AddressEditScreen() {
               </Text>
               <Text style={styles.subtitle}>{s.formSubtitle}</Text>
             </View>
-            <View style={styles.headerBtn} />
+            {/* Invisible spacer mirrors the close button width so the title stays centered. */}
+            <View style={styles.headerSpacer} />
           </View>
 
           {loading ? (
@@ -326,7 +327,7 @@ export default function AddressEditScreen() {
                     />
                   </View>
                   <Pressable
-                    onPress={() => void useCurrentLocation()}
+                    onPress={() => void handleUseCurrentLocation()}
                     style={styles.locateBtn}
                     accessibilityLabel={s.useCurrent}
                   >
@@ -341,7 +342,7 @@ export default function AddressEditScreen() {
                 <View style={styles.mapCard}>
                   <AddressLocationMap coords={coords} onPick={(next) => void pickCoords(next)} />
                   <Pressable
-                    onPress={() => void useCurrentLocation()}
+                    onPress={() => void handleUseCurrentLocation()}
                     style={styles.useCurrentFab}
                   >
                     <MaterialCommunityIcons name="crosshairs-gps" size={14} color={UI.purple} />
@@ -610,6 +611,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 8,
     paddingBottom: 8,
+    paddingTop: 15,
   },
   headerBtn: {
     width: 40,
@@ -618,6 +620,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#F3F4F6",
+  },
+  headerSpacer: {
+    width: 40,
+    height: 40,
   },
   headerCopy: { flex: 1, alignItems: "center", paddingHorizontal: 4 },
   title: {
