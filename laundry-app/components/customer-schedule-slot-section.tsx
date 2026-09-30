@@ -276,13 +276,23 @@ export function CustomerScheduleSlotSection({
         animationType="fade"
         onRequestClose={() => setMonthPickerVisible(false)}
       >
-        <Pressable
-          style={styles.pickerOverlay}
-          onPress={() => setMonthPickerVisible(false)}
-        >
-          <Pressable style={styles.pickerCard} onPress={() => {}}>
+        <View style={styles.pickerOverlay}>
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={() => setMonthPickerVisible(false)}
+            accessibilityRole="button"
+            accessibilityLabel="Dismiss"
+          />
+          <View style={styles.pickerCard}>
             <Text style={styles.pickerTitle}>Select month</Text>
-            <ScrollView style={styles.pickerList} showsVerticalScrollIndicator={false}>
+            <ScrollView
+              style={styles.pickerList}
+              contentContainerStyle={styles.pickerListContent}
+              showsVerticalScrollIndicator
+              bounces
+              nestedScrollEnabled
+              keyboardShouldPersistTaps="handled"
+            >
               {MONTH_NAMES_EN.map((name, index) => {
                 const isPastMonthInCurrentYear =
                   selectedYear === CURRENT_YEAR && index < CURRENT_MONTH;
@@ -322,8 +332,8 @@ export function CustomerScheduleSlotSection({
               size="sm"
               style={styles.pickerClose}
             />
-          </Pressable>
-        </Pressable>
+          </View>
+        </View>
       </Modal>
 
       <Modal
@@ -332,13 +342,23 @@ export function CustomerScheduleSlotSection({
         animationType="fade"
         onRequestClose={() => setYearPickerVisible(false)}
       >
-        <Pressable
-          style={styles.pickerOverlay}
-          onPress={() => setYearPickerVisible(false)}
-        >
-          <Pressable style={[styles.pickerCard, styles.yearPickerCard]} onPress={() => {}}>
+        <View style={styles.pickerOverlay}>
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={() => setYearPickerVisible(false)}
+            accessibilityRole="button"
+            accessibilityLabel="Dismiss"
+          />
+          <View style={[styles.pickerCard, styles.yearPickerCard]}>
             <Text style={styles.pickerTitle}>Select year</Text>
-            <ScrollView style={styles.pickerList} showsVerticalScrollIndicator={false}>
+            <ScrollView
+              style={styles.pickerList}
+              contentContainerStyle={styles.pickerListContent}
+              showsVerticalScrollIndicator
+              bounces
+              nestedScrollEnabled
+              keyboardShouldPersistTaps="handled"
+            >
               {YEAR_OPTIONS.map((year) => (
                 <Pressable
                   key={year}
@@ -369,8 +389,8 @@ export function CustomerScheduleSlotSection({
               size="sm"
               style={styles.pickerClose}
             />
-          </Pressable>
-        </Pressable>
+          </View>
+        </View>
       </Modal>
 
       <Modal
@@ -379,13 +399,23 @@ export function CustomerScheduleSlotSection({
         animationType="fade"
         onRequestClose={() => setTimePickerVisible(false)}
       >
-        <Pressable
-          style={styles.pickerOverlay}
-          onPress={() => setTimePickerVisible(false)}
-        >
-          <Pressable style={styles.timePickerCard} onPress={() => {}}>
+        <View style={styles.pickerOverlay}>
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={() => setTimePickerVisible(false)}
+            accessibilityRole="button"
+            accessibilityLabel="Dismiss"
+          />
+          <View style={styles.timePickerCard}>
             <Text style={styles.pickerTitle}>{s.time}</Text>
-            <ScrollView style={styles.pickerList} showsVerticalScrollIndicator={false}>
+            <ScrollView
+              style={styles.pickerList}
+              contentContainerStyle={styles.pickerListContent}
+              showsVerticalScrollIndicator
+              bounces
+              nestedScrollEnabled
+              keyboardShouldPersistTaps="handled"
+            >
               {TIME_SLOTS.map((label, index) => {
                 const isDisabled = index < minTimeSlotIndex;
                 const isSelected = safeTimeSlotIndex === index;
@@ -426,8 +456,8 @@ export function CustomerScheduleSlotSection({
               size="sm"
               style={styles.pickerClose}
             />
-          </Pressable>
-        </Pressable>
+          </View>
+        </View>
       </Modal>
     </View>
   );
@@ -600,6 +630,10 @@ const styles = StyleSheet.create({
   },
   pickerList: {
     maxHeight: 320,
+    flexGrow: 0,
+  },
+  pickerListContent: {
+    paddingBottom: 4,
   },
   pickerOption: {
     flexDirection: "row",

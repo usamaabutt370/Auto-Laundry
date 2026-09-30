@@ -32,8 +32,7 @@ function GuestArt({
 
   return (
     <View style={styles.art} accessibilityElementsHidden>
-      <View style={[styles.card, styles.cardBack, light && styles.cardLight]} />
-      <View style={[styles.card, styles.cardFront, light && styles.cardLight]}>
+      <View style={[styles.card, light && styles.cardLight]}>
         <MaterialCommunityIcons
           name={iconName}
           size={36}
@@ -93,12 +92,12 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   card: {
-    position: "absolute",
+    width: 96,
+    height: 80,
     backgroundColor: "rgba(255,255,255,0.92)",
     borderRadius: 18,
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.5)",
-    borderStyle: "dashed",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -106,25 +105,10 @@ const styles = StyleSheet.create({
     backgroundColor: UI.card,
     borderColor: UI.chipBorder,
   },
-  cardBack: {
-    width: 88,
-    height: 72,
-    left: 8,
-    top: 8,
-    opacity: 0.55,
-    transform: [{ rotate: "-8deg" }],
-  },
-  cardFront: {
-    width: 96,
-    height: 80,
-    right: 6,
-    top: 18,
-    transform: [{ rotate: "4deg" }],
-  },
   badge: {
     position: "absolute",
-    right: 10,
-    top: 10,
+    right: 22,
+    top: 14,
     width: 36,
     height: 36,
     borderRadius: 18,

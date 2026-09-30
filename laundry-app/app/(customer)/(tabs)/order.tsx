@@ -491,8 +491,8 @@ const styles = StyleSheet.create({
     backgroundColor: UI.bg,
   },
   screenTitle: {
-    fontSize: 26,
-    lineHeight: 30,
+    fontSize: 28,
+    lineHeight: 34,
     fontFamily: "Poppins-Bold",
     fontWeight: "700",
   },
