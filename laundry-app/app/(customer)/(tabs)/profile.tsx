@@ -257,25 +257,18 @@ export default function CustomerProfileMenu() {
 						<Text style={styles.title}>{s.title}</Text>
 						<Text style={styles.subtitle}>{s.subtitle}</Text>
 					</View>
-					<View style={styles.headerActions}>
-						<Pressable
-							onPress={() => router.push("/(customer)/settings")}
-							style={styles.iconBtn}
-							accessibilityRole="button"
-							accessibilityLabel={s.notificationsA11y}
-						>
-							<MaterialCommunityIcons name="bell-outline" size={20} color={UI.text} />
-							<View style={styles.notifDot} />
-						</Pressable>
-						<Pressable
-							onPress={() => router.push("/(customer)/settings")}
-							style={styles.iconBtn}
-							accessibilityRole="button"
-							accessibilityLabel={s.settingsA11y}
-						>
-							<MaterialCommunityIcons name="cog-outline" size={20} color={UI.text} />
-						</Pressable>
-					</View>
+					{user?.id ? (
+						<View style={styles.headerActions}>
+							<Pressable
+								onPress={() => router.push("/(customer)/settings")}
+								style={styles.iconBtn}
+								accessibilityRole="button"
+								accessibilityLabel={s.settingsA11y}
+							>
+								<MaterialCommunityIcons name="cog-outline" size={20} color={UI.text} />
+							</Pressable>
+						</View>
+					) : null}
 				</View>
 			</View>
 		) : (
@@ -516,17 +509,6 @@ const styles = StyleSheet.create({
 		backgroundColor: ICON_WELL,
 		alignItems: "center",
 		justifyContent: "center",
-	},
-	notifDot: {
-		position: "absolute",
-		top: 10,
-		right: 11,
-		width: 7,
-		height: 7,
-		borderRadius: 4,
-		backgroundColor: UI.red,
-		borderWidth: 1.5,
-		borderColor: "#FFFFFF",
 	},
 	content: { paddingHorizontal: PAD, paddingBottom: 120, gap: 14 },
 	contentWeb: { paddingTop: 0 },
