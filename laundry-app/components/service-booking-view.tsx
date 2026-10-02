@@ -48,6 +48,10 @@ import {
   washFoldUnitForItem,
 } from "@/lib/customer-order-estimate";
 import { imageForServiceItem } from "@/lib/service-item-images";
+import {
+  fetchPartnerServiceDetail,
+  SERVICE_DETAIL_CATEGORIES,
+} from "@/lib/partner-service-details";
 import type { ServiceJob } from "@/lib/service-jobs";
 import { getStrings } from "@/locales";
 import { formatMoney } from "@/utils/format-money";
@@ -143,6 +147,30 @@ export function ServiceBookingView({ job, itemLabel }: Props) {
     return draft.tailoring?.itemizedInstructions ?? "";
   });
   const [photos, setPhotos] = useState<string[]>([]);
+  const [serviceGallery, setServiceGallery] = useState<string[]>([]);
+
+  useEffect(() => {
+    const partnerId = draft.partnerId;
+    if (!partnerId) {
+      setServiceGallery([]);
+      return;
+    }
+    const category =
+      job === "dryCleaning"
+        ? SERVICE_DETAIL_CATEGORIES.dryCleaning
+        : job === "ironing"
+          ? SERVICE_DETAIL_CATEGORIES.press
+          : job === "tailoring"
+            ? SERVICE_DETAIL_CATEGORIES.tailoring
+            : SERVICE_DETAIL_CATEGORIES.washAndFold;
+    let cancelled = false;
+    void fetchPartnerServiceDetail(partnerId, category).then((detail) => {
+      if (!cancelled) setServiceGallery(detail?.images ?? []);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [draft.partnerId, job]);
   const initRef = useRef(false);
 
   const estimateDraft: CustomerOrderDraft = useMemo(() => {
@@ -675,6 +703,26 @@ export function ServiceBookingView({ job, itemLabel }: Props) {
                   </ScrollView>
                 ) : null}
               </View>
+
+              {serviceGallery.length > 0 ? (
+                <View style={styles.block}>
+                  <Text style={styles.sectionTitle}>{s.servicePhotos}</Text>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.serviceGallery}
+                  >
+                    {serviceGallery.map((uri) => (
+                      <Image
+                        key={uri}
+                        source={{ uri }}
+                        style={styles.serviceGalleryImage}
+                        contentFit="cover"
+                      />
+                    ))}
+                  </ScrollView>
+                </View>
+              ) : null}
             </>
           )}
         </View>
@@ -767,6 +815,16 @@ function createBookingStyles({ s, ms, isNarrow }: ScaledStyleHelpers) {
       flexDirection: "row" as const,
       alignItems: "center" as const,
       gap: s(12),
+    },
+    serviceGallery: {
+      gap: s(10),
+      paddingBottom: s(4),
+    },
+    serviceGalleryImage: {
+      width: s(96),
+      height: s(96),
+      borderRadius: s(14),
+      backgroundColor: UI.iconWell,
     },
     headerCopy: { flex: 1, minWidth: 0 },
     headerTitle: { fontSize: ms(18), color: UI.text, fontFamily: "Poppins-Bold" },

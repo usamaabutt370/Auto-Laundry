@@ -112,6 +112,7 @@ export function Input({
       <View
         style={[
           styles.inputRow,
+          light && styles.inputRowLight,
           {
             backgroundColor: resolvedBg,
             borderColor: isFocused ? resolvedFocus : resolvedBorder,
@@ -120,18 +121,20 @@ export function Input({
         ]}
       >
         {isPhone && (
-          <View style={styles.phonePrefix}>
+          <View style={[styles.phonePrefix, light && styles.phonePrefixLight]}>
             <CountryCodePicker
               appearance={appearance}
               selectedCca2={selectedCca2}
               selectedCallingCode={selectedCallingCode}
               onSelect={onCountrySelect || (() => {})}
             />
+            {light ? <View style={styles.phoneDivider} /> : null}
           </View>
         )}
         <TextInput
           style={[
             styles.input,
+            light && styles.inputLight,
             {
               color: resolvedText,
             },
@@ -188,11 +191,21 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     paddingHorizontal: 12,
   },
+  inputRowLight: {
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    backgroundColor: UI.card,
+  },
   input: {
     flex: 1,
     height: 52,
     fontSize: 16,
     paddingHorizontal: 8,
+  },
+  inputLight: {
+    fontSize: 15,
+    fontFamily: "Poppins-Regular",
+    paddingHorizontal: 10,
   },
   inputDisabled: {
     opacity: 0.6,
@@ -215,5 +228,16 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingRight: 4,
+  },
+  phonePrefixLight: {
+    alignSelf: "stretch",
+    paddingRight: 0,
+  },
+  phoneDivider: {
+    width: StyleSheet.hairlineWidth * 2,
+    alignSelf: "stretch",
+    marginVertical: 10,
+    marginLeft: 8,
+    backgroundColor: UI.chipBorder,
   },
 });

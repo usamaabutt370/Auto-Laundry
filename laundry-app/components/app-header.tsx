@@ -22,8 +22,11 @@ export interface AppHeaderProps {
   titleVerified?: boolean;
   subtitle?: string | null;
   titleStyle?: StyleProp<TextStyle>;
+  subtitleStyle?: StyleProp<TextStyle>;
   /** Default centers the title; use `left` for screens like Orders. */
   titleAlign?: "center" | "left";
+  /** Drop the default header padding so the bar sits flush under the status bar. */
+  compact?: boolean;
   /** Tap2Laundry logo on the left (mobile web / native when sidebar is hidden). */
   showBrandLogo?: boolean;
   /** Hide centered title on web only (sidebar labels are enough on desktop). */
@@ -81,7 +84,9 @@ export function AppHeader({
   titleVerified = false,
   subtitle,
   titleStyle,
+  subtitleStyle,
   titleAlign = "center",
+  compact = false,
   showBrandLogo = false,
   hideTitleOnWeb = false,
   leftIcon,
@@ -139,7 +144,13 @@ export function AppHeader({
 
   return (
     <View style={styles.container}>
-      <View style={[styles.row, leftTitle && styles.rowCompact]}>
+      <View
+        style={[
+          styles.row,
+          leftTitle && styles.rowCompact,
+          (showSubtitle || compact) && styles.rowWithSubtitle,
+        ]}
+      >
         {!leftTitle ? titleNode : null}
 
         <View style={styles.slot}>
@@ -154,7 +165,11 @@ export function AppHeader({
             ) : leftIcon != null ? (
               <Pressable
                 onPress={onLeftPress}
-                style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
+                style={({ pressed }) => [
+                  styles.iconBtn,
+                  (showSubtitle || compact) && styles.iconBtnCompact,
+                  pressed && styles.pressed,
+                ]}
                 hitSlop={HIT_SLOP}
                 accessibilityRole="button"
                 accessibilityLabel={leftAccessibilityLabel}
@@ -191,6 +206,7 @@ export function AppHeader({
               styles.subtitle,
               light && styles.subtitleLight,
               leftTitle && styles.subtitleLeft,
+              subtitleStyle,
             ]}
           >
             {subtitle}
@@ -213,6 +229,10 @@ const styles = StyleSheet.create({
   },
   rowCompact: {
     paddingTop: 4,
+    paddingBottom: 0,
+  },
+  rowWithSubtitle: {
+    paddingTop: 0,
     paddingBottom: 0,
   },
   titleWrap: {
@@ -255,13 +275,13 @@ const styles = StyleSheet.create({
   },
   subtitleWrap: {
     paddingHorizontal: 20,
-    paddingTop: 4,
-    paddingBottom: 12,
+    paddingTop: 0,
+    paddingBottom: 6,
   },
   subtitleWrapLeft: {
     paddingHorizontal: 16,
-    paddingTop: 2,
-    paddingBottom: 8,
+    paddingTop: 0,
+    paddingBottom: 6,
   },
   subtitle: {
     fontSize: fs.smallText,
@@ -289,6 +309,9 @@ const styles = StyleSheet.create({
   },
   iconBtn: {
     padding: 8,
+  },
+  iconBtnCompact: {
+    paddingVertical: 4,
   },
   brandLogo: {
     width: BRAND_LOGO_SIZE,

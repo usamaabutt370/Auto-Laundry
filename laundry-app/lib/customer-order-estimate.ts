@@ -615,6 +615,7 @@ export function listPricedWashFoldDefs(
     if (!label || LEGACY_WASH_FOLD_PRICE_LABELS.has(label)) continue;
     if (isLegacyWashFoldGarmentLabel(label)) continue;
     if (isDroppedWashFoldGarmentLabel(label)) continue;
+    if (/^add-on\b/i.test(label)) continue;
     if (!isPositivePrice(parsePriceDisplay(row.price_display))) continue;
     const key = label.toLowerCase();
     if (seen.has(key)) continue;
@@ -646,6 +647,7 @@ export function listPricedPressDefs(
     if (!label || LEGACY_WASH_FOLD_PRICE_LABELS.has(label)) continue;
     if (isLegacyWashFoldGarmentLabel(label)) continue;
     if (isPressExcludedGarmentLabel(label)) continue;
+    if (/^add-on\b/i.test(label)) continue;
     if (!isPositivePrice(parsePriceDisplay(row.price_display))) continue;
     const key = label.toLowerCase();
     if (seen.has(key)) continue;
@@ -720,6 +722,7 @@ export function listPricedDryCleanDefs(
     if (!label) continue;
     if (isLegacyDryCleanItemLabel(label)) continue;
     if (isDroppedDryCleanItemLabel(label)) continue;
+    if (/^add-on\b/i.test(label)) continue;
     // Suit packages are only surfaced via catalog ids (combined Suit card on customer).
     if (/suit|سوٹ/i.test(label) && /[23]\s*-?\s*piece|[23]\s*-?\s*پیس/i.test(label)) {
       continue;
@@ -780,6 +783,7 @@ export function listPricedTailoringDefs(
     const label = stripTailoringPrefix(row.name);
     if (!label) continue;
     if (isDroppedTailoringItemLabel(label)) continue;
+    if (/^add-on\b/i.test(label)) continue;
     if (parsePriceDisplay(row.price_display) == null) continue;
     const key = label.toLowerCase();
     if (seen.has(key)) continue;

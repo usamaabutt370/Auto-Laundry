@@ -10,25 +10,29 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { StatusBar } from "expo-status-bar";
 import * as FileSystem from "expo-file-system";
 import * as ImagePicker from "expo-image-picker";
 
 import { showAppAlert } from "@/components/app-alert";
-import { FormTextInput } from "@/components/form-text-input";
 import { Input } from "@/components/ui/input";
-import { AppButton } from "@/components/ui/button";
+import { AppCtaButton } from "@/components/ui/cta-button";
 import { AppHeader } from "@/components/app-header";
-import { theme } from "@/constants/theme";
+import { UI } from "@/constants/theme";
 import { useLocale } from "@/contexts/locale-context";
 import { useAuth } from "@/contexts/auth-context";
 import { getStrings } from "@/locales";
 import { ensureActiveUserProfile } from "@/lib/ensure-user-profile";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { getDeviceCoordinatesWithStatus } from "@/utils/device-location";
+import { reverseGeocodeDetails } from "@/utils/geocoding";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
 import type { CountryCode } from "libphonenumber-js";
 
@@ -38,6 +42,7 @@ const PERIODS = ["AM", "PM"] as const;
 const WHEEL_ITEM_HEIGHT = 40;
 const MAX_BUSINESS_IMAGES = 10;
 const BUSINESS_IMAGES_BUCKET = "business-images";
+const DESCRIPTION_MAX = 300;
 
 type StagedBusinessImage = {
   id: string;
@@ -69,6 +74,13 @@ function formatTimeLabel(date: Date): string {
   const hour12 = hours % 12 || 12;
   const minuteLabel = String(minutes).padStart(2, "0");
   return `${hour12}:${minuteLabel} ${period}`;
+}
+
+function timePeriodIcon(date: Date | null, emptyFallback: "am" | "pm") {
+  const afternoon = date != null ? date.getHours() >= 12 : emptyFallback === "pm";
+  return afternoon
+    ? { name: "moon-waning-crescent" as const, color: UI.blue }
+    : { name: "weather-sunny" as const, color: "#F59E0B" };
 }
 
 function parseTimeLabelToDate(value: string): Date | null {
@@ -108,12 +120,20 @@ export function PartnerBusinessDetailsForm({ mode }: Props) {
   const [submitAttempted, setSubmitAttempted] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [businessImages, setBusinessImages] = useState<StagedBusinessImage[]>([]);
+  const [offerPickupDelivery, setOfferPickupDelivery] = useState(false);
+  const [locatingAddress, setLocatingAddress] = useState(false);
+  const [coordsCache, setCoordsCache] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
   const hourRef = useRef<ScrollView | null>(null);
   const minuteRef = useRef<ScrollView | null>(null);
   const periodRef = useRef<ScrollView | null>(null);
 
   const startTimeLabel = startTime ? formatTimeLabel(startTime) : "";
   const endTimeLabel = endTime ? formatTimeLabel(endTime) : "";
+  const startPeriodIcon = timePeriodIcon(startTime, "am");
+  const endPeriodIcon = timePeriodIcon(endTime, "pm");
   const isAvailableTimeValid =
     Boolean(startTime && endTime) &&
     startTime!.getHours() * 60 + startTime!.getMinutes() <
@@ -127,14 +147,14 @@ export function PartnerBusinessDetailsForm({ mode }: Props) {
     supabase
       .from("partner_profiles")
       .select(
-        "business_name, business_description, phone_number, available_time, address, latitude, longitude, business_images"
+        "business_name, business_description, phone_number, available_time, address, latitude, longitude, business_images, pickup_delivery_enabled"
       )
       .eq("id", user.id)
       .maybeSingle()
       .then(({ data }) => {
         if (!data) return;
         setBusinessName(data.business_name ?? "");
-        setBusinessDescription(data.business_description ?? "");
+        setBusinessDescription((data.business_description ?? "").slice(0, DESCRIPTION_MAX));
         const rawPhone = data.phone_number ?? "";
         if (rawPhone.startsWith("+")) {
           const parsed = parsePhoneNumberFromString(rawPhone);
@@ -154,6 +174,15 @@ export function PartnerBusinessDetailsForm({ mode }: Props) {
         setStartTime(parseTimeLabelToDate(rawStart));
         setEndTime(parseTimeLabelToDate(rawEnd));
         setAddress(data.address ?? "");
+        const offersPickupDelivery = Boolean(
+          (data as { pickup_delivery_enabled?: boolean | null }).pickup_delivery_enabled,
+        );
+        setOfferPickupDelivery(offersPickupDelivery);
+        const lat = (data as { latitude?: number | null }).latitude;
+        const lng = (data as { longitude?: number | null }).longitude;
+        if (typeof lat === "number" && typeof lng === "number") {
+          setCoordsCache({ latitude: lat, longitude: lng });
+        }
 
         const imagesRaw = (data as { business_images?: unknown }).business_images;
         if (Array.isArray(imagesRaw)) {
@@ -351,36 +380,27 @@ export function PartnerBusinessDetailsForm({ mode }: Props) {
 
     setIsSaving(true);
     try {
-      const locationResult = await getDeviceCoordinatesWithStatus();
-      console.log("[partner-location] location status:", locationResult.status);
-      console.log("[partner-location] coordinates:", locationResult.coords);
-      if (!locationResult.coords) {
-        if (locationResult.status === "denied") {
-          showAppAlert(
-            "Location permission required",
-            "Please allow location permission so we can place your business marker on the map.",
-          );
-        } else {
-          showAppAlert(
-            "Location unavailable",
-            "We could not detect your current location. Please try again in an open area with GPS enabled.",
-          );
-        }
-        return;
-      }
-      const coords = locationResult.coords;
-      console.log("[partner-location] using coords for profile:", {
-        latitude: coords.latitude,
-        longitude: coords.longitude,
-      });
-
+      let coords = coordsCache;
       if (!coords) {
-        showAppAlert(
-          "Location unavailable",
-          "Unable to detect your current location. Please try again.",
-        );
-        return;
+        const locationResult = await getDeviceCoordinatesWithStatus();
+        if (!locationResult.coords) {
+          if (locationResult.status === "denied") {
+            showAppAlert(
+              "Location permission required",
+              "Please allow location permission so we can place your business marker on the map.",
+            );
+          } else {
+            showAppAlert(
+              "Location unavailable",
+              "We could not detect your current location. Please try again in an open area with GPS enabled.",
+            );
+          }
+          return;
+        }
+        coords = locationResult.coords;
+        setCoordsCache(coords);
       }
+
       const fullPhone = `+${callingCode}${phoneNumber}`;
       const parsedPhoneObj = parsePhoneNumberFromString(fullPhone);
       const normalizedPhone = parsedPhoneObj ? parsedPhoneObj.number : fullPhone;
@@ -419,33 +439,19 @@ export function PartnerBusinessDetailsForm({ mode }: Props) {
         uploadedImageUrls.push(publicUrlData.publicUrl);
       }
 
-      const payload: {
-        id: string;
-        business_name: string;
-        business_description: string;
-        phone_number: string;
-        available_time: string;
-        address: string;
-        business_images: string[];
-        updated_at: string;
-        latitude?: number;
-        longitude?: number;
-      } = {
+      const payload = {
         id: user.id,
         business_name: businessName.trim(),
-        business_description: businessDescription.trim(),
+        business_description: businessDescription.trim().slice(0, DESCRIPTION_MAX),
         phone_number: normalizedPhone,
         available_time: normalizedAvailableTime.toUpperCase(),
         address: address.trim(),
         business_images: uploadedImageUrls,
+        pickup_delivery_enabled: offerPickupDelivery,
         updated_at: new Date().toISOString(),
+        latitude: coords.latitude,
+        longitude: coords.longitude,
       };
-      payload.latitude = coords.latitude;
-      payload.longitude = coords.longitude;
-      console.log("[partner-location] payload coordinates:", {
-        latitude: payload.latitude,
-        longitude: payload.longitude,
-      });
 
       const { error } = await supabase.from("partner_profiles").upsert(payload, {
         onConflict: "id",
@@ -487,12 +493,60 @@ export function PartnerBusinessDetailsForm({ mode }: Props) {
     callingCode,
     mode,
     router,
+    coordsCache,
+    offerPickupDelivery,
   ]);
 
+  const handleLocateAddress = useCallback(async () => {
+    if (locatingAddress) return;
+    setLocatingAddress(true);
+    try {
+      const locationResult = await getDeviceCoordinatesWithStatus();
+      if (!locationResult.coords) {
+        if (locationResult.status === "denied") {
+          showAppAlert(
+            "Location permission required",
+            "Please allow location permission to fill your business address.",
+          );
+        } else {
+          showAppAlert(
+            "Location unavailable",
+            "We could not detect your current location. Please try again.",
+          );
+        }
+        return;
+      }
+      setCoordsCache(locationResult.coords);
+      const details = await reverseGeocodeDetails(locationResult.coords);
+      if (details?.displayName?.trim()) {
+        setAddress(details.displayName.trim());
+      } else {
+        showAppAlert(
+          "Address unavailable",
+          "Location found, but we could not resolve a street address. You can type it manually.",
+        );
+      }
+    } finally {
+      setLocatingAddress(false);
+    }
+  }, [locatingAddress]);
+
+  const headerTitle = mode === "onboarding" ? s.step1Title : "Business Details";
+  const headerSubtitle =
+    mode === "onboarding"
+      ? s.step1Subtitle
+      : "Update your business info. Customers see this on your profile.";
+  const saveLabel = mode === "onboarding" ? "Save & Continue" : settings.save;
+
   return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
+    <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
+      <StatusBar style="dark" />
       <AppHeader
-        title={mode === "onboarding" ? s.step1Title : "Business detail"}
+        appearance="light"
+        title={headerTitle}
+        subtitle={headerSubtitle}
+        titleStyle={styles.headerTitle}
+        subtitleStyle={styles.headerSubtitle}
         leftIcon="arrow-left"
         onLeftPress={handleBack}
         leftAccessibilityLabel={s.back}
@@ -508,20 +562,23 @@ export function PartnerBusinessDetailsForm({ mode }: Props) {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          <Text style={styles.businessNameLabel}>Business Name</Text>
-          <FormTextInput
+          <View style={{backgroundColor: "transparent"}}>
+          <Text style={styles.fieldLabel}>Name</Text>
+          <TextInput
+            style={styles.fieldInput}
             placeholder={s.businessNamePlaceholder}
+            placeholderTextColor={UI.muted}
             value={businessName}
             onChangeText={setBusinessName}
           />
-
-          <Text style={styles.businessNameLabel}>Business Contact Number</Text>
-          {submitAttempted && isPhoneMissing ? (
-            <Text style={styles.errorText}>
-              {s.requiredFieldError ?? "This field is required."}
-            </Text>
+          </View>
+          {submitAttempted && isBusinessNameMissing ? (
+            <Text style={styles.errorText}>{s.requiredFieldError}</Text>
           ) : null}
+
+          <Text style={styles.fieldLabel}>Contact Number</Text>
           <Input
+            appearance="light"
             variant="phone"
             placeholder="Business contact number"
             value={phoneNumber}
@@ -534,35 +591,52 @@ export function PartnerBusinessDetailsForm({ mode }: Props) {
             }}
             containerStyle={styles.phoneInput}
           />
-          <Text style={styles.phoneHintText}>
-            This number is shown as your business contact and can be different from your profile phone.
+          <Text style={styles.hintText}>
+            This number will be shown to customers and can be different from your profile phone.
           </Text>
-
-          <Text style={styles.businessNameLabel}>Business Available Time</Text>
+          {submitAttempted && isPhoneMissing ? (
+            <Text style={styles.errorText}>{s.requiredFieldError}</Text>
+          ) : null}
           {submitAttempted && !isPhoneMissing && !isPhoneValid ? (
             <Text style={styles.errorText}>Enter a valid mobile number for {countryCode}.</Text>
           ) : null}
+          <Text style={styles.fieldLabel}>Available Hours</Text>
           <View style={styles.timeRow}>
-            <Pressable style={styles.timeInputHalf} onPress={() => openPicker("start")}>
-              <Text style={[styles.timeInputText, !startTimeLabel && styles.timeInputPlaceholder]}>
+            <Pressable
+              style={({ pressed }) => [styles.timeInputHalf, pressed && styles.pressed]}
+              onPress={() => openPicker("start")}
+            >
+              <MaterialCommunityIcons
+                name={startPeriodIcon.name}
+                size={18}
+                color={startPeriodIcon.color}
+              />
+              <Text style={[styles.timeInputText, !startTimeLabel && styles.placeholderText]}>
                 {startTimeLabel || s.startTimePlaceholder}
               </Text>
+              <MaterialCommunityIcons name="chevron-down" size={18} color={UI.muted} />
             </Pressable>
-            <Pressable style={styles.timeInputHalf} onPress={() => openPicker("end")}>
-              <Text style={[styles.timeInputText, !endTimeLabel && styles.timeInputPlaceholder]}>
+            <Text style={styles.timeDash}>–</Text>
+            <Pressable
+              style={({ pressed }) => [styles.timeInputHalf, pressed && styles.pressed]}
+              onPress={() => openPicker("end")}
+            >
+              <MaterialCommunityIcons
+                name={endPeriodIcon.name}
+                size={18}
+                color={endPeriodIcon.color}
+              />
+              <Text style={[styles.timeInputText, !endTimeLabel && styles.placeholderText]}>
                 {endTimeLabel || s.endTimePlaceholder}
               </Text>
+              <MaterialCommunityIcons name="chevron-down" size={18} color={UI.muted} />
             </Pressable>
           </View>
           {submitAttempted && isAvailableTimeMissing ? (
-            <Text style={styles.errorText}>
-              {s.requiredFieldError ?? "This field is required."}
-            </Text>
+            <Text style={styles.errorText}>{s.requiredFieldError}</Text>
           ) : null}
           {submitAttempted && !isAvailableTimeMissing && !isAvailableTimeValid ? (
-            <Text style={styles.errorText}>
-              {s.availableTimeRangeInvalid ?? "End time must be after start time."}
-            </Text>
+            <Text style={styles.errorText}>{s.availableTimeRangeInvalid}</Text>
           ) : null}
 
           <Modal
@@ -578,7 +652,7 @@ export function PartnerBusinessDetailsForm({ mode }: Props) {
                   {activePicker === "start" ? s.startTimePlaceholder : s.endTimePlaceholder}
                 </Text>
                 <View style={styles.wheelContainer}>
-                  <View style={styles.wheelHighlight} />
+                  <View style={styles.wheelHighlight} pointerEvents="none" />
                   <ScrollView
                     ref={hourRef}
                     showsVerticalScrollIndicator={false}
@@ -664,47 +738,86 @@ export function PartnerBusinessDetailsForm({ mode }: Props) {
             </View>
           </Modal>
 
-          <Text style={styles.businessNameLabel}>Business Address</Text>
-          <FormTextInput
-            placeholder={s.addressPlaceholder}
-            value={address}
-            onChangeText={setAddress}
-          />
+          <Text style={styles.fieldLabel}>Address</Text>
+          <View style={styles.addressRow}>
+            <TextInput
+              style={[styles.fieldInput, styles.addressInput]}
+              placeholder={s.addressPlaceholder}
+              placeholderTextColor={UI.muted}
+              value={address}
+              onChangeText={setAddress}
+            />
+            <Pressable
+              onPress={() => void handleLocateAddress()}
+              style={({ pressed }) => [styles.locateBtn, pressed && styles.pressed]}
+              accessibilityRole="button"
+              accessibilityLabel="Use current location"
+              disabled={locatingAddress}
+            >
+              <MaterialCommunityIcons
+                name={locatingAddress ? "loading" : "crosshairs-gps"}
+                size={20}
+                color={UI.blue}
+              />
+            </Pressable>
+          </View>
+          <Text style={styles.hintText}>Tap to select your location on map</Text>
           {submitAttempted && isAddressMissing ? (
-            <Text style={styles.errorText}>
-              {s.requiredFieldError ?? "This field is required."}
-            </Text>
+            <Text style={styles.errorText}>{s.requiredFieldError}</Text>
           ) : null}
 
-          <Text style={styles.businessNameLabel}>Business Description</Text>
-          <FormTextInput
+          <View style={{backgroundColor: "transparent"}}>
+          <Text style={styles.fieldLabel}>Description</Text>
+          <TextInput
+            style={ styles.descriptionInput}
             placeholder={s.businessDescriptionPlaceholder}
+            placeholderTextColor={UI.muted}
             value={businessDescription}
-            onChangeText={setBusinessDescription}
+            onChangeText={(text) => setBusinessDescription(text.slice(0, DESCRIPTION_MAX))}
             multiline
             numberOfLines={4}
+            textAlignVertical="top"
           />
+          <Text style={styles.charCount}>
+            {businessDescription.length}/{DESCRIPTION_MAX}
+          </Text>
           {submitAttempted && isBusinessDescriptionMissing ? (
-            <Text style={styles.errorText}>
-              {s.requiredFieldError ?? "This field is required."}
-            </Text>
+            <Text style={styles.errorText}>{s.requiredFieldError}</Text>
           ) : null}
+        </View>
+          <Text style={styles.fieldLabel}>Pickup & Delivery</Text>
+          <View style={styles.offerCard}>
+            <MaterialCommunityIcons name="truck-outline" size={22} color={UI.blue} />
+            <Text style={styles.offerLabel} numberOfLines={1}>
+              I offer pickup and delivery
+            </Text>
+            <Switch
+              value={offerPickupDelivery}
+              onValueChange={setOfferPickupDelivery}
+              trackColor={{ false: UI.chipBorder, true: UI.blue }}
+              thumbColor="#FFFFFF"
+              ios_backgroundColor={UI.chipBorder}
+              style={styles.offerSwitch}
+            />
+          </View>
 
-          <Text style={styles.businessNameLabel}>
+          <Text style={styles.fieldLabel}>
             Business Images ({businessImages.length}/{MAX_BUSINESS_IMAGES})
           </Text>
           <View style={styles.businessImagesWrap}>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.businessImagesRow}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.businessImagesRow}
+            >
               {businessImages.map((image) => (
                 <View key={image.id} style={styles.businessImageItem}>
                   <Image source={{ uri: image.uri }} style={styles.businessImage} />
-                  {!image.uploaded ? (
-                    <View style={styles.imageDraftBadge}>
-                      <Text style={styles.imageDraftBadgeText}>Draft</Text>
-                    </View>
-                  ) : null}
-                  <Pressable style={styles.businessImageRemove} onPress={() => removeBusinessImage(image.id)}>
-                    <Text style={styles.businessImageRemoveText}>x</Text>
+                  <Pressable
+                    style={styles.businessImageRemove}
+                    onPress={() => removeBusinessImage(image.id)}
+                  >
+                    <MaterialCommunityIcons name="close" size={12} color="#FFFFFF" />
                   </Pressable>
                 </View>
               ))}
@@ -713,22 +826,27 @@ export function PartnerBusinessDetailsForm({ mode }: Props) {
                   onPress={pickBusinessImages}
                   style={({ pressed }) => [styles.addBusinessImageBtn, pressed && styles.pressed]}
                 >
-                  <Text style={styles.addBusinessImageText}>+ Add image</Text>
+                  <MaterialCommunityIcons name="plus" size={22} color={UI.blue} />
+                  <Text style={styles.addBusinessImageText}>Add image</Text>
                 </Pressable>
               ) : null}
+              {Array.from({
+                length: Math.max(0, 3 - (businessImages.length + (businessImages.length < MAX_BUSINESS_IMAGES ? 1 : 0))),
+              }).map((_, idx) => (
+                <View key={`empty-${idx}`} style={styles.emptyImageSlot} />
+              ))}
             </ScrollView>
           </View>
 
-          <AppButton
-            label={mode === "onboarding" ? s.next : settings.save}
+          <AppCtaButton
+            label={saveLabel}
             onPress={handleSubmit}
-            variant="filled"
+            width="full"
             rightIcon={mode === "onboarding" ? "arrow-right" : "check"}
-            fullWidth
             loading={isSaving}
             disabled={isSaving}
             style={styles.nextBtn}
-            accessibilityLabel={mode === "onboarding" ? s.next : settings.save}
+            accessibilityLabel={saveLabel}
           />
         </ScrollView>
       </KeyboardAvoidingView>
@@ -739,7 +857,16 @@ export function PartnerBusinessDetailsForm({ mode }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
+    backgroundColor: "#FFFFFF",
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontFamily: "Poppins-Bold",
+  },
+  headerSubtitle: {
+    fontSize: 12,
+    lineHeight: 16,
+    fontFamily: "Poppins-Regular",
   },
   scroll: {
     flex: 1,
@@ -748,45 +875,137 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
     paddingBottom: 40,
+    paddingTop: 4,
   },
-  nextBtn: {
-    marginTop: 8,
+  fieldLabel: {
+    fontSize: 15,
+    fontFamily: "Poppins-SemiBold",
+    color: UI.text,
+    marginBottom: 5,
+  },
+  fieldInput: {
+    borderWidth: 1,
+    borderColor: UI.chipBorder,
+    backgroundColor: UI.border,
+    borderRadius: 50,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 15,
+    fontFamily: "Poppins-Regular",
+    color: UI.text,
+    marginBottom: 12,
+  },
+  addressRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 4,
+  },
+  addressInput: {
+    flex: 1,
+    marginBottom: 0,
+  },
+  locateBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: UI.chipBorder,
+    backgroundColor: UI.iconWell,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  descriptionInput: {
+    minHeight: 110,
+    paddingTop: 14,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: UI.chipBorder,
+    backgroundColor: UI.border,
+    paddingHorizontal: 16,
+    fontSize: 15,
+    fontFamily: "Poppins-Regular",
+    color: UI.text,
+  },
+  charCount: {
+    alignSelf: "flex-end",
+    fontSize: 12,
+    fontFamily: "Poppins-Regular",
+    color: UI.muted,
+    marginBottom: 12,
+  },
+  hintText: {
+    fontSize: 10,
+    fontFamily: "Poppins-Regular",
+    color: UI.muted,
+    marginBottom: 12,
+    lineHeight: 17,
   },
   phoneInput: {
-    marginBottom: 8,
-  },
-  phoneHintText: {
-    color: theme.colors.blue500,
-    fontSize: theme.fontSize.descText,
-    marginBottom: 12,
-    paddingHorizontal: 8,
+    marginBottom: 6,
   },
   timeRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 16,
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 12,
   },
   timeInputHalf: {
-    width: "47%",
-    backgroundColor: theme.colors.blue900,
-    borderRadius: 30,
+    flex: 1,
+    minWidth: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: UI.card,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: theme.colors.outline,
-    paddingVertical: 17,
-    paddingHorizontal: 14,
+    borderColor: UI.chipBorder,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
   },
   timeInputText: {
-    fontSize: theme.fontSize.smallText,
-    color: theme.colors.white,
+    flex: 1,
+    fontSize: 13,
+    fontFamily: "Poppins-SemiBold",
+    color: UI.text,
   },
-  timeInputPlaceholder: {
-    color: theme.colors.blue500,
+  placeholderText: {
+    color: UI.muted,
+    fontFamily: "Poppins-Regular",
+  },
+  timeDash: {
+    fontSize: 16,
+    color: UI.muted,
+    fontFamily: "Poppins-Regular",
+  },
+  offerCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    borderWidth: 1,
+    borderColor: UI.chipBorder,
+    backgroundColor: UI.card,
+    borderRadius: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    marginBottom: 16,
+  },
+  offerLabel: {
+    flex: 1,
+    fontSize: 14,
+    lineHeight: 18,
+    fontFamily: "Poppins-SemiBold",
+    color: UI.text,
+  },
+  offerSwitch: {
+    marginLeft: 2,
+    transform: [{ scaleX: 0.72 }, { scaleY: 0.72 }],
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.35)",
+    backgroundColor: "rgba(15, 23, 42, 0.45)",
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 24,
@@ -797,15 +1016,16 @@ const styles = StyleSheet.create({
   modalCard: {
     width: "100%",
     maxWidth: 340,
-    backgroundColor: theme.colors.blue900,
+    backgroundColor: UI.card,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: theme.colors.outline,
-    padding: 12,
+    borderColor: UI.chipBorder,
+    padding: 14,
   },
   pickerTitle: {
-    color: theme.colors.white,
-    fontSize: theme.fontSize.smallText,
+    color: UI.text,
+    fontSize: 14,
+    fontFamily: "Poppins-SemiBold",
     marginBottom: 8,
   },
   wheelContainer: {
@@ -822,13 +1042,14 @@ const styles = StyleSheet.create({
     top: WHEEL_ITEM_HEIGHT * 2,
     height: WHEEL_ITEM_HEIGHT,
     borderRadius: 10,
-    backgroundColor: "rgba(255,255,255,0.12)",
+    backgroundColor: UI.iconWell,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.2)",
-    zIndex: 2,
+    borderColor: UI.chipBorder,
+    zIndex: 0,
   },
   wheelList: {
     flex: 1,
+    zIndex: 1,
   },
   wheelContent: {
     paddingVertical: WHEEL_ITEM_HEIGHT * 2,
@@ -839,14 +1060,14 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   wheelText: {
-    color: "rgba(255,255,255,0.55)",
-    fontSize: theme.fontSize.smallText,
-    fontWeight: "500",
+    color: UI.muted,
+    fontSize: 14,
+    fontFamily: "Poppins-Regular",
   },
   wheelTextSelected: {
-    color: theme.colors.white,
-    fontSize: theme.fontSize.smallTitle,
-    fontWeight: "700",
+    color: UI.text,
+    fontSize: 16,
+    fontFamily: "Poppins-Bold",
   },
   pickerActions: {
     marginTop: 10,
@@ -856,35 +1077,31 @@ const styles = StyleSheet.create({
   },
   cancelBtn: {
     paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingVertical: 8,
   },
   cancelBtnText: {
-    color: theme.colors.blue500,
-    fontSize: theme.fontSize.smallText,
+    color: UI.muted,
+    fontSize: 14,
+    fontFamily: "Poppins-SemiBold",
   },
   doneBtn: {
     paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingVertical: 8,
   },
   doneBtnText: {
-    color: theme.colors.white,
-    fontSize: theme.fontSize.smallText,
-    fontWeight: "600",
+    color: UI.blue,
+    fontSize: 14,
+    fontFamily: "Poppins-Bold",
   },
   errorText: {
-    color: "#FFB3B3",
-    fontSize: theme.fontSize.smallText,
-    marginTop: -8,
-    marginBottom: 12,
-    paddingHorizontal: 8,
-  },
-  businessNameLabel: {
-    fontSize: theme.fontSize.xSmallText,
-    color: theme.colors.white,
-    marginBottom: 8,
+    color: UI.red,
+    fontSize: 12,
+    fontFamily: "Poppins-Regular",
+    marginTop: -4,
+    marginBottom: 10,
   },
   businessImagesWrap: {
-    marginBottom: 16,
+    marginBottom: 20,
   },
   businessImagesRow: {
     gap: 10,
@@ -893,11 +1110,11 @@ const styles = StyleSheet.create({
   businessImageItem: {
     width: 84,
     height: 84,
-    borderRadius: 12,
+    borderRadius: 14,
     overflow: "hidden",
     borderWidth: 1,
-    borderColor: theme.colors.outline,
-    backgroundColor: theme.colors.blue900,
+    borderColor: UI.chipBorder,
+    backgroundColor: UI.iconWell,
   },
   businessImage: {
     width: "100%",
@@ -905,52 +1122,46 @@ const styles = StyleSheet.create({
   },
   businessImageRemove: {
     position: "absolute",
-    top: 4,
-    right: 4,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: "rgba(0,0,0,0.55)",
+    top: 6,
+    right: 6,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: "rgba(17, 24, 39, 0.55)",
     alignItems: "center",
     justifyContent: "center",
-  },
-  businessImageRemoveText: {
-    color: theme.colors.white,
-    fontSize: 12,
-    fontWeight: "700",
-  },
-  imageDraftBadge: {
-    position: "absolute",
-    left: 6,
-    bottom: 6,
-    borderRadius: 8,
-    backgroundColor: "rgba(0,0,0,0.55)",
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-  },
-  imageDraftBadgeText: {
-    color: theme.colors.white,
-    fontSize: 10,
-    fontWeight: "700",
   },
   addBusinessImageBtn: {
-    width: 120,
+    width: 84,
     height: 84,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: theme.colors.outline,
-    backgroundColor: theme.colors.blue900,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderStyle: "dashed",
+    borderColor: UI.blue,
+    backgroundColor: "#EFF6FF",
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 8,
+    gap: 4,
   },
   addBusinessImageText: {
-    color: theme.colors.white,
-    fontSize: theme.fontSize.smallText,
-    fontWeight: "600",
+    color: UI.blue,
+    fontSize: 11,
+    fontFamily: "Poppins-SemiBold",
     textAlign: "center",
   },
+  emptyImageSlot: {
+    width: 84,
+    height: 84,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderStyle: "dashed",
+    borderColor: UI.chipBorder,
+    backgroundColor: UI.bg,
+  },
+  nextBtn: {
+    marginTop: 4,
+  },
   pressed: {
-    opacity: 0.8,
+    opacity: 0.82,
   },
 });

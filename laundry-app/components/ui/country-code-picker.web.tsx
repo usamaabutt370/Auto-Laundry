@@ -11,10 +11,11 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  View,
 } from "react-native";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 
-import { theme } from "@/constants/theme";
+import { theme, UI } from "@/constants/theme";
+import { flagEmojiFromCca2 } from "@/utils/flag-emoji";
 
 export interface SelectedCountry {
   callingCode: string;
@@ -61,8 +62,6 @@ export function CountryCodePicker({
   const [isVisible, setIsVisible] = useState(false);
   const [query, setQuery] = useState("");
   const light = appearance === "light";
-  const [isVisible, setIsVisible] = useState(false);
-  const [query, setQuery] = useState("");
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -92,10 +91,15 @@ export function CountryCodePicker({
         accessibilityRole="button"
         accessibilityLabel={`Country code +${selectedCallingCode}`}
       >
-        <Text style={[styles.flagText, light && styles.flagTextLight]}>{selectedCca2}</Text>
+        <Text style={styles.flagEmoji}>{flagEmojiFromCca2(selectedCca2)}</Text>
         <Text style={[styles.callingCodeText, light && styles.callingCodeTextLight]}>
           +{selectedCallingCode}
         </Text>
+        <MaterialCommunityIcons
+          name="chevron-down"
+          size={16}
+          color={light ? UI.muted : "rgba(255,255,255,0.75)"}
+        />
       </Pressable>
 
       <Modal
@@ -129,6 +133,7 @@ export function CountryCodePicker({
                       pressed && styles.pressed,
                     ]}
                   >
+                    <Text style={styles.rowFlag}>{flagEmojiFromCca2(country.cca2)}</Text>
                     <Text style={styles.rowText}>{country.label}</Text>
                   </Pressable>
                 );
@@ -151,25 +156,21 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: "row",
     alignItems: "center",
-    height: "100%",
-    gap: 6,
-    paddingRight: 4,
+    gap: 4,
+    paddingRight: 2,
   },
-  flagText: {
-    color: c.white,
-    fontSize: 13,
-    fontWeight: "700",
+  flagEmoji: {
+    fontSize: 18,
+    lineHeight: 22,
+    marginRight: 6,
   },
   callingCodeText: {
     color: c.white,
     fontSize: 15,
     fontWeight: "600",
   },
-  flagTextLight: {
-    color: "#111827",
-  },
   callingCodeTextLight: {
-    color: "#111827",
+    color: UI.text,
   },
   pressed: {
     opacity: 0.7,
@@ -207,12 +208,18 @@ const styles = StyleSheet.create({
     maxHeight: 360,
   },
   row: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
     paddingVertical: 12,
     paddingHorizontal: 8,
     borderRadius: 8,
   },
   rowSelected: {
     backgroundColor: c.selectionWash,
+  },
+  rowFlag: {
+    fontSize: 18,
   },
   rowText: {
     color: c.white,

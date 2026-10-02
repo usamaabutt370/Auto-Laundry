@@ -59,7 +59,8 @@ export function WashFoldPackageGrid({
 export function WashFoldPackageBox(props: WashFoldPackageBoxProps) {
   const { title, description, style } = props;
   const { isNarrow } = useResponsiveLayout();
-  const light = props.mode === "customer" && props.appearance === "light";
+  const partner = props.mode === "partner";
+  const light = partner || (props.mode === "customer" && props.appearance === "light");
   const accent = light ? UI.teal : c.lightBlue;
   const titleColor = light ? UI.text : c.white;
   const subColor = light ? UI.muted : "rgba(255,255,255,0.6)";
@@ -77,12 +78,16 @@ export function WashFoldPackageBox(props: WashFoldPackageBoxProps) {
       {props.mode === "partner" && props.onRemove ? (
         <Pressable
           onPress={props.onRemove}
-          style={({ pressed }) => [styles.actionBtn, pressed && styles.pressed]}
+          style={({ pressed }) => [
+            styles.actionBtn,
+            light && styles.actionBtnLight,
+            pressed && styles.pressed,
+          ]}
           hitSlop={8}
           accessibilityRole="button"
           accessibilityLabel={props.removeAccessibilityLabel ?? `Remove ${title}`}
         >
-          <MaterialCommunityIcons name="close" size={18} color={c.white} />
+          <MaterialCommunityIcons name="close" size={18} color={light ? UI.muted : c.white} />
         </Pressable>
       ) : null}
       {props.mode === "customer" && props.selected ? (
@@ -100,7 +105,7 @@ export function WashFoldPackageBox(props: WashFoldPackageBoxProps) {
       {description.trim().length > 0 ? (
         <Text style={[styles.subInfo, { color: subColor }]}>{description}</Text>
       ) : null}
-      <View style={styles.priceBlock}>
+      <View style={[styles.priceBlock, partner && styles.priceBlockPartner]}>
         {props.mode === "partner" ? (
           <TextInput
             style={styles.priceInput}
@@ -117,9 +122,11 @@ export function WashFoldPackageBox(props: WashFoldPackageBoxProps) {
         )}
       </View>
       {props.mode === "partner" && props.priceValue.trim().length > 0 ? (
-        <View style={styles.setBadge}>
-          <MaterialCommunityIcons name="check-circle" size={14} color={c.lightBlue} />
-          <Text style={styles.setBadgeText}>{props.priceSetLabel}</Text>
+        <View style={[styles.setBadge, light && styles.setBadgeLight]}>
+          <MaterialCommunityIcons name="check-circle" size={14} color={accent} />
+          <Text style={[styles.setBadgeText, light && styles.setBadgeTextLight]}>
+            {props.priceSetLabel}
+          </Text>
         </View>
       ) : null}
     </>
@@ -146,7 +153,11 @@ export function WashFoldPackageBox(props: WashFoldPackageBoxProps) {
     );
   }
 
-  return <View style={[styles.box, { minWidth: boxMinWidth }, style]}>{body}</View>;
+  return (
+    <View style={[styles.box, styles.boxLight, styles.boxPartner, { minWidth: boxMinWidth }, style]}>
+      {body}
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
@@ -172,6 +183,13 @@ const styles = StyleSheet.create({
   boxLight: {
     backgroundColor: "#FFFFFF",
     borderColor: "#E5E7EB",
+  },
+  boxPartner: {
+    shadowColor: UI.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 8,
+    elevation: 1,
   },
   boxSelectedLight: {
     borderColor: UI.teal,
@@ -203,6 +221,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  actionBtnLight: {
+    backgroundColor: UI.iconWell,
+  },
   title: {
     fontSize: fs.smallText,
     fontWeight: "800",
@@ -221,6 +242,11 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 10,
+  },
+  priceBlockPartner: {
+    backgroundColor: UI.bg,
+    borderWidth: 1,
+    borderColor: UI.chipBorder,
   },
   priceInput: {
     fontSize: 17,
@@ -243,9 +269,15 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: "rgba(255,255,255,0.12)",
   },
+  setBadgeLight: {
+    borderTopColor: UI.chipBorder,
+  },
   setBadgeText: {
     fontSize: 12,
     fontWeight: "600",
     color: c.lightBlue,
+  },
+  setBadgeTextLight: {
+    color: UI.teal,
   },
 });
