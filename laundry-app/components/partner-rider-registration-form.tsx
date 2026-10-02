@@ -1,5 +1,6 @@
-import { useFocusEffect, useRouter } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useFocusEffect, useRouter } from "expo-router";
+import { StatusBar } from "expo-status-bar";
 import { useCallback, useState } from "react";
 import {
   Image,
@@ -9,6 +10,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -17,11 +19,10 @@ import { parsePhoneNumberFromString } from "libphonenumber-js";
 import { type CountryCode } from "react-native-country-picker-modal";
 
 import { showAppAlert } from "@/components/app-alert";
-import { FormTextInput } from "@/components/form-text-input";
-import { PartnerHeader } from "@/components/partner-header";
-import { AppButton } from "@/components/ui/button";
+import { AppHeader } from "@/components/app-header";
+import { AppCtaButton } from "@/components/ui/cta-button";
 import { Input } from "@/components/ui/input";
-import { theme } from "@/constants/theme";
+import { UI } from "@/constants/theme";
 import { useAuth } from "@/contexts/auth-context";
 import { useLocale } from "@/contexts/locale-context";
 import { getStrings } from "@/locales";
@@ -35,8 +36,12 @@ import {
 } from "@/lib/partner-riders";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
-const c = theme.colors;
-const fs = theme.fontSize;
+function fill(template: string, vars: Record<string, string | number>) {
+  return Object.entries(vars).reduce(
+    (acc, [key, value]) => acc.replaceAll(`{${key}}`, String(value)),
+    template,
+  );
+}
 
 type StagedRider = {
   id: string;
@@ -338,8 +343,14 @@ export function PartnerRiderRegistrationForm() {
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
-      <PartnerHeader
+      <StatusBar style="dark" />
+      <AppHeader
+        appearance="light"
+        compact
         title={s.riderRegistrationTitle}
+        subtitle={s.riderRegistrationSubtitle}
+        titleStyle={styles.headerTitle}
+        subtitleStyle={styles.headerSubtitle}
         leftIcon="arrow-left"
         onLeftPress={() => router.back()}
         leftAccessibilityLabel={s.back}
@@ -355,192 +366,265 @@ export function PartnerRiderRegistrationForm() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          <Text style={styles.heading}>{s.riderRegistrationHeading}</Text>
-          <Text style={styles.subheading}>{s.riderRegistrationSubtitle}</Text>
+          <View style={styles.sectionCard}>
+            <Text style={styles.sectionTitle}>{s.pickupContactTitle}</Text>
+            <Text style={styles.sectionHint}>{s.pickupContactHint}</Text>
 
-          <RequiredFieldLabel label={s.businessNamePlaceholder} />
-          <FormTextInput
-            placeholder={s.businessNamePlaceholder}
-            value={businessName}
-            onChangeText={setBusinessName}
-          />
-          {submitAttempted && isBusinessNameMissing ? (
-            <Text style={styles.errorText}>{s.requiredFieldError}</Text>
-          ) : null}
-
-          <RequiredFieldLabel label={s.phoneNumberPlaceholder} />
-          <Input
-            variant="phone"
-            placeholder={s.phoneNumberPlaceholder}
-            value={phoneNumber}
-            onChangeText={(value) => setPhoneNumber(normalizePhoneDigits(value))}
-            selectedCca2={countryCode}
-            selectedCallingCode={callingCode}
-            onCountrySelect={(selected) => {
-              setCountryCode(selected.cca2);
-              setCallingCode(selected.callingCode);
-            }}
-            containerStyle={styles.phoneInput}
-          />
-          {submitAttempted && isPhoneMissing ? (
-            <Text style={styles.errorText}>{s.requiredFieldError}</Text>
-          ) : null}
-          {submitAttempted && !isPhoneMissing && !isPhoneValid ? (
-            <Text style={styles.errorText}>{s.riderPhoneInvalid}</Text>
-          ) : null}
-
-          <RequiredFieldLabel label={s.addressPlaceholder} />
-          <FormTextInput
-            placeholder={s.addressPlaceholder}
-            value={address}
-            onChangeText={setAddress}
-          />
-          {submitAttempted && isAddressMissing ? (
-            <Text style={styles.errorText}>{s.requiredFieldError}</Text>
-          ) : null}
-
-          <View style={styles.ridersSection}>
-            <Text style={styles.sectionTitle}>
-              {s.riderDetailsSectionTitle}
-              <Text style={styles.requiredAsterisk}> *</Text>
-            </Text>
-            <Text style={styles.sectionHint}>{s.riderDetailsSectionHint}</Text>
-
-            {riders.map((rider, index) => {
-              const riderPhoneValid = rider.phone.trim().length > 0
-                ? Boolean(parsePhoneNumberFromString(`+${rider.callingCode}${rider.phone}`)?.isValid())
-                : false;
-              const showRiderErrors = submitAttempted;
-
-              return (
-                <View key={rider.id} style={styles.riderCard}>
-                  <View style={styles.riderCardHeader}>
-                    <Text style={styles.riderCardTitle}>
-                      {s.riderCardTitle.replace("{index}", String(index + 1))}
-                    </Text>
-                    {riders.length > 1 ? (
-                      <Pressable
-                        onPress={() => removeRider(rider.id)}
-                        accessibilityRole="button"
-                        accessibilityLabel={s.removeRider}
-                      >
-                        <Text style={styles.removeRiderText}>{s.removeRider}</Text>
-                      </Pressable>
-                    ) : null}
-                  </View>
-
-                  <RequiredFieldLabel label={s.riderNameLabel} />
-                  <FormTextInput
-                    placeholder={s.riderNamePlaceholder}
-                    value={rider.name}
-                    onChangeText={(value) => updateRider(rider.id, { name: value })}
-                  />
-                  {showRiderErrors && rider.name.trim().length === 0 ? (
-                    <Text style={styles.errorText}>{s.requiredFieldError}</Text>
-                  ) : null}
-
-                  <RequiredFieldLabel label={s.riderPhoneLabel} />
-                  <Input
-                    variant="phone"
-                    placeholder={s.riderPhonePlaceholder}
-                    value={rider.phone}
-                    onChangeText={(value) =>
-                      updateRider(rider.id, { phone: normalizePhoneDigits(value) })
-                    }
-                    selectedCca2={rider.countryCode}
-                    selectedCallingCode={rider.callingCode}
-                    onCountrySelect={(selected) =>
-                      updateRider(rider.id, {
-                        countryCode: selected.cca2,
-                        callingCode: selected.callingCode,
-                      })
-                    }
-                    containerStyle={styles.phoneInput}
-                  />
-                  {showRiderErrors && rider.phone.trim().length === 0 ? (
-                    <Text style={styles.errorText}>{s.requiredFieldError}</Text>
-                  ) : null}
-                  {showRiderErrors && rider.phone.trim().length > 0 && !riderPhoneValid ? (
-                    <Text style={styles.errorText}>{s.riderPhoneInvalid}</Text>
-                  ) : null}
-
-                  <RequiredFieldLabel label={s.riderPhotoLabel} />
-                  <Pressable
-                    style={({ pressed }) => [
-                      styles.photoPicker,
-                      pressed && styles.photoPickerPressed,
-                    ]}
-                    onPress={() => pickRiderPhoto(rider.id)}
-                    accessibilityRole="button"
-                    accessibilityLabel={s.riderPhotoLabel}
-                  >
-                    {rider.photoUri ? (
-                      <Image source={{ uri: rider.photoUri }} style={styles.photoPreview} />
-                    ) : (
-                      <View style={styles.photoPlaceholder}>
-                        <MaterialCommunityIcons name="account" size={36} color={c.blue500} />
-                        <Text style={styles.photoPlaceholderText}>{s.riderPhotoPlaceholder}</Text>
-                      </View>
-                    )}
-                  </Pressable>
-                  {showRiderErrors && rider.photoUri.trim().length === 0 ? (
-                    <Text style={styles.errorText}>{s.riderPhotoRequired}</Text>
-                  ) : null}
-                </View>
-              );
-            })}
-
-            <AppButton
-              label={s.addRider}
-              onPress={addRider}
-              variant="outline"
-              leftIcon="plus"
-              fullWidth
-              style={styles.addRiderBtn}
-              accessibilityLabel={s.addRider}
+            <RequiredFieldLabel label={s.businessNamePlaceholder} />
+            <TextInput
+              style={styles.fieldInput}
+              placeholder={s.businessNamePlaceholder}
+              placeholderTextColor={UI.muted}
+              value={businessName}
+              onChangeText={setBusinessName}
             />
+            {submitAttempted && isBusinessNameMissing ? (
+              <Text style={styles.errorText}>{s.requiredFieldError}</Text>
+            ) : null}
 
-            {submitAttempted && !hasAtLeastOneRider ? (
-              <Text style={styles.errorText}>{s.riderMinimumRequired}</Text>
+            <RequiredFieldLabel label={s.phoneNumberPlaceholder} />
+            <Input
+              appearance="light"
+              variant="phone"
+              placeholder={s.phoneNumberPlaceholder}
+              value={phoneNumber}
+              onChangeText={(value) => setPhoneNumber(normalizePhoneDigits(value))}
+              selectedCca2={countryCode}
+              selectedCallingCode={callingCode}
+              onCountrySelect={(selected) => {
+                setCountryCode(selected.cca2);
+                setCallingCode(selected.callingCode);
+              }}
+              containerStyle={styles.phoneInput}
+            />
+            {submitAttempted && isPhoneMissing ? (
+              <Text style={styles.errorText}>{s.requiredFieldError}</Text>
+            ) : null}
+            {submitAttempted && !isPhoneMissing && !isPhoneValid ? (
+              <Text style={styles.errorText}>{s.riderPhoneInvalid}</Text>
+            ) : null}
+
+            <RequiredFieldLabel label={s.addressPlaceholder} />
+            <TextInput
+              style={styles.fieldInput}
+              placeholder={s.addressPlaceholder}
+              placeholderTextColor={UI.muted}
+              value={address}
+              onChangeText={setAddress}
+            />
+            {submitAttempted && isAddressMissing ? (
+              <Text style={styles.errorText}>{s.requiredFieldError}</Text>
             ) : null}
           </View>
 
+          <View style={styles.sectionHead}>
+            <View style={styles.sectionHeadCopy}>
+              <Text style={styles.sectionTitle}>
+                {s.riderDetailsSectionTitle}
+                <Text style={styles.requiredAsterisk}> *</Text>
+              </Text>
+              <Text style={styles.sectionHint}>{s.riderDetailsSectionHint}</Text>
+            </View>
+            <View style={styles.countPill}>
+              <Text style={styles.countPillText}>
+                {fill(s.ridersReadyCount, {
+                  ready: completedRiders.length,
+                  total: riders.length,
+                })}
+              </Text>
+            </View>
+          </View>
+
+          {riders.map((rider, index) => {
+            const riderPhoneValid =
+              rider.phone.trim().length > 0
+                ? Boolean(
+                    parsePhoneNumberFromString(`+${rider.callingCode}${rider.phone}`)?.isValid(),
+                  )
+                : false;
+            const nameOk = rider.name.trim().length > 0;
+            const photoOk = rider.photoUri.trim().length > 0;
+            const status =
+              nameOk && riderPhoneValid && photoOk
+                ? "ready"
+                : nameOk && riderPhoneValid
+                  ? "photo"
+                  : "incomplete";
+            const showRiderErrors = submitAttempted;
+
+            return (
+              <View key={rider.id} style={styles.riderCard}>
+                <View style={styles.riderTop}>
+                  <Pressable
+                    onPress={() => pickRiderPhoto(rider.id)}
+                    style={({ pressed }) => [styles.photoBtn, pressed && styles.pressed]}
+                    accessibilityRole="button"
+                    accessibilityLabel={s.riderPhotoLabel}
+                  >
+                    {photoOk ? (
+                      <Image source={{ uri: rider.photoUri }} style={styles.photo} />
+                    ) : (
+                      <View style={styles.photoEmpty}>
+                        <MaterialCommunityIcons
+                          name="camera-plus-outline"
+                          size={26}
+                          color={UI.blue}
+                        />
+                      </View>
+                    )}
+                    <View style={styles.cameraBadge}>
+                      <MaterialCommunityIcons name="camera" size={12} color="#FFFFFF" />
+                    </View>
+                  </Pressable>
+
+                  <View style={styles.riderIdentity}>
+                    <Text style={styles.riderCardTitle}>
+                      {s.riderCardTitle.replace("{index}", String(index + 1))}
+                    </Text>
+                    <Text style={styles.photoCaption}>{s.riderPhotoLabel}</Text>
+                    <View
+                      style={[
+                        styles.statusPill,
+                        status === "ready" && styles.statusReady,
+                        status === "photo" && styles.statusPhoto,
+                      ]}
+                    >
+                      <MaterialCommunityIcons
+                        name={
+                          status === "ready"
+                            ? "check-circle"
+                            : status === "photo"
+                              ? "camera-outline"
+                              : "alert-circle-outline"
+                        }
+                        size={13}
+                        color={
+                          status === "ready"
+                            ? "#059669"
+                            : status === "photo"
+                              ? "#B45309"
+                              : UI.muted
+                        }
+                      />
+                      <Text
+                        style={[
+                          styles.statusText,
+                          status === "ready" && styles.statusTextReady,
+                          status === "photo" && styles.statusTextPhoto,
+                        ]}
+                      >
+                        {status === "ready"
+                          ? s.riderStatusReady
+                          : status === "photo"
+                            ? s.riderStatusPhoto
+                            : s.riderStatusIncomplete}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {riders.length > 1 ? (
+                    <Pressable
+                      onPress={() => removeRider(rider.id)}
+                      style={styles.removeBtn}
+                      accessibilityRole="button"
+                      accessibilityLabel={s.removeRider}
+                    >
+                      <MaterialCommunityIcons name="trash-can-outline" size={18} color={UI.red} />
+                    </Pressable>
+                  ) : null}
+                </View>
+
+                <RequiredFieldLabel label={s.riderNameLabel} />
+                <TextInput
+                  style={styles.fieldInput}
+                  placeholder={s.riderNamePlaceholder}
+                  placeholderTextColor={UI.muted}
+                  value={rider.name}
+                  onChangeText={(value) => updateRider(rider.id, { name: value })}
+                />
+                {showRiderErrors && !nameOk ? (
+                  <Text style={styles.errorText}>{s.requiredFieldError}</Text>
+                ) : null}
+
+                <RequiredFieldLabel label={s.riderPhoneLabel} />
+                <Input
+                  appearance="light"
+                  variant="phone"
+                  placeholder={s.riderPhonePlaceholder}
+                  value={rider.phone}
+                  onChangeText={(value) =>
+                    updateRider(rider.id, { phone: normalizePhoneDigits(value) })
+                  }
+                  selectedCca2={rider.countryCode}
+                  selectedCallingCode={rider.callingCode}
+                  onCountrySelect={(selected) =>
+                    updateRider(rider.id, {
+                      countryCode: selected.cca2,
+                      callingCode: selected.callingCode,
+                    })
+                  }
+                  containerStyle={styles.phoneInput}
+                />
+                {showRiderErrors && rider.phone.trim().length === 0 ? (
+                  <Text style={styles.errorText}>{s.requiredFieldError}</Text>
+                ) : null}
+                {showRiderErrors && rider.phone.trim().length > 0 && !riderPhoneValid ? (
+                  <Text style={styles.errorText}>{s.riderPhoneInvalid}</Text>
+                ) : null}
+                {showRiderErrors && !photoOk ? (
+                  <Text style={styles.errorText}>{s.riderPhotoRequired}</Text>
+                ) : null}
+              </View>
+            );
+          })}
+
           <Pressable
-            style={({ pressed }) => [styles.checkboxRow, pressed && styles.checkboxRowPressed]}
+            onPress={addRider}
+            style={({ pressed }) => [styles.addRider, pressed && styles.pressed]}
+            accessibilityRole="button"
+            accessibilityLabel={s.addRider}
+          >
+            <MaterialCommunityIcons name="plus" size={18} color={UI.blue} />
+            <Text style={styles.addRiderText}>{s.addRider}</Text>
+          </Pressable>
+          {submitAttempted && !hasAtLeastOneRider ? (
+            <Text style={styles.errorText}>{s.riderMinimumRequired}</Text>
+          ) : null}
+
+          <Pressable
+            style={({ pressed }) => [styles.ackCard, pressed && styles.pressed]}
             onPress={() => setResponsibilityAccepted((prev) => !prev)}
             accessibilityRole="checkbox"
             accessibilityState={{ checked: responsibilityAccepted }}
             accessibilityLabel={s.riderResponsibilityLabel}
           >
-            <View
-              style={[
-                styles.roundCheckbox,
-                responsibilityAccepted && styles.roundCheckboxChecked,
-              ]}
-            >
-              {responsibilityAccepted ? (
-                <MaterialCommunityIcons name="check" size={14} color={c.background} />
-              ) : null}
+            <View style={styles.ackIcon}>
+              <MaterialCommunityIcons name="shield-check-outline" size={20} color={UI.purple} />
             </View>
-            <Text style={styles.checkboxLabel}>
+            <Text style={styles.ackLabel}>
               {s.riderResponsibilityLabel}
               <Text style={styles.requiredAsterisk}> *</Text>
             </Text>
+            <View
+              style={[styles.roundCheckbox, responsibilityAccepted && styles.roundCheckboxChecked]}
+            >
+              {responsibilityAccepted ? (
+                <MaterialCommunityIcons name="check" size={14} color="#FFFFFF" />
+              ) : null}
+            </View>
           </Pressable>
           {submitAttempted && !responsibilityAccepted ? (
             <Text style={styles.errorText}>{s.riderResponsibilityRequired}</Text>
           ) : null}
 
-          <AppButton
+          <AppCtaButton
             label={s.finish}
             onPress={handleSubmit}
-            variant="filled"
-            leftIcon="arrow-left"
-            fullWidth
+            rightIcon="check"
+            width="full"
             loading={isSaving || isLoading}
             disabled={isSaving || isLoading}
             style={styles.finishBtn}
-            accessibilityLabel={s.finish}
           />
         </ScrollView>
       </KeyboardAvoidingView>
@@ -551,153 +635,262 @@ export function PartnerRiderRegistrationForm() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: c.background,
+    backgroundColor: "#FFFFFF",
   },
-  keyboardView: {
-    flex: 1,
+  headerTitle: {
+    fontSize: 18,
+    fontFamily: "Poppins-Bold",
   },
-  scroll: {
-    flex: 1,
+  headerSubtitle: {
+    fontSize: 12,
+    lineHeight: 16,
+    fontFamily: "Poppins-Regular",
   },
+  keyboardView: { flex: 1 },
+  scroll: { flex: 1 },
   content: {
-    paddingHorizontal: 24,
-    paddingTop: 24,
+    paddingHorizontal: 20,
+    paddingTop: 8,
     paddingBottom: 40,
   },
-  heading: {
-    fontSize: fs.titleMedium,
-    fontWeight: "600",
-    color: c.white,
-    marginBottom: 8,
-  },
-  subheading: {
-    fontSize: fs.descText,
-    color: c.blue500,
-    lineHeight: 20,
-    marginBottom: 20,
-  },
-  fieldLabel: {
-    fontSize: fs.descText,
-    fontWeight: "500",
-    color: c.white,
-    marginBottom: 8,
-    marginTop: 4,
-  },
-  requiredAsterisk: {
-    color: c.white,
-    fontWeight: "600",
-  },
-  phoneInput: {
-    marginBottom: 8,
-  },
-  errorText: {
-    color: "#f87171",
-    fontSize: fs.descText,
-    marginBottom: 8,
-  },
-  ridersSection: {
-    marginTop: 20,
-  },
-  sectionTitle: {
-    fontSize: fs.smallText,
-    fontWeight: "600",
-    color: c.white,
-    marginBottom: 6,
-  },
-  sectionHint: {
-    fontSize: fs.descText,
-    color: c.blue500,
-    marginBottom: 14,
-    lineHeight: 20,
-  },
-  riderCard: {
-    backgroundColor: c.blue900,
-    borderRadius: 16,
+  sectionCard: {
     borderWidth: 1,
-    borderColor: c.modalBorder,
-    padding: 16,
-    marginBottom: 14,
+    borderColor: "#E8ECF2",
+    borderRadius: 18,
+    padding: 14,
+    marginBottom: 18,
+    backgroundColor: "#FFFFFF",
   },
-  riderCardHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 10,
-  },
-  riderCardTitle: {
-    fontSize: fs.smallText,
-    fontWeight: "600",
-    color: c.white,
-  },
-  removeRiderText: {
-    fontSize: fs.descText,
-    color: "#f87171",
-    fontWeight: "500",
-  },
-  photoPicker: {
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: c.modalBorder,
-    overflow: "hidden",
-    marginBottom: 8,
-  },
-  photoPickerPressed: {
-    opacity: 0.9,
-  },
-  photoPreview: {
-    width: "100%",
-    height: 180,
-    backgroundColor: c.background,
-  },
-  photoPlaceholder: {
-    height: 180,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    backgroundColor: c.background,
-  },
-  photoPlaceholderText: {
-    fontSize: fs.descText,
-    color: c.blue500,
-    textAlign: "center",
-    paddingHorizontal: 16,
-  },
-  addRiderBtn: {
-    marginTop: 4,
-    marginBottom: 8,
-  },
-  checkboxRow: {
+  sectionHead: {
     flexDirection: "row",
     alignItems: "flex-start",
     gap: 12,
-    marginTop: 20,
+    marginBottom: 12,
   },
-  checkboxRowPressed: {
-    opacity: 0.85,
+  sectionHeadCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontFamily: "Poppins-Bold",
+    color: UI.purpleDeep,
+  },
+  sectionHint: {
+    marginTop: 4,
+    marginBottom: 12,
+    fontSize: 13,
+    lineHeight: 18,
+    fontFamily: "Poppins-Regular",
+    color: UI.muted,
+  },
+  countPill: {
+    marginTop: 2,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+    backgroundColor: "#EEF2FF",
+  },
+  countPillText: {
+    fontSize: 11,
+    fontFamily: "Poppins-SemiBold",
+    color: UI.purpleDeep,
+  },
+  fieldLabel: {
+    fontSize: 14,
+    fontFamily: "Poppins-SemiBold",
+    color: UI.text,
+    marginBottom: 6,
+    marginTop: 2,
+  },
+  requiredAsterisk: {
+    color: UI.red,
+  },
+  fieldInput: {
+    borderWidth: 1,
+    borderColor: UI.chipBorder,
+    backgroundColor: UI.border,
+    borderRadius: 50,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 15,
+    fontFamily: "Poppins-Regular",
+    color: UI.text,
+    marginBottom: 10,
+  },
+  phoneInput: {
+    marginBottom: 10,
+  },
+  errorText: {
+    color: UI.red,
+    fontSize: 12,
+    fontFamily: "Poppins-Regular",
+    marginTop: -4,
+    marginBottom: 8,
+  },
+  riderCard: {
+    borderWidth: 1,
+    borderColor: "#E8ECF2",
+    borderRadius: 18,
+    padding: 14,
+    marginBottom: 12,
+    backgroundColor: "#FFFFFF",
+  },
+  riderTop: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
+    marginBottom: 12,
+  },
+  photoBtn: {
+    width: 76,
+    height: 76,
+  },
+  photo: {
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    backgroundColor: UI.iconWell,
+  },
+  photoEmpty: {
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    borderWidth: 1.5,
+    borderStyle: "dashed",
+    borderColor: UI.blue,
+    backgroundColor: "#EEF4FF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  cameraBadge: {
+    position: "absolute",
+    right: 0,
+    bottom: 0,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: UI.blue,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
+  },
+  riderIdentity: {
+    flex: 1,
+    minWidth: 0,
+    gap: 2,
+  },
+  riderCardTitle: {
+    fontSize: 16,
+    fontFamily: "Poppins-Bold",
+    color: UI.text,
+  },
+  photoCaption: {
+    fontSize: 12,
+    fontFamily: "Poppins-Regular",
+    color: UI.muted,
+  },
+  statusPill: {
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginTop: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
+    backgroundColor: "#F3F4F6",
+  },
+  statusReady: {
+    backgroundColor: "#D1FAE5",
+  },
+  statusPhoto: {
+    backgroundColor: "#FEF3C7",
+  },
+  statusText: {
+    fontSize: 11,
+    fontFamily: "Poppins-SemiBold",
+    color: UI.muted,
+  },
+  statusTextReady: {
+    color: "#059669",
+  },
+  statusTextPhoto: {
+    color: "#B45309",
+  },
+  removeBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: UI.redBg,
+  },
+  addRider: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    borderWidth: 1.5,
+    borderStyle: "dashed",
+    borderColor: UI.blue,
+    borderRadius: 16,
+    paddingVertical: 14,
+    marginBottom: 8,
+    backgroundColor: "#F8FAFF",
+  },
+  addRiderText: {
+    fontSize: 14,
+    fontFamily: "Poppins-SemiBold",
+    color: UI.blue,
+  },
+  ackCard: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+    marginTop: 8,
+    padding: 14,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#E8ECF2",
+    backgroundColor: "#F8F7FF",
+  },
+  ackIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  ackLabel: {
+    flex: 1,
+    fontSize: 13,
+    lineHeight: 18,
+    fontFamily: "Poppins-Regular",
+    color: UI.text,
   },
   roundCheckbox: {
     width: 22,
     height: 22,
     borderRadius: 11,
     borderWidth: 1.5,
-    borderColor: c.blue500,
+    borderColor: UI.chipBorder,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "transparent",
+    backgroundColor: "#FFFFFF",
     marginTop: 2,
   },
   roundCheckboxChecked: {
-    backgroundColor: c.blue500,
-    borderColor: c.blue500,
+    backgroundColor: UI.purple,
+    borderColor: UI.purple,
   },
-  checkboxLabel: {
-    fontSize: fs.descText,
-    fontWeight: "500",
-    color: c.white,
-    flex: 1,
-    lineHeight: 21,
+  pressed: {
+    opacity: 0.88,
   },
   finishBtn: {
-    marginTop: 24,
+    marginTop: 18,
   },
 });
+
