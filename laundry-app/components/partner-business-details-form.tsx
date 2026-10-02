@@ -120,8 +120,7 @@ export function PartnerBusinessDetailsForm({ mode }: Props) {
   const [submitAttempted, setSubmitAttempted] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [businessImages, setBusinessImages] = useState<StagedBusinessImage[]>([]);
-  const [offerPickup, setOfferPickup] = useState(false);
-  const [offerDelivery, setOfferDelivery] = useState(false);
+  const [offerPickupDelivery, setOfferPickupDelivery] = useState(false);
   const [locatingAddress, setLocatingAddress] = useState(false);
   const [coordsCache, setCoordsCache] = useState<{
     latitude: number;
@@ -178,8 +177,7 @@ export function PartnerBusinessDetailsForm({ mode }: Props) {
         const offersPickupDelivery = Boolean(
           (data as { pickup_delivery_enabled?: boolean | null }).pickup_delivery_enabled,
         );
-        setOfferPickup(offersPickupDelivery);
-        setOfferDelivery(offersPickupDelivery);
+        setOfferPickupDelivery(offersPickupDelivery);
         const lat = (data as { latitude?: number | null }).latitude;
         const lng = (data as { longitude?: number | null }).longitude;
         if (typeof lat === "number" && typeof lng === "number") {
@@ -449,7 +447,7 @@ export function PartnerBusinessDetailsForm({ mode }: Props) {
         available_time: normalizedAvailableTime.toUpperCase(),
         address: address.trim(),
         business_images: uploadedImageUrls,
-        pickup_delivery_enabled: offerPickup || offerDelivery,
+        pickup_delivery_enabled: offerPickupDelivery,
         updated_at: new Date().toISOString(),
         latitude: coords.latitude,
         longitude: coords.longitude,
@@ -496,8 +494,7 @@ export function PartnerBusinessDetailsForm({ mode }: Props) {
     mode,
     router,
     coordsCache,
-    offerPickup,
-    offerDelivery,
+    offerPickupDelivery,
   ]);
 
   const handleLocateAddress = useCallback(async () => {
@@ -790,35 +787,18 @@ export function PartnerBusinessDetailsForm({ mode }: Props) {
         </View>
           <Text style={styles.fieldLabel}>Pickup & Delivery</Text>
           <View style={styles.offerCard}>
-            <View style={styles.offerHalf}>
-              <MaterialCommunityIcons name="truck-outline" size={22} color={UI.blue} />
-              <Text style={styles.offerLabel} numberOfLines={1}>
-                I offer pickup
-              </Text>
-              <Switch
-                value={offerPickup}
-                onValueChange={setOfferPickup}
-                trackColor={{ false: UI.chipBorder, true: UI.blue }}
-                thumbColor="#FFFFFF"
-                ios_backgroundColor={UI.chipBorder}
-                style={styles.offerSwitch}
-              />
-            </View>
-            <View style={styles.offerDivider} />
-            <View style={styles.offerHalf}>
-              <MaterialCommunityIcons name="motorbike" size={22} color={UI.teal} />
-              <Text style={styles.offerLabel} numberOfLines={1}>
-                I offer delivery
-              </Text>
-              <Switch
-                value={offerDelivery}
-                onValueChange={setOfferDelivery}
-                trackColor={{ false: UI.chipBorder, true: UI.blue }}
-                thumbColor="#FFFFFF"
-                ios_backgroundColor={UI.chipBorder}
-                style={styles.offerSwitch}
-              />
-            </View>
+            <MaterialCommunityIcons name="truck-outline" size={22} color={UI.blue} />
+            <Text style={styles.offerLabel} numberOfLines={1}>
+              I offer pickup and delivery
+            </Text>
+            <Switch
+              value={offerPickupDelivery}
+              onValueChange={setOfferPickupDelivery}
+              trackColor={{ false: UI.chipBorder, true: UI.blue }}
+              thumbColor="#FFFFFF"
+              ios_backgroundColor={UI.chipBorder}
+              style={styles.offerSwitch}
+            />
           </View>
 
           <Text style={styles.fieldLabel}>
@@ -1003,31 +983,19 @@ const styles = StyleSheet.create({
   offerCard: {
     flexDirection: "row",
     alignItems: "center",
+    gap: 8,
     borderWidth: 1,
     borderColor: UI.chipBorder,
     backgroundColor: UI.card,
     borderRadius: 16,
     paddingVertical: 10,
-    paddingHorizontal: 8,
+    paddingHorizontal: 14,
     marginBottom: 16,
   },
-  offerHalf: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    minWidth: 0,
-  },
-  offerDivider: {
-    width: StyleSheet.hairlineWidth,
-    alignSelf: "stretch",
-    backgroundColor: UI.chipBorder,
-    marginHorizontal: 6,
-  },
   offerLabel: {
-    flexShrink: 1,
-    fontSize: 11,
-    lineHeight: 14,
+    flex: 1,
+    fontSize: 14,
+    lineHeight: 18,
     fontFamily: "Poppins-SemiBold",
     color: UI.text,
   },

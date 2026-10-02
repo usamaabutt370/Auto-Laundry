@@ -25,6 +25,8 @@ export interface AppHeaderProps {
   subtitleStyle?: StyleProp<TextStyle>;
   /** Default centers the title; use `left` for screens like Orders. */
   titleAlign?: "center" | "left";
+  /** Drop the default header padding so the bar sits flush under the status bar. */
+  compact?: boolean;
   /** Tap2Laundry logo on the left (mobile web / native when sidebar is hidden). */
   showBrandLogo?: boolean;
   /** Hide centered title on web only (sidebar labels are enough on desktop). */
@@ -84,6 +86,7 @@ export function AppHeader({
   titleStyle,
   subtitleStyle,
   titleAlign = "center",
+  compact = false,
   showBrandLogo = false,
   hideTitleOnWeb = false,
   leftIcon,
@@ -145,7 +148,7 @@ export function AppHeader({
         style={[
           styles.row,
           leftTitle && styles.rowCompact,
-          showSubtitle && styles.rowWithSubtitle,
+          (showSubtitle || compact) && styles.rowWithSubtitle,
         ]}
       >
         {!leftTitle ? titleNode : null}
@@ -164,7 +167,7 @@ export function AppHeader({
                 onPress={onLeftPress}
                 style={({ pressed }) => [
                   styles.iconBtn,
-                  showSubtitle && styles.iconBtnCompact,
+                  (showSubtitle || compact) && styles.iconBtnCompact,
                   pressed && styles.pressed,
                 ]}
                 hitSlop={HIT_SLOP}

@@ -60,7 +60,7 @@ import { getPartnerHoursRange, getPartnerOpenStatus } from "@/utils/partner-hour
 import { partnerHasActiveOffer } from "@/utils/partner-offers";
 import { UI } from "@/constants/theme";
 
-type DetailTab = "about" | "photos" | "reviews";
+type DetailTab = "about" | "reviews";
 type IconName = ComponentProps<typeof MaterialCommunityIcons>["name"];
 
 function fill(template: string, vars: Record<string, string | number>) {
@@ -601,7 +601,6 @@ export function LaundererDetailView({
 
   const tabs: { id: DetailTab; label: string }[] = [
     { id: "about", label: s.tabAbout },
-    { id: "photos", label: s.tabPhotos },
     { id: "reviews", label: s.tabReviews },
   ];
 
@@ -801,7 +800,7 @@ export function LaundererDetailView({
                 <Pressable
                   key={item.id}
                   onPress={() => setTab(item.id)}
-                  style={[styles.tabBtn, { width: "33.33%" }]}
+                  style={[styles.tabBtn, { width: "50%" }]}
                   accessibilityRole="tab"
                   accessibilityState={{ selected: active }}
                 >
@@ -867,29 +866,6 @@ export function LaundererDetailView({
                   <Text style={styles.infoBody}>{hours?.rangeLabel ?? s.hoursUnknown}</Text>
                 </View>
               </View>
-            </View>
-          ) : null}
-
-          {tab === "photos" ? (
-            <View style={styles.tabBody}>
-              {carouselImages.length > 0 ? (
-                <View style={styles.photoGrid}>
-                  {carouselImages.map((uri, index) => (
-                    <Pressable
-                      key={`${uri}-${index}`}
-                      onPress={() => {
-                        setActiveImageIndex(index);
-                        heroScrollRef.current?.scrollTo({ x: index * heroWidth, animated: true });
-                      }}
-                      style={styles.photoCell}
-                    >
-                      <Image source={{ uri }} style={styles.photoCellImage} contentFit="cover" />
-                    </Pressable>
-                  ))}
-                </View>
-              ) : (
-                <Text style={styles.emptyCopy}>{s.noPhotos}</Text>
-              )}
             </View>
           ) : null}
 
