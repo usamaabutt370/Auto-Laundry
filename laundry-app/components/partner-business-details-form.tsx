@@ -59,6 +59,7 @@ const ROLE_SWITCH_RETURN_ROUTES: Record<string, "/(customer)/(tabs)/profile" | "
 
 type Props = {
   mode: PartnerBusinessDetailsFormMode;
+  onExit?: () => void;
 };
 
 function normalizePhoneDigits(rawValue: string): string {
@@ -97,7 +98,7 @@ function parseTimeLabelToDate(value: string): Date | null {
   return date;
 }
 
-export function PartnerBusinessDetailsForm({ mode }: Props) {
+export function PartnerBusinessDetailsForm({ mode, onExit }: Props) {
   const router = useRouter();
   const params = useLocalSearchParams<{ from?: string; returnTo?: string }>();
   const { locale } = useLocale();
@@ -313,6 +314,11 @@ export function PartnerBusinessDetailsForm({ mode }: Props) {
   }, []);
 
   const handleBack = useCallback(() => {
+    if (onExit) {
+      onExit();
+      return;
+    }
+
     if (router.canGoBack()) {
       router.back();
       return;
@@ -347,7 +353,7 @@ export function PartnerBusinessDetailsForm({ mode }: Props) {
     }
 
     router.replace("/(partner)/(tabs)");
-  }, [mode, params.from, params.returnTo, refreshRole, router, user?.id]);
+  }, [mode, onExit, params.from, params.returnTo, refreshRole, router, user?.id]);
 
   useFocusEffect(
     useCallback(() => {
@@ -471,6 +477,10 @@ export function PartnerBusinessDetailsForm({ mode }: Props) {
 
       if (mode === "onboarding") {
         router.push("/(partner)/onboarding/step2");
+      } else if (onExit) {
+        onExit();
+      } else if (router.canGoBack()) {
+        router.back();
       } else {
         router.replace("/(partner)/(tabs)/profile");
       }
@@ -492,6 +502,7 @@ export function PartnerBusinessDetailsForm({ mode }: Props) {
     normalizedAvailableTime,
     callingCode,
     mode,
+    onExit,
     router,
     coordsCache,
     offerPickupDelivery,
