@@ -40,6 +40,7 @@ import {
 import { acceptOrderWithRider, partnerOrderNeedsRider } from "@/lib/order-rider-assignment";
 import { partnerUpdateOrderStatus } from "@/lib/partner-order-status";
 import { fetchPartnerRiders, type PartnerRider } from "@/lib/partner-riders";
+import { imageForServiceItem } from "@/lib/service-item-images";
 import { getStrings } from "@/locales";
 
 const fs = theme.fontSize;
@@ -801,40 +802,6 @@ export function PartnerHomeDashboard() {
                     ))
                   )}
                 </View>
-
-                <View style={styles.card}>
-                  <Text style={[styles.sectionTitle, styles.quickTitle]}>{copy.quickActions}</Text>
-                  <View style={styles.quickRow}>
-                    <QuickAction
-                      tint="#ECFDF3"
-                      icon="cog-outline"
-                      iconColor="#16A34A"
-                      label={copy.manageServices}
-                      onPress={() => router.push("/(partner)/settings")}
-                    />
-                    <QuickAction
-                      tint="#EEF4FF"
-                      icon="store-outline"
-                      iconColor="#2563EB"
-                      label={copy.businessDetails}
-                      onPress={() => router.push("/(partner)/business-detail")}
-                    />
-                    <QuickAction
-                      tint="#F5F3FF"
-                      icon="chart-bar"
-                      iconColor="#7C3AED"
-                      label={copy.viewEarnings}
-                      onPress={() => router.push("/(partner)/earnings-history")}
-                    />
-                    <QuickAction
-                      tint="#FFF1F2"
-                      icon="package-variant-closed"
-                      iconColor="#E11D48"
-                      label={copy.orderHistory}
-                      onPress={() => openOrders("completed")}
-                    />
-                  </View>
-                </View>
               </>
             ) : null}
           </View>
@@ -979,7 +946,6 @@ function ActionOrderCard({
   onDecline: () => void;
   onAccept: () => void;
 }) {
-  const meta = order.serviceKey ? SERVICE_COLORS[order.serviceKey] : null;
   const itemLabel =
     order.itemCount === 1
       ? copy.itemCountOne
@@ -993,11 +959,11 @@ function ActionOrderCard({
   return (
     <View style={styles.orderCard}>
       <Pressable onPress={onOpen} style={styles.orderMain}>
-        <View style={[styles.thumb, { backgroundColor: meta?.tint ?? "#F3F4F6" }]}>
-          <MaterialCommunityIcons
-            name={meta?.icon ?? "tshirt-crew-outline"}
-            size={26}
-            color={meta?.color ?? UI.muted}
+        <View style={styles.thumb}>
+          <Image
+            source={imageForServiceItem(undefined, undefined, order.serviceKey)}
+            style={styles.thumbImage}
+            contentFit="cover"
           />
           <View style={styles.newBadge}>
             <Text style={styles.newBadgeText}>{copy.badgeNew}</Text>
@@ -1060,7 +1026,6 @@ function ActiveOrderCard({
   serviceLabel: string;
   onOpen: () => void;
 }) {
-  const meta = order.serviceKey ? SERVICE_COLORS[order.serviceKey] : null;
   const itemLabel =
     order.itemCount === 1
       ? copy.itemCountOne
@@ -1074,11 +1039,11 @@ function ActiveOrderCard({
   return (
     <Pressable onPress={onOpen} style={({ pressed }) => [styles.orderCard, pressed && styles.pressed]}>
       <View style={styles.orderMain}>
-        <View style={[styles.thumb, { backgroundColor: meta?.tint ?? "#F3F4F6" }]}>
-          <MaterialCommunityIcons
-            name={meta?.icon ?? "tshirt-crew-outline"}
-            size={26}
-            color={meta?.color ?? UI.muted}
+        <View style={styles.thumb}>
+          <Image
+            source={imageForServiceItem(undefined, undefined, order.serviceKey)}
+            style={styles.thumbImage}
+            contentFit="cover"
           />
         </View>
         <View style={styles.orderBody}>
@@ -1103,32 +1068,6 @@ function ActiveOrderCard({
             </View>
           ) : null}
         </View>
-      </View>
-    </Pressable>
-  );
-}
-
-function QuickAction({
-  tint,
-  icon,
-  iconColor,
-  label,
-  onPress,
-}: {
-  tint: string;
-  icon: IconName;
-  iconColor: string;
-  label: string;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable onPress={onPress} style={({ pressed }) => [styles.quickTile, { backgroundColor: tint }, pressed && styles.pressed]}>
-      <MaterialCommunityIcons name={icon} size={22} color={iconColor} />
-      <View style={styles.quickLabelRow}>
-        <Text style={styles.quickLabel} numberOfLines={2}>
-          {label}
-        </Text>
-        <MaterialCommunityIcons name="chevron-right" size={14} color={iconColor} />
       </View>
     </Pressable>
   );
@@ -1249,8 +1188,12 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
+    overflow: "hidden",
+    backgroundColor: "#F3F4F6",
+  },
+  thumbImage: {
+    width: 64,
+    height: 64,
   },
   newBadge: {
     position: "absolute",
@@ -1304,11 +1247,6 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   progressText: { color: "#2563EB", fontSize: 12, fontWeight: "700" },
-  quickTitle: { marginBottom: 12 },
-  quickRow: { flexDirection: "row", gap: 8 },
-  quickTile: { flex: 1, borderRadius: 14, padding: 10, minHeight: 88, justifyContent: "space-between" },
-  quickLabelRow: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", gap: 2 },
-  quickLabel: { flex: 1, fontSize: 11, fontWeight: "700", color: UI.text },
   pressed: { opacity: 0.86 },
   loadingText: { color: UI.muted, textAlign: "center", paddingVertical: 24 },
   errorCard: {
