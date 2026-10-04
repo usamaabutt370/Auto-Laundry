@@ -27,6 +27,17 @@ export interface PartnerOrderListItem {
   servicesSummary: string;
   /** First line of customer address, truncated for the card. */
   addressPreview: string;
+  orderRef: string;
+  createdAtIso: string | null;
+  updatedAtIso: string | null;
+  itemCount: number;
+  primaryServiceKey: "washAndFold" | "dryCleaning" | "tailoring" | "press" | null;
+  primaryServiceLabel: string;
+  extraServiceCount: number;
+  amount: number;
+  pickupWhen: string | null;
+  deliveryWhen: string | null;
+  customerNote: string | null;
 }
 
 export interface PartnerOrderDetailBag {
@@ -97,6 +108,9 @@ type CustomerOrderRow = {
   delivery_time_slot_label: string | null;
   rejection_reason_option: string | null;
   rejection_reason_details: string | null;
+  submitted_at?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
   assigned_rider_id?: string | null;
   assigned_rider_name?: string | null;
   assigned_rider_phone?: string | null;
@@ -280,7 +294,7 @@ export async function fetchPartnerOrders(): Promise<PartnerOrderListItem[]> {
   const { data, error } = await supabase
     .from("customer_orders")
     .select(
-      "id,customer_id,status,estimated_total,estimated_partial_total,confirmed_total,confirmed_at,intake_notes,pickup_fee,pickup_day_label,pickup_time_slot_label,delivery_day_label,delivery_time_slot_label,rejection_reason_option,rejection_reason_details",
+      "id,customer_id,status,estimated_total,estimated_partial_total,confirmed_total,confirmed_at,intake_notes,pickup_fee,pickup_day_label,pickup_time_slot_label,delivery_day_label,delivery_time_slot_label,rejection_reason_option,rejection_reason_details,submitted_at,created_at,updated_at",
     )
     .eq("partner_id", partnerId)
     .order("created_at", { ascending: false });
@@ -293,17 +307,49 @@ export async function fetchPartnerOrders(): Promise<PartnerOrderListItem[]> {
 
   const orderIds = orders.map((o) => o.id);
   const serviceTypesByOrderId = new Map<string, OrderServiceRow["service_type"][]>();
+  const noteByOrderId = new Map<string, string>();
+  const itemCountByOrderId = new Map<string, number>();
 
   if (supabase && orderIds.length > 0) {
     const { data: svcRows, error: svcError } = await supabase
       .from("order_services")
-      .select("order_id,service_type")
+      .select("id,order_id,service_type,instructions")
       .in("order_id", orderIds);
-    if (!svcError && svcRows) {
-      for (const row of svcRows as { order_id: string; service_type: OrderServiceRow["service_type"] }[]) {
-        const list = serviceTypesByOrderId.get(row.order_id) ?? [];
-        list.push(row.service_type);
-        serviceTypesByOrderId.set(row.order_id, list);
+    const services = (!svcError && svcRows
+      ? svcRows
+      : []) as {
+      id: string;
+      order_id: string;
+      service_type: OrderServiceRow["service_type"];
+      instructions: string | null;
+    }[];
+    const serviceIdToOrderId = new Map<string, string>();
+    for (const row of services) {
+      serviceIdToOrderId.set(row.id, row.order_id);
+      const list = serviceTypesByOrderId.get(row.order_id) ?? [];
+      list.push(row.service_type);
+      serviceTypesByOrderId.set(row.order_id, list);
+      const note = row.instructions?.trim();
+      if (note && !noteByOrderId.has(row.order_id)) {
+        noteByOrderId.set(row.order_id, note);
+      }
+    }
+
+    const serviceIds = services.map((row) => row.id);
+    if (serviceIds.length > 0) {
+      const { data: itemRows } = await supabase
+        .from("order_service_items")
+        .select("order_service_id,quantity,confirmed_quantity")
+        .in("order_service_id", serviceIds);
+      for (const item of (itemRows ?? []) as {
+        order_service_id: string;
+        quantity: number | null;
+        confirmed_quantity: number | null;
+      }[]) {
+        const orderId = serviceIdToOrderId.get(item.order_service_id);
+        if (!orderId) continue;
+        const qty = Number(item.confirmed_quantity ?? item.quantity ?? 0);
+        itemCountByOrderId.set(orderId, (itemCountByOrderId.get(orderId) ?? 0) + qty);
       }
     }
   }
@@ -314,7 +360,20 @@ export async function fetchPartnerOrders(): Promise<PartnerOrderListItem[]> {
     const hasPickup = Boolean(order.pickup_day_label || order.pickup_time_slot_label);
     const svcTypes = serviceTypesByOrderId.get(order.id) ?? [];
     const servicesSummary = summarizeServiceTypesForOrder(svcTypes);
-    const totalAmount = order.estimated_total ?? order.estimated_partial_total ?? 0;
+    const totalAmount =
+      order.confirmed_total != null
+        ? Number(order.confirmed_total)
+        : Number(order.estimated_total ?? order.estimated_partial_total ?? 0) +
+          Number(order.pickup_fee ?? 0);
+    const pickupWhen = [order.pickup_day_label, order.pickup_time_slot_label]
+      .map((part) => part?.trim())
+      .filter(Boolean)
+      .join(", ");
+    const deliveryWhen = [order.delivery_day_label, order.delivery_time_slot_label]
+      .map((part) => part?.trim())
+      .filter(Boolean)
+      .join(", ");
+    const uniqueTypes = svcTypes.filter((type, index) => svcTypes.indexOf(type) === index);
     return {
       id: order.id,
       customerName,
@@ -338,6 +397,17 @@ export async function fetchPartnerOrders(): Promise<PartnerOrderListItem[]> {
       estimatedTotalLabel: formatUsd(totalAmount),
       servicesSummary,
       addressPreview: addressPreviewLine(profile?.address),
+      orderRef: `#${order.id.replace(/-/g, "").slice(0, 8).toUpperCase()}`,
+      createdAtIso: order.submitted_at ?? order.created_at ?? null,
+      updatedAtIso: order.updated_at ?? null,
+      itemCount: itemCountByOrderId.get(order.id) ?? 0,
+      primaryServiceKey: uniqueTypes[0] ?? null,
+      primaryServiceLabel: uniqueTypes[0] ? serviceTypeLabel(uniqueTypes[0]) : servicesSummary,
+      extraServiceCount: Math.max(0, uniqueTypes.length - 1),
+      amount: totalAmount,
+      pickupWhen: pickupWhen || null,
+      deliveryWhen: deliveryWhen || null,
+      customerNote: noteByOrderId.get(order.id) ?? order.intake_notes?.trim() ?? null,
     };
   });
 }
