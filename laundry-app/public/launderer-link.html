@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Open this laundry profile · Tap2Laundry</title>
+    <meta
+      name="description"
+      content="Open this Tap2Laundry profile in the app, or download Tap2Laundry."
+    />
+    <style>
+      :root {
+        color-scheme: light;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+      }
+      body {
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        background: #f4f7fb;
+        color: #1b2559;
+      }
+      main {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 48px 24px;
+        text-align: center;
+      }
+      .brand {
+        margin: 0;
+        color: #14536b;
+        font-size: 14px;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+      }
+      h1 {
+        margin: 12px 0 0;
+        max-width: 420px;
+        font-size: 28px;
+        line-height: 1.2;
+      }
+      p {
+        margin: 12px 0 0;
+        max-width: 420px;
+        color: #64748b;
+        font-size: 15px;
+        line-height: 1.5;
+      }
+      .actions {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        width: min(100%, 280px);
+        margin-top: 28px;
+      }
+      a {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 48px;
+        padding: 12px 18px;
+        border-radius: 14px;
+        font-size: 16px;
+        font-weight: 700;
+        text-decoration: none;
+      }
+      .primary {
+        background: #14536b;
+        color: #ffffff;
+      }
+      .secondary {
+        background: #ffffff;
+        color: #1b2559;
+        border: 1px solid #e5e7eb;
+      }
+      .hidden {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <p class="brand">Tap2Laundry</p>
+      <h1 id="title">Open this laundry profile</h1>
+      <p id="body">
+        If you already have the app, it should open this launderer. Otherwise download Tap2Laundry, then open this link again.
+      </p>
+      <div id="actions" class="actions hidden">
+        <a id="open-app" class="primary" href="#">Open in the app</a>
+        <a id="app-store" class="secondary" href="https://apps.apple.com/pk/app/tap2laundry/id6789571411">
+          Download on the App Store
+        </a>
+        <a id="play-store" class="secondary" href="https://play.google.com/store/apps/details?id=com.autolaundry.app">
+          Get it on Google Play
+        </a>
+      </div>
+    </main>
+    <script>
+      (function () {
+        var parts = location.pathname.split("/").filter(Boolean);
+        var id = parts[0] === "l" ? parts[1] : "";
+        var valid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+        var title = document.getElementById("title");
+        var body = document.getElementById("body");
+        var actions = document.getElementById("actions");
+        if (!valid) {
+          title.textContent = "This link is not a laundry profile";
+          body.textContent = "Ask the launderer to share the profile again from the Tap2Laundry app.";
+          return;
+        }
+        var appUrl = "laundryapp://l/" + id;
+        var playUrl =
+          "https://play.google.com/store/apps/details?id=com.autolaundry.app&referrer=" +
+          encodeURIComponent("laundererId=" + id);
+        document.getElementById("open-app").href = appUrl;
+        document.getElementById("play-store").href = playUrl;
+        actions.classList.remove("hidden");
+        var mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+        if (mobile) location.href = appUrl;
+      })();
+    </script>
+  </body>
+</html>
