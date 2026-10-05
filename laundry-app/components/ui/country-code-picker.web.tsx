@@ -61,8 +61,6 @@ export function CountryCodePicker({
   const [isVisible, setIsVisible] = useState(false);
   const [query, setQuery] = useState("");
   const light = appearance === "light";
-  const [isVisible, setIsVisible] = useState(false);
-  const [query, setQuery] = useState("");
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
