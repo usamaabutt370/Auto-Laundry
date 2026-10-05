@@ -1,10 +1,11 @@
 {
-  "buildCommand": "npm run export:web",
+  "buildCommand": "npm run export:web && node scripts/copy-launderer-link.js",
   "outputDirectory": "dist",
-  "rewrites": [
+  "redirects": [
     {
       "source": "/l/:id",
-      "destination": "/launderer-link.html"
+      "destination": "/launderer-link.html?id=:id",
+      "permanent": false
     }
   ],
   "headers": [

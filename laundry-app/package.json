@@ -11,7 +11,7 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
-    "export:web": "expo export --platform web",
+    "export:web": "expo export --platform web && node scripts/copy-launderer-link.js",
     "lint": "expo lint",
     "build:clean": "expo prebuild --clean",
     "apk:release": "cd android && ./gradlew assembleRelease",

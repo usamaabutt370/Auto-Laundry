@@ -106,7 +106,8 @@
     <script>
       (function () {
         var parts = location.pathname.split("/").filter(Boolean);
-        var id = parts[0] === "l" ? parts[1] : "";
+        var fromPath = parts[0] === "l" ? parts[1] : "";
+        var id = new URLSearchParams(location.search).get("id") || fromPath;
         var valid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
         var title = document.getElementById("title");
         var body = document.getElementById("body");
