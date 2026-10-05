@@ -1,0 +1,10 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.autolaundry.app",
+      "sha256_cert_fingerprints": ["72:23:AE:C5:C9:69:21:5B:D1:B0:D6:45:0C:6E:A0:25:7B:9A:91:E1:82:5A:1A:B0:A7:79:4A:6C:85:90:71:83"]
+    }
+  }
+]
