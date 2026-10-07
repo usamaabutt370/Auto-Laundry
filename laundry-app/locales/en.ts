@@ -325,7 +325,7 @@ export const en = {
       chatNeedsBookingTitle: "Chat after booking",
       chatNeedsBookingMessage:
         "Start an order with this Laundry Captain to message them about pickup, items, and timing.",
-      shareMessage: "{name}\n{address}",
+      shareMessage: "{name}\n{address}\n{url}",
       shareError: "Could not share this provider.",
       directionsError: "Could not open maps.",
       jobSwitcherLabel: "What do you need here?",
@@ -1584,6 +1584,9 @@ export const en = {
       coverPermissionMessage: "Please allow photo access to update your store cover.",
       coverError: "Could not update the cover photo.",
       missingProfile: "Save your business details before changing the cover.",
+      share: "Share",
+      shareMessage: "{name}\n{url}",
+      shareError: "Could not share your store.",
     },
   },
 

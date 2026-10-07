@@ -323,7 +323,7 @@ export const ur = {
       chatNeedsBookingTitle: "بکنگ کے بعد چیٹ",
       chatNeedsBookingMessage:
         "اس لانڈری کیپٹن کو میسج کرنے کے لیے پہلے آرڈر شروع کریں۔",
-      shareMessage: "{name}\n{address}",
+      shareMessage: "{name}\n{address}\n{url}",
       shareError: "اس پارٹنر کو شیئر نہیں کیا جا سکا۔",
       directionsError: "نقشہ نہیں کھل سکا۔",
       jobSwitcherLabel: "یہاں آپ کو کیا چاہیے؟",
@@ -1565,6 +1565,9 @@ export const ur = {
       coverPermissionMessage: "کور تصویر بدلنے کے لیے فوٹو کی اجازت دیں۔",
       coverError: "کور تصویر اپ ڈیٹ نہیں ہو سکی۔",
       missingProfile: "کور بدلنے سے پہلے کاروبار کی تفصیل محفوظ کریں۔",
+      share: "شیئر",
+      shareMessage: "{name}\n{url}",
+      shareError: "دکان شیئر نہیں ہو سکی۔",
     },
   },
 
