@@ -1,4 +1,22 @@
 {
-  "buildCommand": "npm run export:web",
-  "outputDirectory": "dist"
+  "buildCommand": "npm run export:web && node scripts/copy-launderer-link.js",
+  "outputDirectory": "dist",
+  "redirects": [
+    {
+      "source": "/l/:id",
+      "destination": "/launderer-link.html?id=:id",
+      "permanent": false
+    }
+  ],
+  "headers": [
+    {
+      "source": "/.well-known/apple-app-site-association",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/json"
+        }
+      ]
+    }
+  ]
 }

@@ -27,6 +27,7 @@ import {
   type ServicePricing,
   type ServicePricingKey,
 } from "@/contexts/merchant-services-context";
+import { shareLaundererProfile } from "@/lib/launderer-share-link";
 import { getStrings } from "@/locales";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { getPartnerHoursRange, getPartnerOpenStatus } from "@/utils/partner-hours";
@@ -250,6 +251,15 @@ export function PartnerStoreManagement({ onEditDetails }: { onEditDetails: () =>
         }`;
   const displayName = businessName || copy.notSet;
 
+  const shareStore = async () => {
+    if (!user?.id) return;
+    try {
+      await shareLaundererProfile(user.id, displayName);
+    } catch {
+      showAppAlert(copy.share, copy.shareError);
+    }
+  };
+
   const serviceRows = useMemo(
     () =>
       SERVICE_ORDER.map((key) => {
@@ -273,11 +283,19 @@ export function PartnerStoreManagement({ onEditDetails }: { onEditDetails: () =>
         >
           <MaterialCommunityIcons name="chevron-left" size={26} color={NAVY} />
         </Pressable>
-        <View style={styles.headerText}>
-          <Text style={styles.headerTitle}>{copy.title}</Text>
-          <Text style={styles.headerSubtitle}>{copy.subtitle}</Text>
-        </View>
-      </View>
+				<View style={styles.headerText}>
+					<Text style={styles.headerTitle}>{copy.title}</Text>
+					<Text style={styles.headerSubtitle}>{copy.subtitle}</Text>
+				</View>
+				<Pressable
+					onPress={() => void shareStore()}
+					style={({ pressed }) => [styles.backBtn, pressed && styles.pressed]}
+					accessibilityRole="button"
+					accessibilityLabel={copy.share}
+				>
+					<MaterialCommunityIcons name="share-variant" size={22} color={NAVY} />
+				</Pressable>
+			</View>
 
       <ScrollView
         contentContainerStyle={styles.content}

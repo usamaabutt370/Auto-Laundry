@@ -12,7 +12,6 @@ import {
   Platform,
   Pressable,
   ScrollView,
-  Share,
   StyleSheet,
   Text,
   useWindowDimensions,
@@ -46,6 +45,7 @@ import {
   serviceCategoriesToTypes,
   type PartnerPublicReview,
 } from "@/lib/partner-discovery";
+import { shareLaundererProfile } from "@/lib/launderer-share-link";
 import { isProviderSaved, toggleSavedProvider } from "@/lib/saved-providers";
 import {
   offeredJobsFromTypes,
@@ -344,9 +344,9 @@ export function LaundererDetailView({
   };
 
   const handleShare = async () => {
-    const message = fill(s.shareMessage, { name: displayName, address });
+    if (!partnerId) return;
     try {
-      await Share.share({ message, title: displayName });
+      await shareLaundererProfile(partnerId, displayName);
     } catch {
       showAppAlert(displayName, s.shareError);
     }

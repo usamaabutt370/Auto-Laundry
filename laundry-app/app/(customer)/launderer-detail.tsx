@@ -89,7 +89,10 @@ export default function LaundererDetailScreen() {
       partnerId={partnerId}
       initialName={params.name}
       intentService={typeof params.service === "string" ? params.service : undefined}
-      onBack={() => router.back()}
+      onBack={() => {
+        if (router.canGoBack()) router.back();
+        else router.replace("/(customer)");
+      }}
       onSelect={handleSelect}
       isModal
       prefersPickupDelivery={prefersPickupDelivery}

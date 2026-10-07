@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Open Tap2Laundry · Tap2Laundry</title>
+    <meta
+      name="description"
+      content="Open this Tap2Laundry laundry profile in the app, or download Tap2Laundry."
+    />
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+      }
+      body {
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        background: #f4f7fb;
+        color: #1b2559;
+      }
+      main {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 48px 24px;
+        text-align: center;
+      }
+      .brand {
+        margin: 0;
+        color: #14536b;
+        font-size: 14px;
+        font-weight: 700;
+      }
+      h1 {
+        margin: 12px 0 0;
+        max-width: 420px;
+        font-size: 28px;
+        line-height: 1.2;
+      }
+      p {
+        margin: 12px 0 0;
+        max-width: 420px;
+        color: #64748b;
+        font-size: 15px;
+        line-height: 1.5;
+      }
+      .actions {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        width: min(100%, 280px);
+        margin-top: 28px;
+      }
+      a {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 48px;
+        padding: 12px 18px;
+        border-radius: 14px;
+        font-size: 16px;
+        font-weight: 700;
+        text-decoration: none;
+        background: #14536b;
+        color: #ffffff;
+      }
+      .secondary {
+        background: #ffffff;
+        color: #1b2559;
+        border: 1px solid #e5e7eb;
+      }
+      .hidden {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <p class="brand">Tap2Laundry</p>
+      <h1 id="title">Opening Tap2Laundry…</h1>
+      <p id="body">If the app does not open, we will take you to the store.</p>
+      <div id="actions" class="actions hidden">
+        <a id="app-store" href="https://apps.apple.com/pk/app/tap2laundry/id6789571411">
+          Download on the App Store
+        </a>
+        <a id="play-store" class="secondary" href="https://play.google.com/store/apps/details?id=com.autolaundry.app">
+          Get it on Google Play
+        </a>
+      </div>
+    </main>
+    <script>
+      (function () {
+        var APP_STORE = "https://apps.apple.com/pk/app/tap2laundry/id6789571411";
+        var PLAY_STORE =
+          "https://play.google.com/store/apps/details?id=com.autolaundry.app";
+        var parts = location.pathname.split("/").filter(Boolean);
+        var fromPath = parts[0] === "l" ? parts[1] : "";
+        var id = new URLSearchParams(location.search).get("id") || fromPath;
+        var valid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+        var title = document.getElementById("title");
+        var body = document.getElementById("body");
+        var actions = document.getElementById("actions");
+        var appStore = document.getElementById("app-store");
+        var playStore = document.getElementById("play-store");
+
+        if (!valid) {
+          title.textContent = "This link is not a laundry profile";
+          body.textContent = "Ask the launderer to share the profile again from the Tap2Laundry app.";
+          return;
+        }
+
+        var appUrl = "laundryapp://l/" + id;
+        var playUrl = PLAY_STORE + "&referrer=" + encodeURIComponent("laundererId=" + id);
+        appStore.href = APP_STORE;
+        playStore.href = playUrl;
+
+        var ua = navigator.userAgent || "";
+        var isIOS = /iPhone|iPad|iPod/i.test(ua);
+        var isAndroid = /Android/i.test(ua);
+
+        function goToStore() {
+          if (isIOS) {
+            location.replace(APP_STORE);
+            return;
+          }
+          if (isAndroid) {
+            location.replace(playUrl);
+            return;
+          }
+          title.textContent = "Download Tap2Laundry";
+          body.textContent = "Open this link on your phone, or download the app below.";
+          actions.classList.remove("hidden");
+        }
+
+        if (!isIOS && !isAndroid) {
+          goToStore();
+          return;
+        }
+
+        // Try the app first. If it is not installed, send the user to the store.
+        var left = false;
+        function markLeft() {
+          left = true;
+        }
+        document.addEventListener("visibilitychange", function () {
+          if (document.hidden) markLeft();
+        });
+        window.addEventListener("pagehide", markLeft);
+        window.addEventListener("blur", markLeft);
+
+        location.href = appUrl;
+        setTimeout(function () {
+          if (!left) goToStore();
+        }, 1200);
+      })();
+    </script>
+  </body>
+</html>

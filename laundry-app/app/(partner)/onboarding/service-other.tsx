@@ -601,9 +601,6 @@ export default function ServiceOtherScreen() {
 
   const renderSheetItemRow = (item: ServiceItemRow) => (
     <View key={item.id} style={styles.pricingRow}>
-      <View style={styles.pricingDrag}>
-        <MaterialCommunityIcons name="drag" size={18} color={UI.muted} />
-      </View>
       <TextInput
         value={item.label}
         onChangeText={(text) =>
@@ -1418,13 +1415,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 6,
     marginBottom: 8,
-  },
-  pricingDrag: {
-    width: 18,
-    flexGrow: 0,
-    flexShrink: 0,
-    alignItems: "center",
-    justifyContent: "center",
   },
   pricingNameInput: {
     flex: 1,
