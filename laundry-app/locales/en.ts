@@ -143,7 +143,11 @@ export const en = {
       trustTitleAccent: "trust",
       trustBody: "Verified providers, on-time service and 100% satisfaction.",
       recommended: "Providers near you",
+      recentlyVisited: "Recently visited",
       seeAll: "See all",
+      seeAllRecent: "All",
+      emptyRecentlyVisited: "You have not visited any service provider yet.",
+      removeRecentlyVisited: "Remove from recently visited",
       deals: "Deals of the day",
       filters: "Filters",
       map: "Map",
@@ -1092,6 +1096,11 @@ export const en = {
         "Add riders in Rider detail before accepting pickup orders.",
       acceptSuccess:
         "The order has been accepted and the rider details were sent in chat.",
+      insufficientCreditsTitle: "Credits required",
+      insufficientCreditsMessage:
+        "You need credits to accept orders. Your balance is {{balance}} and this order needs about {{required}} credits. Recharge to continue.",
+      insufficientCreditsRecharge: "Recharge credits",
+      insufficientCreditsCancel: "Not now",
       listSubtitle: "Manage and track all your orders",
       chipAll: "All",
       chipNew: "New",

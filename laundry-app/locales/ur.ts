@@ -142,7 +142,11 @@ export const ur = {
       trustTitleAccent: "بھروسہ",
       trustBody: "تصدیق شدہ فراہم کنندگان، وقت پر سروس اور 100% اطمینان۔",
       recommended: "آپ کے قریب تجویز کردہ",
+      recentlyVisited: "حال ہی میں دیکھے گئے",
       seeAll: "سب دیکھیں",
+      seeAllRecent: "سب",
+      emptyRecentlyVisited: "آپ نے ابھی تک کسی سروس فراہم کنندہ کو نہیں دیکھا۔",
+      removeRecentlyVisited: "حال ہی میں دیکھے گئے سے ہٹائیں",
       deals: "آج کے ڈیلز",
       filters: "فلٹرز",
       map: "نقشہ",
@@ -1082,6 +1086,11 @@ export const ur = {
       noRidersMessage:
         "پک اپ آرڈرز قبول کرنے سے پہلے رائیڈر کی تفصیل میں رائیڈرز شامل کریں۔",
       acceptSuccess: "آرڈر قبول ہو گیا اور رائیڈر کی تفصیل چیٹ میں بھیج دی گئی۔",
+      insufficientCreditsTitle: "کریڈٹس درکار ہیں",
+      insufficientCreditsMessage:
+        "آرڈر قبول کرنے کے لیے کریڈٹس درکار ہیں۔ آپ کا بیلنس {{balance}} ہے اور اس آرڈر کے لیے تقریباً {{required}} کریڈٹس چاہییں۔ جاری رکھنے کے لیے ریچارج کریں۔",
+      insufficientCreditsRecharge: "کریڈٹس ریچارج کریں",
+      insufficientCreditsCancel: "ابھی نہیں",
       listSubtitle: "اپنے تمام آرڈرز منظم کریں اور ٹریک کریں",
       chipAll: "سب",
       chipNew: "نئے",

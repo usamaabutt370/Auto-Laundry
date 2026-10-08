@@ -15,6 +15,10 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { showAppAlert } from "@/components/app-alert";
 import { AppHeader } from "@/components/app-header";
 import { BlockingLoader } from "@/components/blocking-loader";
+import {
+  alertIfInsufficientCreditsError,
+  ensurePartnerCreditsForAccept,
+} from "@/components/partner-insufficient-credits-alert";
 import { PartnerRiderPickerModal } from "@/components/partner-rider-picker-modal";
 import { theme, UI } from "@/constants/theme";
 import { getOrderDetail, type DemoOrderDetail } from "@/data/demo-order-details";
@@ -128,6 +132,18 @@ export default function PartnerOrderDetailScreen() {
   const { user } = useAuth();
   const s = getStrings(locale).partner.order;
   const commonStrings = getStrings(locale).common;
+  const profileCopy = getStrings(locale).partner.profileScreen;
+  const insufficientCreditsCopy = {
+    title: s.insufficientCreditsTitle,
+    message: s.insufficientCreditsMessage,
+    recharge: s.insufficientCreditsRecharge,
+    cancel: s.insufficientCreditsCancel,
+    whatsappError: profileCopy.whatsappError,
+  };
+  const partnerDisplayName =
+    typeof user?.user_metadata?.full_name === "string" && user.user_metadata.full_name.trim()
+      ? user.user_metadata.full_name.trim()
+      : "Partner";
   const [isConfirming, setIsConfirming] = useState(false);
   const [isRejecting, setIsRejecting] = useState(false);
   const [liveDetail, setLiveDetail] = useState<PartnerOrderDetailData | null>(null);
@@ -215,6 +231,22 @@ export default function PartnerOrderDetailScreen() {
       return;
     }
 
+    const orderAmount = Number(String(liveDetail?.estimatedTotal ?? "0").replace(/[^\d.]/g, "") || 0);
+    try {
+      const allowed = await ensurePartnerCreditsForAccept({
+        orderAmount: Number.isFinite(orderAmount) ? orderAmount : 0,
+        partnerName: partnerDisplayName,
+        copy: insufficientCreditsCopy,
+      });
+      if (!allowed) return;
+    } catch (error) {
+      showAppAlert(
+        "Unable to accept order",
+        error instanceof Error ? error.message : "Please try again.",
+      );
+      return;
+    }
+
     if (!partnerOrderDetailNeedsRider(pickup)) {
       void handleOrderAction("accepted");
       return;
@@ -289,6 +321,14 @@ export default function PartnerOrderDetailScreen() {
       ]);
     } catch (error) {
       setIsConfirming(false);
+      if (
+        alertIfInsufficientCreditsError(error, {
+          copy: insufficientCreditsCopy,
+          partnerName: partnerDisplayName,
+        })
+      ) {
+        return;
+      }
       showAppAlert(
         "Unable to accept order",
         error instanceof Error ? error.message : "Please try again.",
@@ -373,6 +413,15 @@ export default function PartnerOrderDetailScreen() {
     } catch (error) {
       setIsConfirming(false);
       setIsRejecting(false);
+      if (
+        (target === "accepted" || target === "completed") &&
+        alertIfInsufficientCreditsError(error, {
+          copy: insufficientCreditsCopy,
+          partnerName: partnerDisplayName,
+        })
+      ) {
+        return;
+      }
       const actionLabel =
         target === "accepted"
           ? "accept"

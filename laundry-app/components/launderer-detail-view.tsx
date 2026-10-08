@@ -46,6 +46,7 @@ import {
   type PartnerPublicReview,
 } from "@/lib/partner-discovery";
 import { shareLaundererProfile } from "@/lib/launderer-share-link";
+import { recordRecentProviderVisit } from "@/lib/recent-providers";
 import { isProviderSaved, toggleSavedProvider } from "@/lib/saved-providers";
 import {
   offeredJobsFromTypes,
@@ -232,7 +233,13 @@ export function LaundererDetailView({
     setReviews(reviewRows);
     setFavorited(saved);
     setLoading(false);
-  }, [partnerId]);
+    if (p?.id) {
+      void recordRecentProviderVisit(
+        p.id,
+        prefersPickupDelivery ? "pickupDelivery" : "dropoff",
+      );
+    }
+  }, [partnerId, prefersPickupDelivery]);
 
   useEffect(() => {
     load();
