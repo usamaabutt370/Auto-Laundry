@@ -14,7 +14,10 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { showAppAlert } from "@/components/app-alert";
-import { PartnerNameWithBadge } from "@/components/partner-name-with-badge";
+import {
+  buildPartnerBusinessIdentityMeta,
+  PartnerBusinessIdentity,
+} from "@/components/partner-business-identity";
 import { SignInRequiredModal } from "@/components/sign-in-required-modal";
 import { AppCtaButton } from "@/components/ui/cta-button";
 import { GradientLoader } from "@/components/ui/gradient-loader";
@@ -27,7 +30,6 @@ import {
 import { useLocale } from "@/contexts/locale-context";
 import { usePartnerOrderEstimate } from "@/hooks/use-partner-order-estimate";
 import { usePartnerVerified } from "@/hooks/use-partner-verified";
-import { avatarUrlWithCacheBuster } from "@/lib/avatar";
 import { updateCustomerOrder } from "@/lib/customer-order-edit";
 import { submitCustomerOrder } from "@/lib/customer-order-submit";
 import { imageForServiceItem } from "@/lib/service-item-images";
@@ -37,7 +39,6 @@ import { getStrings } from "@/locales";
 import { getDeviceCoordinates } from "@/utils/device-location";
 import { formatMoney } from "@/utils/format-money";
 import type { Coordinates } from "@/utils/geocoding";
-import { getPartnerHoursRange, getPartnerOpenStatus } from "@/utils/partner-hours";
 import { runAfterModalTeardown } from "@/utils/run-after-modal-teardown";
 import { requestLaundererCollectFocus } from "@/utils/launderer-detail-focus";
 import {
@@ -79,11 +80,6 @@ function distanceKm(from: Coordinates, to: Coordinates) {
       Math.cos(toRadians(to.latitude)) *
       Math.sin(dLon / 2) ** 2;
   return 2 * earthRadiusKm * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
-
-function formatKm(km: number) {
-  if (km < 1) return `${Math.max(0.1, km).toFixed(1)} km`;
-  return `${km.toFixed(1)} km`;
 }
 
 function parseQty(label: string) {
@@ -314,26 +310,20 @@ export default function OrderSummaryScreen() {
         : "—";
 
   const partnerName = profile?.business_name?.trim() || draft.partnerName || "";
-  const partnerImage =
-    (Array.isArray(profile?.business_images)
-      ? profile.business_images.find((item): item is string => typeof item === "string" && item.trim().length > 0)
-      : null) || avatarUrlWithCacheBuster(profile?.image_url, profile?.updated_at);
-  const openStatus = getPartnerOpenStatus(profile?.available_time);
-  const hours = getPartnerHoursRange(profile?.available_time);
   const partnerCoords =
     profile && Number.isFinite(profile.latitude) && Number.isFinite(profile.longitude)
       ? { latitude: Number(profile.latitude), longitude: Number(profile.longitude) }
       : null;
-  const distanceLabel =
-    userCoords && partnerCoords ? formatKm(distanceKm(userCoords, partnerCoords)) : null;
-  const ratingAvg = profile?.ratingAvg;
-  const ratingCount = profile?.ratingCount ?? 0;
-  const ratingLabel =
-    ratingAvg != null && Number.isFinite(ratingAvg)
-      ? Number.isInteger(ratingAvg)
-        ? String(ratingAvg)
-        : ratingAvg.toFixed(1)
-      : null;
+  const km =
+    userCoords && partnerCoords ? distanceKm(userCoords, partnerCoords) : null;
+  const sDetail = getStrings(locale).customer.laundererDetail;
+  const identityMeta = buildPartnerBusinessIdentityMeta({
+    copy: sDetail,
+    ratingAvg: profile?.ratingAvg ?? null,
+    ratingCount: profile?.ratingCount ?? 0,
+    distanceKm: km,
+    availableTime: profile?.available_time,
+  });
 
   const combinedNotes = useMemo(() => {
     const chunks = [
@@ -570,75 +560,17 @@ export default function OrderSummaryScreen() {
             {isEditing ? <Text style={styles.lockedPartnerNote}>{s.lockedLaundererNote}</Text> : null}
 
             <View style={styles.card}>
-              <View style={styles.providerRow}>
-                {partnerImage ? (
-                  <Image
-                    source={{ uri: partnerImage }}
-                    style={[
-                      styles.providerImage,
-                      isNarrow && styles.providerImageNarrow,
-                    ]}
-                    contentFit="cover"
-                  />
-                ) : (
-                  <View
-                    style={[
-                      styles.providerImage,
-                      isNarrow && styles.providerImageNarrow,
-                      styles.providerImageFallback,
-                    ]}
-                  />
-                )}
-                <View style={styles.providerCopy}>
-                  <PartnerNameWithBadge
-                    name={partnerName}
-                    verified={partnerVerified}
-                    nameStyle={styles.providerName}
-                    badgeSize={14}
-                  />
-                  <View style={styles.metaRow}>
-                    {ratingLabel ? (
-                      <>
-                        <MaterialCommunityIcons name="star" size={13} color="#F5B301" />
-                        <Text style={styles.metaStrong}>{ratingLabel}</Text>
-                        {ratingCount > 0 ? (
-                          <Text style={styles.metaMuted}>{fill(s.reviewsCount, { count: ratingCount })}</Text>
-                        ) : null}
-                        <Text style={styles.metaDot}>•</Text>
-                      </>
-                    ) : null}
-                    <Text
-                      style={[
-                        styles.openText,
-                        openStatus === "closed" && styles.closedText,
-                        openStatus === "unknown" && styles.metaMuted,
-                      ]}
-                    >
-                      {openStatus === "open" ? s.openNow : openStatus === "closed" ? s.closedNow : ""}
-                    </Text>
-                    {hours?.endLabel ? (
-                      <Text style={styles.metaMuted}>
-                        {" "}
-                        {fill(openStatus === "closed" ? s.opensAt : s.closesAt, { time: hours.endLabel })}
-                      </Text>
-                    ) : null}
-                  </View>
-                  <View style={styles.providerFooter}>
-                    {distanceLabel ? (
-                      <View style={styles.metaRow}>
-                        <MaterialCommunityIcons name="map-marker-outline" size={14} color={UI.purple} />
-                        <Text style={styles.metaMuted}>{distanceLabel}</Text>
-                      </View>
-                    ) : (
-                      <View />
-                    )}
-                    <Pressable onPress={() => openShop()} hitSlop={8} style={styles.inlineLink}>
-                      <Text style={styles.inlineLinkText}>{s.viewProvider}</Text>
-                      <MaterialCommunityIcons name="chevron-right" size={16} color={UI.purple} />
-                    </Pressable>
-                  </View>
-                </View>
-              </View>
+              <PartnerBusinessIdentity
+                name={partnerName || "—"}
+                verified={partnerVerified}
+                ratingLabel={identityMeta.ratingLabel}
+                reviewsLabel={identityMeta.reviewsLabel}
+                distanceLabel={identityMeta.distanceLabel}
+                openStatus={identityMeta.openStatus}
+                openLabel={identityMeta.openLabel}
+                hoursHint={identityMeta.hoursHint}
+                onPress={() => openShop()}
+              />
             </View>
 
             <View style={styles.card}>

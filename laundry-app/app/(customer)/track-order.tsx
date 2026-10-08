@@ -18,7 +18,10 @@ import {
 } from "react-native-safe-area-context";
 
 import { showAppAlert } from "@/components/app-alert";
-import { PartnerNameWithBadge } from "@/components/partner-name-with-badge";
+import {
+  buildPartnerBusinessIdentityMeta,
+  PartnerBusinessIdentity,
+} from "@/components/partner-business-identity";
 import { AppCtaButton } from "@/components/ui/cta-button";
 import { GradientLoader, APP_LOADER_TINT } from "@/components/ui/gradient-loader";
 import { useAuth } from "@/contexts/auth-context";
@@ -34,7 +37,6 @@ import { imageForServiceItem } from "@/lib/service-item-images";
 import { getStrings } from "@/locales";
 import { getDeviceCoordinates } from "@/utils/device-location";
 import type { Coordinates } from "@/utils/geocoding";
-import { getPartnerOpenStatus } from "@/utils/partner-hours";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 
 type TrackStepKey = "sent" | "confirmed" | "picked" | "onWay" | "completed";
@@ -107,11 +109,6 @@ function distanceKm(from: Coordinates, to: Coordinates) {
       Math.cos(toRadians(to.latitude)) *
       Math.sin(dLon / 2) ** 2;
   return 2 * earthRadiusKm * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
-
-function formatKm(km: number) {
-  if (km < 1) return `${Math.max(0.1, km).toFixed(1)} km`;
-  return `${km.toFixed(1)} km`;
 }
 
 function parseAddOns(instructions: string) {
@@ -190,29 +187,33 @@ export default function TrackOrderScreen() {
   const isTerminalBad =
     order?.rawStatus === "rejected" || order?.rawStatus === "cancelled";
 
-  const openStatus = getPartnerOpenStatus(order?.partnerAvailableTime);
-  const ratingLabel =
-    order?.partnerRatingAvg != null && order.partnerRatingCount > 0
-      ? Number.isInteger(order.partnerRatingAvg)
-        ? String(order.partnerRatingAvg)
-        : order.partnerRatingAvg.toFixed(1)
-      : null;
-
-  const distanceLabel = useMemo(() => {
-    if (
-      !userCoords ||
-      order?.partnerLatitude == null ||
-      order?.partnerLongitude == null
-    ) {
-      return null;
-    }
-    return formatKm(
-      distanceKm(userCoords, {
-        latitude: order.partnerLatitude,
-        longitude: order.partnerLongitude,
-      }),
-    );
-  }, [order?.partnerLatitude, order?.partnerLongitude, userCoords]);
+  const identityMeta = useMemo(() => {
+    const copy = getStrings(locale).customer.laundererDetail;
+    const km =
+      userCoords &&
+      order?.partnerLatitude != null &&
+      order?.partnerLongitude != null
+        ? distanceKm(userCoords, {
+            latitude: order.partnerLatitude,
+            longitude: order.partnerLongitude,
+          })
+        : null;
+    return buildPartnerBusinessIdentityMeta({
+      copy,
+      ratingAvg: order?.partnerRatingAvg ?? null,
+      ratingCount: order?.partnerRatingCount ?? 0,
+      distanceKm: km,
+      availableTime: order?.partnerAvailableTime,
+    });
+  }, [
+    locale,
+    order?.partnerAvailableTime,
+    order?.partnerLatitude,
+    order?.partnerLongitude,
+    order?.partnerRatingAvg,
+    order?.partnerRatingCount,
+    userCoords,
+  ]);
 
   const statusBadge = useMemo(() => {
     if (!order) return { label: "", icon: "clock-outline" as const };
@@ -383,84 +384,17 @@ export default function TrackOrderScreen() {
             }
           >
             <View style={styles.card}>
-              <View style={styles.providerRow}>
-                {order.partnerImageUrl ? (
-                  <Image
-                    source={{ uri: order.partnerImageUrl }}
-                    style={[styles.providerImage, isNarrow && styles.providerImageNarrow]}
-                    contentFit="cover"
-                  />
-                ) : (
-                  <View
-                    style={[
-                      styles.providerImage,
-                      isNarrow && styles.providerImageNarrow,
-                      styles.providerImageFallback,
-                    ]}
-                  >
-                    <MaterialCommunityIcons
-                      name="storefront-outline"
-                      size={isNarrow ? 18 : 22}
-                      color={UI.muted}
-                    />
-                  </View>
-                )}
-                <View style={styles.providerCopy}>
-                  <PartnerNameWithBadge
-                    name={order.partnerName}
-                    verified={order.partnerVerified}
-                    nameStyle={styles.providerName}
-                  />
-                  <View style={styles.metaRow}>
-                    {ratingLabel ? (
-                      <>
-                        <MaterialCommunityIcons name="star" size={13} color={UI.star} />
-                        <Text style={styles.metaStrong}>{ratingLabel}</Text>
-                        <Text style={styles.metaMuted}>
-                          {fill(s.reviewsCount, { count: order.partnerRatingCount })}
-                        </Text>
-                        {distanceLabel ? <Text style={styles.metaDot}>•</Text> : null}
-                      </>
-                    ) : null}
-                    {distanceLabel ? (
-                      <>
-                        <MaterialCommunityIcons name="map-marker-outline" size={13} color={UI.muted} />
-                        <Text style={styles.metaMuted}>{distanceLabel}</Text>
-                      </>
-                    ) : null}
-                  </View>
-                  <View style={styles.metaRow}>
-                    {openStatus === "open" || openStatus === "closed" ? (
-                      <>
-                        <Text
-                          style={[
-                            styles.openText,
-                            openStatus === "closed" && styles.closedText,
-                          ]}
-                        >
-                          {openStatus === "open" ? s.openNow : s.closedNow}
-                        </Text>
-                        <Text style={styles.metaDot}>·</Text>
-                      </>
-                    ) : null}
-                    <Text style={styles.metaMuted} numberOfLines={1}>
-                      {s.usuallyConfirms}
-                    </Text>
-                  </View>
-                  {isNarrow ? (
-                    <Pressable onPress={openProvider} style={styles.viewProviderBtnInline} hitSlop={8}>
-                      <Text style={styles.viewProviderText}>{s.viewProvider}</Text>
-                      <MaterialCommunityIcons name="chevron-right" size={16} color={UI.purple} />
-                    </Pressable>
-                  ) : null}
-                </View>
-                {!isNarrow ? (
-                  <Pressable onPress={openProvider} style={styles.viewProviderBtn} hitSlop={8}>
-                    <Text style={styles.viewProviderText}>{s.viewProvider}</Text>
-                    <MaterialCommunityIcons name="chevron-right" size={16} color={UI.purple} />
-                  </Pressable>
-                ) : null}
-              </View>
+              <PartnerBusinessIdentity
+                name={order.partnerName}
+                verified={order.partnerVerified}
+                ratingLabel={identityMeta.ratingLabel}
+                reviewsLabel={identityMeta.reviewsLabel}
+                distanceLabel={identityMeta.distanceLabel}
+                openStatus={identityMeta.openStatus}
+                openLabel={identityMeta.openLabel}
+                hoursHint={identityMeta.hoursHint}
+                onPress={openProvider}
+              />
 
               <View style={styles.providerActions}>
                 <Pressable

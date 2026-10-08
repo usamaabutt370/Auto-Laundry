@@ -41,7 +41,19 @@ export default function CustomerLayout() {
               : {}
           }
         />
-        <Stack.Screen name="launderer-detail" />
+        <Stack.Screen
+          name="launderer-detail"
+          options={({ route }) =>
+            (route.params as { presentation?: string } | undefined)?.presentation === "modal"
+              ? {
+                  presentation: "modal",
+                  animation: "slide_from_bottom",
+                  gestureEnabled: true,
+                  headerShown: false,
+                }
+              : {}
+          }
+        />
         <Stack.Screen
           name="book-service"
           options={{
@@ -90,7 +102,14 @@ export default function CustomerLayout() {
           }}
         />
         <Stack.Screen name="order-detail" />
-        <Stack.Screen name="track-order" />
+        <Stack.Screen
+          name="track-order"
+          options={{
+            // Allow pushing over order-confirmation so Back returns to that modal.
+            animation: "slide_from_right",
+            headerShown: false,
+          }}
+        />
         <Stack.Screen name="chat/[orderId]" />
       </Stack>
     </WebAreaShell>
