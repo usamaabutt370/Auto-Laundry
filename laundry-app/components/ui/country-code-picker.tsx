@@ -1,22 +1,14 @@
-import { theme } from "@/constants/theme";
-import React, { useMemo, useState } from "react";
-import {
-  Platform,
-  Pressable,
-  StatusBar,
-  StyleSheet,
-  Text,
-  View,
-  type TextStyle,
-  type ViewStyle,
-} from "react-native";
+import { theme, UI } from "@/constants/theme";
+import { flagEmojiFromCca2 } from "@/utils/flag-emoji";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import React, { useState } from "react";
+import { Pressable, StyleSheet, Text } from "react-native";
 import type { CountryCode as PhoneCountryCode } from "libphonenumber-js";
 import CountryPicker, {
   type Country,
   type CountryCode as PickerCountryCode,
   DARK_THEME,
 } from "react-native-country-picker-modal";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export interface SelectedCountry {
   callingCode: string;
@@ -30,8 +22,6 @@ interface CountryCodePickerProps {
   appearance?: "dark" | "light";
 }
 
-const HEADER_ROW_HEIGHT = 48;
-
 export function CountryCodePicker({
   selectedCca2,
   selectedCallingCode,
@@ -39,33 +29,7 @@ export function CountryCodePicker({
   appearance = "dark",
 }: CountryCodePickerProps) {
   const [isVisible, setIsVisible] = useState(false);
-  const insets = useSafeAreaInsets();
   const light = appearance === "light";
-
-  const headerTopInset = Math.max(
-    insets.top,
-    Platform.OS === "android" ? (StatusBar.currentHeight ?? 0) : 0,
-    Platform.OS === "android" ? 12 : 0,
-  );
-
-  const modalHeaderStyles = useMemo(
-    () => ({
-      closeButton: {
-        marginTop: headerTopInset,
-        height: HEADER_ROW_HEIGHT,
-        justifyContent: "center" as const,
-      } satisfies ViewStyle,
-      filter: {
-        marginTop: headerTopInset,
-        height: HEADER_ROW_HEIGHT,
-        flex: 1,
-        width: "100%" as const,
-        marginRight: 16,
-        paddingHorizontal: 4,
-      } satisfies TextStyle,
-    }),
-    [headerTopInset],
-  );
 
   const handleSelect = (country: Country) => {
     onSelect({
@@ -80,13 +44,18 @@ export function CountryCodePicker({
       <Pressable
         onPress={() => setIsVisible(true)}
         style={({ pressed }) => [styles.container, pressed && styles.pressed]}
+        accessibilityRole="button"
+        accessibilityLabel={`Country code +${selectedCallingCode}`}
       >
-        <Text style={[styles.flagPlaceholder, light && styles.flagPlaceholderLight]}>
-          {selectedCca2}
-        </Text>
+        <Text style={styles.flagEmoji}>{flagEmojiFromCca2(selectedCca2)}</Text>
         <Text style={[styles.callingCodeText, light && styles.callingCodeTextLight]}>
           +{selectedCallingCode}
         </Text>
+        <MaterialCommunityIcons
+          name="chevron-down"
+          size={16}
+          color={light ? UI.muted : "rgba(255,255,255,0.75)"}
+        />
       </Pressable>
       {isVisible ? (
         <CountryPicker
@@ -99,9 +68,9 @@ export function CountryCodePicker({
           onClose={() => setIsVisible(false)}
           visible
           renderFlagButton={() => null}
-          closeButtonStyle={modalHeaderStyles.closeButton}
+          closeButtonStyle={styles.closeButton}
           closeButtonImageStyle={styles.closeButtonImage}
-          filterProps={{ style: modalHeaderStyles.filter }}
+          filterProps={{ style: styles.filter }}
           modalProps={{
             statusBarTranslucent: false,
           }}
@@ -129,24 +98,28 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: "row",
     alignItems: "center",
-    height: "100%",
+    gap: 4,
+    paddingRight: 2,
   },
-  pickerButton: {
-    marginRight: 4,
+  flagEmoji: {
+    fontSize: 18,
+    lineHeight: 22,
+    marginRight: 6,
   },
-  flagPlaceholder: {
-    color: theme.colors.white,
-    fontSize: 13,
-    fontWeight: "700",
-    minWidth: 28,
-    marginRight: 4,
-  },
-  flagPlaceholderLight: {
-    color: "#111827",
+  closeButton: {
+    height: 48,
+    justifyContent: "center",
   },
   closeButtonImage: {
     height: 22,
     width: 22,
+  },
+  filter: {
+    height: 48,
+    flex: 1,
+    width: "100%",
+    marginRight: 16,
+    paddingHorizontal: 4,
   },
   callingCodeText: {
     color: theme.colors.white,
@@ -154,7 +127,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   callingCodeTextLight: {
-    color: "#111827",
+    color: UI.text,
   },
   pressed: {
     opacity: 0.7,

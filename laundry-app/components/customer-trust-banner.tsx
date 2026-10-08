@@ -1,7 +1,7 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { theme } from "@/constants/theme";
+import { theme, UI } from "@/constants/theme";
 import { useLocale } from "@/contexts/locale-context";
 import { getStrings } from "@/locales";
 
@@ -29,7 +29,7 @@ export function CustomerTrustBanner({
       <MaterialCommunityIcons
         name="shield-check"
         size={20}
-        color={light ? "#12B886" : c.outline}
+        color={light ? UI.teal : c.outline}
         style={styles.icon}
       />
       <Text style={[styles.text, light && styles.textLight]}>{message}</Text>
@@ -82,11 +82,11 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   bannerLight: {
-    borderColor: "#A7F3D0",
-    backgroundColor: "#ECFDF5",
+    borderColor: UI.openBg,
+    backgroundColor: UI.openBg,
   },
   textLight: {
-    color: "#047857",
+    color: UI.openText,
     fontFamily: "Poppins-Regular",
   },
 });

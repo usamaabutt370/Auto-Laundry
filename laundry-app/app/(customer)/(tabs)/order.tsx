@@ -1,10 +1,10 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { useIsFocused } from "@react-navigation/native";
 import { StatusBar } from "expo-status-bar";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  ActivityIndicator,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -20,10 +20,10 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { showAppAlert } from "@/components/app-alert";
 import { AppHeader } from "@/components/app-header";
+import { CustomerOrderCard } from "@/components/customer-order-card";
 import { GuestSignInPrompt } from "@/components/guest-sign-in-prompt";
 import { WebHeaderSpacer } from "@/components/web-header-spacer";
-import { useConfirmDialog } from "@/components/confirm-dialog";
-import { PartnerNameWithBadge } from "@/components/partner-name-with-badge";
+import { GradientLoader, APP_LOADER_TINT } from "@/components/ui/gradient-loader";
 import { useAuth } from "@/contexts/auth-context";
 import { useLocale } from "@/contexts/locale-context";
 import { useCustomerOrders } from "@/hooks/use-customer-orders";
@@ -32,44 +32,26 @@ import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import {
   findOrdersMissingFeedback,
   submitCustomerOrderFeedback,
-  type CustomerOrderDisplayStatus,
   type CustomerOrderFeedbackType,
+  type CustomerOrderListItem,
 } from "@/lib/customer-orders";
 import { getStrings } from "@/locales";
-import { theme } from "@/constants/theme";
+import { gradients, theme, UI } from "@/constants/theme";
 
-const UI = {
-  bg: "#F7F8FA",
-  card: "#FFFFFF",
-  text: "#111827",
-  muted: "#6B7280",
-  teal: "#12B886",
-  chipBorder: "#E5E7EB",
-  openBg: "#ECFDF5",
-  openText: "#047857",
-  amber: "#D97706",
-  amberBg: "#FEF3C7",
-  red: "#B91C1C",
-  redBg: "#FEE2E2",
-  iconWell: "#F3F4F6",
-  shadow: "rgba(17, 24, 39, 0.08)",
-};
 const fs = theme.fontSize;
 const PAD = 16;
 
-function statusLabelKey(
-  display: CustomerOrderDisplayStatus,
-): "statusPending" | "statusAccepted" | "statusRejected" | "statusCompleted" {
-  switch (display) {
-    case "pending":
-      return "statusPending";
-    case "accepted":
-      return "statusAccepted";
-    case "rejected":
-      return "statusRejected";
-    case "completed":
-      return "statusCompleted";
+type OrderFilter = "all" | "active" | "completed" | "cancelled";
+
+/** Active = partner has accepted (accepted / in_progress / ready). Pending stays under All only. */
+function orderMatchesFilter(order: CustomerOrderListItem, filter: OrderFilter): boolean {
+  if (filter === "all") return true;
+  if (filter === "completed") return order.displayStatus === "completed";
+  if (filter === "cancelled") {
+    return order.displayStatus === "rejected" || order.rawStatus === "cancelled";
   }
+  // active (accepted)
+  return order.displayStatus === "accepted";
 }
 
 /**
@@ -84,8 +66,7 @@ export default function CustomerOrderScreen() {
   const { user } = useAuth();
   const { locale } = useLocale();
   const s = getStrings(locale).customer.ordersTab;
-  const { orders, loading, error, refresh, deleteOrder } = useCustomerOrders(user?.id);
-  const { confirm, dialog } = useConfirmDialog();
+  const { orders, loading, error, refresh } = useCustomerOrders(user?.id);
   const { isWeb } = useResponsiveLayout();
   useSuppressWebScreenHeader();
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -96,6 +77,38 @@ export default function CustomerOrderScreen() {
   const [feedbackType, setFeedbackType] = useState<CustomerOrderFeedbackType>("feedback");
   const [feedbackMessage, setFeedbackMessage] = useState("");
   const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
+  const [filter, setFilter] = useState<OrderFilter>("all");
+
+  const filterCounts = useMemo(() => {
+    let active = 0;
+    let completed = 0;
+    let cancelled = 0;
+    for (const order of orders) {
+      if (order.displayStatus === "completed") completed += 1;
+      else if (order.displayStatus === "rejected" || order.rawStatus === "cancelled") {
+        cancelled += 1;
+      } else if (order.displayStatus === "accepted") {
+        active += 1;
+      }
+    }
+    return { all: orders.length, active, completed, cancelled };
+  }, [orders]);
+
+  const filteredOrders = useMemo(
+    () => orders.filter((order) => orderMatchesFilter(order, filter)),
+    [filter, orders],
+  );
+
+  const filterTabs = useMemo(
+    () =>
+      [
+        { id: "all" as const, label: s.filterAll, count: filterCounts.all },
+        { id: "active" as const, label: s.filterActive, count: filterCounts.active },
+        { id: "completed" as const, label: s.filterCompleted, count: filterCounts.completed },
+        { id: "cancelled" as const, label: s.filterCancelled, count: filterCounts.cancelled },
+      ] as const,
+    [filterCounts, s.filterActive, s.filterAll, s.filterCancelled, s.filterCompleted],
+  );
 
   const onRefresh = useCallback(() => {
     void (async () => {
@@ -107,60 +120,6 @@ export default function CustomerOrderScreen() {
       }
     })();
   }, [refresh]);
-
-  const confirmDelete = useCallback(
-    async (orderId: string) => {
-      const ok = await confirm({
-        title: s.deleteTitle,
-        message: s.deleteMessage,
-        confirmLabel: s.deleteAction,
-        cancelLabel: s.cancel,
-        destructive: true,
-      });
-      if (!ok) return;
-      try {
-        await deleteOrder(orderId);
-      } catch (e) {
-        showAppAlert(s.deleteError, e instanceof Error ? e.message : String(e));
-      }
-    },
-    [confirm, deleteOrder, s.cancel, s.deleteAction, s.deleteError, s.deleteMessage, s.deleteTitle],
-  );
-
-  const handleReorder = useCallback(
-    (orderId: string, fulfillmentMode: "dropoff" | "pickupDelivery") => {
-      router.push({
-        pathname: "/(customer)/pick-launderer",
-        params: {
-          reorderOrderId: orderId,
-          mode: fulfillmentMode,
-        },
-      });
-    },
-    [router],
-  );
-
-  const statusStyles = useMemo(
-    () => ({
-      pending: {
-        backgroundColor: UI.amberBg,
-        color: UI.amber,
-      },
-      accepted: {
-        backgroundColor: UI.openBg,
-        color: UI.openText,
-      },
-      rejected: {
-        backgroundColor: UI.redBg,
-        color: UI.red,
-      },
-      completed: {
-        backgroundColor: UI.openBg,
-        color: UI.openText,
-      },
-    }),
-    [],
-  );
 
   useEffect(() => {
     if (!isFocused || !user?.id || orders.length === 0) return;
@@ -259,15 +218,19 @@ export default function CustomerOrderScreen() {
   return (
     <View style={styles.container}>
       <StatusBar style="dark" />
-      {dialog}
       {!isWeb ? (
         <SafeAreaView style={styles.safeTop} edges={["top"]}>
-          <AppHeader appearance="light" title={s.title} />
+          <AppHeader
+            appearance="light"
+            title={s.title}
+            subtitle={user?.id ? s.liveHint : null}
+            titleAlign="left"
+            titleStyle={styles.screenTitle}
+          />
         </SafeAreaView>
       ) : (
         <WebHeaderSpacer />
       )}
-      {!isWeb && user?.id ? <Text style={styles.hint}>{s.liveHint}</Text> : null}
       {!user?.id ? (
         <GuestSignInPrompt
           appearance="light"
@@ -284,7 +247,7 @@ export default function CustomerOrderScreen() {
         />
       ) : loading && orders.length === 0 ? (
         <View style={styles.center}>
-          <ActivityIndicator color={UI.teal} />
+          <GradientLoader />
           <Text style={styles.muted}>{s.loading}</Text>
         </View>
       ) : error ? (
@@ -305,181 +268,123 @@ export default function CustomerOrderScreen() {
           <Text style={styles.muted}>{s.empty}</Text>
         </View>
       ) : (
-        <ScrollView
-          style={styles.scroll}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl
-              refreshing={isRefreshing}
-              onRefresh={onRefresh}
-              tintColor={UI.teal}
-              colors={[UI.teal]}
-              progressBackgroundColor={UI.card}
-              progressViewOffset={8}
-            />
-          }
-        >
-          {orders.map((order) => {
-            const st = statusStyles[order.displayStatus];
-            const label = s[statusLabelKey(order.displayStatus)];
-            const metaItems: {
-              label: string;
-              value: string;
-              fullWidth?: boolean;
-              valueLines?: number;
-            }[] = [
-                {
-                  label: s.services,
-                  value: order.servicesSummary || s.servicesNone,
-                  valueLines: 2,
-                },
-              ];
-            if (order.placedAtIso) {
-              metaItems.push({
-                label: s.placed,
-                value: new Date(order.placedAtIso).toLocaleDateString(
-                  locale === "ur" ? "ur-PK" : "en-US",
-                  {
-                    month: "short",
-                    day: "numeric",
-                    year: "numeric",
-                  },
-                ),
-              });
-            }
-            if (order.pickupFeeLabel) {
-              metaItems.push({
-                label: s.pickupFee,
-                value: order.pickupFeeLabel,
-              });
-            }
-            if (order.notesPreview) {
-              metaItems.push({
-                label: s.notes,
-                value: order.notesPreview,
-                fullWidth: true,
-                valueLines: 2,
-              });
-            }
-            if (order.displayStatus === "rejected" && order.rejectionReasonOption) {
-              const rejectionText = order.rejectionReasonDetails
-                ? `${order.rejectionReasonOption} - ${order.rejectionReasonDetails}`
-                : order.rejectionReasonOption;
-              metaItems.push({
-                label: "Rejection",
-                value: rejectionText,
-                fullWidth: true,
-                valueLines: 3,
-              });
-            }
-            const orderCard = (
+        <>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.filterScroll}
+            contentContainerStyle={styles.filterRow}
+          >
+            {filterTabs.map((tab) => {
+              const selected = filter === tab.id;
+              const label = `${tab.label} (${tab.count})`;
+              return (
                 <Pressable
-                  onPress={() =>
+                  key={tab.id}
+                  onPress={() => setFilter(tab.id)}
+                  style={[styles.filterChipWrap, selected && styles.filterChipWrapSelected]}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected }}
+                  accessibilityLabel={label}
+                >
+                  {selected ? (
+                    <LinearGradient
+                      colors={[...gradients.cta]}
+                      start={{ x: 0, y: 0.5 }}
+                      end={{ x: 1, y: 0.5 }}
+                      style={styles.filterChip}
+                    >
+                      <Text style={styles.filterChipTextSelected}>{label}</Text>
+                    </LinearGradient>
+                  ) : (
+                    <View style={styles.filterChip}>
+                      <Text style={styles.filterChipText}>{label}</Text>
+                    </View>
+                  )}
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+
+          {filteredOrders.length === 0 ? (
+            <View style={styles.center}>
+              <Text style={styles.muted}>
+                {filter === "all"
+                  ? s.emptyAll
+                  : filter === "active"
+                    ? s.emptyActive
+                    : filter === "completed"
+                      ? s.emptyCompleted
+                      : s.emptyCancelled}
+              </Text>
+            </View>
+          ) : (
+            <ScrollView
+              style={styles.scroll}
+              contentContainerStyle={styles.scrollContent}
+              showsVerticalScrollIndicator={false}
+              refreshControl={
+                <RefreshControl
+                  refreshing={isRefreshing}
+                  onRefresh={onRefresh}
+                  tintColor={APP_LOADER_TINT}
+                  colors={[APP_LOADER_TINT]}
+                  progressBackgroundColor={UI.card}
+                  progressViewOffset={8}
+                />
+              }
+            >
+              {filteredOrders.map((order) => (
+                <CustomerOrderCard
+                  key={order.id}
+                  order={order}
+                  strings={{
+                    orderRef: s.orderRef,
+                    estTotal: s.estTotal,
+                    schedulePending: s.schedulePending,
+                    servicesNone: s.servicesNone,
+                    yourServices: s.yourServices,
+                    statusPending: s.statusPending,
+                    statusAccepted: s.statusAccepted,
+                    statusRejected: s.statusRejected,
+                    statusCompleted: s.statusCompleted,
+                    statusWaiting: s.statusWaiting,
+                    statusInProgress: s.statusInProgress,
+                    statusReady: s.statusReady,
+                    chatProvider: s.chatProvider,
+                    trackOrder: s.trackOrder,
+                    addOns: s.addOns,
+                    addOnOne: s.addOnOne,
+                    stepSent: s.stepSent,
+                    stepConfirmed: s.stepConfirmed,
+                    stepPickedUp: s.stepPickedUp,
+                    stepOnTheWay: s.stepOnTheWay,
+                    stepCompleted: s.stepCompleted,
+                    reviewsCount: s.reviewsCount,
+                  }}
+                  onOpenDetail={() =>
                     router.push({
                       pathname: "/(customer)/order-detail",
                       params: { orderId: order.id },
                     })
                   }
-                  style={({ pressed }) => [styles.card, pressed && styles.pressed]}
-                >
-                  <View style={styles.cardTop}>
-                    <Text style={styles.orderRef}>
-                      {s.orderRef.replace("{{ref}}", order.orderRef)}
-                    </Text>
-                    <View style={styles.cardTopActions}>
-                      <View style={[styles.statusPill, st]}>
-                        <Text style={[styles.statusText, { color: st.color }]}>{label}</Text>
-                      </View>
-                      {isWeb ? (
-                        <Pressable
-                          accessibilityRole="button"
-                          accessibilityLabel={s.deleteAction}
-                          onPress={(e) => {
-                            e.stopPropagation();
-                            void confirmDelete(order.id);
-                          }}
-                          hitSlop={8}
-                          style={({ pressed }) => [
-                            styles.webDeleteBtn,
-                            pressed && styles.pressed,
-                          ]}
-                        >
-                          <MaterialCommunityIcons
-                            name="trash-can-outline"
-                            size={22}
-                            color={UI.red}
-                          />
-                        </Pressable>
-                      ) : null}
-                    </View>
-                  </View>
-                  <PartnerNameWithBadge
-                    name={order.partnerName}
-                    verified={order.partnerVerified}
-                    nameStyle={styles.partnerName}
-                  />
-                  {(order.scheduleLines.length > 0
-                    ? order.scheduleLines
-                    : [s.schedulePending]
-                  ).map((line, i) => (
-                    <Text key={i} style={styles.scheduleLine}>
-                      {line}
-                    </Text>
-                  ))}
-                  <View style={styles.metaGrid}>
-                    {metaItems.map((item, index) => (
-                      <View
-                        key={`${item.label}-${index}`}
-                        style={[
-                          styles.metaCell,
-                          item.fullWidth ? styles.metaCellFull : styles.metaCellHalf,
-                        ]}
-                      >
-                        <View style={styles.metaCellRow}>
-                          <Text style={styles.metaLabel}>{item.label}</Text>
-                          <Text style={styles.metaValue} numberOfLines={item.valueLines ?? 1}>
-                            {item.value}
-                          </Text>
-                        </View>
-                      </View>
-                    ))}
-                  </View>
-                  <View style={styles.totalRow}>
-                    <Text style={styles.totalLabel}>{s.estTotal}</Text>
-                    <Text style={styles.totalValue}>{order.estimatedTotalLabel}</Text>
-                  </View>
-                  {order.displayStatus === "rejected" ? (
-                    <Pressable
-                      onPress={() =>
-                        showAppAlert(
-                          "Order rejected",
-                          "This order was rejected by your Laundry Captain. Please place a new order.",
-                          [
-                            { text: s.cancel, style: "cancel" },
-                            {
-                              text: "Reorder now",
-                              onPress: () => router.push("/(customer)/(tabs)"),
-                            },
-                          ],
-                        )
-                      }
-                      style={({ pressed }) => [
-                        styles.reorderButton,
-                        pressed && styles.pressed,
-                      ]}
-                    >
-                      <Text style={styles.reorderButtonText}>{s.reorderAction}</Text>
-                    </Pressable>
-                  ) : null}
-                </Pressable>
-            );
-
-            return (
-              <View key={order.id}>{orderCard}</View>
-            );
-          })}
-        </ScrollView>
+                  onTrack={() =>
+                    router.push({
+                      pathname: "/(customer)/track-order",
+                      params: { orderId: order.id },
+                    })
+                  }
+                  onChat={() =>
+                    router.push({
+                      pathname: "/(customer)/chat/[orderId]",
+                      params: { orderId: order.id },
+                    })
+                  }
+                />
+              ))}
+            </ScrollView>
+          )}
+        </>
       )}
       {feedbackVisible ? (
       <Modal
@@ -584,16 +489,57 @@ const styles = StyleSheet.create({
   },
   safeTop: {
     backgroundColor: UI.bg,
-    paddingBottom: 4,
   },
-  hint: {
-    marginHorizontal: PAD,
-    fontSize: fs.descText,
-    fontFamily: "Poppins-Regular",
-    color: UI.muted,
-    lineHeight: 18,
-    textAlign: "center",
+  screenTitle: {
+    fontSize: 28,
+    lineHeight: 34,
+    fontFamily: "Poppins-Bold",
+    fontWeight: "700",
+  },
+  filterScroll: {
+    flexGrow: 0,
     marginBottom: 12,
+  },
+  filterRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: PAD,
+  },
+  filterChipWrap: {
+    flexGrow: 0,
+    flexShrink: 0,
+    borderRadius: 999,
+    overflow: "hidden",
+    backgroundColor: "#F3F0FF",
+    shadowColor: UI.shadow,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  filterChipWrapSelected: {
+    backgroundColor: "transparent",
+  },
+  filterChip: {
+    minHeight: 28,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 14,
+    paddingVertical: 5,
+    borderRadius: 999,
+  },
+  filterChipText: {
+    fontSize: 12,
+    fontFamily: "Poppins-SemiBold",
+    color: UI.purpleDeep,
+    textAlign: "center",
+  },
+  filterChipTextSelected: {
+    fontSize: 12,
+    fontFamily: "Poppins-SemiBold",
+    color: "#FFFFFF",
+    textAlign: "center",
   },
   scroll: {
     flex: 1,
@@ -645,151 +591,6 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.85,
-  },
-  card: {
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: UI.chipBorder,
-    backgroundColor: UI.card,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    shadowColor: UI.shadow,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 1,
-    shadowRadius: 10,
-    elevation: 2,
-  },
-  cardTop: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 8,
-    marginBottom: 6,
-  },
-  cardTopActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    flexShrink: 0,
-  },
-  webDeleteBtn: {
-    padding: 6,
-    borderRadius: 8,
-    backgroundColor: UI.redBg,
-  },
-  orderRef: {
-    fontSize: fs.smallText,
-    fontFamily: "Poppins-Bold",
-    fontWeight: "700",
-    color: UI.text,
-    letterSpacing: 0.5,
-    flex: 1,
-  },
-  statusPill: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 999,
-    flexShrink: 0,
-  },
-  statusText: {
-    fontSize: fs.xxSmallText,
-    fontFamily: "Poppins-Bold",
-    fontWeight: "700",
-    textTransform: "uppercase",
-    letterSpacing: 0.4,
-  },
-  partnerName: {
-    fontSize: fs.smallTitle,
-    fontFamily: "Poppins-SemiBold",
-    fontWeight: "600",
-    color: UI.text,
-    marginBottom: 4,
-  },
-  scheduleLine: {
-    fontSize: fs.descText,
-    fontFamily: "Poppins-Regular",
-    color: UI.muted,
-    lineHeight: 18,
-    marginBottom: 2,
-  },
-  metaGrid: {
-    marginTop: 6,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: UI.chipBorder,
-    flexDirection: "row",
-    flexWrap: "wrap",
-    rowGap: 6,
-    columnGap: 8,
-  },
-  metaCell: {
-    minWidth: 0,
-  },
-  metaCellRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 6,
-  },
-  metaCellHalf: {
-    flexBasis: "48%",
-    flexGrow: 1,
-  },
-  metaCellFull: {
-    flexBasis: "100%",
-  },
-  metaLabel: {
-    width: 56,
-    fontSize: fs.xxSmallText,
-    fontFamily: "Poppins-Bold",
-    fontWeight: "700",
-    color: UI.muted,
-    textTransform: "uppercase",
-    letterSpacing: 0.35,
-    paddingTop: 1,
-  },
-  metaValue: {
-    flex: 1,
-    fontSize: fs.xxSmallText,
-    fontFamily: "Poppins-Regular",
-    color: UI.text,
-    lineHeight: 15,
-  },
-  totalRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginTop: 8,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: UI.chipBorder,
-  },
-  totalLabel: {
-    fontSize: fs.xxSmallText,
-    fontFamily: "Poppins-SemiBold",
-    fontWeight: "600",
-    color: UI.muted,
-    textTransform: "uppercase",
-    letterSpacing: 0.3,
-  },
-  totalValue: {
-    fontSize: fs.descText,
-    fontFamily: "Poppins-Bold",
-    fontWeight: "700",
-    color: UI.teal,
-  },
-  reorderButton: {
-    marginTop: 12,
-    backgroundColor: UI.teal,
-    borderRadius: 999,
-    paddingVertical: 10,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  reorderButtonText: {
-    color: "#FFFFFF",
-    fontSize: fs.descText,
-    fontFamily: "Poppins-Bold",
-    fontWeight: "700",
   },
   modalOverlay: {
     flex: 1,

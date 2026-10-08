@@ -8,6 +8,7 @@ import { StatusBar } from "expo-status-bar";
 import {
   ActivityIndicator,
   FlatList,
+  Linking,
   ScrollView,
   Modal,
   Platform,
@@ -28,11 +29,12 @@ import { runOnJS } from "react-native-reanimated";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { showAppAlert } from "@/components/app-alert";
-import { AppHeader } from "@/components/app-header";
 import { ChatListScrollView } from "@/components/chat/chat-list-scroll-view";
 import { RiderAssignmentMessage } from "@/components/chat/rider-assignment-message";
 import { WebCameraCaptureModal } from "@/components/chat/web-camera-capture-modal";
-import { theme } from "@/constants/theme";
+import { PartnerNameWithBadge } from "@/components/partner-name-with-badge";
+import { GradientLoader } from "@/components/ui/gradient-loader";
+import { theme, UI } from "@/constants/theme";
 import { useAuth } from "@/contexts/auth-context";
 import {
   ensureOrderConversation,
@@ -44,25 +46,28 @@ import {
   sendConversationMessage,
   uploadChatImage,
   type ChatMessage,
+  type OrderChatHeaderData,
 } from "@/lib/chat";
 import { supabase } from "@/lib/supabase";
 import { pickImagesFromDocument } from "@/utils/pick-images";
 
-const UI = {
-  bg: "#F7F8FA",
-  card: "#FFFFFF",
-  text: "#111827",
-  muted: "#6B7280",
-  teal: "#12B886",
-  chipBorder: "#E5E7EB",
-};
 const fs = theme.fontSize;
 const CHAT_INPUT_NATIVE_ID = "order-chat-input";
-const PAD = 20;
+const PAD = 16;
 
 function formatClock(iso: string): string {
   const d = new Date(iso);
   return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+function chatStatusLabel(key: string): { label: string; color: string } {
+  const k = key.toLowerCase();
+  if (k === "cancelled" || k === "rejected") return { label: "Cancelled", color: "#B91C1C" };
+  if (k === "completed") return { label: "Completed", color: "#7C3AED" };
+  if (k === "ready") return { label: "On the Way", color: "#2563EB" };
+  if (k === "in_progress") return { label: "In Progress", color: "#0F766E" };
+  if (k === "accepted") return { label: "Confirmed", color: "#047857" };
+  return { label: "Active Order", color: "#047857" };
 }
 
 const CHAT_IMAGE_BOX_SIZE = 200;
@@ -160,9 +165,9 @@ export function OrderChatScreen() {
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const initialMemberName = typeof params.memberName === "string" ? params.memberName.trim() : "";
+  const [header, setHeader] = useState<OrderChatHeaderData | null>(null);
   const [headerTitle, setHeaderTitle] = useState(initialMemberName);
   const [headerTitleVerified, setHeaderTitleVerified] = useState(false);
-  const [headerSubtitle, setHeaderSubtitle] = useState<string | null>(null);
   const [selectedMessageIds, setSelectedMessageIds] = useState<string[]>([]);
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   const [pendingImages, setPendingImages] = useState<{ uri: string; mimeType?: string | null }[]>(
@@ -216,10 +221,10 @@ export function OrderChatScreen() {
       setError(null);
       const convId = await ensureOrderConversation(orderId, user.id, role);
       setConversationId(convId);
-      const header = await fetchOrderChatHeader(orderId, user.id);
-      setHeaderTitle(header.title);
-      setHeaderTitleVerified(Boolean(header.titleVerified));
-      setHeaderSubtitle(header.subtitle);
+      const nextHeader = await fetchOrderChatHeader(orderId, user.id);
+      setHeader(nextHeader);
+      setHeaderTitle(nextHeader.title);
+      setHeaderTitleVerified(Boolean(nextHeader.titleVerified));
       const rows = await fetchConversationMessages(convId);
       // Ensure opening the chat lands on the latest message.
       shouldSnapToLatestRef.current = true;
@@ -488,53 +493,126 @@ export function OrderChatScreen() {
     [],
   );
 
+  const statusMeta = chatStatusLabel(header?.orderStatusKey ?? "submitted");
+  const canSend = draft.trim().length > 0 || pendingImages.length > 0;
+
+  const openOrderDetail = useCallback(() => {
+    if (!orderId) return;
+    router.push({
+      pathname: role === "launderer" ? "/(partner)/order-detail" : "/(customer)/order-detail",
+      params: { orderId },
+    });
+  }, [orderId, role, router]);
+
+  const onCall = useCallback(() => {
+    const phone = header?.phoneNumber?.trim();
+    if (!phone) {
+      showAppAlert("Phone unavailable", "No phone number is available for this contact.");
+      return;
+    }
+    void Linking.openURL(`tel:${phone}`);
+  }, [header?.phoneNumber]);
+
+  const onAttachPress = useCallback(() => {
+    showAppAlert("Add attachment", "Choose a photo source", [
+      { text: "Gallery", onPress: () => void onOpenGallery() },
+      { text: "Camera", onPress: () => void onOpenCamera() },
+      { text: "Cancel", style: "cancel" },
+    ]);
+  }, [onOpenCamera, onOpenGallery]);
+
   return (
     <View style={styles.container}>
       <StatusBar style="dark" />
       <SafeAreaView style={styles.safeTop} edges={["top"]}>
-        <AppHeader
-          appearance="light"
-          title={selectionMode ? `${selectedMessageIds.length} selected` : headerTitle}
-          titleVerified={!selectionMode && headerTitleVerified}
-          subtitle={selectionMode ? null : headerSubtitle}
-          leftIcon="arrow-left"
-          onLeftPress={() => {
-            if (selectionMode) {
-              setSelectedMessageIds([]);
-              return;
-            }
-            router.back();
-          }}
-          rightElement={
-            selectionMode ? (
-              <View style={styles.headerActions}>
-                <Pressable
-                  onPress={onSelectAllMessages}
-                  style={({ pressed }) => [styles.headerActionBtn, pressed && styles.pressed]}
-                >
-                  <Text style={styles.headerActionText}>
-                    {selectedMessageIds.length > 0 &&
-                    selectedMessageIds.length === selectableMessageIds.length
-                      ? "Clear"
-                      : "Select all"}
-                  </Text>
-                </Pressable>
-                <Pressable
-                  onPress={onDeleteSelectedMessages}
-                  style={({ pressed }) => [styles.headerActionBtn, pressed && styles.pressed]}
-                >
-                  <MaterialCommunityIcons name="delete-outline" size={22} color={UI.text} />
-                </Pressable>
+        <View style={styles.chatHeader}>
+          <Pressable
+            onPress={() => {
+              if (selectionMode) {
+                setSelectedMessageIds([]);
+                return;
+              }
+              router.back();
+            }}
+            style={styles.headerIconBtn}
+            hitSlop={8}
+            accessibilityLabel="Go back"
+          >
+            <MaterialCommunityIcons name="arrow-left" size={22} color={UI.text} />
+          </Pressable>
+
+          {selectionMode ? (
+            <View style={styles.headerCenter}>
+              <Text style={styles.headerName}>{selectedMessageIds.length} selected</Text>
+            </View>
+          ) : (
+            <>
+              <View style={styles.headerAvatar}>
+                {header?.avatarUrl ? (
+                  <Image
+                    source={{ uri: header.avatarUrl }}
+                    style={styles.headerAvatarImage}
+                    contentFit="cover"
+                  />
+                ) : (
+                  <View style={styles.headerAvatarFallback}>
+                    <Text style={styles.headerAvatarInitial}>
+                      {(headerTitle || "?").trim().charAt(0).toUpperCase()}
+                    </Text>
+                  </View>
+                )}
               </View>
-            ) : null
-          }
-          leftAccessibilityLabel="Go back"
-        />
+              <View style={styles.headerCenter}>
+                <PartnerNameWithBadge
+                  name={headerTitle || "Chat"}
+                  verified={headerTitleVerified}
+                  numberOfLines={1}
+                  badgeSize={14}
+                  badgeColor="#22C55E"
+                  nameStyle={styles.headerName}
+                  containerStyle={styles.headerNameRow}
+                />
+                <Text style={styles.headerMeta} numberOfLines={1}>
+                  Order #{header?.orderRef ?? "—"} ·{" "}
+                  <Text style={{ color: statusMeta.color }}>{statusMeta.label}</Text>
+                </Text>
+              </View>
+            </>
+          )}
+
+          {selectionMode ? (
+            <View style={styles.headerActions}>
+              <Pressable
+                onPress={onSelectAllMessages}
+                style={({ pressed }) => [styles.headerActionBtn, pressed && styles.pressed]}
+              >
+                <Text style={styles.headerActionText}>
+                  {selectedMessageIds.length > 0 &&
+                  selectedMessageIds.length === selectableMessageIds.length
+                    ? "Clear"
+                    : "Select all"}
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={onDeleteSelectedMessages}
+                style={({ pressed }) => [styles.headerActionBtn, pressed && styles.pressed]}
+              >
+                <MaterialCommunityIcons name="delete-outline" size={22} color={UI.text} />
+              </Pressable>
+            </View>
+          ) : (
+            <View style={styles.headerActions}>
+              <Pressable onPress={onCall} style={styles.headerRoundBtn} accessibilityLabel="Call">
+                <MaterialCommunityIcons name="phone-outline" size={18} color={UI.text} />
+              </Pressable>
+            </View>
+          )}
+        </View>
       </SafeAreaView>
 
       {loading ? (
         <View style={styles.center}>
-          <ActivityIndicator color={UI.teal} />
+          <GradientLoader />
         </View>
       ) : error ? (
         <View style={styles.center}>
@@ -549,6 +627,34 @@ export function OrderChatScreen() {
           interpolator="ios"
           textInputNativeID={CHAT_INPUT_NATIVE_ID}
         >
+          {header ? (
+            <Pressable onPress={openOrderDetail} style={styles.orderCard}>
+              <View style={styles.orderThumb}>
+                {header.thumbnailUrl ? (
+                  <Image
+                    source={{ uri: header.thumbnailUrl }}
+                    style={styles.orderThumbImage}
+                    contentFit="cover"
+                  />
+                ) : (
+                  <MaterialCommunityIcons name="hanger" size={22} color={UI.purple} />
+                )}
+              </View>
+              <View style={styles.orderCopy}>
+                <Text style={styles.orderCardTitle}>Your Order</Text>
+                <Text style={styles.orderCardItems} numberOfLines={1}>
+                  {header.itemsSummary}
+                </Text>
+                {header.scheduleSummary ? (
+                  <Text style={styles.orderCardSchedule} numberOfLines={1}>
+                    {header.scheduleSummary}
+                  </Text>
+                ) : null}
+              </View>
+              <MaterialCommunityIcons name="chevron-right" size={20} color={UI.muted} />
+            </Pressable>
+          ) : null}
+
           <FlatList
             ref={listRef}
             style={styles.messageList}
@@ -608,6 +714,23 @@ export function OrderChatScreen() {
                       ) : null}
                     </View>
                   ) : null}
+                  {!mine ? (
+                    <View style={styles.bubbleAvatar}>
+                      {header?.avatarUrl ? (
+                        <Image
+                          source={{ uri: header.avatarUrl }}
+                          style={styles.bubbleAvatarImage}
+                          contentFit="cover"
+                        />
+                      ) : (
+                        <View style={styles.bubbleAvatarFallback}>
+                          <Text style={styles.bubbleAvatarInitial}>
+                            {(headerTitle || "?").charAt(0).toUpperCase()}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                  ) : null}
                   <Pressable
                     onPress={() => {
                       if (isUploading) return;
@@ -626,6 +749,7 @@ export function OrderChatScreen() {
                       setSelectedMessageIds([sentItem.id]);
                     }}
                     delayLongPress={280}
+                    style={styles.bubblePressable}
                   >
                     <View
                       style={[
@@ -668,7 +792,9 @@ export function OrderChatScreen() {
                               <View
                                 style={[
                                   styles.progressFill,
-                                  { width: `${Math.max(4, Math.round((uploadItem?.progress ?? 0) * 100))}%` },
+                                  {
+                                    width: `${Math.max(4, Math.round((uploadItem?.progress ?? 0) * 100))}%`,
+                                  },
                                 ]}
                               />
                             </View>
@@ -679,14 +805,18 @@ export function OrderChatScreen() {
                         <Text
                           style={[
                             styles.bubbleText,
-                            !mine && styles.bubbleTextOther,
                             !isUploading && sentItem?.imageUrl ? styles.bubbleCaption : null,
                           ]}
                         >
                           {uploadItem?.body ?? sentItem?.body}
                         </Text>
                       ) : null}
-                      <Text style={[styles.bubbleTime, !mine && styles.bubbleTimeOther]}>
+                    </View>
+                    <View style={[styles.metaRow, mine && styles.metaRowMine]}>
+                      {mine && !isUploading ? (
+                        <MaterialCommunityIcons name="check-all" size={14} color="#3B82F6" />
+                      ) : null}
+                      <Text style={styles.bubbleTime}>
                         {isUploading
                           ? `${Math.max(1, Math.round((uploadItem?.progress ?? 0) * 100))}%`
                           : formatClock(sentItem?.createdAt ?? new Date().toISOString())}
@@ -738,6 +868,18 @@ export function OrderChatScreen() {
               </ScrollView>
             ) : null}
             <View style={styles.composerRow}>
+              <Pressable
+                onPress={onAttachPress}
+                disabled={sending}
+                style={({ pressed }) => [
+                  styles.roundComposerBtn,
+                  sending && styles.attachBtnDisabled,
+                  pressed && styles.pressed,
+                ]}
+                accessibilityLabel="Add attachment"
+              >
+                <MaterialCommunityIcons name="plus" size={22} color={UI.text} />
+              </Pressable>
               <View style={styles.inputShell}>
                 <TextInput
                   nativeID={CHAT_INPUT_NATIVE_ID}
@@ -765,31 +907,27 @@ export function OrderChatScreen() {
                   ]}
                   accessibilityLabel="Open gallery"
                 >
-                  <MaterialCommunityIcons name="paperclip" size={20} color={UI.muted} />
-                </Pressable>
-                <Pressable
-                  onPress={onOpenCamera}
-                  disabled={sending}
-                  style={({ pressed }) => [
-                    styles.cameraInInputBtn,
-                    sending && styles.attachBtnDisabled,
-                    pressed && styles.pressed,
-                  ]}
-                  accessibilityLabel="Open camera"
-                >
-                  <MaterialCommunityIcons name="camera-outline" size={22} color={UI.muted} />
+                  <MaterialCommunityIcons name="image-outline" size={20} color={UI.muted} />
                 </Pressable>
               </View>
               <Pressable
-                onPress={onSend}
-                disabled={sending || (!draft.trim() && pendingImages.length === 0)}
+                onPress={() => {
+                  if (canSend) void onSend();
+                }}
+                disabled={sending || !canSend}
                 style={({ pressed }) => [
-                  styles.sendBtn,
-                  (sending || (!draft.trim() && pendingImages.length === 0)) && styles.sendBtnDisabled,
+                  styles.roundComposerBtn,
+                  canSend && styles.sendBtnActive,
+                  (sending || !canSend) && styles.sendBtnDisabled,
                   pressed && styles.pressed,
                 ]}
+                accessibilityLabel={canSend ? "Send message" : "Voice message"}
               >
-                <MaterialCommunityIcons name="send" size={20} color="#FFFFFF" />
+                <MaterialCommunityIcons
+                  name={canSend ? "send" : "microphone-outline"}
+                  size={20}
+                  color={canSend ? "#FFFFFF" : UI.text}
+                />
               </Pressable>
             </View>
             </View>
@@ -839,11 +977,68 @@ export function OrderChatScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: UI.bg,
+    backgroundColor: "#FFFFFF",
   },
   safeTop: {
-    paddingBottom: 8,
-    backgroundColor: UI.bg,
+    backgroundColor: "#FFFFFF",
+  },
+  chatHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    gap: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: UI.chipBorder,
+  },
+  headerIconBtn: {
+    width: 36,
+    height: 36,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  headerAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    overflow: "hidden",
+    backgroundColor: UI.iconWell,
+  },
+  headerAvatarImage: { width: "100%", height: "100%" },
+  headerAvatarFallback: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#EEF2FF",
+  },
+  headerAvatarInitial: {
+    fontSize: 16,
+    color: UI.purple,
+    fontFamily: "Poppins-Bold",
+  },
+  headerCenter: {
+    flex: 1,
+    minWidth: 0,
+    gap: 1,
+  },
+  headerNameRow: { flexShrink: 1 },
+  headerName: {
+    color: UI.text,
+    fontSize: 15,
+    fontFamily: "Poppins-Bold",
+  },
+  headerMeta: {
+    color: UI.muted,
+    fontSize: 12,
+    fontFamily: "Poppins-Regular",
+  },
+  headerRoundBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#F3F4F6",
+    alignItems: "center",
+    justifyContent: "center",
   },
   headerActionBtn: {
     height: 32,
@@ -860,21 +1055,42 @@ const styles = StyleSheet.create({
     fontSize: fs.xxSmallText,
     fontWeight: "700",
   },
-  headerTitle: {
+  orderCard: {
+    marginHorizontal: PAD,
+    marginTop: 10,
+    marginBottom: 4,
+    padding: 10,
+    borderRadius: 14,
+    backgroundColor: "#EEF2FF",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  orderThumb: {
+    width: 44,
+    height: 44,
+    borderRadius: 10,
+    overflow: "hidden",
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  orderThumbImage: { width: "100%", height: "100%" },
+  orderCopy: { flex: 1, minWidth: 0, gap: 1 },
+  orderCardTitle: {
+    fontSize: 13,
     color: UI.text,
-    fontSize: fs.titleMedium,
-    fontWeight: "700",
-    textAlign: "center",
+    fontFamily: "Poppins-SemiBold",
   },
-  headerSubtitle: {
-    marginTop: 2,
+  orderCardItems: {
+    fontSize: 12,
     color: UI.muted,
-    fontSize: fs.xxSmallText,
-    fontWeight: "600",
-    textAlign: "center",
+    fontFamily: "Poppins-Regular",
   },
-  headerSpacer: {
-    width: 32,
+  orderCardSchedule: {
+    fontSize: 11,
+    color: UI.muted,
+    fontFamily: "Poppins-Regular",
   },
   body: {
     flex: 1,
@@ -886,11 +1102,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: PAD,
     paddingTop: 10,
     paddingBottom: 12,
-    gap: 10,
+    gap: 12,
   },
   bubbleWrap: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-end",
     gap: 8,
   },
   bubbleWrapMine: {
@@ -904,19 +1120,42 @@ const styles = StyleSheet.create({
   bubbleWrapOther: {
     justifyContent: "flex-start",
   },
-  bubble: {
-    maxWidth: "100%",
+  bubbleAvatar: {
+    width: 28,
+    height: 28,
     borderRadius: 14,
+    overflow: "hidden",
+    backgroundColor: UI.iconWell,
+    marginBottom: 18,
+  },
+  bubbleAvatarImage: { width: "100%", height: "100%" },
+  bubbleAvatarFallback: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#EEF2FF",
+  },
+  bubbleAvatarInitial: {
+    fontSize: 11,
+    color: UI.purple,
+    fontFamily: "Poppins-Bold",
+  },
+  bubblePressable: {
+    maxWidth: "78%",
+  },
+  bubble: {
+    borderRadius: 16,
+    overflow: "hidden",
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
   bubbleMine: {
-    backgroundColor: UI.teal,
+    backgroundColor: "#DBEAFE",
+    borderBottomRightRadius: 6,
   },
   bubbleOther: {
-    backgroundColor: UI.card,
-    borderWidth: 1,
-    borderColor: UI.chipBorder,
+    backgroundColor: "#F3F4F6",
+    borderBottomLeftRadius: 6,
   },
   bubbleSelected: {
     borderWidth: 2,
@@ -994,21 +1233,24 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   bubbleText: {
-    color: "#FFFFFF",
-    fontSize: fs.smallText,
-    lineHeight: 20,
-  },
-  bubbleTextOther: {
     color: UI.text,
+    fontSize: 14,
+    lineHeight: 20,
+    fontFamily: "Poppins-Regular",
+  },
+  metaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginTop: 4,
+  },
+  metaRowMine: {
+    justifyContent: "flex-end",
   },
   bubbleTime: {
-    color: "rgba(255,255,255,0.8)",
-    fontSize: fs.xxSmallText,
-    marginTop: 6,
-    alignSelf: "flex-end",
-  },
-  bubbleTimeOther: {
     color: UI.muted,
+    fontSize: 11,
+    fontFamily: "Poppins-Regular",
   },
   attachBtn: {
     width: 0,
@@ -1031,15 +1273,15 @@ const styles = StyleSheet.create({
   },
   composerSticky: {
     flexShrink: 0,
-    backgroundColor: UI.bg,
+    backgroundColor: "#FFFFFF",
   },
   composer: {
-    borderTopWidth: 1,
+    borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: UI.chipBorder,
     paddingHorizontal: PAD,
     paddingTop: 10,
     gap: 8,
-    backgroundColor: UI.bg,
+    backgroundColor: "#FFFFFF",
   },
   pendingImagesTray: {
     maxHeight: 40,
@@ -1049,14 +1291,25 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 10,
   },
+  roundComposerBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: "#F3F4F6",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  sendBtnActive: {
+    backgroundColor: UI.teal,
+  },
   inputShell: {
     flex: 1,
     minHeight: 42,
-    borderRadius: 14,
+    borderRadius: 999,
     borderWidth: 1,
-    borderColor: UI.chipBorder,
-    backgroundColor: UI.card,
-    paddingLeft: 8,
+    borderColor: "#BFDBFE",
+    backgroundColor: "#FFFFFF",
+    paddingLeft: 14,
     paddingRight: 8,
     flexDirection: "row",
     alignItems: "center",
@@ -1067,119 +1320,104 @@ const styles = StyleSheet.create({
     height: 32,
     borderRadius: 8,
     overflow: "hidden",
-    backgroundColor: UI.card,
-    borderWidth: 1,
-    borderColor: UI.chipBorder,
-    marginRight: 6,
+    marginRight: 8,
   },
   pendingImagesRow: {
-    paddingRight: 2,
+    paddingVertical: 2,
   },
   input: {
     flex: 1,
-    minHeight: 40,
-    maxHeight: 120,
+    maxHeight: 110,
+    paddingVertical: Platform.OS === "ios" ? 10 : 8,
     color: UI.text,
-    paddingHorizontal: 4,
-    paddingTop: 10,
-    paddingBottom: 10,
-    fontSize: fs.smallText,
+    fontSize: 14,
+    fontFamily: "Poppins-Regular",
   },
   cameraInInputBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 32,
+    height: 32,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 6,
-  },
-  attachBtnDisabled: {
-    opacity: 0.45,
   },
   sendBtn: {
     width: 42,
     height: 42,
     borderRadius: 21,
+    backgroundColor: UI.teal,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: UI.teal,
   },
   sendBtnDisabled: {
     opacity: 0.45,
+  },
+  attachBtnDisabled: {
+    opacity: 0.5,
   },
   center: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: PAD,
-    gap: 10,
+    gap: 12,
+    paddingHorizontal: 24,
   },
   errorText: {
-    color: "#B91C1C",
+    color: UI.red,
     textAlign: "center",
-    fontSize: fs.smallText,
+    fontFamily: "Poppins-Regular",
   },
   retryBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 999,
+    backgroundColor: UI.card,
     borderWidth: 1,
     borderColor: UI.chipBorder,
-    borderRadius: 999,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    backgroundColor: UI.card,
   },
   retryText: {
     color: UI.text,
-    fontSize: fs.descText,
-    fontWeight: "600",
+    fontFamily: "Poppins-SemiBold",
   },
   emptyWrap: {
+    paddingVertical: 40,
     alignItems: "center",
-    paddingTop: 30,
   },
   emptyText: {
     color: UI.muted,
-    fontSize: fs.smallText,
-    textAlign: "center",
+    fontFamily: "Poppins-Regular",
   },
+  pressed: { opacity: 0.88 },
   riderAssignmentWrap: {
-    alignItems: "center",
-    paddingVertical: 10,
-    paddingHorizontal: 4,
-    gap: 6,
-    width: "100%",
+    gap: 4,
   },
   riderAssignmentTime: {
-    fontSize: fs.xxSmallText,
     color: UI.muted,
-  },
-  pressed: {
-    opacity: 0.85,
+    fontSize: 11,
+    alignSelf: "flex-start",
+    marginLeft: 4,
   },
   previewOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.92)",
-  },
-  previewCloseBtn: {
-    position: "absolute",
-    top: 52,
-    right: 16,
-    zIndex: 2,
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(0,0,0,0.35)",
   },
   previewBackdrop: {
     flex: 1,
-    alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 24,
   },
   previewImage: {
     width: "100%",
-    height: "100%",
+    height: "80%",
+  },
+  previewCloseBtn: {
+    position: "absolute",
+    top: 54,
+    right: 20,
+    zIndex: 2,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.15)",
   },
 });

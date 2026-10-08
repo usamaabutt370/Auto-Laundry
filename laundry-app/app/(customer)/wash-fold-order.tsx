@@ -1,5 +1,4 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
@@ -7,10 +6,13 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { CustomerItemizedOrderLayout } from "@/components/customer-itemized-order-layout";
 import { CustomerLiveEstimateFooter } from "@/components/customer-live-estimate-footer";
+import { AppCtaButton } from "@/components/ui/cta-button";
+import { QtyStepper } from "@/components/ui/qty-stepper";
 import {
   WashFoldPackageBox,
   WashFoldPackageGrid,
 } from "@/components/wash-fold-package-box";
+import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import type { CustomerOrderDraft } from "@/contexts/customer-order-draft-context";
 import { useCustomerOrderDraft } from "@/contexts/customer-order-draft-context";
 import { useLocale } from "@/contexts/locale-context";
@@ -25,22 +27,12 @@ import {
 } from "@/lib/customer-order-estimate";
 import { getStrings } from "@/locales";
 import { formatMoney } from "@/utils/format-money";
-
-const UI = {
-  bg: "#F7F8FA",
-  card: "#FFFFFF",
-  text: "#111827",
-  muted: "#6B7280",
-  teal: "#12B886",
-  backBg: "#EEF2F6",
-  openBg: "#ECFDF5",
-  chipBorder: "#E5E7EB",
-  shadow: "rgba(17, 24, 39, 0.08)",
-};
+import { UI } from "@/constants/theme";
 
 export default function WashFoldOrderScreen() {
   const router = useRouter();
   const { locale } = useLocale();
+  const { isNarrow, ms } = useResponsiveLayout();
   const s = getStrings(locale).customer.washFoldOrder;
   const sDet = getStrings(locale).customer.laundryBagDetail;
   const sLive = getStrings(locale).customer.liveEstimate;
@@ -192,9 +184,11 @@ export default function WashFoldOrderScreen() {
       unit != null && qty > 0 ? Math.round(unit * qty * 100) / 100 : null;
 
     return (
-      <View key={def.id} style={styles.itemCard}>
+      <View key={def.id} style={[styles.itemCard, isNarrow && styles.itemCardNarrow]}>
         <View style={styles.itemLeft}>
-          <Text style={styles.itemName}>{displayName(def)}</Text>
+          <Text style={[styles.itemName, { fontSize: ms(isNarrow ? 14 : 16) }]} numberOfLines={2}>
+            {displayName(def)}
+          </Text>
           {unit != null ? (
             <Text style={styles.unitPrice}>
               {formatMoney(currencyPrefix || "", unit)}
@@ -206,23 +200,12 @@ export default function WashFoldOrderScreen() {
             </Text>
           ) : null}
         </View>
-        <View style={styles.stepper}>
-          <Pressable
-            onPress={() => setQty(def.id, -1)}
-            style={styles.stepperBtn}
-            disabled={qty <= 0}
-          >
-            <MaterialCommunityIcons
-              name="minus"
-              size={20}
-              color={qty <= 0 ? "#D1D5DB" : UI.text}
-            />
-          </Pressable>
-          <Text style={styles.stepperValue}>{qty}</Text>
-          <Pressable onPress={() => setQty(def.id, 1)} style={styles.stepperBtn}>
-            <MaterialCommunityIcons name="plus" size={20} color={UI.teal} />
-          </Pressable>
-        </View>
+        <QtyStepper
+          value={qty}
+          onDecrement={() => setQty(def.id, -1)}
+          onIncrement={() => setQty(def.id, 1)}
+          incrementColor={UI.teal}
+        />
       </View>
     );
   };
@@ -284,21 +267,13 @@ export default function WashFoldOrderScreen() {
                 estimate={estimate}
               />
             ) : null}
-            <Pressable
+            <AppCtaButton
+              label={sDet.save}
               onPress={() => router.back()}
-              style={({ pressed }) => [styles.confirmWrap, pressed && styles.pressed]}
-              accessibilityRole="button"
+              width="full"
               accessibilityLabel={sDet.save}
-            >
-              <LinearGradient
-                colors={["#4A3AFF", "#12B886"]}
-                start={{ x: 0, y: 0.5 }}
-                end={{ x: 1, y: 0.5 }}
-                style={styles.confirmBtn}
-              >
-                <Text style={styles.confirmLabel}>{sDet.save}</Text>
-              </LinearGradient>
-            </Pressable>
+              style={styles.confirmBtn}
+            />
           </>
         }
       >
@@ -483,9 +458,12 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 2,
   },
-  itemLeft: { flex: 1, paddingRight: 12 },
+  itemCardNarrow: {
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+  },
+  itemLeft: { flex: 1, minWidth: 0, paddingRight: 12 },
   itemName: {
-    fontSize: 16,
     fontFamily: "Poppins-SemiBold",
     color: UI.text,
   },
@@ -509,37 +487,8 @@ const styles = StyleSheet.create({
     textAlign: "center",
     paddingVertical: 24,
   },
-  stepper: { flexDirection: "row", alignItems: "center", gap: 10 },
-  stepperBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: UI.backBg,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  stepperValue: {
-    fontSize: 17,
-    fontFamily: "Poppins-Bold",
-    color: UI.text,
-    minWidth: 28,
-    textAlign: "center",
-  },
-  confirmWrap: {
+  confirmBtn: {
     marginTop: 8,
     marginBottom: 8,
-    borderRadius: 16,
-    overflow: "hidden",
-  },
-  confirmBtn: {
-    borderRadius: 16,
-    paddingVertical: 16,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  confirmLabel: {
-    fontSize: 16,
-    fontFamily: "Poppins-Bold",
-    color: "#FFFFFF",
   },
 });

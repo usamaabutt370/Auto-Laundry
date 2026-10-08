@@ -1,10 +1,8 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 import * as ImagePicker from "expo-image-picker";
 import { Image } from "expo-image";
 import { useState } from "react";
 import {
-  ActivityIndicator,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -17,20 +15,12 @@ import {
 } from "react-native";
 
 import { showAppAlert } from "@/components/app-alert";
+import { AppCtaButton } from "@/components/ui/cta-button";
 import { useLocale } from "@/contexts/locale-context";
 import { submitOrderDispute } from "@/lib/order-disputes";
 import { getStrings } from "@/locales";
+import { UI } from "@/constants/theme";
 
-const UI = {
-  bg: "#F7F8FA",
-  card: "#FFFFFF",
-  text: "#111827",
-  muted: "#6B7280",
-  teal: "#12B886",
-  chipBorder: "#E5E7EB",
-  openBg: "#ECFDF5",
-  openText: "#047857",
-};
 const MAX_PHOTOS = 3;
 
 type PendingPhoto = {
@@ -202,24 +192,13 @@ export function ReportOrderProblemModal({
               >
                 <Text style={styles.cancelText}>{s.cancel}</Text>
               </Pressable>
-              <Pressable
+              <AppCtaButton
+                label={s.submit}
                 onPress={() => void handleSubmit()}
-                style={[styles.submitWrap, submitting && styles.disabled]}
                 disabled={submitting}
-              >
-                <LinearGradient
-                  colors={["#4A3AFF", "#12B886"]}
-                  start={{ x: 0, y: 0.5 }}
-                  end={{ x: 1, y: 0.5 }}
-                  style={styles.submitBtn}
-                >
-                  {submitting ? (
-                    <ActivityIndicator color="#FFFFFF" />
-                  ) : (
-                    <Text style={styles.submitText}>{s.submit}</Text>
-                  )}
-                </LinearGradient>
-              </Pressable>
+                loading={submitting}
+                width="half"
+              />
             </View>
           </ScrollView>
         </View>
@@ -347,8 +326,8 @@ const styles = StyleSheet.create({
   },
   cancelBtn: {
     flex: 1,
-    paddingVertical: 14,
-    borderRadius: 12,
+    height: 48,
+    borderRadius: 24,
     borderWidth: 1,
     borderColor: UI.chipBorder,
     backgroundColor: UI.bg,
@@ -360,25 +339,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontFamily: "Poppins-SemiBold",
     fontWeight: "600",
-  },
-  submitWrap: {
-    flex: 1,
-    borderRadius: 12,
-    overflow: "hidden",
-    minHeight: 48,
-  },
-  submitBtn: {
-    flex: 1,
-    paddingVertical: 14,
-    alignItems: "center",
-    justifyContent: "center",
-    minHeight: 48,
-  },
-  submitText: {
-    color: "#FFFFFF",
-    fontSize: 15,
-    fontFamily: "Poppins-Bold",
-    fontWeight: "700",
   },
   pressed: { opacity: 0.85 },
   disabled: { opacity: 0.55 },

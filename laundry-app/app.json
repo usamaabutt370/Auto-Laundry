@@ -6,9 +6,9 @@
     "orientation": "portrait",
     "icon": "./assets/icons/appstore.png",
     "splash": {
-      "image": "./assets/icons/splash-icon-padded.png",
+      "image": "./assets/icons/splash-icon-white-square.png",
       "resizeMode": "contain",
-      "backgroundColor": "#36768a"
+      "backgroundColor": "#FFFFFF"
     },
     "scheme": "laundryapp",
     "userInterfaceStyle": "automatic",
@@ -47,12 +47,12 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/icons/splash-icon-padded.png",
+          "image": "./assets/icons/splash-icon-white-square.png",
           "imageWidth": 350,
           "resizeMode": "contain",
-          "backgroundColor": "#36768a",
+          "backgroundColor": "#FFFFFF",
           "dark": {
-            "backgroundColor": "#36768a"
+            "backgroundColor": "#FFFFFF"
           }
         }
       ]

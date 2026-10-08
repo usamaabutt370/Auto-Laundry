@@ -5,15 +5,11 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { OrderCard } from "@/components/order-card";
 import { AppHeader } from "@/components/app-header";
-import { theme } from "@/constants/theme";
+import { theme, UI } from "@/constants/theme";
 import { useLocale } from "@/contexts/locale-context";
 import { fetchPartnerOrders, type PartnerOrderListItem } from "@/lib/partner-orders";
 import { getStrings } from "@/locales";
 
-const UI = {
-  bg: "#F7F8FA",
-  muted: "#6B7280",
-};
 const fs = theme.fontSize;
 const H_PAD = 24;
 

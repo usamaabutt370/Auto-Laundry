@@ -4,7 +4,6 @@ import { Image } from "expo-image";
 import { StatusBar } from "expo-status-bar";
 import { useCallback, useEffect, useMemo, useState, type ComponentProps } from "react";
 import {
-  ActivityIndicator,
   AppState,
   Pressable,
   ScrollView,
@@ -18,6 +17,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { assets } from "@/assets/assets";
 import { AvatarImage } from "@/components/avatar-image";
 import { GradientText } from "@/components/gradient-text";
+import { GradientLoader } from "@/components/ui/gradient-loader";
 import { PartnerNameWithBadge } from "@/components/partner-name-with-badge";
 import { strings } from "@/constants/strings";
 import {
@@ -26,47 +26,42 @@ import {
   type PartnerMapMarker,
 } from "@/hooks/use-customer-home-map-data";
 import { useHomeProfile } from "@/hooks/use-home-profile";
+import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
+import { fetchPartnersByIds } from "@/lib/partner-discovery";
+import {
+  getRecentProviderVisits,
+  HOME_RECENT_VISIBLE,
+  removeRecentProviderVisit,
+  type RecentProviderVisit,
+} from "@/lib/recent-providers";
+import {
+  getSavedProviderMap,
+  toggleSavedProvider,
+} from "@/lib/saved-providers";
 import {
   getPlaceLabelFromCoordinates,
   type Coordinates,
 } from "@/utils/geocoding";
+import { UI } from "@/constants/theme";
 
 const SCREEN_PAD = 20;
 const CARD_GAP = 10;
 
-const HOME_UI = {
-  bg: "#F7F8FA",
-  card: "#FFFFFF",
-  text: "#111827",
-  muted: "#6B7280",
-  purple: "#5B4DFF",
-  blue: "#2F6BFF",
-  green: "#00A86B",
-  mapGreen: "#12B886",
-  star: "#F5B301",
-  badgeTopRated: "#0F766E",
-  badgeFast: "#2563EB",
-  badgeTrusted: "#6D28D9",
-  trustBg: "#F3F4F6",
-  border: "#ECEEF2",
-  dealPink: "#E94B8C",
-} as const;
-
 const DEAL_TONES = {
   teal: {
-    accent: HOME_UI.mapGreen,
-    badgeBg: "#ECFDF5",
-    badgeText: HOME_UI.green,
+    accent: UI.mapGreen,
+    badgeBg: UI.openBg,
+    badgeText: UI.green,
   },
   purple: {
-    accent: HOME_UI.purple,
+    accent: UI.purple,
     badgeBg: "#F5F3FF",
-    badgeText: HOME_UI.purple,
+    badgeText: UI.purple,
   },
   pink: {
-    accent: HOME_UI.dealPink,
+    accent: UI.dealPink,
     badgeBg: "#FDF2F8",
-    badgeText: HOME_UI.dealPink,
+    badgeText: UI.dealPink,
   },
 } as const;
 
@@ -124,9 +119,9 @@ function formatRatingAvg(value: number): string {
 }
 
 const BADGES = [
-  { key: "top" as const, bg: HOME_UI.badgeTopRated + "90" },
-  { key: "fast" as const, bg: HOME_UI.badgeFast + "90" },
-  { key: "trusted" as const, bg: HOME_UI.badgeTrusted + "90" },
+  { key: "top" as const, bg: UI.badgeTopRated + "90" },
+  { key: "fast" as const, bg: UI.badgeFast + "90" },
+  { key: "trusted" as const, bg: UI.badgeTrusted + "90" },
 ];
 
 type Props = {
@@ -150,13 +145,18 @@ export function CustomerHomeFeed({
 }: Props) {
   const s = strings.customer.home;
   const { width: windowWidth } = useWindowDimensions();
-  const categoryCardWidth = (windowWidth - SCREEN_PAD * 2 - CARD_GAP) / 2.2;
-  const recCardWidth = categoryCardWidth;
-  const nearbyCardWidth = (windowWidth - SCREEN_PAD * 2 - CARD_GAP) / 1.5;
+  const { isNarrow, ms } = useResponsiveLayout();
+  const screenPad = isNarrow ? 16 : SCREEN_PAD;
+  const categoryCardWidth = (windowWidth - screenPad * 2 - CARD_GAP) / (isNarrow ? 2.05 : 2.2);
+  // const recCardWidth = categoryCardWidth; // used by deals section
+  const nearbyCardWidth = (windowWidth - screenPad * 2 - CARD_GAP) / (isNarrow ? 1.35 : 1.5);
   const { firstName, avatarUri, isLoggedIn } = useHomeProfile();
   const [locationLabel, setLocationLabel] = useState<string>(s.locationFallback);
   const [favorites, setFavorites] = useState<Record<string, boolean>>({});
   const [hour, setHour] = useState(deviceHour);
+  const [recentVisits, setRecentVisits] = useState<RecentProviderVisit[]>([]);
+  const [recentPartners, setRecentPartners] = useState<PartnerMapMarker[]>([]);
+  const [loadingRecent, setLoadingRecent] = useState(false);
 
   const refreshGreetingHour = useCallback(() => {
     setHour(deviceHour());
@@ -165,10 +165,69 @@ export function CustomerHomeFeed({
   useFocusEffect(
     useCallback(() => {
       refreshGreetingHour();
+      void getSavedProviderMap().then(setFavorites);
+      void getRecentProviderVisits().then(setRecentVisits);
       const intervalId = setInterval(refreshGreetingHour, 60_000);
       return () => clearInterval(intervalId);
     }, [refreshGreetingHour]),
   );
+
+  useEffect(() => {
+    if (recentVisits.length === 0) {
+      setRecentPartners([]);
+      setLoadingRecent(false);
+      return;
+    }
+
+    let cancelled = false;
+    setLoadingRecent(true);
+
+    void (async () => {
+      const resolved: PartnerMapMarker[] = [];
+      const missingIds: string[] = [];
+      const modeById = new Map(
+        recentVisits.map((visit) => [visit.partnerId, visit.fulfillmentMode] as const),
+      );
+
+      for (const visit of recentVisits) {
+        const cached = mapData.markerById.get(visit.partnerId);
+        if (cached) {
+          resolved.push({
+            ...cached,
+            fulfillmentMode:
+              visit.fulfillmentMode ?? cached.fulfillmentMode ?? "dropoff",
+          });
+        } else {
+          missingIds.push(visit.partnerId);
+        }
+      }
+
+      if (missingIds.length > 0) {
+        const { data } = await fetchPartnersByIds(missingIds);
+        const byId = new Map((data ?? []).map((row) => [row.id, row]));
+        for (const id of missingIds) {
+          const row = byId.get(id);
+          if (!row) continue;
+          const mode = modeById.get(id) ?? row.fulfillmentMode ?? "dropoff";
+          resolved.push({ ...row, fulfillmentMode: mode });
+        }
+      }
+
+      const order = new Map(recentVisits.map((visit, index) => [visit.partnerId, index]));
+      resolved.sort(
+        (a, b) => (order.get(a.id) ?? Number.MAX_SAFE_INTEGER) - (order.get(b.id) ?? Number.MAX_SAFE_INTEGER),
+      );
+
+      if (!cancelled) {
+        setRecentPartners(resolved);
+        setLoadingRecent(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [mapData.markerById, recentVisits]);
 
   useEffect(() => {
     const sub = AppState.addEventListener("change", (state) => {
@@ -211,6 +270,22 @@ export function CustomerHomeFeed({
     mapData.userCoordinates,
   ]);
 
+  const recentRows = useMemo(() => {
+    const user = mapData.userCoordinates;
+    return recentPartners.map((partner) => {
+      const coords =
+        mapData.partnerCoordinates[partner.id] ??
+        (partner.latitude != null && partner.longitude != null
+          ? { latitude: partner.latitude, longitude: partner.longitude }
+          : null);
+      const km = user && coords ? distanceKm(user, coords) : Number.POSITIVE_INFINITY;
+      return { partner, km };
+    });
+  }, [mapData.partnerCoordinates, mapData.userCoordinates, recentPartners]);
+
+  const visibleRecent = recentRows.slice(0, HOME_RECENT_VISIBLE);
+  const hasMoreRecent = recentRows.length > HOME_RECENT_VISIBLE;
+
   const greeting = greetingForHour(hour, s);
   const greetingLine = firstName
     ? `${greeting} ${firstName}!`
@@ -221,7 +296,10 @@ export function CustomerHomeFeed({
       <StatusBar style="dark" />
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.scroll, { paddingBottom: bottomInset + 20 }]}
+        contentContainerStyle={[
+          styles.scroll,
+          { paddingBottom: bottomInset + 20, paddingHorizontal: screenPad },
+        ]}
       >
         <View style={styles.header}>
           <View style={styles.headerText}>
@@ -230,19 +308,23 @@ export function CustomerHomeFeed({
                 colors={["#5a11f6", "#005aec", "#00a473"]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
-                style={styles.greeting}
+                style={{
+                  ...styles.greeting,
+                  fontSize: ms(isNarrow ? 16 : 18),
+                  lineHeight: ms(isNarrow ? 24 : 28),
+                }}
                 accessibilityLabel={greetingLine}
               >
                 {greetingLine}
               </GradientText>
-              <Text style={styles.greetingEmoji}> 👋</Text>
+              <Text style={[styles.greetingEmoji, { fontSize: ms(isNarrow ? 16 : 18) }]}> 👋</Text>
             </View>
             {/* <Pressable style={styles.locationRow} hitSlop={8}>
-              <MaterialCommunityIcons name="map-marker" size={16} color={HOME_UI.purple} />
+              <MaterialCommunityIcons name="map-marker" size={16} color={UI.purple} />
               <Text style={styles.locationText} numberOfLines={1}>
                 {locationLabel}
               </Text>
-              <MaterialCommunityIcons name="chevron-down" size={16} color={HOME_UI.muted} />
+              <MaterialCommunityIcons name="chevron-down" size={16} color={UI.muted} />
             </Pressable> */}
           </View>
           <View style={styles.headerActions}>
@@ -276,11 +358,29 @@ export function CustomerHomeFeed({
           contentContainerStyle={styles.categoryList}
         >
           <CategoryCard
+            title={s.categoryTailoring}
+            subtitle={s.categoryTailoringSub}
+            image={assets.images.home_category_tailoring}
+            icon="scissors-cutting"
+            accent={UI.purple}
+            width={categoryCardWidth}
+            onPress={() => onPressCategory("tailoring")}
+          />
+          <CategoryCard
+            title={s.categoryIroning}
+            subtitle={s.categoryIroningSub}
+            image={assets.images.home_category_ironing}
+            icon="iron"
+            accent={UI.mapGreen}
+            width={categoryCardWidth}
+            onPress={() => onPressCategory("press")}
+          />
+          <CategoryCard
             title={s.categoryLaundry}
             subtitle={s.categoryLaundrySub}
             image={assets.onboarding.slide1}
             icon="tshirt-crew"
-            accent={HOME_UI.blue}
+            accent={UI.blue}
             width={categoryCardWidth}
             onPress={() => onPressCategory("washAndFold")}
           />
@@ -293,48 +393,102 @@ export function CustomerHomeFeed({
             width={categoryCardWidth}
             onPress={() => onPressCategory("dryCleaning")}
           />
-          <CategoryCard
-            title={s.categoryIroning}
-            subtitle={s.categoryIroningSub}
-            image={assets.images.home_category_ironing}
-            icon="iron"
-            accent={HOME_UI.mapGreen}
-            width={categoryCardWidth}
-            onPress={() => onPressCategory("press")}
-          />
-          <CategoryCard
-            title={s.categoryTailoring}
-            subtitle={s.categoryTailoringSub}
-            image={assets.images.home_category_tailoring}
-            icon="scissors-cutting"
-            accent={HOME_UI.purple}
-            width={categoryCardWidth}
-            onPress={() => onPressCategory("tailoring")}
-          />
 
         </ScrollView>
 
-        <View style={styles.trustCard}>
-          <View style={styles.trustBadge}>
-            <MaterialCommunityIcons name="shield-check" size={28} color="#FFFFFF" />
+        <View style={[styles.trustCard, isNarrow && styles.trustCardNarrow]}>
+          <View style={[styles.trustBadge, isNarrow && styles.trustBadgeNarrow]}>
+            <MaterialCommunityIcons
+              name="shield-check"
+              size={isNarrow ? 22 : 28}
+              color="#FFFFFF"
+            />
           </View>
           <View style={styles.trustCopy}>
-            <Text style={styles.trustTitle}>
+            <Text
+              style={[styles.trustTitle, { fontSize: ms(isNarrow ? 13 : 15) }]}
+              numberOfLines={2}
+            >
               {s.trustTitleBefore}
               <Text style={styles.trustAccent}>{s.trustTitleAccent}</Text>
             </Text>
-            <Text style={styles.trustBody}>{s.trustBody}</Text>
+            <Text
+              style={[styles.trustBody, { fontSize: ms(isNarrow ? 11 : 12) }]}
+              numberOfLines={3}
+            >
+              {s.trustBody}
+            </Text>
           </View>
           <Image
             source={assets.images.top_facilities}
-            style={styles.trustImage}
+            style={[styles.trustImage, isNarrow && styles.trustImageNarrow]}
             contentFit="cover"
           />
         </View>
 
+        <SectionHeader
+          title={s.recentlyVisited}
+          actionLabel={hasMoreRecent ? s.seeAll : undefined}
+          onAction={hasMoreRecent ? onSeeAll : undefined}
+        />
+        {loadingRecent ? (
+          <GradientLoader style={styles.loader} />
+        ) : recentRows.length === 0 ? (
+          <Text style={styles.empty}>{s.emptyRecentlyVisited}</Text>
+        ) : (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.hScroll}
+            contentContainerStyle={styles.nearbyList}
+          >
+            {visibleRecent.map(({ partner, km }, index) => {
+              const badge = BADGES[index % BADGES.length];
+              const badgeLabel =
+                badge.key === "top"
+                  ? s.badgeTopRated
+                  : badge.key === "fast"
+                    ? s.badgeFastService
+                    : s.badgeTrusted;
+              return (
+                <RecommendedCard
+                  key={partner.id}
+                  partner={partner}
+                  cardWidth={nearbyCardWidth}
+                  distanceLabel={
+                    Number.isFinite(km) ? fill(s.kmAway, { km: formatKm(km) }) : "—"
+                  }
+                  badgeLabel={badgeLabel}
+                  badgeColor={badge.bg}
+                  onRemove={() => {
+                    void (async () => {
+                      await removeRecentProviderVisit(partner.id);
+                      setRecentVisits((prev) =>
+                        prev.filter((item) => item.partnerId !== partner.id),
+                      );
+                      setRecentPartners((prev) =>
+                        prev.filter((item) => item.id !== partner.id),
+                      );
+                    })();
+                  }}
+                  onPress={() => onPressPartner(partner)}
+                  strings={s}
+                />
+              );
+            })}
+            {hasMoreRecent ? (
+              <RecentSeeAllCard
+                cardWidth={nearbyCardWidth}
+                label={s.seeAllRecent}
+                onPress={onSeeAll}
+              />
+            ) : null}
+          </ScrollView>
+        )}
+
         <SectionHeader title={s.recommended} actionLabel={s.seeAll} onAction={onSeeAll} />
         {mapData.loadingPartners ? (
-          <ActivityIndicator style={styles.loader} color={HOME_UI.purple} />
+          <GradientLoader style={styles.loader} />
         ) : recommended.length === 0 ? (
           <Text style={styles.empty}>{s.emptyRecommended}</Text>
         ) : (
@@ -363,9 +517,12 @@ export function CustomerHomeFeed({
                   badgeLabel={badgeLabel}
                   badgeColor={badge.bg}
                   favorited={Boolean(favorites[partner.id])}
-                  onToggleFavorite={() =>
-                    setFavorites((prev) => ({ ...prev, [partner.id]: !prev[partner.id] }))
-                  }
+                  onToggleFavorite={() => {
+                    void (async () => {
+                      const next = await toggleSavedProvider(partner.id);
+                      setFavorites((prev) => ({ ...prev, [partner.id]: next }));
+                    })();
+                  }}
                   onPress={() => onPressPartner(partner)}
                   strings={s}
                 />
@@ -374,6 +531,7 @@ export function CustomerHomeFeed({
           </ScrollView>
         )}
 
+        {/* Deals of the day — hidden for now
         <SectionHeader title={s.deals} actionLabel={s.seeAll} onAction={onSeeAll} />
         <ScrollView
           horizontal
@@ -412,6 +570,7 @@ export function CustomerHomeFeed({
             strings={s}
           />
         </ScrollView>
+        */}
       </ScrollView>
     </SafeAreaView>
   );
@@ -423,15 +582,43 @@ function SectionHeader({
   onAction,
 }: {
   title: string;
-  actionLabel: string;
-  onAction: () => void;
+  actionLabel?: string;
+  onAction?: () => void;
 }) {
   return (
     <View style={styles.sectionHeader}>
       <Text style={styles.sectionTitleNoMargin}>{title}</Text>
-      <Pressable onPress={onAction} hitSlop={8} style={styles.seeAllBtn}>
-        <Text style={styles.seeAll}>{actionLabel}</Text>
-        <MaterialCommunityIcons name="arrow-right" size={16} color={HOME_UI.purple} />
+      {actionLabel && onAction ? (
+        <Pressable onPress={onAction} hitSlop={8} style={styles.seeAllBtn}>
+          <Text style={styles.seeAll}>{actionLabel}</Text>
+          <MaterialCommunityIcons name="arrow-right" size={16} color={UI.purple} />
+        </Pressable>
+      ) : null}
+    </View>
+  );
+}
+
+function RecentSeeAllCard({
+  cardWidth,
+  label,
+  onPress,
+}: {
+  cardWidth: number;
+  label: string;
+  onPress: () => void;
+}) {
+  return (
+    <View style={[styles.hCardShadowHost, { width: cardWidth * 0.72 }]} collapsable={false}>
+      <Pressable
+        onPress={onPress}
+        style={({ pressed }) => [styles.recentAllCard, pressed && styles.pressed]}
+        accessibilityRole="button"
+        accessibilityLabel={label}
+      >
+        <View style={styles.recentAllIcon}>
+          <MaterialCommunityIcons name="dots-horizontal" size={22} color={UI.purple} />
+        </View>
+        <Text style={styles.recentAllLabel}>{label}</Text>
       </Pressable>
     </View>
   );
@@ -485,6 +672,7 @@ function RecommendedCard({
   badgeColor,
   favorited,
   onToggleFavorite,
+  onRemove,
   onPress,
   strings: s,
 }: {
@@ -493,8 +681,9 @@ function RecommendedCard({
   distanceLabel: string;
   badgeLabel: string;
   badgeColor: string;
-  favorited: boolean;
-  onToggleFavorite: () => void;
+  favorited?: boolean;
+  onToggleFavorite?: () => void;
+  onRemove?: () => void;
   onPress: () => void;
   strings: HomeStrings;
 }) {
@@ -518,19 +707,34 @@ function RecommendedCard({
               {badgeLabel}
             </Text>
           </View>
-          <Pressable
-            onPress={onToggleFavorite}
-            style={styles.heartBtn}
-            hitSlop={8}
-            accessibilityRole="button"
-            accessibilityLabel={favorited ? s.unfavorite : s.favorite}
-          >
-            <MaterialCommunityIcons
-              name={favorited ? "heart" : "heart-outline"}
-              size={15}
-              color={favorited ? "#E11D48" : "#FFFFFF"}
-            />
-          </Pressable>
+          {onRemove ? (
+            <Pressable
+              onPress={(event) => {
+                event.stopPropagation?.();
+                onRemove();
+              }}
+              style={styles.heartBtn}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel={s.removeRecentlyVisited}
+            >
+              <MaterialCommunityIcons name="close" size={15} color="#FFFFFF" />
+            </Pressable>
+          ) : onToggleFavorite ? (
+            <Pressable
+              onPress={onToggleFavorite}
+              style={styles.heartBtn}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel={favorited ? s.unfavorite : s.favorite}
+            >
+              <MaterialCommunityIcons
+                name={favorited ? "heart" : "heart-outline"}
+                size={15}
+                color={favorited ? "#E11D48" : "#FFFFFF"}
+              />
+            </Pressable>
+          ) : null}
         </View>
         <View style={styles.recBody}>
           <PartnerNameWithBadge
@@ -543,7 +747,7 @@ function RecommendedCard({
             <MaterialCommunityIcons
               name="star"
               size={12}
-              color={(partner.ratingCount ?? 0) > 0 ? HOME_UI.star : "#E5E7EB"}
+              color={(partner.ratingCount ?? 0) > 0 ? UI.star : "#E5E7EB"}
             />
             <Text style={styles.recMetaMuted} numberOfLines={1}>
               {(partner.ratingCount ?? 0) > 0
@@ -557,7 +761,7 @@ function RecommendedCard({
             </Text>
           </View>
           <View style={styles.tagRow}>
-            <MaterialCommunityIcons name="tshirt-crew-outline" size={11} color={HOME_UI.blue} />
+            <MaterialCommunityIcons name="tshirt-crew-outline" size={11} color={UI.blue} />
             <Text style={styles.tagText} numberOfLines={1}>
               {pickup ? s.tagWashFold : s.tagLaundry}
             </Text>
@@ -639,12 +843,10 @@ function DealCard({
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: HOME_UI.bg,
+    backgroundColor: UI.bg,
   },
   scroll: {
-    paddingHorizontal: SCREEN_PAD,
-    paddingTop: 4,
-    // backgroundColor: "green",
+    paddingTop: 8,
   },
   hScroll: {
     overflow: "visible",
@@ -653,24 +855,32 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 15,
+    overflow: "visible",
   },
   headerText: {
     flex: 1,
+    minWidth: 0,
+    overflow: "visible",
+    paddingRight: 8,
   },
   greetingRow: {
     flexDirection: "row",
     alignItems: "center",
     flexShrink: 1,
+    overflow: "visible",
+    minHeight: 34,
   },
   greeting: {
     fontSize: 18,
-    lineHeight: 30,
+    lineHeight: 28,
     fontFamily: "Poppins-Bold",
+    includeFontPadding: false,
   },
   greetingEmoji: {
     fontSize: 18,
-    lineHeight: 30,
+    lineHeight: 28,
   },
   locationRow: {
     flexDirection: "row",
@@ -679,7 +889,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   locationText: {
-    color: HOME_UI.text,
+    color: UI.text,
     fontSize: 11,
     fontFamily: "Poppins-Regular",
     flexShrink: 1,
@@ -705,13 +915,13 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 20,
     fontFamily: "Poppins-Bold",
-    color: HOME_UI.text,
+    color: UI.text,
     marginBottom: 12,
   },
   sectionTitleNoMargin: {
     fontSize: 20,
     fontFamily: "Poppins-Bold",
-    color: HOME_UI.text,
+    color: UI.text,
     flex: 1,
   },
   sectionHeader: {
@@ -728,7 +938,7 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   seeAll: {
-    color: HOME_UI.purple,
+    color: UI.purple,
     fontSize: 13,
     fontFamily: "Poppins-SemiBold",
   },
@@ -739,7 +949,7 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   categoryCard: {
-    backgroundColor: HOME_UI.card,
+    backgroundColor: UI.card,
     borderRadius: 18,
     overflow: "hidden",
   },
@@ -773,11 +983,11 @@ const styles = StyleSheet.create({
   categoryTitle: {
     fontSize: 15,
     fontFamily: "Poppins-Bold",
-    color: HOME_UI.text,
+    color: UI.text,
   },
   categorySub: {
     fontSize: 12,
-    color: HOME_UI.text,
+    color: UI.text,
     fontFamily: "Poppins-Regular",
   },
   categoryArrow: {
@@ -791,7 +1001,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   trustCard: {
-    backgroundColor: HOME_UI.border,
+    backgroundColor: UI.border,
     borderRadius: 18,
     padding: 14,
     flexDirection: "row",
@@ -799,43 +1009,60 @@ const styles = StyleSheet.create({
     gap: 10,
     overflow: "hidden",
   },
+  trustCardNarrow: {
+    padding: 10,
+    gap: 8,
+  },
   trustBadge: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: HOME_UI.green,
+    backgroundColor: UI.green,
     alignItems: "center",
     justifyContent: "center",
+    flexShrink: 0,
+  },
+  trustBadgeNarrow: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
   },
   trustCopy: {
     flex: 1,
+    minWidth: 0,
     backgroundColor: "transparent",
   },
   trustTitle: {
     fontSize: 15,
     fontFamily: "Poppins-Bold",
-    color: HOME_UI.text,
+    color: UI.text,
   },
   trustAccent: {
-    color: HOME_UI.green,
+    color: UI.green,
   },
   trustBody: {
     marginTop: 2,
     fontSize: 12,
     lineHeight: 16,
-    color: HOME_UI.muted,
+    color: UI.muted,
     fontFamily: "Poppins-Regular",
   },
   trustImage: {
     width: 64,
     height: 64,
     borderRadius: 12,
+    flexShrink: 0,
+  },
+  trustImageNarrow: {
+    width: 48,
+    height: 48,
+    borderRadius: 10,
   },
   loader: {
     marginVertical: 24,
   },
   empty: {
-    color: HOME_UI.muted,
+    color: UI.muted,
     fontFamily: "Poppins-Regular",
     fontSize: 13,
     paddingVertical: 12,
@@ -849,12 +1076,34 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
   },
   hCardShadowHost: {
-    backgroundColor: HOME_UI.card,
+    backgroundColor: UI.card,
     borderRadius: 18,
     ...CARD_SHADOW,
   },
+  recentAllCard: {
+    minHeight: 168,
+    borderRadius: 18,
+    backgroundColor: UI.card,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingHorizontal: 10,
+  },
+  recentAllIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#F3E8FF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  recentAllLabel: {
+    color: UI.purple,
+    fontSize: 13,
+    fontFamily: "Poppins-SemiBold",
+  },
   recCard: {
-    backgroundColor: HOME_UI.card,
+    backgroundColor: UI.card,
     borderRadius: 18,
     overflow: "hidden",
   },
@@ -902,7 +1151,7 @@ const styles = StyleSheet.create({
   recName: {
     fontSize: 13,
     fontFamily: "Poppins-SemiBold",
-    color: HOME_UI.text,
+    color: UI.text,
   },
   recMeta: {
     flexDirection: "row",
@@ -911,13 +1160,13 @@ const styles = StyleSheet.create({
   },
   recMetaText: {
     fontSize: 10,
-    color: HOME_UI.text,
+    color: UI.text,
     fontFamily: "Poppins-Regular",
   },
   recMetaMuted: {
     flex: 1,
     fontSize: 11,
-    color: HOME_UI.muted,
+    color: UI.muted,
     fontFamily: "Poppins-Regular",
   },
   tagRow: {
@@ -928,7 +1177,7 @@ const styles = StyleSheet.create({
   tagText: {
     flex: 1,
     fontSize: 11,
-    color: HOME_UI.text,
+    color: UI.text,
     fontFamily: "Poppins-Regular",
   },
   fromPriceRow: {
@@ -936,16 +1185,16 @@ const styles = StyleSheet.create({
   },
   fromLabel: {
     fontSize: 11,
-    color: HOME_UI.muted,
+    color: UI.muted,
     fontFamily: "Poppins-Regular",
   },
   price: {
     fontSize: 11,
     fontFamily: "Poppins-Bold",
-    color: HOME_UI.green,
+    color: UI.green,
   },
   dealCard: {
-    backgroundColor: HOME_UI.card,
+    backgroundColor: UI.card,
     borderRadius: 18,
     padding: 8,
     overflow: "hidden",
@@ -970,11 +1219,11 @@ const styles = StyleSheet.create({
     marginTop: 6,
     fontSize: 15,
     fontFamily: "Poppins-Bold",
-    color: HOME_UI.text,
+    color: UI.text,
   },
   dealSub: {
     fontSize: 11,
-    color: HOME_UI.muted,
+    color: UI.muted,
     fontFamily: "Poppins-Regular",
   },
   dealImageWrap: {

@@ -51,9 +51,44 @@ export interface PickupDeliveryPricing {
 }
 
 /** Persisted items list + prices for Dry Cleaning / Tailoring so removals and additions survive navigation. */
+export interface ServiceAddOn {
+  id: string;
+  label: string;
+  price: string;
+  unit: string;
+}
+
+export const WASH_FOLD_ADD_ON_PREFIX = "Add-on · ";
+
+export function formatWashFoldAddOnLabel(label: string, unit: string): string {
+  const name = label.trim() || "Add-on";
+  const unitLabel = unit.trim() || "Per order";
+  return `${WASH_FOLD_ADD_ON_PREFIX}${name} (${unitLabel})`;
+}
+
+export function parseWashFoldAddOnLabel(
+  raw: string,
+): { label: string; unit: string } | null {
+  if (!raw.startsWith(WASH_FOLD_ADD_ON_PREFIX)) return null;
+  const rest = raw.slice(WASH_FOLD_ADD_ON_PREFIX.length).trim();
+  const match = rest.match(/^(.*) \(([^)]+)\)\s*$/);
+  if (match) {
+    return { label: match[1].trim(), unit: match[2].trim() };
+  }
+  return { label: rest, unit: "Per order" };
+}
+
 export interface ItemizeState {
   items: { id: string; label: string }[];
   prices: Record<string, string>;
+  /** Tailoring: stitching / alteration / custom (multi-select). */
+  tailoringServiceTypes?: string[];
+  /** Tailoring: how measurements are handled. */
+  measurementMode?: string;
+  /** Optional service gallery images (local URIs or remote URLs). */
+  images?: string[];
+  /** Optional paid extras (e.g. Express Service). */
+  addOns?: ServiceAddOn[];
 }
 
 interface MerchantServicesContextValue {
@@ -169,12 +204,16 @@ export function MerchantServicesProvider({ children }: { children: React.ReactNo
 
       const wafItems: { id: string; label: string }[] = [];
       const wafPrices: Record<string, string> = {};
+      const wafAddOns: ServiceAddOn[] = [];
       const dcItems: {id: string, label: string}[] = [];
       const dcPrices: Record<string, string> = {};
+      const dcAddOns: ServiceAddOn[] = [];
       const tailItems: {id: string, label: string}[] = [];
       const tailPrices: Record<string, string> = {};
+      const tailAddOns: ServiceAddOn[] = [];
       const pressItems: { id: string; label: string }[] = [];
       const pressPrices: Record<string, string> = {};
+      const pressAddOns: ServiceAddOn[] = [];
 
       (data ?? []).forEach(row => {
         if (row.category === "Wash & Fold") {
@@ -184,6 +223,16 @@ export function MerchantServicesProvider({ children }: { children: React.ReactNo
           if (isDroppedWashFoldGarmentLabel(label)) return;
           const id = `item_${row.id}`;
           wafRows.push({ label, value: row.price_display });
+          const addOn = parseWashFoldAddOnLabel(label);
+          if (addOn) {
+            wafAddOns.push({
+              id,
+              label: addOn.label,
+              price: row.price_display,
+              unit: addOn.unit,
+            });
+            return;
+          }
           wafItems.push({ id, label });
           wafPrices[id] = row.price_display;
         } else if (row.category === "Dry Cleaning") {
@@ -192,6 +241,16 @@ export function MerchantServicesProvider({ children }: { children: React.ReactNo
           if (isDroppedDryCleanItemLabel(label)) return;
           const id = `item_${row.id}`;
           dcRows.push({ label, value: row.price_display });
+          const addOn = parseWashFoldAddOnLabel(label);
+          if (addOn) {
+            dcAddOns.push({
+              id,
+              label: addOn.label,
+              price: row.price_display,
+              unit: addOn.unit,
+            });
+            return;
+          }
           dcItems.push({ id, label });
           dcPrices[id] = row.price_display;
         } else if (row.category === "Tailoring") {
@@ -199,6 +258,16 @@ export function MerchantServicesProvider({ children }: { children: React.ReactNo
           if (isDroppedTailoringItemLabel(label)) return;
           const id = `item_${row.id}`;
           tailRows.push({ label, value: row.price_display });
+          const addOn = parseWashFoldAddOnLabel(label);
+          if (addOn) {
+            tailAddOns.push({
+              id,
+              label: addOn.label,
+              price: row.price_display,
+              unit: addOn.unit,
+            });
+            return;
+          }
           tailItems.push({ id, label });
           tailPrices[id] = row.price_display;
         } else if (row.category === "Press") {
@@ -208,19 +277,61 @@ export function MerchantServicesProvider({ children }: { children: React.ReactNo
           if (isPressExcludedGarmentLabel(label)) return;
           const id = `item_${row.id}`;
           pressRows.push({ label, value: row.price_display });
+          const addOn = parseWashFoldAddOnLabel(label);
+          if (addOn) {
+            pressAddOns.push({
+              id,
+              label: addOn.label,
+              price: row.price_display,
+              unit: addOn.unit,
+            });
+            return;
+          }
           pressItems.push({ id, label });
           pressPrices[id] = row.price_display;
         }
       });
 
       setWashAndFoldPricing(wafRows.length > 0 ? { rows: wafRows } : null);
-      setWashFoldItemizeState(wafRows.length > 0 ? { items: wafItems, prices: wafPrices } : null);
+      setWashFoldItemizeState(
+        wafItems.length > 0 || wafAddOns.length > 0
+          ? {
+              items: wafItems,
+              prices: wafPrices,
+              addOns: wafAddOns.length > 0 ? wafAddOns : undefined,
+            }
+          : null,
+      );
       setDryCleaningPricing(dcRows.length > 0 ? { rows: dcRows } : null);
-      setDryCleaningItemizeState(dcRows.length > 0 ? { items: dcItems, prices: dcPrices } : null);
+      setDryCleaningItemizeState(
+        dcItems.length > 0 || dcAddOns.length > 0
+          ? {
+              items: dcItems,
+              prices: dcPrices,
+              addOns: dcAddOns.length > 0 ? dcAddOns : undefined,
+            }
+          : null,
+      );
       setTailoringPricing(tailRows.length > 0 ? { rows: tailRows } : null);
-      setTailoringItemizeState(tailRows.length > 0 ? { items: tailItems, prices: tailPrices } : null);
+      setTailoringItemizeState(
+        tailItems.length > 0 || tailAddOns.length > 0
+          ? {
+              items: tailItems,
+              prices: tailPrices,
+              addOns: tailAddOns.length > 0 ? tailAddOns : undefined,
+            }
+          : null,
+      );
       setPressPricing(pressRows.length > 0 ? { rows: pressRows } : null);
-      setPressItemizeState(pressRows.length > 0 ? { items: pressItems, prices: pressPrices } : null);
+      setPressItemizeState(
+        pressItems.length > 0 || pressAddOns.length > 0
+          ? {
+              items: pressItems,
+              prices: pressPrices,
+              addOns: pressAddOns.length > 0 ? pressAddOns : undefined,
+            }
+          : null,
+      );
     }
 
     const { data: partnerProfileData } = await supabase

@@ -1,17 +1,11 @@
 import { Image } from "expo-image";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
-import { theme } from "@/constants/theme";
+import { GradientLoader } from "@/components/ui/gradient-loader";
+
+import { theme, UI } from "@/constants/theme";
 import type { PartnerRider } from "@/lib/partner-riders";
 
-const UI = {
-  card: "#FFFFFF",
-  text: "#111827",
-  muted: "#6B7280",
-  teal: "#12B886",
-  chipBorder: "#E5E7EB",
-  mint: "#ECFDF5",
-};
 const fs = theme.fontSize;
 
 type PartnerRiderPickerModalProps = {
@@ -65,7 +59,7 @@ export function PartnerRiderPickerModal({
 
         {loading ? (
           <View style={styles.loadingWrap}>
-            <ActivityIndicator color={UI.teal} />
+            <GradientLoader />
             <Text style={styles.loadingText}>{loadingLabel}</Text>
           </View>
         ) : riders.length === 0 ? (

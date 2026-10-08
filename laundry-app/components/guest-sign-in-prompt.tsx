@@ -1,20 +1,13 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { getTabBarBottomInset } from "@/components/bottom-tab-bar";
-import { theme } from "@/constants/theme";
+import { AppCtaButton } from "@/components/ui/cta-button";
+import { theme, UI } from "@/constants/theme";
 
 const c = theme.colors;
 const fs = theme.fontSize;
-
-const LIGHT = {
-  text: "#111827",
-  muted: "#6B7280",
-  teal: "#12B886",
-  card: "#FFFFFF",
-  border: "#E5E7EB",
-};
 
 export type GuestSignInPromptVariant = "chat" | "orders";
 
@@ -39,12 +32,11 @@ function GuestArt({
 
   return (
     <View style={styles.art} accessibilityElementsHidden>
-      <View style={[styles.card, styles.cardBack, light && styles.cardLight]} />
-      <View style={[styles.card, styles.cardFront, light && styles.cardLight]}>
+      <View style={[styles.card, light && styles.cardLight]}>
         <MaterialCommunityIcons
           name={iconName}
           size={36}
-          color={light ? LIGHT.teal : c.backgroundDark}
+          color={light ? UI.teal : c.backgroundDark}
         />
       </View>
       <View style={[styles.badge, light && styles.badgeLight]}>
@@ -73,18 +65,7 @@ export function GuestSignInPrompt({
         <GuestArt variant={variant} light={light} />
         <Text style={[styles.title, light && styles.titleLight]}>{title}</Text>
         <Text style={[styles.subtitle, light && styles.subtitleLight]}>{subtitle}</Text>
-        <Pressable
-          onPress={onPressLogin}
-          style={({ pressed }) => [
-            styles.loginBtn,
-            light && styles.loginBtnLight,
-            pressed && styles.pressed,
-          ]}
-          accessibilityRole="button"
-          accessibilityLabel={buttonLabel}
-        >
-          <Text style={styles.loginLabel}>{buttonLabel}</Text>
-        </Pressable>
+        <AppCtaButton label={buttonLabel} onPress={onPressLogin} width="full" />
       </View>
     </View>
   );
@@ -111,38 +92,23 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   card: {
-    position: "absolute",
+    width: 96,
+    height: 80,
     backgroundColor: "rgba(255,255,255,0.92)",
     borderRadius: 18,
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.5)",
-    borderStyle: "dashed",
     alignItems: "center",
     justifyContent: "center",
   },
   cardLight: {
-    backgroundColor: LIGHT.card,
-    borderColor: LIGHT.border,
-  },
-  cardBack: {
-    width: 88,
-    height: 72,
-    left: 8,
-    top: 8,
-    opacity: 0.55,
-    transform: [{ rotate: "-8deg" }],
-  },
-  cardFront: {
-    width: 96,
-    height: 80,
-    right: 6,
-    top: 18,
-    transform: [{ rotate: "4deg" }],
+    backgroundColor: UI.card,
+    borderColor: UI.chipBorder,
   },
   badge: {
     position: "absolute",
-    right: 10,
-    top: 10,
+    right: 22,
+    top: 14,
     width: 36,
     height: 36,
     borderRadius: 18,
@@ -153,8 +119,8 @@ const styles = StyleSheet.create({
     borderColor: c.white,
   },
   badgeLight: {
-    backgroundColor: LIGHT.teal,
-    borderColor: LIGHT.card,
+    backgroundColor: UI.teal,
+    borderColor: UI.card,
   },
   badgeText: {
     color: c.white,
@@ -170,7 +136,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   titleLight: {
-    color: LIGHT.text,
+    color: UI.text,
   },
   subtitle: {
     fontSize: fs.xSmallText,
@@ -180,29 +146,6 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   subtitleLight: {
-    color: LIGHT.muted,
-  },
-  loginBtn: {
-    alignSelf: "stretch",
-    backgroundColor: c.lightBlue,
-    borderRadius: 14,
-    paddingVertical: 16,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: c.filledButtonBorder,
-  },
-  loginBtnLight: {
-    backgroundColor: LIGHT.teal,
-    borderWidth: 0,
-  },
-  loginLabel: {
-    color: c.white,
-    fontSize: 16,
-    fontFamily: "Poppins-Bold",
-    fontWeight: "700",
-  },
-  pressed: {
-    opacity: 0.9,
+    color: UI.muted,
   },
 });

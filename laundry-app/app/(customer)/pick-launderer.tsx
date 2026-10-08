@@ -1,8 +1,8 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter, useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ActivityIndicator,
+  FlatList,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -15,11 +15,14 @@ import {
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
+import { LinearGradient } from "expo-linear-gradient";
 
 import { BlockingLoader } from "@/components/blocking-loader";
 import { FiltersMapFab } from "@/components/filters-map-fab";
 import { AvatarImage } from "@/components/avatar-image";
 import { PartnerNameWithBadge } from "@/components/partner-name-with-badge";
+import { gradients, UI } from "@/constants/theme";
+import { GradientLoader } from "@/components/ui/gradient-loader";
 import {
   applyProviderFilters,
   isServiceCategory,
@@ -40,6 +43,10 @@ import {
   type PartnerFulfillmentMode,
   type PartnerPublicRow,
 } from "@/lib/partner-discovery";
+import {
+  getSavedProviderMap,
+  toggleSavedProvider,
+} from "@/lib/saved-providers";
 import { getCoordinatesWithFallback, type Coordinates } from "@/utils/geocoding";
 import {
   formatPartnerUpdatedAt,
@@ -49,30 +56,29 @@ import {
   type PartnerMapMarker,
 } from "@/hooks/use-customer-home-map-data";
 import { getDeviceCoordinatesWithStatus } from "@/utils/device-location";
-import { StarRating } from "@/components/star-rating";
 import { getPartnerOpenStatus, isPartnerOpenNow } from "@/utils/partner-hours";
 import { isPartnerTopRated, partnerHasActiveOffer } from "@/utils/partner-offers";
-
-const UI = {
-  bg: "#F7F8FA",
-  card: "#FFFFFF",
-  text: "#111827",
-  muted: "#6B7280",
-  teal: "#12B886",
-  price: "#0F9F6E",
-  chipBorder: "#E5E7EB",
-  openBg: "#ECFDF5",
-  openText: "#047857",
-  distBg: "rgba(17, 24, 39, 0.62)",
-  backBg: "#EEF2F6",
-};
 
 const DISTANCE_PLACEHOLDER = "—";
 const PARTNER_DISTANCE_PLACEHOLDER = `${DISTANCE_PLACEHOLDER} km`;
 const H_PAD = 16;
 const CARD_GAP = 12;
+const PAGE_SIZE = 10;
+const LOAD_MORE_DELAY_MS = 450;
 
-type ProviderChip = "all" | "open" | "rated" | "offers";
+type ProviderChip = "all" | "open" | "rated" | "offers" | "favourites";
+
+function fill(template: string, vars: Record<string, string | number>) {
+  return template.replace(/\{(\w+)\}/g, (_, key: string) => String(vars[key] ?? `{${key}}`));
+}
+
+function shortAddress(address: string | null | undefined): string | null {
+  const trimmed = address?.trim();
+  if (!trimmed) return null;
+  const first = trimmed.split(",")[0]?.trim();
+  if (!first) return null;
+  return first.length > 28 ? `${first.slice(0, 27)}…` : first;
+}
 
 function toRadians(value: number): number {
   return (value * Math.PI) / 180;
@@ -101,26 +107,18 @@ function formatDistanceKm(distanceKm: number | null | undefined): string {
   return `${distanceKm.toFixed(1)} km`;
 }
 
-type LaundererCardVariant = "list" | "grid";
-
-function fill(template: string, vars: Record<string, string | number>) {
-  return template.replace(/\{(\w+)\}/g, (_, key: string) => String(vars[key] ?? `{${key}}`));
-}
-
 function LaundererCard({
   partner,
   distanceLabel,
   onPress,
   favorited,
   onToggleFavorite,
-  isPickup,
 }: {
   partner: PartnerPublicRow;
   distanceLabel: string;
   onPress: () => void;
   favorited: boolean;
   onToggleFavorite: () => void;
-  isPickup: boolean;
 }) {
   const s = strings.customer.pickLaunderer;
   const businessImageUri = Array.isArray(partner.business_images)
@@ -133,8 +131,15 @@ function LaundererCard({
   const openStatus = getPartnerOpenStatus(partner.available_time);
   const openLabel =
     openStatus === "open" ? s.openNow : openStatus === "closed" ? s.closed : s.hoursUnknown;
-  const hasOffer = partnerHasActiveOffer(partner.offerPercent);
-  const topRated = isPartnerTopRated(partner.ratingAvg, partner.ratingCount);
+  const areaLabel = shortAddress(partner.address);
+  const locationLine = [areaLabel, distanceLabel].filter(Boolean).join(" · ");
+  const ratingAvgLabel =
+    partner.ratingCount > 0 && partner.ratingAvg != null
+      ? Number.isInteger(partner.ratingAvg)
+        ? String(partner.ratingAvg)
+        : partner.ratingAvg.toFixed(1)
+      : null;
+  const minPrice = typeof partner.minPrice === "number" ? Math.round(partner.minPrice) : null;
 
   return (
     <Pressable
@@ -147,21 +152,7 @@ function LaundererCard({
         ) : (
           <Image source={assets.onboarding.slide1} style={styles.cardImage} contentFit="cover" />
         )}
-        {hasOffer ? (
-          <View style={[styles.cardBadge, styles.offerBadge]}>
-            <MaterialCommunityIcons name="tag-outline" size={11} color="#BE185D" />
-            <Text style={[styles.cardBadgeText, { color: "#BE185D" }]} numberOfLines={1}>
-              {fill(s.percentOff, { pct: partner.offerPercent ?? 0 })}
-            </Text>
-          </View>
-        ) : topRated ? (
-          <View style={[styles.cardBadge, styles.topRatedBadge]}>
-            <MaterialCommunityIcons name="crown-outline" size={11} color="#047857" />
-            <Text style={[styles.cardBadgeText, { color: "#047857" }]} numberOfLines={1}>
-              {s.badgeTopRated}
-            </Text>
-          </View>
-        ) : null}
+
         <Pressable
           onPress={onToggleFavorite}
           style={styles.heartBtn}
@@ -171,56 +162,80 @@ function LaundererCard({
         >
           <MaterialCommunityIcons
             name={favorited ? "heart" : "heart-outline"}
-            size={16}
+            size={18}
             color={favorited ? "#E11D48" : "#FFFFFF"}
           />
         </Pressable>
-        <View style={styles.distancePill}>
-          <MaterialCommunityIcons name="map-marker" size={11} color="#FFFFFF" />
-          <Text style={styles.distancePillText} numberOfLines={1}>
-            {distanceLabel}
-          </Text>
-        </View>
-      </View>
-      <View style={styles.cardBody}>
-        <PartnerNameWithBadge
-          name={partner.business_name.trim()}
-          verified
-          nameStyle={styles.cardName}
-          badgeSize={12}
-        />
-        <StarRating value={partner.ratingCount > 0 ? partner.ratingAvg : 0} size={13} />
-        <Text style={styles.tagText} numberOfLines={1}>
-          {isPickup ? `${s.tagLaundry} • ${s.tagWashFold}` : `${s.tagLaundry} • ${s.tagDropoff}`}
-        </Text>
-        <View style={styles.cardFooter}>
+
+        {openStatus === "open" ? (
+          <LinearGradient
+            colors={[...gradients.brand]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.statusBadge}
+          >
+            <Text style={styles.statusBadgeText} numberOfLines={1}>
+              {openLabel}
+            </Text>
+          </LinearGradient>
+        ) : (
           <View
             style={[
-              styles.openPill,
-              openStatus === "closed" && styles.openPillClosed,
-              openStatus === "unknown" && styles.openPillMuted,
+              styles.statusBadge,
+              openStatus === "closed" ? styles.closedBadge : styles.unknownBadge,
             ]}
           >
-            <Text
-              style={[
-                styles.openPillText,
-                openStatus === "closed" && styles.openPillTextClosed,
-                openStatus === "unknown" && styles.openPillTextMuted,
-              ]}
-            >
+            <Text style={styles.statusBadgeText} numberOfLines={1}>
               {openLabel}
             </Text>
           </View>
-          {typeof partner.minPrice === "number" ? (
-            <Text style={styles.fromPriceRow} numberOfLines={1}>
-              <Text style={styles.fromLabel}>{s.fromLabel} </Text>
-              <Text style={styles.price}>Rs {Math.round(partner.minPrice)}</Text>
+        )}
+      </View>
+
+      <View style={styles.cardBody}>
+        <View style={styles.titleRow}>
+          <PartnerNameWithBadge
+            name={partner.business_name.trim()}
+            verified
+            nameStyle={styles.cardName}
+            containerStyle={styles.cardNameWrap}
+            badgeSize={14}
+            numberOfLines={2}
+          />
+        </View>
+
+        <View style={styles.metaPriceRow}>
+          <View style={styles.metaCol}>
+            {ratingAvgLabel ? (
+              <View style={styles.ratingRow}>
+                <MaterialCommunityIcons name="star" size={14} color={UI.star} />
+                <Text style={styles.ratingValue}>{ratingAvgLabel}</Text>
+                {partner.ratingCount > 0 ? (
+                  <Text style={styles.ratingCount}>
+                    ({fill(s.reviewsCount, { count: partner.ratingCount })})
+                  </Text>
+                ) : null}
+              </View>
+            ) : null}
+
+            {locationLine ? (
+              <View style={styles.locationRow}>
+                <MaterialCommunityIcons name="map-marker-outline" size={14} color={UI.muted} />
+                <Text style={styles.locationText} numberOfLines={1}>
+                  {locationLine}
+                </Text>
+              </View>
+            ) : null}
+          </View>
+
+          <View style={styles.priceCol}>
+            <Text style={styles.priceMeta} numberOfLines={1}>
+              {s.fromLabel}
             </Text>
-          ) : (
-            <Text style={styles.price} numberOfLines={1}>
-              {s.seePrices}
+            <Text style={styles.priceNow}>
+              {minPrice != null ? `Rs ${minPrice}` : s.seePrices}
             </Text>
-          )}
+          </View>
         </View>
       </View>
     </Pressable>
@@ -230,15 +245,30 @@ function LaundererCard({
 export default function PickLaundererScreen() {
   const router = useRouter();
   const { editingOrderId } = useCustomerOrderDraft();
-  const params = useLocalSearchParams<{ reorderOrderId?: string; mode?: string; service?: string }>();
+  const params = useLocalSearchParams<{
+    reorderOrderId?: string;
+    mode?: string;
+    service?: string;
+    chip?: string;
+    from?: string;
+  }>();
   const s = strings.customer.pickLaunderer;
   const { isWebDesktop } = useResponsiveLayout();
   const insets = useSafeAreaInsets();
   const { firstName, avatarUri, isLoggedIn } = useHomeProfile();
   const { width: windowWidth } = useWindowDimensions();
   const reorderOrderId = typeof params.reorderOrderId === "string" ? params.reorderOrderId : "";
+  const fromProfile = params.from === "profile";
   const fulfillmentMode: PartnerFulfillmentMode =
     params.mode === "pickupDelivery" ? "pickupDelivery" : "dropoff";
+  const initialChip: ProviderChip =
+    params.chip === "favourites" ||
+    params.chip === "open" ||
+    params.chip === "rated" ||
+    params.chip === "offers" ||
+    params.chip === "all"
+      ? params.chip
+      : "all";
   const isReassignMode = reorderOrderId.length > 0;
   const [partners, setPartners] = useState<PartnerPublicRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -248,7 +278,7 @@ export default function PickLaundererScreen() {
   const [partnerCoordinates, setPartnerCoordinates] = useState<Record<string, Coordinates | null>>(
     {}
   );
-  const [chip, setChip] = useState<ProviderChip>("all");
+  const [chip, setChip] = useState<ProviderChip>(initialChip);
   const [favorites, setFavorites] = useState<Record<string, boolean>>({});
   const [sheetPane, setSheetPane] = useState<ProviderSheetPane | null>(null);
   const [applyingFilters, setApplyingFilters] = useState(false);
@@ -259,37 +289,55 @@ export default function PickLaundererScreen() {
     categories: isServiceCategory(params.service) ? [params.service] : [],
   }));
   const geocodeCacheRef = useRef<Map<string, Coordinates | null>>(new Map());
-  const columns = isWebDesktop ? 3 : 2;
+  const columns = isWebDesktop ? 2 : 1;
   const cardWidth = (windowWidth - H_PAD * 2 - CARD_GAP * (columns - 1)) / columns;
   const headerTitle = isReassignMode ? s.reassignTitle : s.serviceProviders;
   const sHome = strings.customer.home;
   const chips: {
     id: ProviderChip;
     label: string;
-    icon?: "clock-outline" | "star-outline" | "tag-outline";
+    icon?: "clock-outline" | "star-outline" | "tag-outline" | "heart-outline";
   }[] = [
     { id: "all", label: s.filterAll },
     { id: "open", label: s.filterOpenNow, icon: "clock-outline" },
     { id: "rated", label: s.filterTopRated, icon: "star-outline" },
     { id: "offers", label: s.filterOffers, icon: "tag-outline" },
+    { id: "favourites", label: s.filterFavourites, icon: "heart-outline" },
   ];
+
+  const chipScrollRef = useRef<ScrollView>(null);
+  const chipOffsetsRef = useRef<Partial<Record<ProviderChip, number>>>({});
+  const initialChipRevealedRef = useRef(initialChip === "all");
+
+  /** Scrolls a preselected chip (Profile → Favourites) into view so the active filter is visible. */
+  const revealInitialChip = useCallback(() => {
+    if (initialChipRevealedRef.current) return;
+    const offset = chipOffsetsRef.current[initialChip];
+    if (offset === undefined) return;
+    initialChipRevealedRef.current = true;
+    chipScrollRef.current?.scrollTo({ x: Math.max(offset - H_PAD, 0), animated: false });
+  }, [initialChip]);
 
   const serviceFilter = isServiceCategory(params.service) ? params.service : undefined;
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const { data, error: err } = serviceFilter
-      ? await fetchMapPartners()
-      : await fetchPartnersByFulfillmentMode(fulfillmentMode);
+    // Profile → Favourites uses the full discovery list so All / other chips
+    // keep working the same as the normal service-providers flow.
+    const { data, error: err } =
+      serviceFilter || fromProfile || initialChip === "favourites"
+        ? await fetchMapPartners()
+        : await fetchPartnersByFulfillmentMode(fulfillmentMode);
     if (err) {
       setError(err);
       setPartners([]);
     } else {
       setPartners(data ?? []);
     }
+    setFavorites(await getSavedProviderMap());
     setLoading(false);
-  }, [fulfillmentMode, serviceFilter]);
+  }, [fulfillmentMode, fromProfile, initialChip, serviceFilter]);
 
   useEffect(() => {
     if (!serviceFilter) return;
@@ -303,6 +351,16 @@ export default function PickLaundererScreen() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    setChip(initialChip);
+  }, [initialChip]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void getSavedProviderMap().then(setFavorites);
+    }, []),
+  );
 
   useEffect(() => {
     if (editingOrderId && !isReassignMode) {
@@ -440,6 +498,25 @@ export default function PickLaundererScreen() {
 
   const filteredPartners = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
+
+    // Favourites is an explicit list — skip distance/sheet filters so saved
+    // providers always appear regardless of mode or radius.
+    if (chip === "favourites") {
+      let list = partners.filter((partner) => Boolean(favorites[partner.id]));
+      if (query) {
+        list = list.filter((partner) =>
+          (partner.business_name ?? "").trim().toLowerCase().startsWith(query),
+        );
+      }
+      return [...list].sort((a, b) => {
+        const aKm = partnerDistanceKm[a.id];
+        const bKm = partnerDistanceKm[b.id];
+        const aVal = typeof aKm === "number" && Number.isFinite(aKm) ? aKm : Number.POSITIVE_INFINITY;
+        const bVal = typeof bKm === "number" && Number.isFinite(bKm) ? bKm : Number.POSITIVE_INFINITY;
+        return aVal - bVal;
+      });
+    }
+
     let list = applyProviderFilters(partners, appliedFilters, partnerDistanceKm);
     if (query) {
       list = list.filter((partner) =>
@@ -462,7 +539,48 @@ export default function PickLaundererScreen() {
       const bVal = typeof bKm === "number" && Number.isFinite(bKm) ? bKm : Number.POSITIVE_INFINITY;
       return aVal - bVal;
     });
-  }, [appliedFilters, chip, partnerDistanceKm, partners, searchQuery]);
+  }, [appliedFilters, chip, favorites, partnerDistanceKm, partners, searchQuery]);
+
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const loadingMoreRef = useRef(false);
+  const loadMoreTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (loadMoreTimerRef.current) {
+      clearTimeout(loadMoreTimerRef.current);
+      loadMoreTimerRef.current = null;
+    }
+    loadingMoreRef.current = false;
+    setLoadingMore(false);
+    setVisibleCount(PAGE_SIZE);
+  }, [appliedFilters, chip, partners, searchQuery]);
+
+  useEffect(() => {
+    return () => {
+      if (loadMoreTimerRef.current) clearTimeout(loadMoreTimerRef.current);
+    };
+  }, []);
+
+  const visiblePartners = useMemo(
+    () => filteredPartners.slice(0, visibleCount),
+    [filteredPartners, visibleCount],
+  );
+
+  const hasMore = visibleCount < filteredPartners.length;
+
+  const loadMore = useCallback(() => {
+    if (loadingMoreRef.current || !hasMore) return;
+    loadingMoreRef.current = true;
+    setLoadingMore(true);
+    if (loadMoreTimerRef.current) clearTimeout(loadMoreTimerRef.current);
+    loadMoreTimerRef.current = setTimeout(() => {
+      setVisibleCount((prev) => Math.min(prev + PAGE_SIZE, filteredPartners.length));
+      setLoadingMore(false);
+      loadingMoreRef.current = false;
+      loadMoreTimerRef.current = null;
+    }, LOAD_MORE_DELAY_MS);
+  }, [filteredPartners.length, hasMore]);
 
   const toMapPartner = useCallback(
     (partner: PartnerPublicRow): PartnerMapMarker => ({
@@ -558,9 +676,11 @@ export default function PickLaundererScreen() {
         ? s.emptyTopRated
         : chip === "offers" || appliedFilters.offers
           ? s.emptyOffers
-          : appliedFilters.categories.length > 0
-            ? s.emptyService
-            : s.emptyList;
+          : chip === "favourites"
+            ? s.emptyFavourites
+            : appliedFilters.categories.length > 0
+              ? s.emptyService
+              : s.emptyList;
 
   const matchCount = useCallback(
     (filters: ProviderFilters) => {
@@ -633,7 +753,13 @@ export default function PickLaundererScreen() {
       <SafeAreaView style={styles.header} edges={["top"]}>
         <View style={styles.topRow}>
           <Pressable
-            onPress={() => router.back()}
+            onPress={() => {
+              if (fromProfile) {
+                router.replace("/(customer)/(tabs)/profile");
+                return;
+              }
+              router.back();
+            }}
             style={styles.backBtn}
             accessibilityRole="button"
             accessibilityLabel="Close"
@@ -669,16 +795,35 @@ export default function PickLaundererScreen() {
 
         <View style={styles.chipBar}>
           <ScrollView
+            ref={chipScrollRef}
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.chipRow}
             style={styles.chipScroll}
+            onContentSizeChange={revealInitialChip}
           >
             {chips.map((item) => {
               const selected = chip === item.id;
+              const inner = (
+                <>
+                  {item.icon ? (
+                    <MaterialCommunityIcons
+                      name={item.icon}
+                      size={12}
+                      color={selected ? "#FFFFFF" : UI.text}
+                    />
+                  ) : null}
+                  <Text style={[styles.chipText, selected && styles.chipTextSelected]}>
+                    {item.label}
+                  </Text>
+                </>
+              );
               return (
                 <Pressable
                   key={item.id}
+                  onLayout={(event) => {
+                    chipOffsetsRef.current[item.id] = event.nativeEvent.layout.x;
+                  }}
                   onPress={() => {
                     setChip(item.id);
                     if (item.id === "all") {
@@ -712,18 +857,20 @@ export default function PickLaundererScreen() {
                       }));
                     }
                   }}
-                  style={[styles.chip, selected && styles.chipSelected]}
+                  style={({ pressed }) => [styles.chipPress, pressed && styles.pressed]}
                 >
-                  {item.icon ? (
-                    <MaterialCommunityIcons
-                      name={item.icon}
-                      size={12}
-                      color={selected ? "#FFFFFF" : UI.text}
-                    />
-                  ) : null}
-                  <Text style={[styles.chipText, selected && styles.chipTextSelected]}>
-                    {item.label}
-                  </Text>
+                  {selected ? (
+                    <LinearGradient
+                      colors={gradients.cta}
+                      start={{ x: 0, y: 0.5 }}
+                      end={{ x: 1, y: 0.5 }}
+                      style={styles.chip}
+                    >
+                      {inner}
+                    </LinearGradient>
+                  ) : (
+                    <View style={[styles.chip, styles.chipIdle]}>{inner}</View>
+                  )}
                 </Pressable>
               );
             })}
@@ -747,7 +894,7 @@ export default function PickLaundererScreen() {
       <View style={styles.body}>
         {loading ? (
           <View style={styles.centerBlock}>
-            <ActivityIndicator color={UI.teal} size="small" />
+            <GradientLoader size="small" />
           </View>
         ) : error ? (
           <View style={styles.centerBlock}>
@@ -761,26 +908,43 @@ export default function PickLaundererScreen() {
             <Text style={styles.emptyText}>{emptyMessage}</Text>
           </View>
         ) : (
-          <ScrollView
+          <FlatList
+            data={visiblePartners}
+            key={columns}
+            keyExtractor={(item) => item.id}
+            numColumns={columns}
             style={styles.scroll}
             contentContainerStyle={styles.scrollContent}
+            columnWrapperStyle={columns > 1 ? styles.columnRow : undefined}
             showsVerticalScrollIndicator={false}
-          >
-            {filteredPartners.map((partner) => (
-              <View key={partner.id} style={{ width: cardWidth }}>
+            onEndReached={loadMore}
+            onEndReachedThreshold={0.35}
+            ListFooterComponent={
+              loadingMore ? (
+                <View style={styles.loadMoreFooter}>
+                  <GradientLoader size="small" />
+                </View>
+              ) : (
+                <View style={styles.loadMoreSpacer} />
+              )
+            }
+            renderItem={({ item: partner }) => (
+              <View style={{ width: cardWidth, marginBottom: CARD_GAP }}>
                 <LaundererCard
                   partner={partner}
                   distanceLabel={partnerDistanceLabels[partner.id] ?? PARTNER_DISTANCE_PLACEHOLDER}
                   onPress={() => void handlePartnerPress(partner)}
                   favorited={Boolean(favorites[partner.id])}
-                  onToggleFavorite={() =>
-                    setFavorites((prev) => ({ ...prev, [partner.id]: !prev[partner.id] }))
-                  }
-                  isPickup={fulfillmentMode === "pickupDelivery"}
+                  onToggleFavorite={() => {
+                    void (async () => {
+                      const next = await toggleSavedProvider(partner.id);
+                      setFavorites((prev) => ({ ...prev, [partner.id]: next }));
+                    })();
+                  }}
                 />
               </View>
-            ))}
-          </ScrollView>
+            )}
+          />
         )}
       </View>
 
@@ -880,6 +1044,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingRight: 4,
   },
+  chipPress: {
+    borderRadius: 999,
+    overflow: "hidden",
+  },
   chip: {
     flexDirection: "row",
     alignItems: "center",
@@ -887,13 +1055,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 999,
-    backgroundColor: UI.card,
     borderWidth: 1,
-    borderColor: UI.chipBorder,
+    borderColor: "transparent",
   },
-  chipSelected: {
-    backgroundColor: UI.teal,
-    borderColor: UI.teal,
+  chipIdle: {
+    backgroundColor: UI.card,
+    borderColor: UI.chipBorder,
   },
   chipText: {
     fontSize: 11,
@@ -933,9 +1100,17 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: H_PAD,
     paddingBottom: 96,
-    flexDirection: "row",
-    flexWrap: "wrap",
+  },
+  columnRow: {
     gap: CARD_GAP,
+  },
+  loadMoreFooter: {
+    paddingVertical: 20,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  loadMoreSpacer: {
+    height: 8,
   },
   centerBlock: {
     flex: 1,
@@ -966,134 +1141,129 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: UI.card,
-    borderRadius: 16,
+    borderRadius: 20,
     overflow: "hidden",
-    shadowColor: "rgba(17, 24, 39, 0.08)",
-    shadowOffset: { width: 0, height: 6 },
+    shadowColor: "rgba(17, 24, 39, 0.12)",
+    shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 1,
-    shadowRadius: 12,
-    elevation: 3,
+    shadowRadius: 16,
+    elevation: 4,
   },
   cardImageWrap: {
-    height: 118,
+    height: 168,
   },
   cardImage: {
     width: "100%",
     height: "100%",
     backgroundColor: "#E5E7EB",
   },
-  cardBadge: {
-    position: "absolute",
-    top: 8,
-    left: 8,
-    maxWidth: "72%",
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 999,
-  },
-  offerBadge: {
-    backgroundColor: "#FCE7F3",
-  },
-  topRatedBadge: {
-    backgroundColor: "#D1FAE5",
-  },
-  cardBadgeText: {
-    fontSize: 10,
-    fontFamily: "Poppins-SemiBold",
-  },
   heartBtn: {
     position: "absolute",
-    top: 8,
-    right: 8,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: "rgba(0,0,0,0.28)",
+    top: 12,
+    right: 12,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: "rgba(17, 24, 39, 0.42)",
     alignItems: "center",
     justifyContent: "center",
   },
-  distancePill: {
+  statusBadge: {
     position: "absolute",
-    left: 8,
-    bottom: 8,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: UI.distBg,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 999,
-    maxWidth: "80%",
+    top: 12,
+    left: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    maxWidth: "70%",
   },
-  distancePillText: {
+  closedBadge: {
+    backgroundColor: "#B91C1C",
+  },
+  unknownBadge: {
+    backgroundColor: "rgba(17, 24, 39, 0.72)",
+  },
+  statusBadgeText: {
     color: "#FFFFFF",
-    fontSize: 10,
-    fontFamily: "Poppins-SemiBold",
+    fontSize: 11,
+    fontFamily: "Poppins-Bold",
   },
   cardBody: {
-    paddingHorizontal: 8,
+    marginTop: -14,
+    backgroundColor: UI.card,
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
+    paddingHorizontal: 14,
     paddingTop: 10,
-    paddingBottom: 12,
+    paddingBottom: 10,
     gap: 4,
   },
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+  },
+  cardNameWrap: {
+    flex: 1,
+    minWidth: 0,
+    gap: 15,
+  },
   cardName: {
-    fontSize: 13,
+    flexShrink: 1,
+    fontSize: 16,
     fontFamily: "Poppins-Bold",
     color: UI.text,
+    lineHeight: 20,
   },
-  tagText: {
-    fontSize: 11,
-    color: UI.muted,
-    fontFamily: "Poppins-Regular",
-  },
-  cardFooter: {
+  metaPriceRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: 4,
-    marginTop: 4,
+    gap: 12,
   },
-  openPill: {
-    backgroundColor: UI.openBg,
-    paddingHorizontal: 6,
-    paddingVertical: 4,
-    borderRadius: 999,
-    flexShrink: 0,
-  },
-  openPillMuted: {
-    backgroundColor: "#F3F4F6",
-  },
-  openPillClosed: {
-    backgroundColor: "#FEE2E2",
-  },
-  openPillText: {
-    fontSize: 10,
-    color: UI.openText,
-    fontFamily: "Poppins-SemiBold",
-    flexShrink: 0,
-  },
-  openPillTextMuted: {
-    color: UI.muted,
-  },
-  openPillTextClosed: {
-    color: "#B91C1C",
-  },
-  fromPriceRow: {
-    flexShrink: 1,
+  metaCol: {
+    flex: 1,
     minWidth: 0,
-    textAlign: "right",
+    gap: 2,
   },
-  fromLabel: {
+  ratingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  ratingValue: {
+    fontSize: 13,
+    color: UI.text,
+    fontFamily: "Poppins-SemiBold",
+  },
+  ratingCount: {
+    fontSize: 12,
+    color: UI.muted,
+    fontFamily: "Poppins-Regular",
+  },
+  locationRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  locationText: {
+    flex: 1,
+    fontSize: 12,
+    color: UI.muted,
+    fontFamily: "Poppins-Regular",
+  },
+  priceCol: {
+    alignItems: "flex-end",
+    flexShrink: 0,
+  },
+  priceMeta: {
     fontSize: 11,
     color: UI.muted,
     fontFamily: "Poppins-Regular",
   },
-  price: {
-    fontSize: 12,
+  priceNow: {
+    fontSize: 18,
+    color: "#DB2777",
     fontFamily: "Poppins-Bold",
-    color: UI.price,
   },
 });

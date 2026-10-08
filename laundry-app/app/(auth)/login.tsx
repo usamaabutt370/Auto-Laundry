@@ -20,13 +20,8 @@ import { parsePhoneNumberFromString } from "libphonenumber-js";
 import type { CountryCode } from "libphonenumber-js";
 
 import { dismissAuthSheet } from "@/lib/dismiss-auth-sheet";
-
-const UI = {
-  bg: "#F7F8FA",
-  text: "#111827",
-  muted: "#6B7280",
-  teal: "#12B886",
-};
+import { gradients, UI } from "@/constants/theme";
+import { clearPendingOrderSubmitAfterAuth } from "@/utils/pending-order-submit";
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -181,10 +176,13 @@ export default function LoginScreen() {
     });
   };
   const handleClose = () => {
+    if (returnTo === "order-summary") {
+      clearPendingOrderSubmitAfterAuth();
+    }
     dismissAuthSheet(navigation, router, returnTo);
   };
   return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
+    <SafeAreaView style={styles.container} edges={["bottom"]}>
       <StatusBar style="dark" />
       <View style={styles.screenBody}>
       <AuthErrorModal
@@ -280,7 +278,7 @@ export default function LoginScreen() {
             disabled={isLoading}
           >
             <LinearGradient
-              colors={["#4A3AFF", "#12B886"]}
+              colors={[...gradients.brand]}
               start={{ x: 0, y: 0.5 }}
               end={{ x: 1, y: 0.5 }}
               style={styles.signInButtonFill}
@@ -312,7 +310,7 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: UI.bg,
+    backgroundColor: "transparent",
   },
   screenBody: {
     flex: 1,

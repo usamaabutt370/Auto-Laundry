@@ -11,6 +11,7 @@ import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
 import { AppAlertProvider } from "@/components/app-alert";
 import { FcmNotificationRouter } from "@/components/chat/fcm-notification-router";
+import { LaundererShareLinkListener } from "@/components/launderer-share-link-listener";
 import { WebAppShell } from "@/components/web-shells";
 import { strings } from "@/constants/strings";
 import { AuthProvider } from "@/contexts/auth-context";
@@ -49,6 +50,7 @@ export default function RootLayout() {
             <AppAlertProvider>
             <WebAppShell>
               <FcmNotificationRouter />
+              <LaundererShareLinkListener />
               <Stack
                 screenOptions={{
                   headerShown: false,
@@ -58,16 +60,16 @@ export default function RootLayout() {
                 }}
               >
                 <Stack.Screen name="index" />
+                <Stack.Screen name="l/[id]" />
                 <Stack.Screen name="(onboarding)" />
                 <Stack.Screen
                   name="(auth)"
                   options={{
-                    presentation: "modal",
-                    animation: "slide_from_bottom",
-                    gestureEnabled: true,
-                    ...(Platform.OS === "ios"
-                      ? { gestureDirection: "vertical" as const }
-                      : {}),
+                    // transparentModal so Android stays a sheet (stack `modal` is full-screen there).
+                    presentation: "transparentModal",
+                    animation: "none",
+                    gestureEnabled: false,
+                    contentStyle: { backgroundColor: "transparent" },
                   }}
                 />
                 <Stack.Screen name="(customer)" />

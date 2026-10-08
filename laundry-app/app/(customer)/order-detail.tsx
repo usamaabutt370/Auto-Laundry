@@ -18,6 +18,8 @@ import { showAppAlert } from "@/components/app-alert";
 import { CustomerTrustBanner } from "@/components/customer-trust-banner";
 import { PartnerNameWithBadge } from "@/components/partner-name-with-badge";
 import { ReportOrderProblemModal } from "@/components/report-order-problem-modal";
+import { AppCtaButton } from "@/components/ui/cta-button";
+import { GradientLoader } from "@/components/ui/gradient-loader";
 import { useAuth } from "@/contexts/auth-context";
 import { useLocale } from "@/contexts/locale-context";
 import { getStrings } from "@/locales";
@@ -33,25 +35,8 @@ import {
   type CustomerOrderDisplayStatus,
 } from "@/lib/customer-orders";
 import { hasCustomerOrderDispute } from "@/lib/order-disputes";
+import { UI } from "@/constants/theme";
 
-const UI = {
-  bg: "#F7F8FA",
-  card: "#FFFFFF",
-  text: "#111827",
-  muted: "#6B7280",
-  teal: "#12B886",
-  purple: "#5B4DFF",
-  backBg: "#EEF2F6",
-  iconWell: "#F3F4F6",
-  openBg: "#ECFDF5",
-  openText: "#047857",
-  chipBorder: "#E5E7EB",
-  shadow: "rgba(17, 24, 39, 0.08)",
-  amber: "#D97706",
-  amberBg: "#FEF3C7",
-  red: "#B91C1C",
-  redBg: "#FEE2E2",
-};
 const PAD = 16;
 const CARD_RADIUS = 16;
 
@@ -275,7 +260,7 @@ export default function CustomerOrderDetailScreen() {
 
       {loading ? (
         <View style={styles.center}>
-          <ActivityIndicator color={UI.teal} />
+          <GradientLoader />
         </View>
       ) : error ? (
         <View style={styles.center}>
@@ -331,6 +316,21 @@ export default function CustomerOrderDetailScreen() {
               </View>
             </View>
           </View>
+
+          {order.displayStatus !== "rejected" ? (
+            <AppCtaButton
+              label={sDetail.trackOrder}
+              onPress={() =>
+                router.push({
+                  pathname: "/(customer)/track-order",
+                  params: { orderId: order.id },
+                })
+              }
+              width="full"
+              rightIcon="arrow-right"
+              accessibilityLabel={sDetail.trackOrder}
+            />
+          ) : null}
 
           {order.displayStatus !== "rejected" ? (
             <CustomerTrustBanner appearance="light" verified={order.partnerVerified} />
@@ -395,6 +395,15 @@ export default function CustomerOrderDetailScreen() {
                 <Text style={styles.detailValue}>{order.pickupSchedule}</Text>
               </View>
             </View>
+            {order.fulfillmentMode === "pickupDelivery" && order.customerPickupAddress ? (
+              <View style={styles.detailRow}>
+                <MaterialCommunityIcons name="map-marker-outline" size={16} color={UI.purple} />
+                <View style={styles.flex1}>
+                  <Text style={styles.detailMeta}>{sDetail.pickupFrom}</Text>
+                  <Text style={styles.detailValue}>{order.customerPickupAddress}</Text>
+                </View>
+              </View>
+            ) : null}
             <View style={styles.detailRow}>
               <MaterialCommunityIcons name="package-variant-closed" size={16} color={UI.purple} />
               <View style={styles.flex1}>

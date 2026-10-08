@@ -2,7 +2,6 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   FlatList,
   Pressable,
   StyleSheet,
@@ -15,31 +14,22 @@ import {
 
 import { assets } from "@/assets/assets";
 import { PartnerNameWithBadge } from "@/components/partner-name-with-badge";
+import { GradientLoader } from "@/components/ui/gradient-loader";
 import { strings } from "@/constants/strings";
 import {
   getPartnerPrimaryImage,
   type PartnerMapMarker,
 } from "@/hooks/use-customer-home-map-data";
 import { usePartnerVerified } from "@/hooks/use-partner-verified";
+import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
+import {
+  getSavedProviderMap,
+  toggleSavedProvider,
+} from "@/lib/saved-providers";
 import type { Coordinates } from "@/utils/geocoding";
 import { getPartnerOpenStatus } from "@/utils/partner-hours";
 import { isPartnerTopRated } from "@/utils/partner-offers";
-
-const UI = {
-  text: "#111827",
-  muted: "#6B7280",
-  card: "#FFFFFF",
-  bg: "#F7F8FA",
-  purple: "#5B4DFF",
-  teal: "#12B886",
-  openBg: "#ECFDF5",
-  openText: "#047857",
-  star: "#F5B301",
-  chipBorder: "#E5E7EB",
-  shadow: "rgba(17, 24, 39, 0.14)",
-  handle: "#D1D5DB",
-  verified: "#2563EB",
-};
+import { UI } from "@/constants/theme";
 
 type HomeStrings = {
   dropOff: string;
@@ -134,6 +124,7 @@ function MapPartnerPreviewCard({
 }) {
   const sHome = strings.customer.home;
   const sList = strings.customer.pickLaunderer;
+  const { isNarrow } = useResponsiveLayout();
   const partnerVerified = usePartnerVerified(partner.id);
   const imageUrl = getPartnerPrimaryImage(partner);
   const openStatus = getPartnerOpenStatus(partner.available_time);
@@ -173,7 +164,7 @@ function MapPartnerPreviewCard({
     >
       <View style={styles.handle} />
       <View style={styles.cardRow}>
-        <View style={styles.media}>
+        <View style={[styles.media, isNarrow && styles.mediaNarrow]}>
           {imageUrl ? (
             <Image source={{ uri: imageUrl }} style={styles.mediaImage} contentFit="cover" />
           ) : (
@@ -280,6 +271,10 @@ export function CustomerHomeMapOverlays({
   const cardBottom = Math.max(mapBottomInset, 10);
   const fabBottom = cardVisible ? cardBottom + 168 : recenterBottomOffset;
 
+  useEffect(() => {
+    void getSavedProviderMap().then(setFavorites);
+  }, []);
+
   const browsePartners = useMemo(() => {
     const markerIds = new Set(mapMarkers.map((marker) => marker.id));
     const listed = partners.filter((partner) => markerIds.has(partner.id));
@@ -326,7 +321,7 @@ export function CustomerHomeMapOverlays({
     <>
       {showMapChrome && loadingPartners ? (
         <View style={styles.mapLoading}>
-          <ActivityIndicator color={UI.teal} size="small" />
+          <GradientLoader size="small" />
         </View>
       ) : null}
 
@@ -382,12 +377,12 @@ export function CustomerHomeMapOverlays({
                     partner={item}
                     userCoordinates={userCoordinates}
                     favorited={Boolean(favorites[item.id])}
-                    onToggleFavorite={() =>
-                      setFavorites((prev) => ({
-                        ...prev,
-                        [item.id]: !prev[item.id],
-                      }))
-                    }
+                    onToggleFavorite={() => {
+                      void (async () => {
+                        const next = await toggleSavedProvider(item.id);
+                        setFavorites((prev) => ({ ...prev, [item.id]: next }));
+                      })();
+                    }}
                     onClosePartner={onClosePartner}
                     onPartnerPress={onPartnerPress}
                   />
@@ -483,6 +478,11 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     backgroundColor: UI.bg,
     flexShrink: 0,
+  },
+  mediaNarrow: {
+    width: 72,
+    height: 84,
+    borderRadius: 14,
   },
   mediaImage: {
     ...StyleSheet.absoluteFillObject,

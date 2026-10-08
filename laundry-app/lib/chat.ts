@@ -27,7 +27,17 @@ type ProfileNameRow = {
 type PartnerNameRow = {
   business_name: string | null;
   image_url?: string | null;
+  business_images?: string[] | null;
 };
+
+function firstBusinessImage(images: string[] | null | undefined): string | null {
+  if (!Array.isArray(images)) return null;
+  return (
+    images.find(
+      (item): item is string => typeof item === "string" && item.trim().length > 0,
+    ) ?? null
+  );
+}
 
 export type ChatMessageType = "text" | "rider_assignment";
 
@@ -132,6 +142,13 @@ export interface OrderChatHeaderData {
   title: string;
   titleVerified?: boolean;
   subtitle: string;
+  orderRef: string;
+  orderStatusKey: string;
+  avatarUrl: string | null;
+  phoneNumber: string | null;
+  itemsSummary: string;
+  scheduleSummary: string | null;
+  thumbnailUrl: string | null;
 }
 
 export interface ChatConversationListItem {
@@ -144,6 +161,8 @@ export interface ChatConversationListItem {
   lastMessageBody: string;
   lastMessageAt: string;
   unreadCount: number;
+  /** Raw DB order status (e.g. accepted, ready, completed). */
+  orderStatusKey: string;
   orderStatus: string;
   servicesSummary: string;
   estimatedTotalLabel: string;
@@ -304,9 +323,18 @@ export async function fetchOrderChatHeader(
 
   const { data: order, error: orderError } = await supabase
     .from("customer_orders")
-    .select("id,customer_id,partner_id,status")
+    .select(
+      "id,customer_id,partner_id,status,pickup_day_label,pickup_time_slot_label,delivery_day_label,delivery_time_slot_label",
+    )
     .eq("id", orderId)
-    .maybeSingle<OrderOwnerRow>();
+    .maybeSingle<
+      OrderOwnerRow & {
+        pickup_day_label: string | null;
+        pickup_time_slot_label: string | null;
+        delivery_day_label: string | null;
+        delivery_time_slot_label: string | null;
+      }
+    >();
   if (orderError) throw new Error(orderError.message);
   if (!order) throw new Error("Order not found.");
   if (order.customer_id !== userId && order.partner_id !== userId) {
@@ -315,30 +343,86 @@ export async function fetchOrderChatHeader(
 
   let title = "Order chat";
   let titleVerified = false;
+  let avatarUrl: string | null = null;
+  let phoneNumber: string | null = null;
   if (order.customer_id === userId) {
     const [{ data: partnerData }, verifiedPartnerIds] = await Promise.all([
       supabase
         .from("partner_profiles")
-        .select("business_name")
+        .select("business_name,image_url,phone_number,business_images")
         .eq("id", order.partner_id)
-        .maybeSingle<PartnerNameRow>(),
+        .maybeSingle<
+          PartnerNameRow & {
+            phone_number: string | null;
+            business_images: string[] | null;
+          }
+        >(),
       fetchVerifiedPartnerIds([order.partner_id]),
     ]);
-    title = partnerData?.business_name?.trim() || "Laundry Captain";
+    title = partnerData?.business_name?.trim() || "Service Provider";
     titleVerified = verifiedPartnerIds.has(order.partner_id);
+    const businessImage = firstBusinessImage(partnerData?.business_images);
+    avatarUrl = businessImage ?? partnerData?.image_url ?? null;
+    phoneNumber = partnerData?.phone_number?.trim() || null;
   } else {
     const { data: customerData } = await supabase
       .from("profiles")
-      .select("full_name,first_name,last_name")
+      .select("full_name,first_name,last_name,image_url,phone")
       .eq("id", order.customer_id)
-      .maybeSingle<ProfileNameRow>();
+      .maybeSingle<ProfileNameRow & { phone: string | null }>();
     title = formatCustomerName(customerData ?? null);
+    avatarUrl = customerData?.image_url ?? null;
+    phoneNumber = customerData?.phone?.trim() || null;
   }
+
+  const orderRef = formatOrderRef(order.id);
+  const orderStatusKey = order.status?.trim() || "submitted";
+
+  let itemsSummary = "Laundry order";
+  const { data: services } = await supabase
+    .from("order_services")
+    .select("id,service_type")
+    .eq("order_id", orderId);
+  const serviceRows = (services ?? []) as Array<{ id: string; service_type: OrderServiceType }>;
+  if (serviceRows.length > 0) {
+    const serviceIds = serviceRows.map((row) => row.id);
+    const { data: items } = await supabase
+      .from("order_service_items")
+      .select("item_name,quantity")
+      .in("order_service_id", serviceIds)
+      .limit(4);
+    const itemRows = (items ?? []) as Array<{ item_name: string; quantity: number }>;
+    if (itemRows.length > 0) {
+      itemsSummary = itemRows
+        .map((item) => `${item.item_name} × ${item.quantity}`)
+        .join(" · ");
+    } else {
+      itemsSummary =
+        summarizeServiceTypes(serviceRows.map((row) => row.service_type)) || itemsSummary;
+    }
+  }
+
+  const pickup =
+    order.pickup_day_label || order.pickup_time_slot_label
+      ? `Pickup: ${[order.pickup_day_label, order.pickup_time_slot_label].filter(Boolean).join(" · ")}`
+      : null;
+  const delivery =
+    order.delivery_day_label || order.delivery_time_slot_label
+      ? `Delivery: ${[order.delivery_day_label, order.delivery_time_slot_label].filter(Boolean).join(" · ")}`
+      : null;
+  const scheduleSummary = pickup ?? delivery;
 
   return {
     title,
     titleVerified,
-    subtitle: `Order #${formatOrderRef(order.id)} · ${humanizeStatus(order.status)}`,
+    subtitle: `Order #${orderRef} · ${humanizeStatus(order.status)}`,
+    orderRef,
+    orderStatusKey,
+    avatarUrl,
+    phoneNumber,
+    itemsSummary,
+    scheduleSummary,
+    thumbnailUrl: avatarUrl,
   };
 }
 
@@ -467,7 +551,7 @@ export async function fetchMyConversations(
   if (counterpartPartnerIds.size > 0) {
     const { data } = await supabase
       .from("partner_profiles")
-      .select("id,business_name,image_url")
+      .select("id,business_name,image_url,business_images")
       .in("id", Array.from(counterpartPartnerIds));
     for (const row of (data ?? []) as Array<PartnerNameRow & { id: string }>) {
       partnerNameMap.set(row.id, row);
@@ -529,9 +613,10 @@ export async function fetchMyConversations(
     if (order?.customer_id === userId) {
       const p = partnerNameMap.get(order.partner_id);
       const pProfile = partnerProfileMap.get(order.partner_id);
-      counterpartyName = p?.business_name?.trim() || "Laundry Captain";
+      counterpartyName = p?.business_name?.trim() || "Service Provider";
       counterpartyVerified = verifiedPartnerIds.has(order.partner_id);
-      counterpartyAvatarUrl = p?.image_url ?? pProfile?.image_url ?? null;
+      counterpartyAvatarUrl =
+        firstBusinessImage(p?.business_images) ?? p?.image_url ?? pProfile?.image_url ?? null;
     } else if (order?.partner_id === userId) {
       const c = customerProfileMap.get(order.customer_id);
       counterpartyName = formatCustomerName(c ?? null);
@@ -553,6 +638,7 @@ export async function fetchMyConversations(
       lastMessageBody: preview,
       lastMessageAt: latest?.created_at || conversation.updated_at,
       unreadCount: unreadByConversation.get(conversation.id) ?? 0,
+      orderStatusKey: order?.status?.trim() || "submitted",
       orderStatus: humanizeStatus(order?.status),
       servicesSummary:
         summarizeServiceTypes(serviceTypesByOrderId.get(conversation.order_id) ?? []) ||

@@ -1,14 +1,11 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
-import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState, type ComponentProps } from "react";
 import {
-  ActivityIndicator,
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   TextInput,
   View,
@@ -20,7 +17,8 @@ import {
   CUSTOMER_ORDER_NOTES_MAX_HEIGHT,
 } from "@/components/customer-itemized-order-layout";
 import { OrderSelectionSummary } from "@/components/order-selection-summary";
-import { assets } from "@/assets/assets";
+import { AppCtaButton } from "@/components/ui/cta-button";
+import { GradientLoader } from "@/components/ui/gradient-loader";
 import {
   initialDryCleanQuantities,
   type DryCleanItemDef,
@@ -38,6 +36,7 @@ import {
 } from "@/contexts/customer-order-draft-context";
 import { useLocale } from "@/contexts/locale-context";
 import { usePartnerOrderEstimate } from "@/hooks/use-partner-order-estimate";
+import { useScaledStyles, type ScaledStyleHelpers } from "@/hooks/use-scaled-styles";
 import {
   dryCleanUnitForItem,
   listPricedDryCleanDefs,
@@ -48,21 +47,15 @@ import {
   tailoringUnitForItem,
   washFoldUnitForItem,
 } from "@/lib/customer-order-estimate";
+import { imageForServiceItem } from "@/lib/service-item-images";
+import {
+  fetchPartnerServiceDetail,
+  SERVICE_DETAIL_CATEGORIES,
+} from "@/lib/partner-service-details";
 import type { ServiceJob } from "@/lib/service-jobs";
 import { getStrings } from "@/locales";
 import { formatMoney } from "@/utils/format-money";
-
-const UI = {
-  bg: "#F7F8FA",
-  card: "#FFFFFF",
-  text: "#111827",
-  muted: "#6B7280",
-  teal: "#12B886",
-  purple: "#5B4DFF",
-  chipBorder: "#E5E7EB",
-  iconWell: "#F3F4F6",
-  shadow: "rgba(17, 24, 39, 0.08)",
-};
+import { UI } from "@/constants/theme";
 
 const MAX_PHOTOS = 5;
 
@@ -96,13 +89,6 @@ function namesMatch(left: string, right: string) {
   return normalize(left) === normalize(right);
 }
 
-function imageForFamily(family: CatalogFamily) {
-  if (family === "press") return assets.images.home_deal_ironing;
-  if (family === "tailoring") return assets.images.home_deal_tailoring;
-  if (family === "dryCleaning") return assets.images.home_deal_ironing;
-  return assets.images.home_deal_laundry;
-}
-
 function hasQty(map: Record<string, number> | undefined) {
   return Object.values(map ?? {}).some((qty) => qty > 0);
 }
@@ -113,6 +99,7 @@ type Props = {
 };
 
 export function ServiceBookingView({ job, itemLabel }: Props) {
+  const styles = useBookingStyles();
   const router = useRouter();
   const { locale } = useLocale();
   const s = getStrings(locale).customer.bookService;
@@ -160,6 +147,30 @@ export function ServiceBookingView({ job, itemLabel }: Props) {
     return draft.tailoring?.itemizedInstructions ?? "";
   });
   const [photos, setPhotos] = useState<string[]>([]);
+  const [serviceGallery, setServiceGallery] = useState<string[]>([]);
+
+  useEffect(() => {
+    const partnerId = draft.partnerId;
+    if (!partnerId) {
+      setServiceGallery([]);
+      return;
+    }
+    const category =
+      job === "dryCleaning"
+        ? SERVICE_DETAIL_CATEGORIES.dryCleaning
+        : job === "ironing"
+          ? SERVICE_DETAIL_CATEGORIES.press
+          : job === "tailoring"
+            ? SERVICE_DETAIL_CATEGORIES.tailoring
+            : SERVICE_DETAIL_CATEGORIES.washAndFold;
+    let cancelled = false;
+    void fetchPartnerServiceDetail(partnerId, category).then((detail) => {
+      if (!cancelled) setServiceGallery(detail?.images ?? []);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [draft.partnerId, job]);
   const initRef = useRef(false);
 
   const estimateDraft: CustomerOrderDraft = useMemo(() => {
@@ -229,7 +240,7 @@ export function ServiceBookingView({ job, itemLabel }: Props) {
           name: displayName(def.id, def.name),
           amount: unit.amount,
           priceLabel: unit.priceLabel,
-          image: imageForFamily("washAndFold"),
+          image: imageForServiceItem(def.id, def.name, "washAndFold"),
         };
       });
       return wash;
@@ -244,7 +255,7 @@ export function ServiceBookingView({ job, itemLabel }: Props) {
           name: displayName(def.id, def.name),
           amount: unit.amount,
           priceLabel: unit.priceLabel,
-          image: imageForFamily("dryCleaning"),
+          image: imageForServiceItem(def.id, def.name, "dryCleaning"),
         };
       });
     }
@@ -258,7 +269,7 @@ export function ServiceBookingView({ job, itemLabel }: Props) {
           name: displayName(def.id, def.name),
           amount: unit.amount,
           priceLabel: unit.priceLabel,
-          image: imageForFamily("press"),
+          image: imageForServiceItem(def.id, def.name, "press"),
         };
       });
     }
@@ -271,7 +282,7 @@ export function ServiceBookingView({ job, itemLabel }: Props) {
           name: displayName(def.id, def.name),
           amount: unit.amount,
         priceLabel: unit.priceLabel,
-        image: imageForFamily("tailoring"),
+        image: imageForServiceItem(def.id, def.name, "tailoring"),
       };
     });
   }, [job, onboarding, services]);
@@ -481,35 +492,22 @@ export function ServiceBookingView({ job, itemLabel }: Props) {
         appearance="light"
         scrollContentStyle={styles.scrollContent}
         footer={
-          <>
-            <OrderSelectionSummary estimate={estimate} loading={loading} />
-            <Pressable
-              onPress={persistAndClose}
-              style={({ pressed }) => [styles.continueWrap, pressed && styles.pressed]}
-            >
-              <LinearGradient
-                colors={["#6D5CFF", "#22D3EE"]}
-                start={{ x: 0, y: 0.5 }}
-                end={{ x: 1, y: 0.5 }}
-                style={styles.continueBtn}
-              >
-                <Text style={styles.continueLabel}>{s.done}</Text>
-                <MaterialCommunityIcons name="check" size={18} color="#FFFFFF" />
-              </LinearGradient>
-            </Pressable>
-          </>
+          <OrderSelectionSummary
+            estimate={estimate}
+            loading={loading}
+            action={
+              <AppCtaButton
+                label={s.done}
+                onPress={persistAndClose}
+                width="full"
+                rightIcon="check"
+              />
+            }
+          />
         }
       >
         <View style={styles.sheet}>
           <View style={styles.headerRow}>
-            <Pressable
-              onPress={persistAndClose}
-              style={styles.roundBtn}
-              accessibilityRole="button"
-              accessibilityLabel="Back"
-            >
-              <MaterialCommunityIcons name="chevron-left" size={24} color={UI.text} />
-            </Pressable>
             <View style={styles.headerCopy}>
               <Text style={styles.headerTitle} numberOfLines={2}>
                 {bannerMeta.title}
@@ -518,14 +516,28 @@ export function ServiceBookingView({ job, itemLabel }: Props) {
                 {bannerMeta.body}
               </Text>
             </View>
+            <Pressable
+              onPress={persistAndClose}
+              style={styles.roundBtn}
+              accessibilityRole="button"
+              accessibilityLabel="Close"
+            >
+              <MaterialCommunityIcons name="close" size={20} color={UI.text} />
+            </Pressable>
           </View>
 
           {loading && tiles.length === 0 ? (
-            <ActivityIndicator color={UI.teal} style={{ marginTop: 24 }} />
+            <View style={styles.stateFill}>
+              <GradientLoader />
+            </View>
           ) : !draft.partnerId ? (
-            <Text style={styles.empty}>{s.noPartner}</Text>
+            <View style={styles.stateFill}>
+              <Text style={styles.empty}>{s.noPartner}</Text>
+            </View>
           ) : tiles.length === 0 ? (
-            <Text style={styles.empty}>{s.noRates}</Text>
+            <View style={styles.stateFill}>
+              <Text style={styles.empty}>{s.noRates}</Text>
+            </View>
           ) : (
             <>
               <View style={styles.catalog}>
@@ -544,11 +556,8 @@ export function ServiceBookingView({ job, itemLabel }: Props) {
                         <Text style={styles.serviceName} numberOfLines={2}>
                           {tile.name}
                         </Text>
-                        <Text style={styles.servicePrice} numberOfLines={1}>
+                        <Text style={styles.servicePrice} numberOfLines={2}>
                           {priceLine}
-                        </Text>
-                        <Text style={styles.serviceDetail} numberOfLines={1}>
-                          {s.numberOfPieces}
                         </Text>
                       </View>
                       <View style={styles.qtyStepper}>
@@ -559,7 +568,7 @@ export function ServiceBookingView({ job, itemLabel }: Props) {
                           accessibilityRole="button"
                           accessibilityLabel="Decrease quantity"
                         >
-                          <MaterialCommunityIcons name="minus" size={18} color={UI.text} />
+                          <MaterialCommunityIcons name="minus" size={16} color={UI.text} />
                         </Pressable>
                         <Text style={styles.qtyStepperValue}>{qty}</Text>
                         <Pressable
@@ -569,7 +578,7 @@ export function ServiceBookingView({ job, itemLabel }: Props) {
                           accessibilityRole="button"
                           accessibilityLabel="Increase quantity"
                         >
-                          <MaterialCommunityIcons name="plus" size={18} color={UI.purple} />
+                          <MaterialCommunityIcons name="plus" size={16} color={UI.purple} />
                         </Pressable>
                       </View>
                     </View>
@@ -577,6 +586,7 @@ export function ServiceBookingView({ job, itemLabel }: Props) {
                 })}
               </View>
 
+              {/* Add-on Services — hidden for now
               {addOnOptions.length > 0 ? (
                 <View style={styles.block}>
                   <Text style={styles.sectionTitle}>{s.addOns}</Text>
@@ -607,6 +617,7 @@ export function ServiceBookingView({ job, itemLabel }: Props) {
                   </View>
                 </View>
               ) : null}
+              */}
 
               {job === "tailoring" ? (
                 <>
@@ -693,6 +704,26 @@ export function ServiceBookingView({ job, itemLabel }: Props) {
                   </ScrollView>
                 ) : null}
               </View>
+
+              {serviceGallery.length > 0 ? (
+                <View style={styles.block}>
+                  <Text style={styles.sectionTitle}>{s.servicePhotos}</Text>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.serviceGallery}
+                  >
+                    {serviceGallery.map((uri) => (
+                      <Image
+                        key={uri}
+                        source={{ uri }}
+                        style={styles.serviceGalleryImage}
+                        contentFit="cover"
+                      />
+                    ))}
+                  </ScrollView>
+                </View>
+              ) : null}
             </>
           )}
         </View>
@@ -724,6 +755,7 @@ function ChoicePair({
   rightIcon: IconName;
   disableLeft?: boolean;
 }) {
+  const styles = useBookingStyles();
   return (
     <View style={styles.block}>
       <Text style={styles.sectionTitle}>{title}</Text>
@@ -772,166 +804,224 @@ function ChoicePair({
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: UI.bg },
-  scrollContent: { paddingBottom: 24 },
-  headerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  headerCopy: { flex: 1, minWidth: 0 },
-  headerTitle: { fontSize: 18, color: UI.text, fontFamily: "Poppins-Bold" },
-  roundBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: UI.iconWell,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  sheet: {
-    backgroundColor: UI.card,
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    gap: 16,
-  },
-  catalog: { gap: 10 },
-  serviceRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    borderWidth: 1,
-    borderColor: UI.chipBorder,
-    borderRadius: 16,
-    backgroundColor: UI.card,
-    padding: 10,
-  },
-  serviceImage: { width: 72, height: 72, borderRadius: 12, backgroundColor: UI.iconWell },
-  serviceCopy: { flex: 1, minWidth: 0 },
-  serviceName: { fontSize: 14, color: UI.text, fontFamily: "Poppins-SemiBold" },
-  servicePrice: { marginTop: 4, fontSize: 13, color: UI.purple, fontFamily: "Poppins-SemiBold" },
-  serviceDetail: { marginTop: 2, fontSize: 11, color: UI.muted, fontFamily: "Poppins-Regular" },
-  qtyStepper: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    minWidth: 118,
-    height: 44,
-    paddingHorizontal: 6,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: UI.chipBorder,
-    backgroundColor: UI.bg,
-  },
-  qtyStepperBtn: {
-    width: 32,
-    height: 32,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  qtyStepperValue: {
-    minWidth: 28,
-    textAlign: "center",
-    fontSize: 16,
-    color: UI.text,
-    fontFamily: "Poppins-Bold",
-  },
-  sectionTitle: { fontSize: 16, color: UI.text, fontFamily: "Poppins-Bold" },
-  sectionHint: { marginTop: 2, fontSize: 12, color: UI.muted, fontFamily: "Poppins-Regular" },
-  block: { gap: 8 },
-  addOnGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  addOnCard: {
-    flexBasis: "47%",
-    flexGrow: 1,
-    maxWidth: "49%",
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    borderWidth: 1,
-    borderColor: UI.chipBorder,
-    borderRadius: 999,
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    backgroundColor: UI.card,
-  },
-  addOnLabel: { flex: 1, fontSize: 12, color: UI.text, fontFamily: "Poppins-SemiBold" },
-  choiceGrid: { gap: 8 },
-  choiceCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    borderWidth: 1,
-    borderColor: UI.chipBorder,
-    borderRadius: 16,
-    padding: 12,
-    backgroundColor: UI.card,
-  },
-  choiceCardActive: { borderColor: UI.purple, backgroundColor: "#F5F3FF" },
-  choiceDisabled: { opacity: 0.45 },
-  choiceTitle: { fontSize: 13, color: UI.text, fontFamily: "Poppins-SemiBold" },
-  choiceTitleActive: { color: UI.purple },
-  choiceBody: { fontSize: 11, color: UI.muted, fontFamily: "Poppins-Regular", marginTop: 2 },
-  unchecked: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    borderWidth: 1,
-    borderColor: UI.chipBorder,
-  },
-  chipWrap: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  styleChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    borderWidth: 1,
-    borderColor: UI.chipBorder,
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  styleChipActive: { backgroundColor: UI.purple, borderColor: UI.purple },
-  styleChipText: { fontSize: 12, color: UI.text, fontFamily: "Poppins-Medium" },
-  styleChipTextActive: { color: "#FFFFFF" },
-  notesRow: { flexDirection: "row", gap: 10, alignItems: "stretch" },
-  notes: {
-    flex: 1,
-    minHeight: 84,
-    maxHeight: CUSTOMER_ORDER_NOTES_MAX_HEIGHT,
-    borderWidth: 1,
-    borderColor: UI.chipBorder,
-    borderRadius: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    color: UI.text,
-    fontFamily: "Poppins-Regular",
-    fontSize: 13,
-    textAlignVertical: "top",
-  },
-  photoBtn: {
-    width: 84,
-    borderWidth: 1,
-    borderColor: UI.chipBorder,
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 4,
-    backgroundColor: UI.card,
-  },
-  photoBtnText: { fontSize: 10, color: UI.muted, fontFamily: "Poppins-Medium", textAlign: "center" },
-  photoCount: { fontSize: 10, color: UI.muted, fontFamily: "Poppins-Regular" },
-  photoRow: { gap: 8, paddingTop: 4 },
-  photoThumb: { width: 56, height: 56, borderRadius: 10, backgroundColor: UI.iconWell },
-  empty: { paddingVertical: 32, textAlign: "center", color: UI.muted, fontFamily: "Poppins-Regular" },
-  continueWrap: { marginTop: 4, marginBottom: 8 },
-  continueBtn: {
-    height: 52,
-    borderRadius: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-  },
-  continueLabel: { color: "#FFFFFF", fontSize: 16, fontFamily: "Poppins-Bold" },
-  pressed: { opacity: 0.88 },
-});
+function createBookingStyles({ s, ms, isNarrow }: ScaledStyleHelpers) {
+  const imageSize = s(isNarrow ? 56 : 68);
+  const stepperMin = s(isNarrow ? 76 : 88);
+  const stepperH = Math.max(32, s(isNarrow ? 32 : 34));
+
+  return {
+    screen: { flex: 1, backgroundColor: UI.card },
+    scrollContent: { flexGrow: 1, paddingBottom: s(24) },
+    headerRow: {
+      flexDirection: "row" as const,
+      alignItems: "center" as const,
+      gap: s(12),
+    },
+    serviceGallery: {
+      gap: s(10),
+      paddingBottom: s(4),
+    },
+    serviceGalleryImage: {
+      width: s(96),
+      height: s(96),
+      borderRadius: s(14),
+      backgroundColor: UI.iconWell,
+    },
+    headerCopy: { flex: 1, minWidth: 0 },
+    headerTitle: { fontSize: ms(18), color: UI.text, fontFamily: "Poppins-Bold" },
+    roundBtn: {
+      width: s(40),
+      height: s(40),
+      borderRadius: s(20),
+      backgroundColor: UI.iconWell,
+      alignItems: "center" as const,
+      justifyContent: "center" as const,
+    },
+    sheet: {
+      flex: 1,
+      backgroundColor: UI.card,
+      paddingHorizontal: s(16),
+      paddingTop: s(8),
+      gap: s(16),
+    },
+    stateFill: {
+      flexGrow: 1,
+      minHeight: s(280),
+      alignItems: "center" as const,
+      justifyContent: "center" as const,
+      paddingHorizontal: s(24),
+      paddingVertical: s(32),
+    },
+    catalog: { gap: s(10) },
+    serviceRow: {
+      flexDirection: "row" as const,
+      alignItems: "center" as const,
+      gap: s(isNarrow ? 8 : 12),
+      borderWidth: 1,
+      borderColor: UI.chipBorder,
+      borderRadius: s(16),
+      backgroundColor: UI.card,
+      padding: s(isNarrow ? 8 : 10),
+    },
+    serviceImage: {
+      width: imageSize,
+      height: imageSize,
+      borderRadius: s(12),
+      backgroundColor: UI.iconWell,
+    },
+    serviceCopy: { flex: 1, minWidth: 0 },
+    serviceName: {
+      fontSize: ms(isNarrow ? 13 : 14),
+      color: UI.text,
+      fontFamily: "Poppins-SemiBold",
+    },
+    servicePrice: {
+      marginTop: 2,
+      fontSize: ms(isNarrow ? 12 : 13),
+      color: UI.purple,
+      fontFamily: "Poppins-SemiBold",
+    },
+    qtyStepper: {
+      flexDirection: "row" as const,
+      alignItems: "center" as const,
+      justifyContent: "space-between" as const,
+      minWidth: stepperMin,
+      height: stepperH,
+      paddingHorizontal: s(4),
+      borderRadius: s(14),
+      borderWidth: 1,
+      borderColor: UI.chipBorder,
+      backgroundColor: UI.bg,
+      flexShrink: 0,
+    },
+    qtyStepperBtn: {
+      width: s(isNarrow ? 22 : 24),
+      height: s(isNarrow ? 22 : 24),
+      alignItems: "center" as const,
+      justifyContent: "center" as const,
+    },
+    qtyStepperValue: {
+      minWidth: s(18),
+      textAlign: "center" as const,
+      fontSize: ms(isNarrow ? 13 : 14),
+      color: UI.text,
+      fontFamily: "Poppins-Bold",
+    },
+    sectionTitle: { fontSize: ms(16), color: UI.text, fontFamily: "Poppins-Bold" },
+    sectionHint: {
+      marginTop: 2,
+      fontSize: ms(12),
+      color: UI.muted,
+      fontFamily: "Poppins-Regular",
+    },
+    block: { gap: s(8) },
+    addOnGrid: { flexDirection: "row" as const, flexWrap: "wrap" as const, gap: s(8) },
+    addOnCard: {
+      flexBasis: "47%" as const,
+      flexGrow: 1,
+      maxWidth: "49%" as const,
+      flexDirection: "row" as const,
+      alignItems: "center" as const,
+      gap: s(8),
+      borderWidth: 1,
+      borderColor: UI.chipBorder,
+      borderRadius: 999,
+      paddingVertical: s(12),
+      paddingHorizontal: s(12),
+      backgroundColor: UI.card,
+    },
+    addOnLabel: { flex: 1, fontSize: ms(12), color: UI.text, fontFamily: "Poppins-SemiBold" },
+    choiceGrid: { gap: s(8) },
+    choiceCard: {
+      flexDirection: "row" as const,
+      alignItems: "center" as const,
+      gap: s(10),
+      borderWidth: 1,
+      borderColor: UI.chipBorder,
+      borderRadius: s(16),
+      padding: s(12),
+      backgroundColor: UI.card,
+    },
+    choiceCardActive: { borderColor: UI.purple, backgroundColor: "#F5F3FF" },
+    choiceDisabled: { opacity: 0.45 },
+    choiceTitle: { fontSize: ms(13), color: UI.text, fontFamily: "Poppins-SemiBold" },
+    choiceTitleActive: { color: UI.purple },
+    choiceBody: {
+      fontSize: ms(11),
+      color: UI.muted,
+      fontFamily: "Poppins-Regular",
+      marginTop: 2,
+    },
+    unchecked: {
+      width: 18,
+      height: 18,
+      borderRadius: 9,
+      borderWidth: 1,
+      borderColor: UI.chipBorder,
+    },
+    chipWrap: { flexDirection: "row" as const, flexWrap: "wrap" as const, gap: s(8) },
+    styleChip: {
+      flexDirection: "row" as const,
+      alignItems: "center" as const,
+      gap: 4,
+      borderWidth: 1,
+      borderColor: UI.chipBorder,
+      borderRadius: 999,
+      paddingHorizontal: s(12),
+      paddingVertical: s(8),
+    },
+    styleChipActive: { backgroundColor: UI.purple, borderColor: UI.purple },
+    styleChipText: { fontSize: ms(12), color: UI.text, fontFamily: "Poppins-Medium" },
+    styleChipTextActive: { color: "#FFFFFF" },
+    notesRow: { flexDirection: "row" as const, gap: s(10), alignItems: "stretch" as const },
+    notes: {
+      flex: 1,
+      minHeight: s(84),
+      maxHeight: CUSTOMER_ORDER_NOTES_MAX_HEIGHT,
+      borderWidth: 1,
+      borderColor: UI.chipBorder,
+      borderRadius: s(16),
+      paddingHorizontal: s(12),
+      paddingVertical: s(10),
+      color: UI.text,
+      fontFamily: "Poppins-Regular",
+      fontSize: ms(13),
+      textAlignVertical: "top" as const,
+    },
+    photoBtn: {
+      width: s(isNarrow ? 72 : 84),
+      borderWidth: 1,
+      borderColor: UI.chipBorder,
+      borderRadius: s(16),
+      alignItems: "center" as const,
+      justifyContent: "center" as const,
+      gap: 4,
+      backgroundColor: UI.card,
+    },
+    photoBtnText: {
+      fontSize: ms(10),
+      color: UI.muted,
+      fontFamily: "Poppins-Medium",
+      textAlign: "center" as const,
+    },
+    photoCount: { fontSize: ms(10), color: UI.muted, fontFamily: "Poppins-Regular" },
+    photoRow: { gap: s(8), paddingTop: 4 },
+    photoThumb: {
+      width: s(56),
+      height: s(56),
+      borderRadius: s(10),
+      backgroundColor: UI.iconWell,
+    },
+    empty: {
+      textAlign: "center" as const,
+      color: UI.muted,
+      fontFamily: "Poppins-Regular",
+      fontSize: ms(14),
+      lineHeight: ms(20),
+    },
+  };
+}
+
+function useBookingStyles() {
+  return useScaledStyles(createBookingStyles);
+}

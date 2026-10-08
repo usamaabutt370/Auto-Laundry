@@ -23,12 +23,25 @@ export interface CustomerOrderListItem {
   partnerId: string;
   partnerName: string;
   partnerVerified: boolean;
+  partnerImageUrl: string | null;
+  partnerAddress: string | null;
+  partnerRatingAvg: number | null;
+  partnerRatingCount: number;
   /** @deprecated Prefer scheduleLines — kept for any legacy use */
   subtitle: string;
   /** One line per schedule: pickup and/or delivery when set */
   scheduleLines: string[];
+  pickupDayLabel: string | null;
+  pickupTimeLabel: string | null;
+  deliveryDayLabel: string | null;
+  deliveryTimeLabel: string | null;
+  /** Customer address used for pickup location on the card */
+  customerPickupAddress: string | null;
   /** Comma-separated service names (Wash & Fold, etc.) */
   servicesSummary: string;
+  /** Top item lines for the card preview */
+  itemPreview: { name: string; quantity: number; priceLabel: string | null }[];
+  addOnCount: number;
   /** ISO timestamp for placed-on display */
   placedAtIso: string | null;
   estimatedTotalLabel: string;
@@ -70,10 +83,21 @@ export interface CustomerOrderDetailData {
   partnerVerified: boolean;
   partnerPhone: string;
   partnerAddress: string;
+  partnerImageUrl: string | null;
+  partnerRatingAvg: number | null;
+  partnerRatingCount: number;
+  partnerAvailableTime: string | null;
+  partnerLatitude: number | null;
+  partnerLongitude: number | null;
   displayStatus: CustomerOrderDisplayStatus;
   rawStatus: CustomerOrderDbStatus;
   pickupSchedule: string;
   deliverySchedule: string;
+  pickupDayLabel: string | null;
+  pickupTimeLabel: string | null;
+  deliveryDayLabel: string | null;
+  deliveryTimeLabel: string | null;
+  customerPickupAddress: string | null;
   estimatedTotalLabel: string;
   confirmedTotalLabel: string | null;
   confirmedAt: string | null;
@@ -128,13 +152,6 @@ type OrderServiceRow = {
   service_type: "washAndFold" | "dryCleaning" | "tailoring" | "press";
   instructions?: string;
   estimated_amount?: number | null;
-};
-
-type PartnerRow = {
-  id: string;
-  business_name: string;
-  phone_number?: string | null;
-  address?: string | null;
 };
 
 type CustomerOrderFeedbackRow = {
@@ -232,22 +249,97 @@ export function mapDbStatusForCustomer(
   return "accepted";
 }
 
-async function fetchPartnerNames(partnerIds: string[]): Promise<Map<string, string>> {
+type PartnerRow = {
+  id: string;
+  business_name: string;
+  phone_number?: string | null;
+  address?: string | null;
+  image_url?: string | null;
+  business_images?: string[] | null;
+  updated_at?: string | null;
+  available_time?: string | null;
+  latitude?: number | string | null;
+  longitude?: number | string | null;
+};
+
+type PartnerListMeta = {
+  name: string;
+  imageUrl: string | null;
+  address: string | null;
+};
+
+async function fetchPartnerListMeta(
+  partnerIds: string[],
+): Promise<Map<string, PartnerListMeta>> {
   const ids = Array.from(new Set(partnerIds.filter(Boolean)));
   if (!supabase || ids.length === 0) return new Map();
 
   const { data, error } = await supabase
     .from("partner_profiles")
-    .select("id,business_name")
+    .select("id,business_name,address,image_url,business_images,updated_at")
     .in("id", ids);
   if (error || !data) return new Map();
 
-  return new Map(
-    (data as PartnerRow[]).map((row) => [
-      row.id,
-      row.business_name?.trim() || "Laundry Captain",
-    ]),
-  );
+  const map = new Map<string, PartnerListMeta>();
+  for (const row of data as PartnerRow[]) {
+    const images = Array.isArray(row.business_images)
+      ? row.business_images.filter(
+          (item): item is string => typeof item === "string" && item.trim().length > 0,
+        )
+      : [];
+    const imageUrl =
+      images[0] ??
+      (row.image_url?.trim()
+        ? `${row.image_url.trim()}${row.updated_at ? `?t=${encodeURIComponent(row.updated_at)}` : ""}`
+        : null);
+    map.set(row.id, {
+      name: row.business_name?.trim() || "Service Provider",
+      imageUrl,
+      address: row.address?.trim() || null,
+    });
+  }
+  return map;
+}
+
+async function fetchPartnerRatingStats(
+  partnerIds: string[],
+): Promise<Map<string, { avg: number; count: number }>> {
+  const ids = Array.from(new Set(partnerIds.filter(Boolean)));
+  if (!supabase || ids.length === 0) return new Map();
+
+  const { data, error } = await supabase.rpc("partner_rating_stats", {
+    partner_ids: ids,
+  });
+  if (error || !data) return new Map();
+
+  const map = new Map<string, { avg: number; count: number }>();
+  for (const row of data as Array<{
+    partner_id?: string;
+    avg_rating?: number | string;
+    review_count?: number;
+  }>) {
+    if (!row.partner_id) continue;
+    const count = Number(row.review_count) || 0;
+    const avg = Number(row.avg_rating);
+    if (count <= 0 || !Number.isFinite(avg)) continue;
+    map.set(row.partner_id, { avg, count });
+  }
+  return map;
+}
+
+function countAddOnsFromInstructions(instructions: string | null | undefined): number {
+  if (!instructions) return 0;
+  const match = instructions.match(/Add-ons:\s*(.+)/i);
+  if (!match) return 0;
+  return match[1]
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean).length;
+}
+
+async function fetchPartnerNames(partnerIds: string[]): Promise<Map<string, string>> {
+  const meta = await fetchPartnerListMeta(partnerIds);
+  return new Map(Array.from(meta.entries()).map(([id, value]) => [id, value.name]));
 }
 
 export async function deleteCustomerOrder(orderId: string): Promise<void> {
@@ -306,24 +398,79 @@ export async function fetchCustomerOrders(customerId: string): Promise<CustomerO
 
   const rows = (data ?? []) as OrderRow[];
   const partnerIds = rows.map((r) => r.partner_id);
-  const [partners, verifiedPartnerIds] = await Promise.all([
-    fetchPartnerNames(partnerIds),
+  const [partners, verifiedPartnerIds, ratings, customerProfile] = await Promise.all([
+    fetchPartnerListMeta(partnerIds),
     fetchVerifiedPartnerIds(partnerIds),
+    fetchPartnerRatingStats(partnerIds),
+    supabase
+      .from("profiles")
+      .select("address")
+      .eq("id", customerId)
+      .maybeSingle<{ address: string | null }>(),
   ]);
+  const customerPickupAddress = customerProfile.data?.address?.trim() || null;
 
   const orderIds = rows.map((r) => r.id);
-  const servicesByOrderId = new Map<string, OrderServiceRow["service_type"][]>();
+  const servicesByOrderId = new Map<
+    string,
+    Array<{
+      id: string;
+      service_type: OrderServiceRow["service_type"];
+      instructions: string;
+    }>
+  >();
 
   if (orderIds.length > 0) {
     const { data: svcData, error: svcErr } = await supabase
       .from("order_services")
-      .select("order_id,service_type")
+      .select("id,order_id,service_type,instructions")
       .in("order_id", orderIds);
     if (!svcErr && svcData) {
-      for (const row of svcData as OrderServiceRow[]) {
+      for (const row of svcData as Array<
+        Required<Pick<OrderServiceRow, "id" | "order_id" | "service_type">> & {
+          instructions?: string | null;
+        }
+      >) {
         const list = servicesByOrderId.get(row.order_id) ?? [];
-        list.push(row.service_type);
+        list.push({
+          id: row.id,
+          service_type: row.service_type,
+          instructions: row.instructions ?? "",
+        });
         servicesByOrderId.set(row.order_id, list);
+      }
+    }
+  }
+
+  const serviceIds = Array.from(servicesByOrderId.values())
+    .flat()
+    .map((service) => service.id);
+  const itemsByServiceId = new Map<
+    string,
+    Array<{ name: string; quantity: number; priceLabel: string | null }>
+  >();
+  if (serviceIds.length > 0) {
+    const { data: itemData, error: itemErr } = await supabase
+      .from("order_service_items")
+      .select("order_service_id,item_name,quantity,line_total_amount")
+      .in("order_service_id", serviceIds);
+    if (!itemErr && itemData) {
+      for (const item of itemData as Array<{
+        order_service_id: string;
+        item_name: string;
+        quantity: number;
+        line_total_amount: number | null;
+      }>) {
+        const list = itemsByServiceId.get(item.order_service_id) ?? [];
+        list.push({
+          name: item.item_name,
+          quantity: item.quantity,
+          priceLabel:
+            item.line_total_amount != null && Number.isFinite(item.line_total_amount)
+              ? formatUsd(item.line_total_amount)
+              : null,
+        });
+        itemsByServiceId.set(item.order_service_id, list);
       }
     }
   }
@@ -365,23 +512,45 @@ export async function fetchCustomerOrders(customerId: string): Promise<CustomerO
         "schedule TBD",
       )}`;
 
-    const svcTypes = servicesByOrderId.get(order.id) ?? [];
-    const servicesSummary = summarizeServiceTypes(svcTypes);
+    const orderServices = servicesByOrderId.get(order.id) ?? [];
+    const servicesSummary = summarizeServiceTypes(
+      orderServices.map((service) => service.service_type),
+    );
+    const itemPreview = orderServices
+      .flatMap((service) => itemsByServiceId.get(service.id) ?? [])
+      .slice(0, 4);
+    const addOnCount = orderServices.reduce(
+      (sum, service) => sum + countAddOnsFromInstructions(service.instructions),
+      0,
+    );
 
     const total = order.estimated_total ?? order.estimated_partial_total ?? 0;
     const fee = order.pickup_fee;
     const pickupFeeLabel =
       fee != null && fee > 0 ? formatUsd(fee) : null;
+    const partner = partners.get(order.partner_id);
+    const rating = ratings.get(order.partner_id);
 
     return {
       id: order.id,
       orderRef: order.id.replace(/-/g, "").slice(0, 8).toUpperCase(),
       partnerId: order.partner_id,
-      partnerName: partners.get(order.partner_id) ?? "Launderer",
+      partnerName: partner?.name ?? "Launderer",
       partnerVerified: verifiedPartnerIds.has(order.partner_id),
+      partnerImageUrl: partner?.imageUrl ?? null,
+      partnerAddress: partner?.address ?? null,
+      partnerRatingAvg: rating?.avg ?? null,
+      partnerRatingCount: rating?.count ?? 0,
       subtitle,
       scheduleLines,
+      pickupDayLabel: order.pickup_day_label?.trim() || null,
+      pickupTimeLabel: order.pickup_time_slot_label?.trim() || null,
+      deliveryDayLabel: order.delivery_day_label?.trim() || null,
+      deliveryTimeLabel: order.delivery_time_slot_label?.trim() || null,
+      customerPickupAddress,
       servicesSummary,
+      itemPreview,
+      addOnCount,
       placedAtIso: order.submitted_at ?? order.created_at,
       estimatedTotalLabel: formatUsd(total),
       pickupFeeLabel,
@@ -446,15 +615,39 @@ export async function fetchCustomerOrderDetail(
 
   const order = data as OrderRow & { customer_id?: string };
 
-  const [{ data: partnerData }, verifiedPartnerIds] = await Promise.all([
-    supabase
-      .from("partner_profiles")
-      .select("id,business_name,phone_number,address")
-      .eq("id", order.partner_id)
-      .maybeSingle(),
-    fetchVerifiedPartnerIds([order.partner_id]),
-  ]);
+  const [{ data: partnerData }, verifiedPartnerIds, ratings, customerProfile] =
+    await Promise.all([
+      supabase
+        .from("partner_profiles")
+        .select(
+          "id,business_name,phone_number,address,image_url,business_images,updated_at,available_time,latitude,longitude",
+        )
+        .eq("id", order.partner_id)
+        .maybeSingle(),
+      fetchVerifiedPartnerIds([order.partner_id]),
+      fetchPartnerRatingStats([order.partner_id]),
+      supabase
+        .from("profiles")
+        .select("address")
+        .eq("id", customerId)
+        .maybeSingle<{ address: string | null }>(),
+    ]);
   const partner = (partnerData as PartnerRow | null) ?? null;
+  const rating = ratings.get(order.partner_id);
+  const partnerImages = Array.isArray(partner?.business_images)
+    ? partner.business_images.filter(
+        (item): item is string => typeof item === "string" && item.trim().length > 0,
+      )
+    : [];
+  const partnerImageUrl =
+    partnerImages[0] ??
+    (partner?.image_url?.trim()
+      ? `${partner.image_url.trim()}${
+          partner.updated_at ? `?t=${encodeURIComponent(partner.updated_at)}` : ""
+        }`
+      : null);
+  const partnerLatitude = Number(partner?.latitude);
+  const partnerLongitude = Number(partner?.longitude);
 
   const { data: serviceData, error: serviceError } = await supabase
     .from("order_services")
@@ -555,10 +748,16 @@ export async function fetchCustomerOrderDetail(
     id: order.id,
     orderRef: order.id.replace(/-/g, "").slice(0, 8).toUpperCase(),
     partnerId: order.partner_id,
-    partnerName: partner?.business_name?.trim() || "Laundry Captain",
+    partnerName: partner?.business_name?.trim() || "Service Provider",
     partnerVerified: verifiedPartnerIds.has(order.partner_id),
     partnerPhone: partner?.phone_number?.trim() || "Not provided",
     partnerAddress: partner?.address?.trim() || "Address not available",
+    partnerImageUrl,
+    partnerRatingAvg: rating?.avg ?? null,
+    partnerRatingCount: rating?.count ?? 0,
+    partnerAvailableTime: partner?.available_time?.trim() || null,
+    partnerLatitude: Number.isFinite(partnerLatitude) ? partnerLatitude : null,
+    partnerLongitude: Number.isFinite(partnerLongitude) ? partnerLongitude : null,
     displayStatus: mapDbStatusForCustomer(order.status),
     rawStatus: order.status,
     pickupSchedule: formatSchedule(
@@ -571,6 +770,11 @@ export async function fetchCustomerOrderDetail(
       order.delivery_time_slot_label,
       "Not scheduled",
     ),
+    pickupDayLabel: order.pickup_day_label?.trim() || null,
+    pickupTimeLabel: order.pickup_time_slot_label?.trim() || null,
+    deliveryDayLabel: order.delivery_day_label?.trim() || null,
+    deliveryTimeLabel: order.delivery_time_slot_label?.trim() || null,
+    customerPickupAddress: customerProfile.data?.address?.trim() || null,
     estimatedTotalLabel: formatUsd(totalAmount),
     confirmedTotalLabel: confirmedTotal,
     confirmedAt: order.confirmed_at,

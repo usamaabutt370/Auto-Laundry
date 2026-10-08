@@ -1,4 +1,5 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Modal,
@@ -10,6 +11,7 @@ import {
 } from "react-native";
 
 import { Spacer } from "@/components";
+import { AppCtaButton } from "@/components/ui/cta-button";
 import {
   dateToIso,
   formatTodayString,
@@ -21,17 +23,7 @@ import {
   TIME_SLOTS,
   timeSlotIndexFromLabel,
 } from "@/utils/schedule-datetime";
-
-const UI = {
-  card: "#FFFFFF",
-  text: "#111827",
-  muted: "#6B7280",
-  teal: "#12B886",
-  openBg: "#ECFDF5",
-  chipBorder: "#E5E7EB",
-  iconWell: "#F3F4F6",
-  shadow: "rgba(17, 24, 39, 0.08)",
-};
+import { gradients, UI } from "@/constants/theme";
 
 const CURRENT_YEAR = new Date().getFullYear();
 const CURRENT_MONTH = new Date().getMonth();
@@ -69,7 +61,9 @@ function initialMonthState(dateIso?: string | null) {
   return {
     year: base.getFullYear(),
     month: base.getMonth(),
-    dateIndex: Math.max(0, base.getDate() - 1),
+    // Index into the *filtered* upcoming-dates list (past days removed), not day-of-month.
+    // Resolve the real index in an effect once datesInMonth is available.
+    dateIndex: 0,
   };
 }
 
@@ -132,16 +126,22 @@ export function CustomerScheduleSlotSection({
   const timeSlotLabel = TIME_SLOTS[safeTimeSlotIndex] ?? s.timeSlotPlaceholder;
 
   useEffect(() => {
-    if (didApplyInitialDateRef.current || !initialDateIso || datesInMonth.length === 0) {
+    if (didApplyInitialDateRef.current || datesInMonth.length === 0) {
       return;
     }
-    const idx = datesInMonth.findIndex(
-      (item) => dateToIso(item.date) === initialDateIso.trim(),
-    );
-    if (idx >= 0) {
-      setSelectedDateIndex(idx);
-      didApplyInitialDateRef.current = true;
+    if (initialDateIso) {
+      const idx = datesInMonth.findIndex(
+        (item) => dateToIso(item.date) === initialDateIso.trim(),
+      );
+      if (idx >= 0) {
+        setSelectedDateIndex(idx);
+        didApplyInitialDateRef.current = true;
+        return;
+      }
     }
+    // Default to the first selectable day (today / minDate), not a clamped day-of-month.
+    setSelectedDateIndex(0);
+    didApplyInitialDateRef.current = true;
   }, [datesInMonth, initialDateIso]);
 
   useEffect(() => {
@@ -220,12 +220,8 @@ export function CustomerScheduleSlotSection({
         >
           {datesInMonth.map((item, index) => {
             const isSelected = safeSelectedDateIndex === index;
-            return (
-              <Pressable
-                key={`${dateToIso(item.date)}-${index}`}
-                onPress={() => setSelectedDateIndex(index)}
-                style={[styles.datePill, isSelected && styles.datePillSelected]}
-              >
+            const dayText = (
+              <>
                 <Text
                   style={[styles.datePillDay, isSelected && styles.datePillDaySelected]}
                 >
@@ -236,6 +232,26 @@ export function CustomerScheduleSlotSection({
                 >
                   {item.dayNum}
                 </Text>
+              </>
+            );
+            return (
+              <Pressable
+                key={`${dateToIso(item.date)}-${index}`}
+                onPress={() => setSelectedDateIndex(index)}
+                style={styles.datePillPress}
+              >
+                {isSelected ? (
+                  <LinearGradient
+                    colors={gradients.cta}
+                    start={{ x: 0, y: 0.5 }}
+                    end={{ x: 1, y: 0.5 }}
+                    style={styles.datePill}
+                  >
+                    {dayText}
+                  </LinearGradient>
+                ) : (
+                  <View style={[styles.datePill, styles.datePillIdle]}>{dayText}</View>
+                )}
               </Pressable>
             );
           })}
@@ -248,7 +264,7 @@ export function CustomerScheduleSlotSection({
         onPress={() => setTimePickerVisible(true)}
         style={({ pressed }) => [styles.timeSlotRow, pressed && styles.pressed]}
       >
-        <MaterialCommunityIcons name="clock-outline" size={20} color={UI.teal} />
+        <MaterialCommunityIcons name="clock-outline" size={20} color={UI.purple} />
         <Text style={styles.timeSlotLabel}>{dayLabel} :</Text>
         <Text style={styles.timeSlotValue}>{timeSlotLabel}</Text>
         <MaterialCommunityIcons name="chevron-down" size={22} color={UI.muted} />
@@ -260,13 +276,23 @@ export function CustomerScheduleSlotSection({
         animationType="fade"
         onRequestClose={() => setMonthPickerVisible(false)}
       >
-        <Pressable
-          style={styles.pickerOverlay}
-          onPress={() => setMonthPickerVisible(false)}
-        >
-          <Pressable style={styles.pickerCard} onPress={() => {}}>
+        <View style={styles.pickerOverlay}>
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={() => setMonthPickerVisible(false)}
+            accessibilityRole="button"
+            accessibilityLabel="Dismiss"
+          />
+          <View style={styles.pickerCard}>
             <Text style={styles.pickerTitle}>Select month</Text>
-            <ScrollView style={styles.pickerList} showsVerticalScrollIndicator={false}>
+            <ScrollView
+              style={styles.pickerList}
+              contentContainerStyle={styles.pickerListContent}
+              showsVerticalScrollIndicator
+              bounces
+              nestedScrollEnabled
+              keyboardShouldPersistTaps="handled"
+            >
               {MONTH_NAMES_EN.map((name, index) => {
                 const isPastMonthInCurrentYear =
                   selectedYear === CURRENT_YEAR && index < CURRENT_MONTH;
@@ -293,20 +319,21 @@ export function CustomerScheduleSlotSection({
                       {name}
                     </Text>
                     {selectedMonth === index ? (
-                      <MaterialCommunityIcons name="check" size={20} color={UI.teal} />
+                      <MaterialCommunityIcons name="check" size={20} color={UI.purple} />
                     ) : null}
                   </Pressable>
                 );
               })}
             </ScrollView>
-            <Pressable
-              style={({ pressed }) => [styles.pickerClose, pressed && styles.pressed]}
+            <AppCtaButton
+              label="Close"
               onPress={() => setMonthPickerVisible(false)}
-            >
-              <Text style={styles.pickerCloseText}>Close</Text>
-            </Pressable>
-          </Pressable>
-        </Pressable>
+              width="full"
+              size="sm"
+              style={styles.pickerClose}
+            />
+          </View>
+        </View>
       </Modal>
 
       <Modal
@@ -315,13 +342,23 @@ export function CustomerScheduleSlotSection({
         animationType="fade"
         onRequestClose={() => setYearPickerVisible(false)}
       >
-        <Pressable
-          style={styles.pickerOverlay}
-          onPress={() => setYearPickerVisible(false)}
-        >
-          <Pressable style={[styles.pickerCard, styles.yearPickerCard]} onPress={() => {}}>
+        <View style={styles.pickerOverlay}>
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={() => setYearPickerVisible(false)}
+            accessibilityRole="button"
+            accessibilityLabel="Dismiss"
+          />
+          <View style={[styles.pickerCard, styles.yearPickerCard]}>
             <Text style={styles.pickerTitle}>Select year</Text>
-            <ScrollView style={styles.pickerList} showsVerticalScrollIndicator={false}>
+            <ScrollView
+              style={styles.pickerList}
+              contentContainerStyle={styles.pickerListContent}
+              showsVerticalScrollIndicator
+              bounces
+              nestedScrollEnabled
+              keyboardShouldPersistTaps="handled"
+            >
               {YEAR_OPTIONS.map((year) => (
                 <Pressable
                   key={year}
@@ -340,19 +377,20 @@ export function CustomerScheduleSlotSection({
                     {year}
                   </Text>
                   {selectedYear === year ? (
-                    <MaterialCommunityIcons name="check" size={20} color={UI.teal} />
+                    <MaterialCommunityIcons name="check" size={20} color={UI.purple} />
                   ) : null}
                 </Pressable>
               ))}
             </ScrollView>
-            <Pressable
-              style={({ pressed }) => [styles.pickerClose, pressed && styles.pressed]}
+            <AppCtaButton
+              label="Close"
               onPress={() => setYearPickerVisible(false)}
-            >
-              <Text style={styles.pickerCloseText}>Close</Text>
-            </Pressable>
-          </Pressable>
-        </Pressable>
+              width="full"
+              size="sm"
+              style={styles.pickerClose}
+            />
+          </View>
+        </View>
       </Modal>
 
       <Modal
@@ -361,13 +399,23 @@ export function CustomerScheduleSlotSection({
         animationType="fade"
         onRequestClose={() => setTimePickerVisible(false)}
       >
-        <Pressable
-          style={styles.pickerOverlay}
-          onPress={() => setTimePickerVisible(false)}
-        >
-          <Pressable style={styles.timePickerCard} onPress={() => {}}>
+        <View style={styles.pickerOverlay}>
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={() => setTimePickerVisible(false)}
+            accessibilityRole="button"
+            accessibilityLabel="Dismiss"
+          />
+          <View style={styles.timePickerCard}>
             <Text style={styles.pickerTitle}>{s.time}</Text>
-            <ScrollView style={styles.pickerList} showsVerticalScrollIndicator={false}>
+            <ScrollView
+              style={styles.pickerList}
+              contentContainerStyle={styles.pickerListContent}
+              showsVerticalScrollIndicator
+              bounces
+              nestedScrollEnabled
+              keyboardShouldPersistTaps="handled"
+            >
               {TIME_SLOTS.map((label, index) => {
                 const isDisabled = index < minTimeSlotIndex;
                 const isSelected = safeTimeSlotIndex === index;
@@ -395,20 +443,21 @@ export function CustomerScheduleSlotSection({
                       {label}
                     </Text>
                     {isSelected ? (
-                      <MaterialCommunityIcons name="check" size={20} color={UI.teal} />
+                      <MaterialCommunityIcons name="check" size={20} color={UI.purple} />
                     ) : null}
                   </Pressable>
                 );
               })}
             </ScrollView>
-            <Pressable
-              style={({ pressed }) => [styles.pickerClose, pressed && styles.pressed]}
+            <AppCtaButton
+              label="Close"
               onPress={() => setTimePickerVisible(false)}
-            >
-              <Text style={styles.pickerCloseText}>Close</Text>
-            </Pressable>
-          </Pressable>
-        </Pressable>
+              width="full"
+              size="sm"
+              style={styles.pickerClose}
+            />
+          </View>
+        </View>
       </Modal>
     </View>
   );
@@ -481,6 +530,10 @@ const styles = StyleSheet.create({
     paddingRight: 8,
     flexDirection: "row",
   },
+  datePillPress: {
+    borderRadius: 12,
+    overflow: "hidden",
+  },
   datePill: {
     gap: 6,
     minWidth: 56,
@@ -488,10 +541,9 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     alignItems: "center",
     paddingHorizontal: 12,
-    backgroundColor: UI.iconWell,
   },
-  datePillSelected: {
-    backgroundColor: UI.teal,
+  datePillIdle: {
+    backgroundColor: UI.iconWell,
   },
   datePillDay: {
     fontSize: 13,
@@ -578,6 +630,10 @@ const styles = StyleSheet.create({
   },
   pickerList: {
     maxHeight: 320,
+    flexGrow: 0,
+  },
+  pickerListContent: {
+    paddingBottom: 4,
   },
   pickerOption: {
     flexDirection: "row",
@@ -589,7 +645,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   pickerOptionSelected: {
-    backgroundColor: UI.openBg,
+    backgroundColor: "#F5F3FF",
   },
   pickerOptionDisabled: {
     opacity: 0.45,
@@ -601,18 +657,9 @@ const styles = StyleSheet.create({
   },
   pickerOptionTextSelected: {
     fontFamily: "Poppins-Bold",
-    color: UI.teal,
+    color: UI.purple,
   },
   pickerClose: {
     marginTop: 12,
-    paddingVertical: 14,
-    alignItems: "center",
-    borderRadius: 12,
-    backgroundColor: UI.teal,
-  },
-  pickerCloseText: {
-    fontSize: 16,
-    fontFamily: "Poppins-SemiBold",
-    color: "#FFFFFF",
   },
 });
