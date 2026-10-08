@@ -19,6 +19,10 @@ import { showAppAlert } from "@/components/app-alert";
 import { WebHeaderSpacer } from "@/components/web-header-spacer";
 import { BlockingLoader } from "@/components/blocking-loader";
 import { getTabBarBottomInset } from "@/components/bottom-tab-bar";
+import {
+  alertIfInsufficientCreditsError,
+  ensurePartnerCreditsForAccept,
+} from "@/components/partner-insufficient-credits-alert";
 import { PartnerOrderListCard } from "@/components/partner-order-list-card";
 import { GradientLoader, APP_LOADER_TINT } from "@/components/ui/gradient-loader";
 import { useConfirmDialog } from "@/components/confirm-dialog";
@@ -76,6 +80,27 @@ export default function PartnerOrderScreen() {
   const { user } = useAuth();
   const s = getStrings(locale).partner.order;
   const commonStrings = getStrings(locale).common;
+  const profileCopy = getStrings(locale).partner.profileScreen;
+  const insufficientCreditsCopy = useMemo(
+    () => ({
+      title: s.insufficientCreditsTitle,
+      message: s.insufficientCreditsMessage,
+      recharge: s.insufficientCreditsRecharge,
+      cancel: s.insufficientCreditsCancel,
+      whatsappError: profileCopy.whatsappError,
+    }),
+    [
+      profileCopy.whatsappError,
+      s.insufficientCreditsCancel,
+      s.insufficientCreditsMessage,
+      s.insufficientCreditsRecharge,
+      s.insufficientCreditsTitle,
+    ],
+  );
+  const partnerDisplayName =
+    typeof user?.user_metadata?.full_name === "string" && user.user_metadata.full_name.trim()
+      ? user.user_metadata.full_name.trim()
+      : "Partner";
 
   const paramFilter = typeof params.filter === "string" ? params.filter : undefined;
   const initialFilter = filterFromParam(paramFilter);
@@ -219,17 +244,41 @@ export default function PartnerOrderScreen() {
         }
       } catch (error) {
         setActionOrderId(null);
+        if (
+          status === "accepted" &&
+          alertIfInsufficientCreditsError(error, {
+            copy: insufficientCreditsCopy,
+            partnerName: partnerDisplayName,
+          })
+        ) {
+          return;
+        }
         showAppAlert(
           `Unable to ${status === "accepted" ? "accept" : "reject"} order`,
           error instanceof Error ? error.message : "Please try again.",
         );
       }
     },
-    [],
+    [insufficientCreditsCopy, partnerDisplayName],
   );
 
   const openAcceptFlow = useCallback(
     async (order: PartnerOrderListItem) => {
+      try {
+        const allowed = await ensurePartnerCreditsForAccept({
+          orderAmount: order.amount,
+          partnerName: partnerDisplayName,
+          copy: insufficientCreditsCopy,
+        });
+        if (!allowed) return;
+      } catch (error) {
+        showAppAlert(
+          "Unable to accept order",
+          error instanceof Error ? error.message : "Please try again.",
+        );
+        return;
+      }
+
       if (!partnerOrderNeedsRider(order)) {
         void handleOrderAction(order.id, "accepted");
         return;
@@ -263,6 +312,8 @@ export default function PartnerOrderScreen() {
     },
     [
       handleOrderAction,
+      insufficientCreditsCopy,
+      partnerDisplayName,
       s.noRidersMessage,
       s.noRidersTitle,
       user?.id,
@@ -301,12 +352,27 @@ export default function PartnerOrderScreen() {
       setSuccessPayload({ type: "accepted" });
     } catch (error) {
       setActionOrderId(null);
+      if (
+        alertIfInsufficientCreditsError(error, {
+          copy: insufficientCreditsCopy,
+          partnerName: partnerDisplayName,
+        })
+      ) {
+        return;
+      }
       showAppAlert(
         "Unable to accept order",
         error instanceof Error ? error.message : "Please try again.",
       );
     }
-  }, [pendingAcceptOrderId, s.acceptSuccess, s.selectRiderRequired, selectedRiderId, user?.id]);
+  }, [
+    insufficientCreditsCopy,
+    partnerDisplayName,
+    pendingAcceptOrderId,
+    s.selectRiderRequired,
+    selectedRiderId,
+    user?.id,
+  ]);
 
   const openRejectModal = useCallback((orderId: string) => {
     setPendingRejectOrderId(orderId);

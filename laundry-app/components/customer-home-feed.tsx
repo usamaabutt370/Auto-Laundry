@@ -27,6 +27,13 @@ import {
 } from "@/hooks/use-customer-home-map-data";
 import { useHomeProfile } from "@/hooks/use-home-profile";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
+import { fetchPartnersByIds } from "@/lib/partner-discovery";
+import {
+  getRecentProviderVisits,
+  HOME_RECENT_VISIBLE,
+  removeRecentProviderVisit,
+  type RecentProviderVisit,
+} from "@/lib/recent-providers";
 import {
   getSavedProviderMap,
   toggleSavedProvider,
@@ -141,12 +148,15 @@ export function CustomerHomeFeed({
   const { isNarrow, ms } = useResponsiveLayout();
   const screenPad = isNarrow ? 16 : SCREEN_PAD;
   const categoryCardWidth = (windowWidth - screenPad * 2 - CARD_GAP) / (isNarrow ? 2.05 : 2.2);
-  const recCardWidth = categoryCardWidth;
+  // const recCardWidth = categoryCardWidth; // used by deals section
   const nearbyCardWidth = (windowWidth - screenPad * 2 - CARD_GAP) / (isNarrow ? 1.35 : 1.5);
   const { firstName, avatarUri, isLoggedIn } = useHomeProfile();
   const [locationLabel, setLocationLabel] = useState<string>(s.locationFallback);
   const [favorites, setFavorites] = useState<Record<string, boolean>>({});
   const [hour, setHour] = useState(deviceHour);
+  const [recentVisits, setRecentVisits] = useState<RecentProviderVisit[]>([]);
+  const [recentPartners, setRecentPartners] = useState<PartnerMapMarker[]>([]);
+  const [loadingRecent, setLoadingRecent] = useState(false);
 
   const refreshGreetingHour = useCallback(() => {
     setHour(deviceHour());
@@ -156,10 +166,68 @@ export function CustomerHomeFeed({
     useCallback(() => {
       refreshGreetingHour();
       void getSavedProviderMap().then(setFavorites);
+      void getRecentProviderVisits().then(setRecentVisits);
       const intervalId = setInterval(refreshGreetingHour, 60_000);
       return () => clearInterval(intervalId);
     }, [refreshGreetingHour]),
   );
+
+  useEffect(() => {
+    if (recentVisits.length === 0) {
+      setRecentPartners([]);
+      setLoadingRecent(false);
+      return;
+    }
+
+    let cancelled = false;
+    setLoadingRecent(true);
+
+    void (async () => {
+      const resolved: PartnerMapMarker[] = [];
+      const missingIds: string[] = [];
+      const modeById = new Map(
+        recentVisits.map((visit) => [visit.partnerId, visit.fulfillmentMode] as const),
+      );
+
+      for (const visit of recentVisits) {
+        const cached = mapData.markerById.get(visit.partnerId);
+        if (cached) {
+          resolved.push({
+            ...cached,
+            fulfillmentMode:
+              visit.fulfillmentMode ?? cached.fulfillmentMode ?? "dropoff",
+          });
+        } else {
+          missingIds.push(visit.partnerId);
+        }
+      }
+
+      if (missingIds.length > 0) {
+        const { data } = await fetchPartnersByIds(missingIds);
+        const byId = new Map((data ?? []).map((row) => [row.id, row]));
+        for (const id of missingIds) {
+          const row = byId.get(id);
+          if (!row) continue;
+          const mode = modeById.get(id) ?? row.fulfillmentMode ?? "dropoff";
+          resolved.push({ ...row, fulfillmentMode: mode });
+        }
+      }
+
+      const order = new Map(recentVisits.map((visit, index) => [visit.partnerId, index]));
+      resolved.sort(
+        (a, b) => (order.get(a.id) ?? Number.MAX_SAFE_INTEGER) - (order.get(b.id) ?? Number.MAX_SAFE_INTEGER),
+      );
+
+      if (!cancelled) {
+        setRecentPartners(resolved);
+        setLoadingRecent(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [mapData.markerById, recentVisits]);
 
   useEffect(() => {
     const sub = AppState.addEventListener("change", (state) => {
@@ -202,6 +270,22 @@ export function CustomerHomeFeed({
     mapData.userCoordinates,
   ]);
 
+  const recentRows = useMemo(() => {
+    const user = mapData.userCoordinates;
+    return recentPartners.map((partner) => {
+      const coords =
+        mapData.partnerCoordinates[partner.id] ??
+        (partner.latitude != null && partner.longitude != null
+          ? { latitude: partner.latitude, longitude: partner.longitude }
+          : null);
+      const km = user && coords ? distanceKm(user, coords) : Number.POSITIVE_INFINITY;
+      return { partner, km };
+    });
+  }, [mapData.partnerCoordinates, mapData.userCoordinates, recentPartners]);
+
+  const visibleRecent = recentRows.slice(0, HOME_RECENT_VISIBLE);
+  const hasMoreRecent = recentRows.length > HOME_RECENT_VISIBLE;
+
   const greeting = greetingForHour(hour, s);
   const greetingLine = firstName
     ? `${greeting} ${firstName}!`
@@ -224,7 +308,11 @@ export function CustomerHomeFeed({
                 colors={["#5a11f6", "#005aec", "#00a473"]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
-                style={[styles.greeting, { fontSize: ms(isNarrow ? 16 : 18), lineHeight: ms(isNarrow ? 24 : 28) }]}
+                style={{
+                  ...styles.greeting,
+                  fontSize: ms(isNarrow ? 16 : 18),
+                  lineHeight: ms(isNarrow ? 24 : 28),
+                }}
                 accessibilityLabel={greetingLine}
               >
                 {greetingLine}
@@ -338,6 +426,66 @@ export function CustomerHomeFeed({
           />
         </View>
 
+        <SectionHeader
+          title={s.recentlyVisited}
+          actionLabel={hasMoreRecent ? s.seeAll : undefined}
+          onAction={hasMoreRecent ? onSeeAll : undefined}
+        />
+        {loadingRecent ? (
+          <GradientLoader style={styles.loader} />
+        ) : recentRows.length === 0 ? (
+          <Text style={styles.empty}>{s.emptyRecentlyVisited}</Text>
+        ) : (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.hScroll}
+            contentContainerStyle={styles.nearbyList}
+          >
+            {visibleRecent.map(({ partner, km }, index) => {
+              const badge = BADGES[index % BADGES.length];
+              const badgeLabel =
+                badge.key === "top"
+                  ? s.badgeTopRated
+                  : badge.key === "fast"
+                    ? s.badgeFastService
+                    : s.badgeTrusted;
+              return (
+                <RecommendedCard
+                  key={partner.id}
+                  partner={partner}
+                  cardWidth={nearbyCardWidth}
+                  distanceLabel={
+                    Number.isFinite(km) ? fill(s.kmAway, { km: formatKm(km) }) : "—"
+                  }
+                  badgeLabel={badgeLabel}
+                  badgeColor={badge.bg}
+                  onRemove={() => {
+                    void (async () => {
+                      await removeRecentProviderVisit(partner.id);
+                      setRecentVisits((prev) =>
+                        prev.filter((item) => item.partnerId !== partner.id),
+                      );
+                      setRecentPartners((prev) =>
+                        prev.filter((item) => item.id !== partner.id),
+                      );
+                    })();
+                  }}
+                  onPress={() => onPressPartner(partner)}
+                  strings={s}
+                />
+              );
+            })}
+            {hasMoreRecent ? (
+              <RecentSeeAllCard
+                cardWidth={nearbyCardWidth}
+                label={s.seeAllRecent}
+                onPress={onSeeAll}
+              />
+            ) : null}
+          </ScrollView>
+        )}
+
         <SectionHeader title={s.recommended} actionLabel={s.seeAll} onAction={onSeeAll} />
         {mapData.loadingPartners ? (
           <GradientLoader style={styles.loader} />
@@ -383,6 +531,7 @@ export function CustomerHomeFeed({
           </ScrollView>
         )}
 
+        {/* Deals of the day — hidden for now
         <SectionHeader title={s.deals} actionLabel={s.seeAll} onAction={onSeeAll} />
         <ScrollView
           horizontal
@@ -421,6 +570,7 @@ export function CustomerHomeFeed({
             strings={s}
           />
         </ScrollView>
+        */}
       </ScrollView>
     </SafeAreaView>
   );
@@ -432,15 +582,43 @@ function SectionHeader({
   onAction,
 }: {
   title: string;
-  actionLabel: string;
-  onAction: () => void;
+  actionLabel?: string;
+  onAction?: () => void;
 }) {
   return (
     <View style={styles.sectionHeader}>
       <Text style={styles.sectionTitleNoMargin}>{title}</Text>
-      <Pressable onPress={onAction} hitSlop={8} style={styles.seeAllBtn}>
-        <Text style={styles.seeAll}>{actionLabel}</Text>
-        <MaterialCommunityIcons name="arrow-right" size={16} color={UI.purple} />
+      {actionLabel && onAction ? (
+        <Pressable onPress={onAction} hitSlop={8} style={styles.seeAllBtn}>
+          <Text style={styles.seeAll}>{actionLabel}</Text>
+          <MaterialCommunityIcons name="arrow-right" size={16} color={UI.purple} />
+        </Pressable>
+      ) : null}
+    </View>
+  );
+}
+
+function RecentSeeAllCard({
+  cardWidth,
+  label,
+  onPress,
+}: {
+  cardWidth: number;
+  label: string;
+  onPress: () => void;
+}) {
+  return (
+    <View style={[styles.hCardShadowHost, { width: cardWidth * 0.72 }]} collapsable={false}>
+      <Pressable
+        onPress={onPress}
+        style={({ pressed }) => [styles.recentAllCard, pressed && styles.pressed]}
+        accessibilityRole="button"
+        accessibilityLabel={label}
+      >
+        <View style={styles.recentAllIcon}>
+          <MaterialCommunityIcons name="dots-horizontal" size={22} color={UI.purple} />
+        </View>
+        <Text style={styles.recentAllLabel}>{label}</Text>
       </Pressable>
     </View>
   );
@@ -494,6 +672,7 @@ function RecommendedCard({
   badgeColor,
   favorited,
   onToggleFavorite,
+  onRemove,
   onPress,
   strings: s,
 }: {
@@ -502,8 +681,9 @@ function RecommendedCard({
   distanceLabel: string;
   badgeLabel: string;
   badgeColor: string;
-  favorited: boolean;
-  onToggleFavorite: () => void;
+  favorited?: boolean;
+  onToggleFavorite?: () => void;
+  onRemove?: () => void;
   onPress: () => void;
   strings: HomeStrings;
 }) {
@@ -527,19 +707,34 @@ function RecommendedCard({
               {badgeLabel}
             </Text>
           </View>
-          <Pressable
-            onPress={onToggleFavorite}
-            style={styles.heartBtn}
-            hitSlop={8}
-            accessibilityRole="button"
-            accessibilityLabel={favorited ? s.unfavorite : s.favorite}
-          >
-            <MaterialCommunityIcons
-              name={favorited ? "heart" : "heart-outline"}
-              size={15}
-              color={favorited ? "#E11D48" : "#FFFFFF"}
-            />
-          </Pressable>
+          {onRemove ? (
+            <Pressable
+              onPress={(event) => {
+                event.stopPropagation?.();
+                onRemove();
+              }}
+              style={styles.heartBtn}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel={s.removeRecentlyVisited}
+            >
+              <MaterialCommunityIcons name="close" size={15} color="#FFFFFF" />
+            </Pressable>
+          ) : onToggleFavorite ? (
+            <Pressable
+              onPress={onToggleFavorite}
+              style={styles.heartBtn}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel={favorited ? s.unfavorite : s.favorite}
+            >
+              <MaterialCommunityIcons
+                name={favorited ? "heart" : "heart-outline"}
+                size={15}
+                color={favorited ? "#E11D48" : "#FFFFFF"}
+              />
+            </Pressable>
+          ) : null}
         </View>
         <View style={styles.recBody}>
           <PartnerNameWithBadge
@@ -884,6 +1079,28 @@ const styles = StyleSheet.create({
     backgroundColor: UI.card,
     borderRadius: 18,
     ...CARD_SHADOW,
+  },
+  recentAllCard: {
+    minHeight: 168,
+    borderRadius: 18,
+    backgroundColor: UI.card,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingHorizontal: 10,
+  },
+  recentAllIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#F3E8FF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  recentAllLabel: {
+    color: UI.purple,
+    fontSize: 13,
+    fontFamily: "Poppins-SemiBold",
   },
   recCard: {
     backgroundColor: UI.card,

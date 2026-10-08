@@ -21,6 +21,10 @@ import {
   DashboardPeriodSelector,
   type DashboardPeriod,
 } from "@/components/dashboard-period-selector";
+import {
+  alertIfInsufficientCreditsError,
+  ensurePartnerCreditsForAccept,
+} from "@/components/partner-insufficient-credits-alert";
 import { PartnerOrderSuccessModal, type PartnerOrderSuccessPayload } from "@/components/partner-order-success-modal";
 import { PartnerRiderPickerModal } from "@/components/partner-rider-picker-modal";
 import { WebHeaderSpacer } from "@/components/web-header-spacer";
@@ -335,6 +339,23 @@ export function PartnerHomeDashboard() {
   const copy = getStrings(locale).partner.dashboard.home;
   const orderCopy = getStrings(locale).partner.order;
   const commonCopy = getStrings(locale).common;
+  const profileCopy = getStrings(locale).partner.profileScreen;
+  const insufficientCreditsCopy = useMemo(
+    () => ({
+      title: orderCopy.insufficientCreditsTitle,
+      message: orderCopy.insufficientCreditsMessage,
+      recharge: orderCopy.insufficientCreditsRecharge,
+      cancel: orderCopy.insufficientCreditsCancel,
+      whatsappError: profileCopy.whatsappError,
+    }),
+    [
+      orderCopy.insufficientCreditsCancel,
+      orderCopy.insufficientCreditsMessage,
+      orderCopy.insufficientCreditsRecharge,
+      orderCopy.insufficientCreditsTitle,
+      profileCopy.whatsappError,
+    ],
+  );
   const insets = useSafeAreaInsets();
   const tabBarInset = getTabBarBottomInset(Math.max(insets.bottom, 8));
   const { isWeb } = useResponsiveLayout();
@@ -460,17 +481,42 @@ export function PartnerHomeDashboard() {
         }
       } catch (err) {
         setActionOrderId(null);
+        if (
+          status === "accepted" &&
+          alertIfInsufficientCreditsError(err, {
+            copy: insufficientCreditsCopy,
+            partnerName: view?.businessName || copy.businessFallback,
+          })
+        ) {
+          return;
+        }
         showAppAlert(
           `Unable to ${status === "accepted" ? "accept" : "reject"} order`,
           err instanceof Error ? err.message : "Please try again.",
         );
       }
     },
-    [applyLocalStatus],
+    [applyLocalStatus, copy.businessFallback, insufficientCreditsCopy, view?.businessName],
   );
 
   const openAcceptFlow = useCallback(
     async (order: PartnerHomeOrder) => {
+      const partnerName = view?.businessName || copy.businessFallback;
+      try {
+        const allowed = await ensurePartnerCreditsForAccept({
+          orderAmount: order.amount,
+          partnerName,
+          copy: insufficientCreditsCopy,
+        });
+        if (!allowed) return;
+      } catch (err) {
+        showAppAlert(
+          "Unable to accept order",
+          err instanceof Error ? err.message : "Please try again.",
+        );
+        return;
+      }
+
       if (!partnerOrderNeedsRider(order)) {
         void handleOrderAction(order.id, "accepted");
         return;
@@ -499,7 +545,15 @@ export function PartnerHomeDashboard() {
         setLoadingRiders(false);
       }
     },
-    [handleOrderAction, orderCopy.noRidersMessage, orderCopy.noRidersTitle, user?.id],
+    [
+      copy.businessFallback,
+      handleOrderAction,
+      insufficientCreditsCopy,
+      orderCopy.noRidersMessage,
+      orderCopy.noRidersTitle,
+      user?.id,
+      view?.businessName,
+    ],
   );
 
   const confirmRiderAccept = useCallback(async () => {
@@ -523,6 +577,14 @@ export function PartnerHomeDashboard() {
       setSuccessPayload({ type: "accepted" });
     } catch (err) {
       setActionOrderId(null);
+      if (
+        alertIfInsufficientCreditsError(err, {
+          copy: insufficientCreditsCopy,
+          partnerName: view?.businessName || copy.businessFallback,
+        })
+      ) {
+        return;
+      }
       showAppAlert(
         "Unable to accept order",
         err instanceof Error ? err.message : "Please try again.",
@@ -530,10 +592,13 @@ export function PartnerHomeDashboard() {
     }
   }, [
     applyLocalStatus,
+    copy.businessFallback,
+    insufficientCreditsCopy,
     orderCopy.selectRiderRequired,
     pendingAcceptOrderId,
     selectedRiderId,
     user?.id,
+    view?.businessName,
   ]);
 
   const openRejectModal = useCallback((orderId: string) => {
