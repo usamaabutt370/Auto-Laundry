@@ -142,9 +142,9 @@ export default function CustomerProfileMenu() {
 			if (isFirstTimeBecomingLaunderer) {
 				setRoleSwitchValue(true);
 				const confirmed = await confirm({
-					title: "Become a Laundry Captain",
+					title: "Become a Service Provider",
 					message:
-						"Are you sure you want to become a Laundry Captain? You will be asked to provide your business details.",
+						"Are you sure you want to become a Service Provider? You will be asked to provide your business details.",
 					confirmLabel: "Confirm",
 					cancelLabel: "Cancel",
 				});

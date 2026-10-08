@@ -22,6 +22,7 @@ import type { CountryCode } from "libphonenumber-js";
 
 import { dismissAuthSheet } from "@/lib/dismiss-auth-sheet";
 import { gradients, UI } from "@/constants/theme";
+import { clearPendingOrderSubmitAfterAuth } from "@/utils/pending-order-submit";
 
 export default function SignUpScreen() {
   const router = useRouter();
@@ -219,6 +220,9 @@ export default function SignUpScreen() {
     });
 
   const handleClose = () => {
+    if (returnTo === "order-summary") {
+      clearPendingOrderSubmitAfterAuth();
+    }
     dismissAuthSheet(navigation, router, returnTo);
   };
 

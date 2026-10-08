@@ -58,7 +58,6 @@ import { getStrings } from "@/locales";
 import { getDeviceCoordinates } from "@/utils/device-location";
 import type { Coordinates } from "@/utils/geocoding";
 import { getPartnerHoursRange, getPartnerOpenStatus } from "@/utils/partner-hours";
-import { partnerHasActiveOffer } from "@/utils/partner-offers";
 import { UI } from "@/constants/theme";
 
 type DetailTab = "about" | "reviews";
@@ -142,15 +141,8 @@ export function LaundererDetailView({
   const { width: windowWidth } = useWindowDimensions();
   const footerBottomPad = Math.max(insets.bottom, 16);
   const heroHeight = isWeb ? 420 : Math.round(windowWidth * 0.72);
-  /** Measured grid width keeps a true 2-col layout when sheet ≠ window width. */
-  const [jobGridWidth, setJobGridWidth] = useState(0);
-  const jobCardWidth = useMemo(() => {
-    const gap = JOB_GRID_GAP;
-    const available =
-      jobGridWidth > 0 ? jobGridWidth : Math.max(0, windowWidth - 40);
-    return Math.max(120, Math.floor((available - gap) / 2));
-  }, [jobGridWidth, windowWidth]);
-  const jobImageHeight = isNarrow ? 52 : 64;
+  const jobCardWidth = Math.round(windowWidth * 0.8);
+  const jobImageHeight = isNarrow ? 110 : 128;
 
   const jobMeta: Record<
     ServiceJob,
@@ -300,7 +292,6 @@ export function LaundererDetailView({
     if (job === "ironing") return quantitiesHaveItems(draft.press?.itemizedQuantities);
     return quantitiesHaveItems(draft.tailoring?.itemizedQuantities);
   };
-  const hasOffer = partnerHasActiveOffer(profile?.offerPercent);
   const aboutText = profile?.business_description?.trim() ?? "";
   const address = profile?.address?.trim() || "—";
   const partnerCoords =
@@ -494,11 +485,11 @@ export function LaundererDetailView({
 
   const handleContinueOrder = () => {
     if (!orderDraftHasItems(draft)) {
-      showAppAlert(s.continueOrder, s.needItemsToContinue);
+      showAppAlert(s.needItemsTitle, s.needItemsToContinue);
       return;
     }
     if (pickupEnabled && !hasPickupSchedule) {
-      showAppAlert(s.continueOrder, s.needScheduleToContinue);
+      showAppAlert(s.needScheduleTitle, s.needScheduleToContinue);
       return;
     }
     router.push("/(customer)/order-summary");
@@ -744,12 +735,12 @@ export function LaundererDetailView({
           {offeredJobs.length > 0 ? (
             <View style={styles.jobSwitch}>
               <Text style={styles.jobSwitchLabel}>{s.jobSwitcherLabel}</Text>
-              <View
-                style={[styles.jobGrid, { gap: JOB_GRID_GAP }]}
-                onLayout={(event) => {
-                  const next = Math.round(event.nativeEvent.layout.width);
-                  setJobGridWidth((prev) => (prev === next ? prev : next));
-                }}
+              <ScrollView
+                horizontal
+                nestedScrollEnabled
+                showsHorizontalScrollIndicator={false}
+                style={styles.jobScroll}
+                contentContainerStyle={[styles.jobScrollContent, { gap: JOB_GRID_GAP }]}
               >
                 {offeredJobs.map((job) => {
                   const meta = jobMeta[job];
@@ -780,23 +771,25 @@ export function LaundererDetailView({
                           <MaterialCommunityIcons name="check" size={12} color="#FFFFFF" />
                         </View>
                       ) : null}
-                      <Text
-                        style={[
-                          styles.jobCardTitle,
-                          isNarrow && styles.jobCardTitleNarrow,
-                          (active || hasItems) && styles.jobCardTitleActive,
-                        ]}
-                        numberOfLines={2}
-                      >
-                        {meta.title}
-                      </Text>
-                      <Text style={styles.jobCardSub} numberOfLines={2}>
-                        {meta.subtitle}
-                      </Text>
+                      <View style={styles.jobCardBody}>
+                        <Text
+                          style={[
+                            styles.jobCardTitle,
+                            isNarrow && styles.jobCardTitleNarrow,
+                            (active || hasItems) && styles.jobCardTitleActive,
+                          ]}
+                          numberOfLines={2}
+                        >
+                          {meta.title}
+                        </Text>
+                        <Text style={styles.jobCardSub} numberOfLines={2}>
+                          {meta.subtitle}
+                        </Text>
+                      </View>
                     </Pressable>
                   );
                 })}
-              </View>
+              </ScrollView>
             </View>
           ) : null}
 
@@ -822,28 +815,6 @@ export function LaundererDetailView({
 
           {tab === "about" ? (
             <View style={styles.tabBody}>
-              {hasOffer ? (
-                <Pressable
-                  onPress={() => handleSelect()}
-                  style={({ pressed }) => [styles.offerCard, pressed && styles.pressed]}
-                >
-                  <View style={styles.offerIcon}>
-                    <MaterialCommunityIcons name="sale" size={20} color={UI.purple} />
-                  </View>
-                  <View style={styles.offerCopy}>
-                    <Text style={styles.offerTitle}>{s.specialOffer}</Text>
-                    <Text style={styles.offerBody}>
-                      {fill(s.specialOfferBody, { pct: profile.offerPercent ?? 0 })}
-                    </Text>
-                    {profile.offerCode ? (
-                      <Text style={styles.offerCode}>
-                        {fill(s.offerCode, { code: profile.offerCode })}
-                      </Text>
-                    ) : null}
-                  </View>
-                  <MaterialCommunityIcons name="chevron-right" size={22} color={UI.purple} />
-                </Pressable>
-              ) : null}
               <AboutBlock
                 heading={fill(s.aboutHeading, { name: displayName })}
                 text={aboutText || s.noAbout}
@@ -926,24 +897,24 @@ export function LaundererDetailView({
                   !hasPickup && styles.fulfillmentDisabled,
                 ]}
               >
-                <MaterialCommunityIcons name="truck-delivery-outline" size={18} color={UI.purple} />
-                <View style={{ flex: 1, minWidth: 0 }}>
+                <View style={styles.fulfillmentHead}>
+                  <MaterialCommunityIcons name="truck-delivery-outline" size={18} color={UI.purple} />
                   <Text
                     style={[styles.fulfillmentTitle, pickupEnabled && styles.fulfillmentTitleActive]}
                     numberOfLines={2}
                   >
                     {sBook.pickupTitle}
                   </Text>
-                  <Text
-                    style={[
-                      styles.fulfillmentBody,
-                      pickupScheduleSummary && styles.fulfillmentSchedule,
-                    ]}
-                    numberOfLines={pickupScheduleSummary ? 4 : 2}
-                  >
-                    {pickupScheduleSummary ?? sBook.pickupBody}
-                  </Text>
                 </View>
+                <Text
+                  style={[
+                    styles.fulfillmentBody,
+                    pickupScheduleSummary && styles.fulfillmentSchedule,
+                  ]}
+                  numberOfLines={pickupScheduleSummary ? 4 : 2}
+                >
+                  {pickupScheduleSummary ?? sBook.pickupBody}
+                </Text>
               </Pressable>
               <Pressable
                 onPress={() => {
@@ -955,18 +926,18 @@ export function LaundererDetailView({
                   !pickupEnabled && styles.fulfillmentCardActive,
                 ]}
               >
-                <MaterialCommunityIcons name="storefront-outline" size={18} color={UI.purple} />
-                <View style={{ flex: 1 }}>
+                <View style={styles.fulfillmentHead}>
+                  <MaterialCommunityIcons name="storefront-outline" size={18} color={UI.purple} />
                   <Text
                     style={[styles.fulfillmentTitle, !pickupEnabled && styles.fulfillmentTitleActive]}
                     numberOfLines={2}
                   >
                     {sBook.dropoffTitle}
                   </Text>
-                  <Text style={styles.fulfillmentBody} numberOfLines={2}>
-                    {sBook.dropoffBody}
-                  </Text>
                 </View>
+                <Text style={styles.fulfillmentBody} numberOfLines={2}>
+                  {sBook.dropoffBody}
+                </Text>
               </Pressable>
             </View>
           </View>
@@ -1228,9 +1199,11 @@ const styles = StyleSheet.create({
   mutedText: { color: UI.muted },
   jobSwitch: { marginTop: 16, gap: 10 },
   jobSwitchLabel: { fontSize: 16, color: UI.text, fontFamily: "Poppins-Bold" },
-  jobGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
+  jobScroll: {
+    marginHorizontal: -20,
+  },
+  jobScrollContent: {
+    paddingHorizontal: 20,
     alignItems: "stretch",
   },
   jobCard: {
@@ -1238,17 +1211,23 @@ const styles = StyleSheet.create({
     borderColor: UI.chipBorder,
     borderRadius: 16,
     backgroundColor: UI.card,
-    padding: 8,
-    paddingBottom: 10,
+    overflow: "hidden",
     flexGrow: 0,
     flexShrink: 0,
   },
   jobCardActive: { borderColor: "transparent", backgroundColor: "#F5F3FF" },
-  jobCardImage: { borderRadius: 12, backgroundColor: UI.iconWell },
+  jobCardImage: {
+    width: "100%",
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+    backgroundColor: UI.iconWell,
+  },
   jobCardIcon: {
     position: "absolute",
-    top: 14,
-    left: 14,
+    top: 10,
+    left: 10,
     width: 26,
     height: 26,
     borderRadius: 13,
@@ -1257,8 +1236,8 @@ const styles = StyleSheet.create({
   },
   jobCardCheck: {
     position: "absolute",
-    top: 14,
-    right: 14,
+    top: 10,
+    right: 10,
     width: 22,
     height: 22,
     borderRadius: 11,
@@ -1266,8 +1245,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  jobCardBody: {
+    paddingHorizontal: 12,
+    paddingTop: 10,
+    paddingBottom: 12,
+  },
   jobCardTitle: {
-    marginTop: 8,
     fontSize: 13,
     color: UI.text,
     fontFamily: "Poppins-SemiBold",
@@ -1294,26 +1277,6 @@ const styles = StyleSheet.create({
   sectionHint: { marginTop: 2, fontSize: 12, color: UI.muted, fontFamily: "Poppins-Regular" },
   aboutHeading: { flex: 1 },
   viewAll: { fontSize: 13, color: UI.purple, fontFamily: "Poppins-SemiBold" },
-  offerCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    backgroundColor: "#F3EFFF",
-    borderRadius: 18,
-    padding: 14,
-  },
-  offerIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#FFFFFF",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  offerCopy: { flex: 1 },
-  offerTitle: { fontSize: 14, color: UI.text, fontFamily: "Poppins-Bold" },
-  offerBody: { fontSize: 13, color: UI.muted, fontFamily: "Poppins-Regular" },
-  offerCode: { marginTop: 2, fontSize: 12, color: UI.purple, fontFamily: "Poppins-SemiBold" },
   infoPair: { flexDirection: "row", gap: 12 },
   infoCard: {
     flex: 1,
@@ -1368,20 +1331,23 @@ const styles = StyleSheet.create({
   fulfillmentGrid: { flexDirection: "row", gap: 8 },
   fulfillmentCard: {
     flex: 1,
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 8,
+    gap: 4,
     borderWidth: 1,
     borderColor: UI.chipBorder,
     borderRadius: 16,
     padding: 12,
     backgroundColor: UI.card,
   },
+  fulfillmentHead: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
   fulfillmentCardActive: { borderColor: "transparent", backgroundColor: "#F5F3FF" },
   fulfillmentDisabled: { opacity: 0.45 },
-  fulfillmentTitle: { fontSize: 12, color: UI.text, fontFamily: "Poppins-SemiBold" },
+  fulfillmentTitle: { flex: 1, fontSize: 12, color: UI.text, fontFamily: "Poppins-SemiBold" },
   fulfillmentTitleActive: { color: UI.purple },
-  fulfillmentBody: { marginTop: 2, fontSize: 10, color: UI.muted, fontFamily: "Poppins-Regular" },
+  fulfillmentBody: { fontSize: 10, color: UI.muted, fontFamily: "Poppins-Regular" },
   fulfillmentSchedule: {
     fontSize: 10,
     lineHeight: 14,

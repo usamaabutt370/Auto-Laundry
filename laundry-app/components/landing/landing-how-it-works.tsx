@@ -18,7 +18,7 @@ const STEPS = [
     number: "02",
     icon: "truck-fast-outline" as const,
     title: "We Collect at a Time That Suits You",
-    description: "A trained, vetted Laundry Captain near you picks up your laundry.",
+    description: "A trained, vetted Service Provider near you picks up your laundry.",
   },
   {
     number: "03",

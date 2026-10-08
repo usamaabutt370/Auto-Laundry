@@ -48,7 +48,7 @@ export default function PartnerProfileMenu() {
 	const [isUpdatingRole, setIsUpdatingRole] = useState(false);
 	const [roleSwitchValue, setRoleSwitchValue] = useState<boolean | null>(null);
 	const [avatarUri, setAvatarUri] = useState<string | undefined>(undefined);
-	const [displayName, setDisplayName] = useState<string>("Laundry Captain");
+	const [displayName, setDisplayName] = useState<string>("Service Provider");
 	const [displayPhone, setDisplayPhone] = useState<string>("");
 	const [displayAddress, setDisplayAddress] = useState<string>("");
 	const [creditBalance, setCreditBalance] = useState<number | null>(null);
@@ -79,7 +79,7 @@ export default function PartnerProfileMenu() {
 				[profileData?.first_name ?? "", profileData?.last_name ?? ""].join(" ").trim() ||
 				user?.user_metadata?.full_name ||
 				user?.user_metadata?.first_name ||
-				"Laundry Captain";
+				"Service Provider";
 			setDisplayName(resolvedName);
 			setDisplayPhone(profileData?.phone ?? (user?.user_metadata as any)?.phone ?? "");
 

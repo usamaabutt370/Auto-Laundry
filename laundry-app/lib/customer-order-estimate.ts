@@ -334,7 +334,7 @@ export function buildCustomerOrderEstimate(
   const lines: OrderEstimateLine[] = [];
   let currencyPrefix = inferCurrencyPrefix(services);
   const disclaimer =
-    "This is an estimate. Final amount may change after the launderer counts items at pickup.";
+    "This is an estimate. Final amount may change after the Service Provider counts items at pickup.";
 
   const addPickupFee = () => {
     if (!draft.pickupDeliveryRequested) return;

@@ -54,15 +54,15 @@ export function LandingCta() {
       <Pressable
         onPress={() => router.push("/(auth)/welcome")}
         accessibilityRole="button"
-        accessibilityLabel="Are you a housewife? Become a Laundry Captain"
+        accessibilityLabel="Are you a housewife? Become a Service Provider"
         style={({ pressed }) => [styles.customerNudge, pressed && styles.pressed]}
       >
         <Text style={styles.customerNudgeText}>
-          Are you a housewife looking to earn from home? Become a Laundry Captain →
+          Are you a housewife looking to earn from home? Become a Service Provider →
         </Text>
       </Pressable>
 
-      <View style={styles.divider} />
+      <View style={styles.divider} /> 
       <Pressable
         style={({ pressed }) => [styles.socialIcon, pressed && styles.pressed]}
         onPress={() => Linking.openURL(FACEBOOK_URL)}

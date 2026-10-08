@@ -492,16 +492,18 @@ export function ServiceBookingView({ job, itemLabel }: Props) {
         appearance="light"
         scrollContentStyle={styles.scrollContent}
         footer={
-          <>
-            <OrderSelectionSummary estimate={estimate} loading={loading} />
-            <AppCtaButton
-              label={s.done}
-              onPress={persistAndClose}
-              width="full"
-              rightIcon="check"
-              style={styles.continueBtn}
-            />
-          </>
+          <OrderSelectionSummary
+            estimate={estimate}
+            loading={loading}
+            action={
+              <AppCtaButton
+                label={s.done}
+                onPress={persistAndClose}
+                width="full"
+                rightIcon="check"
+              />
+            }
+          />
         }
       >
         <View style={styles.sheet}>
@@ -557,9 +559,6 @@ export function ServiceBookingView({ job, itemLabel }: Props) {
                         <Text style={styles.servicePrice} numberOfLines={2}>
                           {priceLine}
                         </Text>
-                        <Text style={styles.serviceDetail} numberOfLines={1}>
-                          {s.numberOfPieces}
-                        </Text>
                       </View>
                       <View style={styles.qtyStepper}>
                         <Pressable
@@ -587,6 +586,7 @@ export function ServiceBookingView({ job, itemLabel }: Props) {
                 })}
               </View>
 
+              {/* Add-on Services — hidden for now
               {addOnOptions.length > 0 ? (
                 <View style={styles.block}>
                   <Text style={styles.sectionTitle}>{s.addOns}</Text>
@@ -617,6 +617,7 @@ export function ServiceBookingView({ job, itemLabel }: Props) {
                   </View>
                 </View>
               ) : null}
+              */}
 
               {job === "tailoring" ? (
                 <>
@@ -880,12 +881,6 @@ function createBookingStyles({ s, ms, isNarrow }: ScaledStyleHelpers) {
       color: UI.purple,
       fontFamily: "Poppins-SemiBold",
     },
-    serviceDetail: {
-      marginTop: 2,
-      fontSize: ms(11),
-      color: UI.muted,
-      fontFamily: "Poppins-Regular",
-    },
     qtyStepper: {
       flexDirection: "row" as const,
       alignItems: "center" as const,
@@ -1024,7 +1019,6 @@ function createBookingStyles({ s, ms, isNarrow }: ScaledStyleHelpers) {
       fontSize: ms(14),
       lineHeight: ms(20),
     },
-    continueBtn: { marginTop: 4, marginBottom: 8 },
   };
 }
 

@@ -1,7 +1,7 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   Pressable,
@@ -40,6 +40,11 @@ import type { Coordinates } from "@/utils/geocoding";
 import { getPartnerHoursRange, getPartnerOpenStatus } from "@/utils/partner-hours";
 import { runAfterModalTeardown } from "@/utils/run-after-modal-teardown";
 import { requestLaundererCollectFocus } from "@/utils/launderer-detail-focus";
+import {
+  clearPendingOrderSubmitAfterAuth,
+  consumePendingOrderSubmitAfterAuth,
+  requestPendingOrderSubmitAfterAuth,
+} from "@/utils/pending-order-submit";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { UI } from "@/constants/theme";
 
@@ -179,7 +184,7 @@ export default function OrderSummaryScreen() {
     };
   }, [user?.id]);
 
-  const handleSubmitOrder = async () => {
+  const handleSubmitOrder = useCallback(async () => {
     const fail = (title: string, message: string) => {
       setSubmitError(message);
       showAppAlert(title, message);
@@ -191,13 +196,14 @@ export default function OrderSummaryScreen() {
       return;
     }
     if (!draft.partnerId) {
-      fail("No Laundry Captain selected", "Please select a Laundry Captain first.");
+      fail("No Service Provider selected", "Please select a Service Provider first.");
       return;
     }
     if (draft.selectedServiceIds.length === 0) {
       fail("No services selected", "Please select at least one service.");
       return;
     }
+    setSignInPromptVisible(false);
     setSubmitError(null);
     setSubmitting(true);
     try {
@@ -251,7 +257,27 @@ export default function OrderSummaryScreen() {
     } finally {
       setSubmitting(false);
     }
-  };
+  }, [
+    draft,
+    editingOrderId,
+    estimate,
+    isEditing,
+    profile,
+    resetDraft,
+    router,
+    s.orderUpdated,
+    s.orderUpdatedMessage,
+    services,
+    user?.id,
+  ]);
+
+  const autoSubmitStartedRef = useRef(false);
+  useEffect(() => {
+    if (!user?.id || loading || submitting || autoSubmitStartedRef.current) return;
+    if (!consumePendingOrderSubmitAfterAuth()) return;
+    autoSubmitStartedRef.current = true;
+    void handleSubmitOrder();
+  }, [handleSubmitOrder, loading, submitting, user?.id]);
 
   const serviceLines = useMemo(
     () => estimate.lines.filter((line) => line.key !== "pickup_delivery"),
@@ -606,7 +632,7 @@ export default function OrderSummaryScreen() {
                     ) : (
                       <View />
                     )}
-                    <Pressable onPress={openShop} hitSlop={8} style={styles.inlineLink}>
+                    <Pressable onPress={() => openShop()} hitSlop={8} style={styles.inlineLink}>
                       <Text style={styles.inlineLinkText}>{s.viewProvider}</Text>
                       <MaterialCommunityIcons name="chevron-right" size={16} color={UI.purple} />
                     </Pressable>
@@ -620,7 +646,7 @@ export default function OrderSummaryScreen() {
                 <Text style={styles.sectionTitle}>
                   {s.yourServices} ({serviceLines.length})
                 </Text>
-                <Pressable onPress={openShop} hitSlop={8} style={styles.inlineLink}>
+                <Pressable onPress={() => openShop()} hitSlop={8} style={styles.inlineLink}>
                   <MaterialCommunityIcons name="plus" size={16} color={UI.purple} />
                   <Text style={styles.inlineLinkText}>{s.addAnotherService}</Text>
                 </Pressable>
@@ -727,14 +753,17 @@ export default function OrderSummaryScreen() {
                 </Pressable>
               </View>
 
-              <View style={styles.infoDivider} />
-
-              <View style={styles.infoRow}>
-                <View style={styles.infoIcon}>
-                  <MaterialCommunityIcons name="map-marker-outline" size={18} color={UI.purple} />
-                </View>
-                <Text style={[styles.infoBody, styles.infoCopy]}>{customerAddress || s.noAddress}</Text>
-              </View>
+              {customerAddress ? (
+                <>
+                  <View style={styles.infoDivider} />
+                  <View style={styles.infoRow}>
+                    <View style={styles.infoIcon}>
+                      <MaterialCommunityIcons name="map-marker-outline" size={18} color={UI.purple} />
+                    </View>
+                    <Text style={[styles.infoBody, styles.infoCopy]}>{customerAddress}</Text>
+                  </View>
+                </>
+              ) : null}
 
               {draft.pickupDeliveryRequested ? (
                 <>
@@ -805,12 +834,17 @@ export default function OrderSummaryScreen() {
 
       <SignInRequiredModal
         visible={signInPromptVisible}
-        onClose={() => setSignInPromptVisible(false)}
+        onClose={() => {
+          clearPendingOrderSubmitAfterAuth();
+          setSignInPromptVisible(false);
+        }}
         onSignIn={() => {
+          requestPendingOrderSubmitAfterAuth();
           goToAuthFromOrderSummary(router, "/(auth)/login");
           setTimeout(() => setSignInPromptVisible(false), 500);
         }}
         onSignUp={() => {
+          requestPendingOrderSubmitAfterAuth();
           goToAuthFromOrderSummary(router, "/(auth)/sign-up");
           setTimeout(() => setSignInPromptVisible(false), 500);
         }}

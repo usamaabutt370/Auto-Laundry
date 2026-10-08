@@ -333,9 +333,10 @@ export const ur = {
       jobSwitcherLabel: "یہاں آپ کو کیا چاہیے؟",
       howToCollect: "سامان کیسے جمع کریں؟",
       continueOrder: "جاری رکھیں",
-      needItemsToContinue: "جاری رکھنے سے پہلے کم از کم ایک سروس منتخب کریں۔",
-      needScheduleToContinue:
-        "جاری رکھنے سے پہلے پک اپ اور ڈیلیوری کا وقت منتخب کریں۔",
+      needItemsTitle: "سروس منتخب کریں",
+      needItemsToContinue: "آرڈر دینے سے پہلے کم از کم ایک سروس منتخب کریں۔",
+      needScheduleTitle: "وقت منتخب کریں",
+      needScheduleToContinue: "جاری رکھنے کے لیے پک اپ اور ڈیلیوری کا وقت سیٹ کریں۔",
       schedulePickupLine: "پک اپ: {day}، {time}",
       scheduleDeliveryLine: "ڈیلیوری: {day}، {time}",
     },
@@ -725,6 +726,11 @@ export const ur = {
       editMissingPartner:
         "اس آرڈر کے لیے لانڈرر لوڈ نہیں ہو سکا۔ واپس جا کر دوبارہ کوشش کریں۔",
       goBack: "واپس جائیں",
+      signInRequiredTitle: "جاری رکھنے کے لیے سائن ان کریں",
+      signInRequiredMessage:
+        "اس پرووائیڈر کے ساتھ آرڈر دینے کے لیے سائن ان کریں یا اکاؤنٹ بنائیں۔",
+      signIn: "سائن ان",
+      signUp: "سائن اپ",
     },
     ordersTab: {
       title: "میرے آرڈرز",

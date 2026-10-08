@@ -268,8 +268,8 @@ export default function PickupServicesScreen() {
   const handleConfirm = () => {
     if (!draft.partnerId) {
       showAppAlert(
-        "Choose a Laundry Captain",
-        "Go back and select a Laundry Captain before scheduling pickup.",
+        "Choose a Service Provider",
+        "Go back and select a Service Provider before scheduling pickup.",
       );
       return;
     }
