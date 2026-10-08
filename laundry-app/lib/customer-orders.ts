@@ -293,7 +293,7 @@ async function fetchPartnerListMeta(
         ? `${row.image_url.trim()}${row.updated_at ? `?t=${encodeURIComponent(row.updated_at)}` : ""}`
         : null);
     map.set(row.id, {
-      name: row.business_name?.trim() || "Laundry Captain",
+      name: row.business_name?.trim() || "Service Provider",
       imageUrl,
       address: row.address?.trim() || null,
     });
@@ -748,7 +748,7 @@ export async function fetchCustomerOrderDetail(
     id: order.id,
     orderRef: order.id.replace(/-/g, "").slice(0, 8).toUpperCase(),
     partnerId: order.partner_id,
-    partnerName: partner?.business_name?.trim() || "Laundry Captain",
+    partnerName: partner?.business_name?.trim() || "Service Provider",
     partnerVerified: verifiedPartnerIds.has(order.partner_id),
     partnerPhone: partner?.phone_number?.trim() || "Not provided",
     partnerAddress: partner?.address?.trim() || "Address not available",

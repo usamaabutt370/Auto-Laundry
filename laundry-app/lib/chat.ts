@@ -359,7 +359,7 @@ export async function fetchOrderChatHeader(
         >(),
       fetchVerifiedPartnerIds([order.partner_id]),
     ]);
-    title = partnerData?.business_name?.trim() || "Laundry Captain";
+    title = partnerData?.business_name?.trim() || "Service Provider";
     titleVerified = verifiedPartnerIds.has(order.partner_id);
     const businessImage = firstBusinessImage(partnerData?.business_images);
     avatarUrl = businessImage ?? partnerData?.image_url ?? null;
@@ -613,7 +613,7 @@ export async function fetchMyConversations(
     if (order?.customer_id === userId) {
       const p = partnerNameMap.get(order.partner_id);
       const pProfile = partnerProfileMap.get(order.partner_id);
-      counterpartyName = p?.business_name?.trim() || "Laundry Captain";
+      counterpartyName = p?.business_name?.trim() || "Service Provider";
       counterpartyVerified = verifiedPartnerIds.has(order.partner_id);
       counterpartyAvatarUrl =
         firstBusinessImage(p?.business_images) ?? p?.image_url ?? pProfile?.image_url ?? null;

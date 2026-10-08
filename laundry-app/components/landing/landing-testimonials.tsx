@@ -22,12 +22,12 @@ const TESTIMONIALS = [
   {
     initials: "R.H.",
     quote:
-      "I set my own hours around my family and still earn steady income as a Laundry Captain — tracked right in my dashboard.",
-    role: "Laundry Captain",
+      "I set my own hours around my family and still earn steady income as a Service Provider — tracked right in my dashboard.",
+    role: "Service Provider",
   },
 ];
 
-/** "Testimonials" — sample customer and Laundry Captain stories (initials-only avatars, no fabricated identities). */
+/** "Testimonials" — sample customer and Service Provider stories (initials-only avatars, no fabricated identities). */
 export function LandingTestimonials() {
   return (
     <View style={styles.section}>

@@ -38,10 +38,11 @@ export function jobIncludesServiceType(
 
 export function offeredJobsFromTypes(types: readonly LaundererServiceType[]): ServiceJob[] {
   const jobs: ServiceJob[] = [];
+  // Display order: Tailoring → Ironing → Wash & Fold → Dry Cleaning
+  if (types.includes("tailoring")) jobs.push("tailoring");
+  if (types.includes("press")) jobs.push("ironing");
   if (types.includes("washAndFold")) jobs.push("washAndFold");
   if (types.includes("dryCleaning")) jobs.push("dryCleaning");
-  if (types.includes("press")) jobs.push("ironing");
-  if (types.includes("tailoring")) jobs.push("tailoring");
   return jobs;
 }
 

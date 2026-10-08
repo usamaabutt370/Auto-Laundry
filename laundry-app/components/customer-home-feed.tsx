@@ -358,6 +358,24 @@ export function CustomerHomeFeed({
           contentContainerStyle={styles.categoryList}
         >
           <CategoryCard
+            title={s.categoryTailoring}
+            subtitle={s.categoryTailoringSub}
+            image={assets.images.home_category_tailoring}
+            icon="scissors-cutting"
+            accent={UI.purple}
+            width={categoryCardWidth}
+            onPress={() => onPressCategory("tailoring")}
+          />
+          <CategoryCard
+            title={s.categoryIroning}
+            subtitle={s.categoryIroningSub}
+            image={assets.images.home_category_ironing}
+            icon="iron"
+            accent={UI.mapGreen}
+            width={categoryCardWidth}
+            onPress={() => onPressCategory("press")}
+          />
+          <CategoryCard
             title={s.categoryLaundry}
             subtitle={s.categoryLaundrySub}
             image={assets.onboarding.slide1}
@@ -374,24 +392,6 @@ export function CustomerHomeFeed({
             accent="#0EA5E9"
             width={categoryCardWidth}
             onPress={() => onPressCategory("dryCleaning")}
-          />
-          <CategoryCard
-            title={s.categoryIroning}
-            subtitle={s.categoryIroningSub}
-            image={assets.images.home_category_ironing}
-            icon="iron"
-            accent={UI.mapGreen}
-            width={categoryCardWidth}
-            onPress={() => onPressCategory("press")}
-          />
-          <CategoryCard
-            title={s.categoryTailoring}
-            subtitle={s.categoryTailoringSub}
-            image={assets.images.home_category_tailoring}
-            icon="scissors-cutting"
-            accent={UI.purple}
-            width={categoryCardWidth}
-            onPress={() => onPressCategory("tailoring")}
           />
 
         </ScrollView>
