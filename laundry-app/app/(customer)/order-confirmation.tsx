@@ -23,7 +23,10 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { PartnerNameWithBadge } from "@/components/partner-name-with-badge";
+import {
+  buildPartnerBusinessIdentityMeta,
+  PartnerBusinessIdentity,
+} from "@/components/partner-business-identity";
 import { AppCtaButton } from "@/components/ui/cta-button";
 import { OrderCelebration } from "@/components/ui/order-celebration";
 import { useAuth } from "@/contexts/auth-context";
@@ -31,7 +34,6 @@ import { useCustomerOrderDraft } from "@/contexts/customer-order-draft-context";
 import { useLocale } from "@/contexts/locale-context";
 import { usePartnerOrderEstimate } from "@/hooks/use-partner-order-estimate";
 import { usePartnerVerified } from "@/hooks/use-partner-verified";
-import { avatarUrlWithCacheBuster } from "@/lib/avatar";
 import { imageForServiceItem } from "@/lib/service-item-images";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import type { ServiceJob } from "@/lib/service-jobs";
@@ -40,7 +42,6 @@ import { UI } from "@/constants/theme";
 import { getDeviceCoordinates } from "@/utils/device-location";
 import { formatMoney } from "@/utils/format-money";
 import type { Coordinates } from "@/utils/geocoding";
-import { getPartnerOpenStatus } from "@/utils/partner-hours";
 import { runAfterModalTeardown } from "@/utils/run-after-modal-teardown";
 
 function fill(template: string, vars: Record<string, string | number>) {
@@ -68,11 +69,6 @@ function distanceKm(from: Coordinates, to: Coordinates) {
       Math.cos(toRadians(to.latitude)) *
       Math.sin(dLon / 2) ** 2;
   return 2 * earthRadiusKm * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
-
-function formatKm(km: number) {
-  if (km < 1) return `${Math.max(0.1, km).toFixed(1)} km`;
-  return `${km.toFixed(1)} km`;
 }
 
 function parseQty(label: string) {
@@ -203,27 +199,20 @@ export default function OrderConfirmationScreen() {
   const orderRef = orderId ? formatOrderReference(orderId) : "—";
 
   const partnerName = profile?.business_name?.trim() || draft.partnerName || "";
-  const partnerImage =
-    (Array.isArray(profile?.business_images)
-      ? profile.business_images.find(
-          (item): item is string => typeof item === "string" && item.trim().length > 0,
-        )
-      : null) || avatarUrlWithCacheBuster(profile?.image_url, profile?.updated_at);
-  const openStatus = getPartnerOpenStatus(profile?.available_time);
   const partnerCoords =
     profile && Number.isFinite(profile.latitude) && Number.isFinite(profile.longitude)
       ? { latitude: Number(profile.latitude), longitude: Number(profile.longitude) }
       : null;
-  const distanceLabel =
-    userCoords && partnerCoords ? formatKm(distanceKm(userCoords, partnerCoords)) : null;
-  const ratingAvg = profile?.ratingAvg;
-  const ratingCount = profile?.ratingCount ?? 0;
-  const ratingLabel =
-    ratingAvg != null && Number.isFinite(ratingAvg)
-      ? Number.isInteger(ratingAvg)
-        ? String(ratingAvg)
-        : ratingAvg.toFixed(1)
-      : null;
+  const km =
+    userCoords && partnerCoords ? distanceKm(userCoords, partnerCoords) : null;
+  const sDetail = getStrings(locale).customer.laundererDetail;
+  const identityMeta = buildPartnerBusinessIdentityMeta({
+    copy: sDetail,
+    ratingAvg: profile?.ratingAvg ?? null,
+    ratingCount: profile?.ratingCount ?? 0,
+    distanceKm: km,
+    availableTime: profile?.available_time,
+  });
 
   const totalDisplay =
     estimate.total != null
@@ -239,22 +228,12 @@ export default function OrderConfirmationScreen() {
   const scheduleDate = draft.pickup?.dayLabel || draft.pickup?.dateIso || s.noSchedule;
   const scheduleTime = draft.pickup?.timeSlotLabel ?? "";
 
+  /** Keep confirmation on the stack so Back returns here. */
   const leaveToOrder = () => {
     if (!orderId) return;
-    try {
-      if (typeof router.dismissAll === "function") {
-        router.dismissAll();
-      }
-    } catch {
-      // ignore
-    }
-    router.replace({
+    router.push({
       pathname: "/(customer)/track-order",
       params: { orderId },
-    });
-    // Clear after leave so confirmation doesn't flash empty while closing.
-    runAfterModalTeardown(() => {
-      resetDraft();
     });
   };
 
@@ -285,6 +264,9 @@ export default function OrderConfirmationScreen() {
         id: draft.partnerId,
         ...(draft.partnerName ? { name: draft.partnerName } : {}),
         mode: draft.pickupDeliveryRequested ? "pickupDelivery" : "dropoff",
+        // Stack as a modal over confirmation so dismiss/back restores this sheet.
+        presentation: "modal",
+        from: "order-confirmation",
       },
     });
   };
@@ -333,60 +315,17 @@ export default function OrderConfirmationScreen() {
         </View>
 
         <View style={styles.card}>
-          <View style={styles.providerRow}>
-            {partnerImage ? (
-              <Image source={{ uri: partnerImage }} style={styles.providerImage} contentFit="cover" />
-            ) : (
-              <View style={[styles.providerImage, styles.providerImageFallback]}>
-                <MaterialCommunityIcons name="storefront-outline" size={22} color={UI.muted} />
-              </View>
-            )}
-            <View style={styles.providerCopy}>
-              <PartnerNameWithBadge
-                name={partnerName || "—"}
-                verified={partnerVerified}
-                nameStyle={styles.providerName}
-              />
-              <View style={styles.metaRow}>
-                {ratingLabel ? (
-                  <>
-                    <MaterialCommunityIcons name="star" size={13} color={UI.star} />
-                    <Text style={styles.metaText}>{ratingLabel}</Text>
-                    {ratingCount > 0 ? (
-                      <Text style={styles.metaMuted}>{fill(s.reviewsCount, { count: ratingCount })}</Text>
-                    ) : null}
-                    <Text style={styles.metaDot}>•</Text>
-                  </>
-                ) : null}
-                {distanceLabel ? (
-                  <>
-                    <MaterialCommunityIcons name="map-marker-outline" size={13} color={UI.muted} />
-                    <Text style={styles.metaMuted}>{distanceLabel}</Text>
-                  </>
-                ) : null}
-              </View>
-              <View style={styles.metaRow}>
-                {openStatus === "open" || openStatus === "closed" ? (
-                  <>
-                    <Text
-                      style={[
-                        styles.openText,
-                        openStatus === "closed" && styles.closedText,
-                      ]}
-                    >
-                      {openStatus === "open" ? s.openNow : s.closedNow}
-                    </Text>
-                    <Text style={styles.metaDot}>·</Text>
-                  </>
-                ) : null}
-                <Text style={styles.metaMuted}>{s.usuallyConfirms}</Text>
-              </View>
-            </View>
-            <Pressable onPress={openShop} style={styles.viewProviderBtn} hitSlop={8}>
-              <Text style={styles.viewProviderText}>{s.viewProvider}</Text>
-              <MaterialCommunityIcons name="chevron-right" size={16} color={UI.purple} />
-            </Pressable>
-          </View>
+          <PartnerBusinessIdentity
+            name={partnerName || "—"}
+            verified={partnerVerified}
+            ratingLabel={identityMeta.ratingLabel}
+            reviewsLabel={identityMeta.reviewsLabel}
+            distanceLabel={identityMeta.distanceLabel}
+            openStatus={identityMeta.openStatus}
+            openLabel={identityMeta.openLabel}
+            hoursHint={identityMeta.hoursHint}
+            onPress={openShop}
+          />
         </View>
 
         <View style={styles.card}>

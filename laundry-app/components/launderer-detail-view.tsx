@@ -1,6 +1,5 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { StatusBar } from "expo-status-bar";
-import { LinearGradient } from "expo-linear-gradient";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState, type ComponentProps } from "react";
@@ -21,6 +20,10 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
 
 import { showAppAlert } from "@/components/app-alert";
+import {
+  buildPartnerBusinessIdentityMeta,
+  PartnerBusinessIdentity,
+} from "@/components/partner-business-identity";
 import { OrderSelectionSummary } from "@/components/order-selection-summary";
 import { AppCtaButton } from "@/components/ui/cta-button";
 import { GradientLoader } from "@/components/ui/gradient-loader";
@@ -57,7 +60,7 @@ import {
 import { getStrings } from "@/locales";
 import { getDeviceCoordinates } from "@/utils/device-location";
 import type { Coordinates } from "@/utils/geocoding";
-import { getPartnerHoursRange, getPartnerOpenStatus } from "@/utils/partner-hours";
+import { getPartnerHoursRange } from "@/utils/partner-hours";
 import { UI } from "@/constants/theme";
 
 type DetailTab = "about" | "reviews";
@@ -84,16 +87,6 @@ function distanceKm(from: Coordinates, to: Coordinates) {
       Math.cos(toRadians(to.latitude)) *
       Math.sin(dLon / 2) ** 2;
   return 2 * earthRadiusKm * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
-
-function formatKm(km: number) {
-  if (km < 1) return Math.max(0.1, km).toFixed(1);
-  return km.toFixed(1);
-}
-
-function formatRatingAvg(value: number): string {
-  if (Number.isInteger(value)) return String(value);
-  return value.toFixed(1).replace(/\.0$/, "");
 }
 
 function formatReviewDate(value: string) {
@@ -283,8 +276,6 @@ export function LaundererDetailView({
   }, [businessImageUris, fallbackHeroUri]);
 
   const displayName = profile?.business_name?.trim() || initialName || s.title;
-  const hours = getPartnerHoursRange(profile?.available_time);
-  const openStatus = getPartnerOpenStatus(profile?.available_time);
   const hasPickup = partnerOffersPickupDelivery(profile);
   const jobHasItems = (job: ServiceJob) => {
     if (job === "washAndFold") return quantitiesHaveItems(draft.washFold?.itemizedQuantities);
@@ -300,30 +291,17 @@ export function LaundererDetailView({
       : null;
   const km =
     userCoords && partnerCoords ? distanceKm(userCoords, partnerCoords) : null;
-  const distanceLabel =
-    km != null && Number.isFinite(km) ? fill(s.kmAway, { km: formatKm(km) }) : null;
-
+  const hours = getPartnerHoursRange(profile?.available_time);
   const ratingAvg = profile?.ratingAvg ?? null;
   const ratingCount = profile?.ratingCount ?? 0;
-  const ratingLabel =
-    ratingCount > 0 && ratingAvg != null
-      ? formatRatingAvg(ratingAvg)
-      : null;
-  const reviewsLabel =
-    ratingCount === 1
-      ? s.reviewsCountOne
-      : ratingCount > 1
-        ? fill(s.reviewsCount, { count: ratingCount })
-        : s.noReviewsYet;
-
-  const openLabel =
-    openStatus === "open" ? s.openNow : openStatus === "closed" ? s.closed : s.hoursUnknown;
-  const hoursHint =
-    openStatus === "open" && hours
-      ? fill(s.closesAt, { time: hours.endLabel })
-      : openStatus === "closed" && hours
-        ? fill(s.opensAt, { time: hours.startLabel })
-        : hours?.rangeLabel ?? null;
+  const identityMeta = buildPartnerBusinessIdentityMeta({
+    copy: s,
+    ratingAvg,
+    ratingCount,
+    distanceKm: km,
+    availableTime: profile?.available_time,
+  });
+  const { ratingLabel, reviewsLabel, distanceLabel, openLabel, hoursHint } = identityMeta;
 
   const handleHeroScrollEnd = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const width = event.nativeEvent.layoutMeasurement.width;
@@ -659,78 +637,16 @@ export function LaundererDetailView({
             sheetOffsetYRef.current = event.nativeEvent.layout.y;
           }}
         >
-          <View style={styles.identityRow}>
-            <View
-              style={[
-                styles.avatarWell,
-                isNarrow && { width: 56, height: 56, borderRadius: 28 },
-              ]}
-            >
-              <LinearGradient
-                colors={["#A78BFA", "#6366F1"]}
-                style={[
-                  styles.avatarInner,
-                  isNarrow && { width: 46, height: 46, borderRadius: 23 },
-                ]}
-              >
-                <MaterialCommunityIcons
-                  name="washing-machine"
-                  size={isNarrow ? 22 : 28}
-                  color="#FFFFFF"
-                />
-              </LinearGradient>
-            </View>
-            <View style={styles.identityText}>
-              <Text style={styles.name} numberOfLines={2}>
-                {displayName}
-              </Text>
-              {partnerVerified ? (
-                <View style={styles.verifiedRow}>
-                  <MaterialCommunityIcons name="check-decagram" size={14} color={UI.teal} />
-                  <Text style={styles.verifiedText}>{s.verifiedPartner}</Text>
-                </View>
-              ) : null}
-              <View style={styles.ratingRow}>
-                <MaterialCommunityIcons name="star" size={15} color={UI.star} />
-                <Text style={styles.metaStrong}>{ratingLabel ?? "—"}</Text>
-                <Text style={styles.metaMuted}>({reviewsLabel})</Text>
-              </View>
-              <View style={styles.locHoursBlock}>
-                {distanceLabel ? (
-                  <View style={styles.metaCluster}>
-                    <MaterialCommunityIcons name="map-marker-outline" size={14} color={UI.purple} />
-                    <Text style={styles.metaMuted} numberOfLines={1}>
-                      {distanceLabel}
-                    </Text>
-                  </View>
-                ) : null}
-                <View style={styles.metaCluster}>
-                  <MaterialCommunityIcons
-                    name="clock-outline"
-                    size={14}
-                    color={openStatus === "open" ? UI.openText : UI.muted}
-                  />
-                  <Text
-                    style={[
-                      styles.openText,
-                      openStatus === "closed" && styles.closedText,
-                      openStatus === "unknown" && styles.mutedText,
-                    ]}
-                  >
-                    {openLabel}
-                  </Text>
-                  {hoursHint ? (
-                    <>
-                      <Text style={styles.metaDot}>•</Text>
-                      <Text style={styles.metaMuted} numberOfLines={1}>
-                        {hoursHint}
-                      </Text>
-                    </>
-                  ) : null}
-                </View>
-              </View>
-            </View>
-          </View>
+          <PartnerBusinessIdentity
+            name={displayName}
+            verified={partnerVerified}
+            ratingLabel={ratingLabel}
+            reviewsLabel={reviewsLabel}
+            distanceLabel={distanceLabel}
+            openStatus={identityMeta.openStatus}
+            openLabel={openLabel}
+            hoursHint={hoursHint}
+          />
 
           {offeredJobs.length > 0 ? (
             <View style={styles.jobSwitch}>
@@ -1162,41 +1078,7 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 24,
   },
-  identityRow: { flexDirection: "row", alignItems: "center", gap: 12 },
-  avatarWell: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: "#F3F0FF",
-    alignItems: "center",
-    justifyContent: "center",
-    flexShrink: 0,
-  },
-  avatarInner: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  identityText: { flex: 1, minWidth: 0 },
-  name: {
-    fontSize: 18,
-    color: UI.text,
-    fontFamily: "Poppins-Bold",
-    lineHeight: 24,
-  },
-  verifiedRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 },
-  verifiedText: { fontSize: 12, color: UI.teal, fontFamily: "Poppins-SemiBold" },
-  ratingRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 6 },
-  locHoursBlock: { marginTop: 4, gap: 4 },
-  metaCluster: { flexDirection: "row", alignItems: "center", gap: 4, flexShrink: 1 },
-  metaStrong: { fontSize: 13, color: UI.text, fontFamily: "Poppins-Bold" },
   metaMuted: { fontSize: 12, color: UI.muted, fontFamily: "Poppins-Regular" },
-  metaDot: { color: UI.muted, marginHorizontal: 2, fontSize: 12 },
-  openText: { fontSize: 12, color: UI.openText, fontFamily: "Poppins-SemiBold" },
-  closedText: { color: UI.closedText },
-  mutedText: { color: UI.muted },
   jobSwitch: { marginTop: 16, gap: 10 },
   jobSwitchLabel: { fontSize: 16, color: UI.text, fontFamily: "Poppins-Bold" },
   jobScroll: {
