@@ -54,6 +54,9 @@ export function AppAlertProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
+  // Three or more choices stack vertically so long labels stay readable.
+  const inRow = pending?.buttons.length === 2;
+
   const dismiss = (btn?: AppAlertButton) => {
     setPending(null);
     btn?.onPress?.();
@@ -71,7 +74,7 @@ export function AppAlertProvider({ children }: { children: React.ReactNode }) {
             <View
               style={[
                 styles.actions,
-                pending.buttons.length > 1 ? styles.actionsRow : styles.actionsColumn,
+                inRow ? styles.actionsRow : styles.actionsColumn,
               ]}
             >
               {pending.buttons.map((btn, i) => {
@@ -82,7 +85,7 @@ export function AppAlertProvider({ children }: { children: React.ReactNode }) {
                       key={i}
                       label={btn.text}
                       onPress={() => dismiss(btn)}
-                      width={pending.buttons.length > 1 ? "half" : "full"}
+                      width={inRow ? "half" : "full"}
                       size="sm"
                     />
                   );
@@ -96,7 +99,7 @@ export function AppAlertProvider({ children }: { children: React.ReactNode }) {
                       btn.style === "cancel" && styles.cancelBtn,
                       btn.style === "destructive" && styles.destructiveBtn,
                       pressed && styles.pressed,
-                      pending.buttons.length > 1 && styles.btnFlex,
+                      inRow && styles.btnFlex,
                     ]}
                   >
                     <Text

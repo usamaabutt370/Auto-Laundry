@@ -44,6 +44,37 @@ export async function fetchCustomerOrderForEdit(
   customerId: string,
   orderId: string,
 ): Promise<{ draft: CustomerOrderDraft; partnerName: string } | null> {
+  return fetchCustomerOrderDraft(customerId, orderId, { requireEditable: true });
+}
+
+function isUpcomingSlot(dateIso: string | undefined) {
+  if (!dateIso) return false;
+  const date = new Date(dateIso);
+  if (Number.isNaN(date.getTime())) return false;
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  return date.getTime() >= startOfToday.getTime();
+}
+
+/** Same services and items as a past order; the schedule is kept only if it's still upcoming. */
+export async function fetchCustomerOrderForReorder(
+  customerId: string,
+  orderId: string,
+): Promise<{ draft: CustomerOrderDraft; partnerName: string } | null> {
+  const loaded = await fetchCustomerOrderDraft(customerId, orderId, { requireEditable: false });
+  if (!loaded) return null;
+  const keepSchedule = isUpcomingSlot(loaded.draft.pickup?.dateIso);
+  return {
+    ...loaded,
+    draft: keepSchedule ? loaded.draft : { ...loaded.draft, pickup: null, delivery: null },
+  };
+}
+
+async function fetchCustomerOrderDraft(
+  customerId: string,
+  orderId: string,
+  { requireEditable }: { requireEditable: boolean },
+): Promise<{ draft: CustomerOrderDraft; partnerName: string } | null> {
   if (!supabase) {
     throw new Error("Supabase is not configured.");
   }
@@ -62,7 +93,7 @@ export async function fetchCustomerOrderForEdit(
   if (!orderData) return null;
 
   const order = orderData as OrderForEditRow;
-  if (!isCustomerOrderEditable(order.status)) {
+  if (requireEditable && !isCustomerOrderEditable(order.status)) {
     throw new Error("This order can no longer be edited.");
   }
 

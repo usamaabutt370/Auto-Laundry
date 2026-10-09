@@ -360,6 +360,22 @@ export async function deleteCustomerOrder(orderId: string): Promise<void> {
   }
 }
 
+/** Finished orders (completed / rejected / cancelled) can be removed from the customer's list. */
+export function isCustomerOrderRemovable(status: CustomerOrderDbStatus): boolean {
+  return status === "completed" || status === "rejected" || status === "cancelled";
+}
+
+/** Hides the order for the customer only; the partner keeps its history. */
+export async function hideCustomerOrder(orderId: string): Promise<void> {
+  if (!supabase) {
+    throw new Error("Supabase is not configured.");
+  }
+  const { error } = await supabase.rpc("customer_hide_order", { p_order_id: orderId });
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
 export async function reassignRejectedCustomerOrder(
   orderId: string,
   newPartnerId: string,
@@ -390,6 +406,7 @@ export async function fetchCustomerOrders(customerId: string): Promise<CustomerO
     )
     .eq("customer_id", customerId)
     .neq("status", "draft")
+    .is("customer_hidden_at", null)
     .order("updated_at", { ascending: false });
 
   if (error) {

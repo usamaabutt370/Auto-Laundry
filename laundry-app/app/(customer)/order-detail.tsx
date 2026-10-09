@@ -22,6 +22,7 @@ import { AppCtaButton } from "@/components/ui/cta-button";
 import { GradientLoader } from "@/components/ui/gradient-loader";
 import { useAuth } from "@/contexts/auth-context";
 import { useLocale } from "@/contexts/locale-context";
+import { useCustomerOrderActions } from "@/hooks/use-customer-order-actions";
 import { getStrings } from "@/locales";
 import { useCustomerOrderDraft } from "@/contexts/customer-order-draft-context";
 import { fetchCustomerOrderForEdit } from "@/lib/customer-order-edit";
@@ -30,6 +31,7 @@ import {
   hasCustomerOrderFeedback,
   submitCustomerOrderFeedback,
   deleteCustomerOrder,
+  isCustomerOrderRemovable,
   type CustomerOrderFeedbackType,
   type CustomerOrderDetailData,
   type CustomerOrderDisplayStatus,
@@ -60,6 +62,8 @@ export default function CustomerOrderDetailScreen() {
   const { locale } = useLocale();
   const sDetail = getStrings(locale).customer.orderDetail;
   const sReport = getStrings(locale).customer.reportProblem;
+  const sActions = getStrings(locale).customer.ordersTab.orderActions;
+  const orderActions = useCustomerOrderActions();
   const params = useLocalSearchParams<{ orderId?: string }>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -485,6 +489,43 @@ export default function CustomerOrderDetailScreen() {
             </View>
           ) : null}
 
+          {isCustomerOrderRemovable(order.rawStatus) ? (
+            <View style={styles.finishedActions}>
+              <AppCtaButton
+                label={
+                  order.rawStatus === "rejected"
+                    ? sActions.reorderWithNewProvider
+                    : sActions.reorder
+                }
+                onPress={() => orderActions.reorder(order)}
+                loading={orderActions.reorderingId === order.id}
+                leftIcon="refresh"
+                width="full"
+              />
+              <Pressable
+                onPress={() => orderActions.remove(order, handleBack)}
+                disabled={orderActions.removingId === order.id}
+                style={({ pressed }) => [
+                  styles.deleteOrderBtn,
+                  styles.finishedDeleteBtn,
+                  pressed && styles.pressed,
+                  orderActions.removingId === order.id && styles.editOrderBtnDisabled,
+                ]}
+              >
+                {orderActions.removingId === order.id ? (
+                  <ActivityIndicator color="#f87171" size="small" />
+                ) : (
+                  <>
+                    <MaterialCommunityIcons name="trash-can-outline" size={18} color="#f87171" />
+                    <Text style={[styles.editOrderBtnText, styles.deleteOrderBtnText]}>
+                      {sActions.deleteOrder}
+                    </Text>
+                  </>
+                )}
+              </Pressable>
+            </View>
+          ) : null}
+
           {order.displayStatus === "pending" && order.rawStatus === "submitted" ? (
             <View style={styles.detailCard}>
               <Text style={styles.secLabel}>Actions</Text>
@@ -834,6 +875,8 @@ const styles = StyleSheet.create({
   editOrderBtnDisabled: {
     opacity: 0.6,
   },
+  finishedActions: { gap: 10 },
+  finishedDeleteBtn: { borderRadius: 999, paddingVertical: 12 },
   editOrderBtnText: {
     color: UI.text,
     fontSize: 13,

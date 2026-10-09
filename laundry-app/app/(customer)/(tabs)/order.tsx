@@ -16,26 +16,36 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { Swipeable } from "react-native-gesture-handler";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { showAppAlert } from "@/components/app-alert";
 import { AppHeader } from "@/components/app-header";
 import { CustomerOrderCard } from "@/components/customer-order-card";
 import { GuestSignInPrompt } from "@/components/guest-sign-in-prompt";
+import { OrderCompletedCelebration } from "@/components/order-completed-celebration";
 import { WebHeaderSpacer } from "@/components/web-header-spacer";
 import { GradientLoader, APP_LOADER_TINT } from "@/components/ui/gradient-loader";
 import { useAuth } from "@/contexts/auth-context";
 import { useLocale } from "@/contexts/locale-context";
+import { useCustomerOrderActions } from "@/hooks/use-customer-order-actions";
 import { useCustomerOrders } from "@/hooks/use-customer-orders";
 import { useSuppressWebScreenHeader } from "@/hooks/use-suppress-web-screen-header";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import {
   findOrdersMissingFeedback,
+  isCustomerOrderRemovable,
   submitCustomerOrderFeedback,
   type CustomerOrderFeedbackType,
   type CustomerOrderListItem,
 } from "@/lib/customer-orders";
+import {
+  getCelebratedOrderIds,
+  isRecentlyCompleted,
+  markOrdersCelebrated,
+} from "@/lib/celebrated-orders";
 import { getStrings } from "@/locales";
+import { runAfterModalTeardown } from "@/utils/run-after-modal-teardown";
 import { gradients, theme, UI } from "@/constants/theme";
 
 const fs = theme.fontSize;
@@ -68,6 +78,7 @@ export default function CustomerOrderScreen() {
   const s = getStrings(locale).customer.ordersTab;
   const { orders, loading, error, refresh } = useCustomerOrders(user?.id);
   const { isWeb } = useResponsiveLayout();
+  const orderActions = useCustomerOrderActions();
   useSuppressWebScreenHeader();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [feedbackVisible, setFeedbackVisible] = useState(false);
@@ -78,6 +89,10 @@ export default function CustomerOrderScreen() {
   const [feedbackMessage, setFeedbackMessage] = useState("");
   const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
   const [filter, setFilter] = useState<OrderFilter>("all");
+  const [celebrationOrders, setCelebrationOrders] = useState<CustomerOrderListItem[]>([]);
+  const [celebrationReviewableIds, setCelebrationReviewableIds] = useState<Set<string>>(
+    () => new Set(),
+  );
 
   const filterCounts = useMemo(() => {
     let active = 0;
@@ -123,23 +138,31 @@ export default function CustomerOrderScreen() {
 
   useEffect(() => {
     if (!isFocused || !user?.id || orders.length === 0) return;
-    if (feedbackVisible || feedbackOrderId) return;
+    if (feedbackVisible || feedbackOrderId || celebrationOrders.length > 0) return;
 
-    const completed = orders.filter(
-      (order) =>
-        order.displayStatus === "completed" && !sessionDismissedOrderIds.includes(order.id),
-    );
+    const completed = orders.filter((order) => order.displayStatus === "completed");
     if (completed.length === 0) return;
 
     let cancelled = false;
     void (async () => {
       try {
+        const celebrated = await getCelebratedOrderIds(user.id);
+        const fresh = completed.filter(
+          (order) => !celebrated.has(order.id) && isRecentlyCompleted(order.updatedAt),
+        );
         const missing = await findOrdersMissingFeedback(
           user.id,
           completed.map((order) => order.id),
         );
-        if (cancelled || missing.size === 0) return;
-        const target = completed.find((order) => missing.has(order.id));
+        if (cancelled) return;
+        if (fresh.length > 0) {
+          setCelebrationReviewableIds(missing);
+          setCelebrationOrders(fresh);
+          return;
+        }
+        const target = completed.find(
+          (order) => missing.has(order.id) && !sessionDismissedOrderIds.includes(order.id),
+        );
         if (!target) return;
         setFeedbackOrderId(target.id);
         setFeedbackVisible(true);
@@ -151,7 +174,50 @@ export default function CustomerOrderScreen() {
     return () => {
       cancelled = true;
     };
-  }, [orders, user?.id, feedbackVisible, feedbackOrderId, isFocused]);
+  }, [orders, user?.id, feedbackVisible, feedbackOrderId, isFocused, celebrationOrders.length]);
+
+  const finishCelebration = useCallback(() => {
+    const ids = celebrationOrders.map((order) => order.id);
+    ids.forEach((id) => {
+      if (!sessionDismissedOrderIds.includes(id)) sessionDismissedOrderIds.push(id);
+    });
+    if (user?.id) void markOrdersCelebrated(user.id, ids);
+    setCelebrationOrders([]);
+  }, [celebrationOrders, user?.id]);
+
+  const celebrationLeaveReview = useCallback(
+    (order: CustomerOrderListItem) => {
+      finishCelebration();
+      runAfterModalTeardown(() => {
+        setFeedbackOrderId(order.id);
+        setFeedbackVisible(true);
+      });
+    },
+    [finishCelebration],
+  );
+
+  const celebrationViewDetails = useCallback(
+    (order: CustomerOrderListItem) => {
+      finishCelebration();
+      runAfterModalTeardown(() => {
+        router.push({ pathname: "/(customer)/order-detail", params: { orderId: order.id } });
+      });
+    },
+    [finishCelebration, router],
+  );
+
+  const celebrationViewProvider = useCallback(
+    (order: CustomerOrderListItem) => {
+      finishCelebration();
+      runAfterModalTeardown(() => {
+        router.push({
+          pathname: "/(customer)/launderer-detail",
+          params: { id: order.partnerId, name: order.partnerName, mode: order.fulfillmentMode },
+        });
+      });
+    },
+    [finishCelebration, router],
+  );
 
   const feedbackOrder =
     feedbackOrderId != null ? orders.find((order) => order.id === feedbackOrderId) ?? null : null;
@@ -334,7 +400,10 @@ export default function CustomerOrderScreen() {
                 />
               }
             >
-              {filteredOrders.map((order) => (
+              {filteredOrders.map((order) => {
+                const removable = isCustomerOrderRemovable(order.rawStatus);
+                const deleteOrder = () => orderActions.remove(order, () => void refresh());
+                const card = (
                 <CustomerOrderCard
                   key={order.id}
                   order={order}
@@ -361,7 +430,13 @@ export default function CustomerOrderScreen() {
                     stepOnTheWay: s.stepOnTheWay,
                     stepCompleted: s.stepCompleted,
                     reviewsCount: s.reviewsCount,
+                    reorder: s.orderActions.reorder,
+                    deleteOrder: s.orderActions.delete,
                   }}
+                  onReorder={() => void orderActions.reorder(order)}
+                  onDelete={isWeb ? deleteOrder : undefined}
+                  reordering={orderActions.reorderingId === order.id}
+                  deleting={orderActions.removingId === order.id}
                   onOpenDetail={() =>
                     router.push({
                       pathname: "/(customer)/order-detail",
@@ -381,11 +456,46 @@ export default function CustomerOrderScreen() {
                     })
                   }
                 />
-              ))}
+                );
+                if (!removable || isWeb) return card;
+                return (
+                  <Swipeable
+                    key={order.id}
+                    friction={2}
+                    overshootRight={false}
+                    renderRightActions={() => (
+                      <View style={styles.swipeActions}>
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityLabel={s.orderActions.deleteOrder}
+                          onPress={deleteOrder}
+                          style={({ pressed }) => [styles.swipeDeleteBtn, pressed && styles.swipePressed]}
+                        >
+                          <MaterialCommunityIcons name="trash-can-outline" size={26} color="#FFFFFF" />
+                          <Text style={styles.swipeDeleteText}>{s.orderActions.delete}</Text>
+                        </Pressable>
+                      </View>
+                    )}
+                  >
+                    {card}
+                  </Swipeable>
+                );
+              })}
             </ScrollView>
           )}
         </>
       )}
+      {celebrationOrders.length > 0 ? (
+        <OrderCompletedCelebration
+          orders={celebrationOrders}
+          reviewableOrderIds={celebrationReviewableIds}
+          strings={s.orderCompleted}
+          onClose={finishCelebration}
+          onLeaveReview={celebrationLeaveReview}
+          onViewDetails={celebrationViewDetails}
+          onViewProvider={celebrationViewProvider}
+        />
+      ) : null}
       {feedbackVisible ? (
       <Modal
         visible
@@ -483,6 +593,27 @@ export default function CustomerOrderScreen() {
 }
 
 const styles = StyleSheet.create({
+  swipeActions: {
+    justifyContent: "center",
+    marginVertical: 2,
+    paddingLeft: 10,
+  },
+  swipeDeleteBtn: {
+    flex: 1,
+    backgroundColor: "#b91c1c",
+    borderRadius: 16,
+    justifyContent: "center",
+    alignItems: "center",
+    width: 92,
+    paddingVertical: 12,
+    gap: 4,
+  },
+  swipeDeleteText: {
+    color: "#FFFFFF",
+    fontSize: 11,
+    fontFamily: "Poppins-SemiBold",
+  },
+  swipePressed: { opacity: 0.85 },
   container: {
     flex: 1,
     backgroundColor: UI.bg,

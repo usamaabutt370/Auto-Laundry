@@ -32,6 +32,7 @@ import { usePartnerOrderEstimate } from "@/hooks/use-partner-order-estimate";
 import { usePartnerVerified } from "@/hooks/use-partner-verified";
 import { updateCustomerOrder } from "@/lib/customer-order-edit";
 import { submitCustomerOrder } from "@/lib/customer-order-submit";
+import { deleteCustomerOrder } from "@/lib/customer-orders";
 import { imageForServiceItem } from "@/lib/service-item-images";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import type { ServiceJob } from "@/lib/service-jobs";
@@ -137,7 +138,7 @@ export default function OrderSummaryScreen() {
   const { isNarrow } = useResponsiveLayout();
   const { user } = useAuth();
   const { locale } = useLocale();
-  const { draft, editingOrderId, resetDraft, setSelectedServiceIds, setWashFoldItemizedQuantities, setDryCleanItemizedQuantities, setPressItemizedQuantities, setTailoringItemizedQuantities } =
+  const { draft, editingOrderId, reorderSource, resetDraft, setSelectedServiceIds, setWashFoldItemizedQuantities, setDryCleanItemizedQuantities, setPressItemizedQuantities, setTailoringItemizedQuantities } =
     useCustomerOrderDraft();
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -242,6 +243,10 @@ export default function OrderSummaryScreen() {
         fail("Unable to submit order", message);
         return;
       }
+      if (reorderSource?.replaceOnSubmit) {
+        // The new order replaces the rejected one it was copied from.
+        void deleteCustomerOrder(reorderSource.orderId).catch(() => {});
+      }
       router.replace({
         pathname: "/(customer)/order-confirmation",
         params: { orderId: result.orderId },
@@ -259,6 +264,7 @@ export default function OrderSummaryScreen() {
     estimate,
     isEditing,
     profile,
+    reorderSource,
     resetDraft,
     router,
     s.orderUpdated,

@@ -1,7 +1,7 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { useMemo } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { PartnerNameWithBadge } from "@/components/partner-name-with-badge";
 import { AppCtaButton } from "@/components/ui/cta-button";
@@ -35,6 +35,8 @@ type OrderCardStrings = {
   stepOnTheWay: string;
   stepCompleted: string;
   reviewsCount: string;
+  reorder: string;
+  deleteOrder: string;
 };
 
 type CustomerOrderCardProps = {
@@ -43,6 +45,11 @@ type CustomerOrderCardProps = {
   onOpenDetail: () => void;
   onTrack: () => void;
   onChat: () => void;
+  /** Finished orders (completed / rejected / cancelled) swap Track for Reorder + Delete. */
+  onReorder?: () => void;
+  onDelete?: () => void;
+  reordering?: boolean;
+  deleting?: boolean;
 };
 
 const PROGRESS_STEPS = [
@@ -107,11 +114,19 @@ export function CustomerOrderCard({
   onOpenDetail,
   onTrack,
   onChat,
+  onReorder,
+  onDelete,
+  reordering = false,
+  deleting = false,
 }: CustomerOrderCardProps) {
   const { s: scaleSize, ms, isNarrow } = useResponsiveLayout();
   const status = useMemo(() => statusCopy(order, s), [order, s]);
   const activeStep = progressIndex(order.rawStatus);
-  const showTrack = order.displayStatus !== "rejected";
+  const isFinished =
+    order.rawStatus === "completed" ||
+    order.rawStatus === "rejected" ||
+    order.rawStatus === "cancelled";
+  const showTrack = !isFinished && order.displayStatus !== "rejected";
   const partnerImg = scaleSize(isNarrow ? 44 : 52);
 
   const previewItems = (order.itemPreview.length > 0
@@ -291,12 +306,31 @@ export function CustomerOrderCard({
       ) : null}
 
       <View style={styles.actionsRow}>
+        {isFinished && onDelete ? (
+          <Pressable
+            onPress={onDelete}
+            disabled={deleting}
+            hitSlop={4}
+            style={({ pressed }) => [
+              styles.deleteBtn,
+              (pressed || deleting) && styles.pressed,
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel={s.deleteOrder}
+          >
+            {deleting ? (
+              <ActivityIndicator size="small" color={UI.red} />
+            ) : (
+              <MaterialCommunityIcons name="trash-can-outline" size={18} color={UI.red} />
+            )}
+          </Pressable>
+        ) : null}
         <AppCtaButton
           label={s.chatProvider}
           onPress={() => {
             onChat();
           }}
-          width={showTrack ? 48 : "full"}
+          width={showTrack || (isFinished && onReorder) ? 48 : "full"}
           variant="outline"
           size="sm"
           leftIcon="chat-processing-outline"
@@ -311,6 +345,17 @@ export function CustomerOrderCard({
             width={52}
             size="sm"
             rightIcon="arrow-right"
+            style={styles.actionBtn}
+          />
+        ) : null}
+        {isFinished && onReorder ? (
+          <AppCtaButton
+            label={s.reorder}
+            onPress={onReorder}
+            loading={reordering}
+            width={52}
+            size="sm"
+            leftIcon="refresh"
             style={styles.actionBtn}
           />
         ) : null}
@@ -499,5 +544,13 @@ const styles = StyleSheet.create({
   },
   actionBtn: {
     minHeight: 40,
+  },
+  deleteBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: UI.redBg,
   },
 });
