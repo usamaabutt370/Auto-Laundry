@@ -11,7 +11,9 @@ import {
   StyleSheet,
   Text,
   View,
+  type StyleProp,
   type TextStyle,
+  type ViewStyle,
 } from "react-native";
 import Animated, {
   Easing,
@@ -210,6 +212,11 @@ function GlassTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
 }
 
 function renderGlassTabBar(props: BottomTabBarProps) {
+  const focusedRoute = props.state.routes[props.state.index];
+  const focusedStyle = StyleSheet.flatten(
+    props.descriptors[focusedRoute.key]?.options.tabBarStyle as StyleProp<ViewStyle>,
+  );
+  if (focusedStyle?.display === "none") return null;
   return <GlassTabBar {...props} />;
 }
 

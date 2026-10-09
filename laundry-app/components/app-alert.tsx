@@ -54,12 +54,59 @@ export function AppAlertProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  // Three or more choices stack vertically so long labels stay readable.
-  const inRow = pending?.buttons.length === 2;
+  const buttons = pending?.buttons ?? [];
+  const inRow = buttons.length === 2;
+  // Two choices + Cancel: choices share one row, Cancel spans below.
+  const choices = buttons.filter((btn) => btn.style !== "cancel");
+  const cancels = buttons.filter((btn) => btn.style === "cancel");
+  const choiceRow = buttons.length > 2 && choices.length === 2;
 
   const dismiss = (btn?: AppAlertButton) => {
     setPending(null);
     btn?.onPress?.();
+  };
+
+  const renderButton = (
+    btn: AppAlertButton,
+    key: string,
+    opts: { half: boolean; tall: boolean },
+  ) => {
+    const isDefault = btn.style !== "cancel" && btn.style !== "destructive";
+    if (isDefault) {
+      return (
+        <AppCtaButton
+          key={key}
+          label={btn.text}
+          onPress={() => dismiss(btn)}
+          width={opts.half ? "half" : "full"}
+          size={opts.tall ? "md" : "sm"}
+        />
+      );
+    }
+    return (
+      <Pressable
+        key={key}
+        onPress={() => dismiss(btn)}
+        style={({ pressed }) => [
+          styles.btn,
+          opts.tall && styles.btnTall,
+          btn.style === "cancel" && styles.cancelBtn,
+          btn.style === "destructive" && styles.destructiveBtn,
+          pressed && styles.pressed,
+          opts.half && styles.btnFlex,
+        ]}
+      >
+        <Text
+          style={[
+            styles.btnText,
+            btn.style === "cancel" && styles.cancelText,
+            btn.style === "destructive" && styles.destructiveText,
+          ]}
+        >
+          {btn.text}
+        </Text>
+      </Pressable>
+    );
   };
 
   return (
@@ -71,50 +118,26 @@ export function AppAlertProvider({ children }: { children: React.ReactNode }) {
           <View style={styles.card}>
             {pending.title ? <Text style={styles.title}>{pending.title}</Text> : null}
             {pending.message ? <Text style={styles.message}>{pending.message}</Text> : null}
-            <View
-              style={[
-                styles.actions,
-                inRow ? styles.actionsRow : styles.actionsColumn,
-              ]}
-            >
-              {pending.buttons.map((btn, i) => {
-                const isDefault = btn.style !== "cancel" && btn.style !== "destructive";
-                if (isDefault) {
-                  return (
-                    <AppCtaButton
-                      key={i}
-                      label={btn.text}
-                      onPress={() => dismiss(btn)}
-                      width={inRow ? "half" : "full"}
-                      size="sm"
-                    />
-                  );
-                }
-                return (
-                  <Pressable
-                    key={i}
-                    onPress={() => dismiss(btn)}
-                    style={({ pressed }) => [
-                      styles.btn,
-                      btn.style === "cancel" && styles.cancelBtn,
-                      btn.style === "destructive" && styles.destructiveBtn,
-                      pressed && styles.pressed,
-                      inRow && styles.btnFlex,
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.btnText,
-                        btn.style === "cancel" && styles.cancelText,
-                        btn.style === "destructive" && styles.destructiveText,
-                      ]}
-                    >
-                      {btn.text}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
+            {choiceRow ? (
+              <View style={[styles.actions, styles.actionsColumn]}>
+                <View style={[styles.actions, styles.actionsRow]}>
+                  {choices.map((btn, i) =>
+                    renderButton(btn, `choice-${i}`, { half: true, tall: true }),
+                  )}
+                </View>
+                {cancels.map((btn, i) =>
+                  renderButton(btn, `cancel-${i}`, { half: false, tall: true }),
+                )}
+              </View>
+            ) : (
+              <View
+                style={[styles.actions, inRow ? styles.actionsRow : styles.actionsColumn]}
+              >
+                {buttons.map((btn, i) =>
+                  renderButton(btn, `btn-${i}`, { half: inRow, tall: false }),
+                )}
+              </View>
+            )}
           </View>
         </View>
       ) : null}
@@ -187,6 +210,11 @@ const styles = StyleSheet.create({
   },
   btnFlex: {
     flex: 1,
+  },
+  btnTall: {
+    minHeight: 48,
+    justifyContent: "center",
+    paddingVertical: 0,
   },
   cancelBtn: {
     backgroundColor: UI.bg,

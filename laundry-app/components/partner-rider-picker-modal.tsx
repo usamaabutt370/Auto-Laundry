@@ -1,6 +1,7 @@
 import { Image } from "expo-image";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
+import { AppCtaButton } from "@/components/ui/cta-button";
 import { GradientLoader } from "@/components/ui/gradient-loader";
 
 import { theme, UI } from "@/constants/theme";
@@ -98,35 +99,24 @@ export function PartnerRiderPickerModal({
         )}
 
         <View style={styles.actions}>
-          <Pressable
-            onPress={onClose}
-            disabled={confirming}
-            style={({ pressed }) => [
-              styles.cancelBtn,
-              confirming && styles.confirmBtnDisabled,
-              pressed && !confirming && styles.pressed,
-            ]}
-          >
-            <Text style={styles.cancelText}>{cancelLabel}</Text>
-          </Pressable>
-          <Pressable
-            onPress={onConfirm}
-            disabled={loading || confirming || riders.length === 0}
-            style={({ pressed }) => [
-              styles.confirmBtn,
-              (loading || confirming || riders.length === 0) && styles.confirmBtnDisabled,
-              pressed && !loading && !confirming && riders.length > 0 && styles.pressed,
-            ]}
-          >
-            {confirming ? (
-              <View style={styles.confirmingRow}>
-                <ActivityIndicator color="#FFFFFF" size="small" />
-                <Text style={styles.confirmText}>{confirmingLabel}</Text>
-              </View>
-            ) : (
-              <Text style={styles.confirmText}>{confirmLabel}</Text>
-            )}
-          </Pressable>
+          <View style={styles.actionSlot}>
+            <AppCtaButton
+              label={cancelLabel}
+              onPress={onClose}
+              disabled={confirming}
+              variant="outline"
+              width="full"
+            />
+          </View>
+          <View style={styles.actionSlot}>
+            <AppCtaButton
+              label={confirming ? confirmingLabel : confirmLabel}
+              onPress={onConfirm}
+              disabled={loading || confirming || riders.length === 0}
+              loading={confirming}
+              width="full"
+            />
+          </View>
         </View>
       </View>
     </View>
@@ -199,8 +189,8 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   riderOptionSelected: {
-    borderColor: UI.teal,
-    backgroundColor: UI.mint,
+    borderColor: UI.purple,
+    backgroundColor: "#F3F0FF",
   },
   riderPhoto: {
     width: 48,
@@ -231,51 +221,20 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   radioSelected: {
-    borderColor: UI.teal,
+    borderColor: UI.purple,
   },
   radioDot: {
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: UI.teal,
+    backgroundColor: UI.purple,
   },
   actions: {
     flexDirection: "row",
-    justifyContent: "flex-end",
     gap: 10,
     marginTop: 18,
   },
-  cancelBtn: {
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: UI.chipBorder,
-  },
-  cancelText: {
-    fontSize: fs.descText,
-    color: UI.muted,
-    fontWeight: "600",
-  },
-  confirmBtn: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 999,
-    backgroundColor: UI.teal,
-  },
-  confirmBtnDisabled: {
-    opacity: 0.5,
-  },
-  confirmText: {
-    fontSize: fs.descText,
-    color: "#FFFFFF",
-    fontWeight: "700",
-  },
-  confirmingRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
+  actionSlot: { flex: 1, minWidth: 0 },
   pressed: {
     opacity: 0.85,
   },

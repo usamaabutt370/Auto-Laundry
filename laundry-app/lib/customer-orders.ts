@@ -835,9 +835,6 @@ export async function submitCustomerOrderFeedback(
   if (!supabase) {
     throw new Error("Supabase is not configured.");
   }
-  if (!input.message.trim()) {
-    throw new Error("Please add your feedback.");
-  }
   if (input.rating < 1 || input.rating > 5) {
     throw new Error("Please choose a rating between 1 and 5.");
   }

@@ -127,6 +127,7 @@ export function CustomerOrderCard({
     order.rawStatus === "rejected" ||
     order.rawStatus === "cancelled";
   const showTrack = !isFinished && order.displayStatus !== "rejected";
+  const isRejected = order.displayStatus === "rejected" || order.rawStatus === "cancelled";
   const partnerImg = scaleSize(isNarrow ? 44 : 52);
 
   const previewItems = (order.itemPreview.length > 0
@@ -305,6 +306,46 @@ export function CustomerOrderCard({
         </View>
       ) : null}
 
+      {isRejected ? (
+        <View style={styles.actionsRow}>
+          {onDelete ? (
+            <View style={styles.actionSlot}>
+              <Pressable
+                onPress={onDelete}
+                disabled={deleting}
+                style={({ pressed }) => [
+                  styles.deletePill,
+                  (pressed || deleting) && styles.pressed,
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel={s.deleteOrder}
+              >
+                {deleting ? (
+                  <ActivityIndicator size="small" color={UI.red} />
+                ) : (
+                  <>
+                    <MaterialCommunityIcons name="trash-can-outline" size={14} color={UI.red} />
+                    <Text style={styles.deletePillText}>{s.deleteOrder}</Text>
+                  </>
+                )}
+              </Pressable>
+            </View>
+          ) : null}
+          {onReorder ? (
+            <View style={styles.actionSlot}>
+              <AppCtaButton
+                label={s.reorder}
+                onPress={onReorder}
+                loading={reordering}
+                width="full"
+                size="sm"
+                leftIcon="refresh"
+                style={styles.actionBtn}
+              />
+            </View>
+          ) : null}
+        </View>
+      ) : (
       <View style={styles.actionsRow}>
         {isFinished && onDelete ? (
           <Pressable
@@ -360,6 +401,7 @@ export function CustomerOrderCard({
           />
         ) : null}
       </View>
+      )}
     </Pressable>
   );
 }
@@ -545,6 +587,20 @@ const styles = StyleSheet.create({
   actionBtn: {
     minHeight: 40,
   },
+  actionSlot: { flex: 1, minWidth: 0 },
+  deletePill: {
+    width: "100%",
+    minHeight: 40,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    borderRadius: 999,
+    borderWidth: 1.5,
+    borderColor: UI.red,
+    backgroundColor: UI.card,
+  },
+  deletePillText: { fontSize: 12, fontFamily: "Poppins-SemiBold", color: UI.red },
   deleteBtn: {
     width: 40,
     height: 40,

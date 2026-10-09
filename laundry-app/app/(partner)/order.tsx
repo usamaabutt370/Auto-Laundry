@@ -73,6 +73,32 @@ function orderBucket(status: PartnerOrderListItem["rawStatus"]): OrderFilter | n
   return null;
 }
 
+function acceptedSummary(
+  order: PartnerOrderListItem | undefined,
+  riderName?: string | null,
+): PartnerOrderSuccessPayload {
+  if (!order) return { type: "accepted" };
+  return {
+    type: "accepted",
+    order: {
+      id: order.id,
+      orderRef: order.orderRef,
+      customerName: order.customerName,
+      avatarUrl: order.avatarUrl,
+      address: order.addressPreview,
+      serviceLabel:
+        order.extraServiceCount > 0
+          ? `${order.primaryServiceLabel} +${order.extraServiceCount}`
+          : order.primaryServiceLabel || order.servicesSummary,
+      itemCount: order.itemCount,
+      totalLabel: order.estimatedTotalLabel,
+      pickupWhen: order.pickupWhen,
+      deliveryWhen: order.deliveryWhen,
+      riderName,
+    },
+  };
+}
+
 export default function PartnerOrderScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ filter?: string }>();
@@ -128,6 +154,8 @@ export default function PartnerOrderScreen() {
   const [loadingRiders, setLoadingRiders] = useState(false);
   const [selectedRiderId, setSelectedRiderId] = useState<string | null>(null);
   const [successPayload, setSuccessPayload] = useState<PartnerOrderSuccessPayload | null>(null);
+  const ordersRef = useRef<PartnerOrderListItem[]>([]);
+  ordersRef.current = orders;
 
   const loadOrders = useCallback(async (showLoader = true) => {
     try {
@@ -238,7 +266,7 @@ export default function PartnerOrderScreen() {
         // Clear blocking overlay before opening another Modal (success / alert).
         setActionOrderId(null);
         if (status === "accepted") {
-          setSuccessPayload({ type: "accepted" });
+          setSuccessPayload(acceptedSummary(ordersRef.current.find((o) => o.id === orderId)));
         } else {
           showAppAlert("Order rejected", "The order has been rejected.");
         }
@@ -349,7 +377,12 @@ export default function PartnerOrderScreen() {
       setPendingAcceptOrderId(null);
       setSelectedRiderId(null);
       setActionOrderId(null);
-      setSuccessPayload({ type: "accepted" });
+      setSuccessPayload(
+        acceptedSummary(
+          ordersRef.current.find((o) => o.id === pendingAcceptOrderId),
+          partnerRiders.find((r) => r.id === selectedRiderId)?.name,
+        ),
+      );
     } catch (error) {
       setActionOrderId(null);
       if (
@@ -368,6 +401,7 @@ export default function PartnerOrderScreen() {
   }, [
     insufficientCreditsCopy,
     partnerDisplayName,
+    partnerRiders,
     pendingAcceptOrderId,
     s.selectRiderRequired,
     selectedRiderId,
@@ -634,6 +668,10 @@ export default function PartnerOrderScreen() {
       <PartnerOrderSuccessModal
         payload={successPayload}
         onClose={() => setSuccessPayload(null)}
+        onViewDetails={(orderId) => {
+          setSuccessPayload(null);
+          router.push({ pathname: "/(partner)/order-detail", params: { orderId } });
+        }}
       />
       <PartnerRiderPickerModal
         visible={riderModalVisible}

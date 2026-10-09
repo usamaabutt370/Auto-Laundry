@@ -1,9 +1,10 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 
 import { PartnerNameWithBadge } from "@/components/partner-name-with-badge";
+import { AppCtaButton } from "@/components/ui/cta-button";
 import { theme, UI } from "@/constants/theme";
 import { useLocale } from "@/contexts/locale-context";
 import type { RiderAssignmentMetadata } from "@/lib/chat";
@@ -98,17 +99,17 @@ export function RiderAssignmentMessage({ metadata, role, intro }: RiderAssignmen
         </View>
       </View>
 
-      <Pressable
+      <AppCtaButton
+        label={s.trackOrder}
         onPress={() =>
           router.push({
             pathname: trackPath,
             params: { orderId: metadata.orderId },
           })
         }
-        style={({ pressed }) => [styles.trackBtn, pressed && styles.pressed]}
-      >
-        <Text style={styles.trackBtnText}>{s.trackOrder}</Text>
-      </Pressable>
+        rightIcon="arrow-right"
+        width="full"
+      />
     </View>
   );
 }
@@ -252,23 +253,5 @@ const styles = StyleSheet.create({
     fontSize: fs.smallText,
     fontWeight: "700",
     color: UI.text,
-  },
-  trackBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    backgroundColor: UI.teal,
-    borderRadius: 999,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-  },
-  trackBtnText: {
-    fontSize: fs.smallText,
-    fontWeight: "700",
-    color: "#FFFFFF",
-  },
-  pressed: {
-    opacity: 0.85,
   },
 });

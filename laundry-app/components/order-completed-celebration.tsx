@@ -3,9 +3,19 @@ import * as Haptics from "expo-haptics";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { useEffect, useState } from "react";
-import { Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import Animated, {
   Easing,
+  SlideInDown,
   useAnimatedStyle,
   useSharedValue,
   withSequence,
@@ -113,6 +123,8 @@ export function OrderCompletedCelebration({
   onViewProvider,
 }: Props) {
   const insets = useSafeAreaInsets();
+  const { height } = useWindowDimensions();
+  const sheetHeight = Math.round(height * 0.9);
   const [index, setIndex] = useState(0);
   const order = orders[Math.min(index, orders.length - 1)];
   const total = orders.length;
@@ -137,18 +149,22 @@ export function OrderCompletedCelebration({
       : s.noReviews;
 
   return (
-    <Modal visible animationType="slide" onRequestClose={onClose} statusBarTranslucent>
-      <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
+    <Modal visible transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
+      <View style={styles.backdrop}>
+      <Pressable
+        style={styles.dismiss}
+        onPress={onClose}
+        accessibilityRole="button"
+        accessibilityLabel={s.close}
+      />
+      <Animated.View
+        entering={SlideInDown.duration(320).easing(Easing.out(Easing.cubic))}
+        style={[styles.sheet, { height: sheetHeight }]}
+      >
+        <View style={styles.handleWrap}>
+          <View style={styles.handle} />
+        </View>
         <View style={styles.topBar}>
-          <Pressable
-            onPress={onClose}
-            hitSlop={10}
-            style={styles.roundBtn}
-            accessibilityRole="button"
-            accessibilityLabel={s.close}
-          >
-            <MaterialCommunityIcons name="chevron-left" size={26} color={UI.text} />
-          </Pressable>
           {total > 1 ? (
             <View style={styles.pager}>
               <Pressable
@@ -181,7 +197,18 @@ export function OrderCompletedCelebration({
                 />
               </Pressable>
             </View>
-          ) : null}
+          ) : (
+            <View />
+          )}
+          <Pressable
+            onPress={onClose}
+            hitSlop={10}
+            style={styles.roundBtn}
+            accessibilityRole="button"
+            accessibilityLabel={s.close}
+          >
+            <MaterialCommunityIcons name="close" size={20} color={UI.text} />
+          </Pressable>
         </View>
 
         <ScrollView
@@ -291,18 +318,42 @@ export function OrderCompletedCelebration({
             <Text style={styles.secondaryText}>{s.viewDetails}</Text>
           </Pressable>
         </View>
+      </Animated.View>
       </View>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: UI.bg },
+  backdrop: {
+    flex: 1,
+    justifyContent: "flex-end",
+    backgroundColor: "rgba(15, 23, 42, 0.45)",
+  },
+  dismiss: { flex: 1 },
+  sheet: {
+    backgroundColor: UI.bg,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    overflow: "hidden",
+  },
+  handleWrap: {
+    alignItems: "center",
+    paddingTop: 8,
+    paddingBottom: 4,
+  },
+  handle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "#D1D5DB",
+  },
   topBar: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
+    paddingTop: 4,
     minHeight: 44,
   },
   roundBtn: {
@@ -328,7 +379,7 @@ const styles = StyleSheet.create({
   hero: { alignItems: "center", overflow: "visible" },
   celebrationHost: {
     width: "100%",
-    height: 200,
+    height: 180,
     alignItems: "center",
     justifyContent: "center",
     overflow: "visible",

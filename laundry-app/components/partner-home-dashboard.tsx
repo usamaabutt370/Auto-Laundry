@@ -451,6 +451,29 @@ export function PartnerHomeDashboard() {
     setIsRefreshing(false);
   }, [load]);
 
+  const acceptedSummary = useCallback(
+    (orderId: string, riderName?: string | null): PartnerOrderSuccessPayload => {
+      const order = snapshot?.orders.find((o) => o.id === orderId);
+      if (!order) return { type: "accepted" };
+      return {
+        type: "accepted",
+        order: {
+          id: order.id,
+          orderRef: order.orderRef,
+          customerName: order.customerName,
+          address: order.address,
+          serviceLabel: serviceLabel(order.serviceKey, order.extraServiceCount),
+          itemCount: order.itemCount,
+          totalLabel: formatMoney(order.amount),
+          pickupWhen: order.pickupWhen,
+          deliveryWhen: order.deliveryWhen,
+          riderName,
+        },
+      };
+    },
+    [serviceLabel, snapshot],
+  );
+
   const applyLocalStatus = useCallback((orderId: string, status: PartnerHomeOrder["rawStatus"]) => {
     setSnapshot((current) => {
       if (!current) return current;
@@ -475,7 +498,7 @@ export function PartnerHomeDashboard() {
         applyLocalStatus(orderId, result.status);
         setActionOrderId(null);
         if (status === "accepted") {
-          setSuccessPayload({ type: "accepted" });
+          setSuccessPayload(acceptedSummary(orderId));
         } else {
           showAppAlert("Order rejected", "The order has been rejected.");
         }
@@ -496,7 +519,13 @@ export function PartnerHomeDashboard() {
         );
       }
     },
-    [applyLocalStatus, copy.businessFallback, insufficientCreditsCopy, view?.businessName],
+    [
+      acceptedSummary,
+      applyLocalStatus,
+      copy.businessFallback,
+      insufficientCreditsCopy,
+      view?.businessName,
+    ],
   );
 
   const openAcceptFlow = useCallback(
@@ -574,7 +603,12 @@ export function PartnerHomeDashboard() {
       setPendingAcceptOrderId(null);
       setSelectedRiderId(null);
       setActionOrderId(null);
-      setSuccessPayload({ type: "accepted" });
+      setSuccessPayload(
+        acceptedSummary(
+          pendingAcceptOrderId,
+          partnerRiders.find((r) => r.id === selectedRiderId)?.name,
+        ),
+      );
     } catch (err) {
       setActionOrderId(null);
       if (
@@ -591,10 +625,12 @@ export function PartnerHomeDashboard() {
       );
     }
   }, [
+    acceptedSummary,
     applyLocalStatus,
     copy.businessFallback,
     insufficientCreditsCopy,
     orderCopy.selectRiderRequired,
+    partnerRiders,
     pendingAcceptOrderId,
     selectedRiderId,
     user?.id,
@@ -873,7 +909,14 @@ export function PartnerHomeDashboard() {
         </ScrollView>
       </SafeAreaView>
 
-      <PartnerOrderSuccessModal payload={successPayload} onClose={() => setSuccessPayload(null)} />
+      <PartnerOrderSuccessModal
+        payload={successPayload}
+        onClose={() => setSuccessPayload(null)}
+        onViewDetails={(orderId) => {
+          setSuccessPayload(null);
+          openOrder(orderId);
+        }}
+      />
       <PartnerRiderPickerModal
         visible={riderModalVisible}
         riders={partnerRiders}

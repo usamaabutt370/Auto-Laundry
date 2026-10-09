@@ -15,10 +15,16 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { showAppAlert } from "@/components/app-alert";
 import { AppHeader } from "@/components/app-header";
 import { BlockingLoader } from "@/components/blocking-loader";
+import { AppCtaButton } from "@/components/ui/cta-button";
 import {
   alertIfInsufficientCreditsError,
   ensurePartnerCreditsForAccept,
 } from "@/components/partner-insufficient-credits-alert";
+import {
+  PartnerOrderSuccessModal,
+  type AcceptedOrderSummary,
+  type PartnerOrderSuccessPayload,
+} from "@/components/partner-order-success-modal";
 import { PartnerRiderPickerModal } from "@/components/partner-rider-picker-modal";
 import { theme, UI } from "@/constants/theme";
 import { getOrderDetail, type DemoOrderDetail } from "@/data/demo-order-details";
@@ -158,6 +164,23 @@ export default function PartnerOrderDetailScreen() {
   const [partnerRiders, setPartnerRiders] = useState<PartnerRider[]>([]);
   const [loadingRiders, setLoadingRiders] = useState(false);
   const [selectedRiderId, setSelectedRiderId] = useState<string | null>(null);
+  const [successPayload, setSuccessPayload] = useState<PartnerOrderSuccessPayload | null>(null);
+
+  const buildSummary = (riderName?: string | null): AcceptedOrderSummary | undefined => {
+    if (!liveDetail) return undefined;
+    return {
+      id: liveDetail.orderId,
+      orderRef: `#${liveDetail.orderNumber}`,
+      customerName: liveDetail.clientName,
+      address: liveDetail.addressLine1,
+      serviceLabel: liveDetail.servicesSummary,
+      itemCount: Number.parseInt(liveDetail.totalItems, 10) || 0,
+      totalLabel: formatMoney(liveDetail.confirmedTotal ?? liveDetail.estimatedTotal),
+      pickupWhen: riderName !== undefined ? liveDetail.pickup || null : null,
+      deliveryWhen: riderName !== undefined ? liveDetail.delivery || null : null,
+      riderName,
+    };
+  };
 
   const detail = useMemo(
     () => (params.orderId ? getOrderDetail(params.orderId) : null),
@@ -309,16 +332,7 @@ export default function PartnerOrderDetailScreen() {
       setRiderModalVisible(false);
       setSelectedRiderId(null);
       setIsConfirming(false);
-      showAppAlert("Order accepted", s.acceptSuccess, [
-        {
-          text: "OK",
-          onPress: () =>
-            router.navigate({
-              pathname: "/(partner)/order",
-              params: { filter: "accepted" },
-            }),
-        },
-      ]);
+      setSuccessPayload({ type: "accepted", order: buildSummary(rider.name) });
     } catch (error) {
       setIsConfirming(false);
       if (
@@ -363,7 +377,7 @@ export default function PartnerOrderDetailScreen() {
                 target === "rejected"
                   ? "rejected"
                   : target === "completed"
-                    ? "accepted"
+                    ? "completed"
                     : "accepted",
               rawStatus: result.status,
               rejectionReasonOption:
@@ -382,31 +396,14 @@ export default function PartnerOrderDetailScreen() {
       if (target === "ready") {
         showAppAlert("Order marked ready", "Order is ready for pick up / delivery.");
       } else if (target === "completed") {
-        showAppAlert(
-          "Order completed",
-          `Charged: ${result.charged} credits\nCurrent balance: ${result.balance} credits`,
-          [
-            {
-              text: "OK",
-              onPress: () =>
-                router.navigate({
-                  pathname: "/(partner)/order",
-                  params: { filter: "accepted" },
-                }),
-            },
-          ],
-        );
+        setSuccessPayload({
+          type: "completed",
+          order: buildSummary(),
+          charged: result.charged,
+          balance: result.balance,
+        });
       } else if (target === "accepted") {
-        showAppAlert("Order accepted", "The order has been accepted.", [
-          {
-            text: "OK",
-            onPress: () =>
-              router.navigate({
-                pathname: "/(partner)/order",
-                params: { filter: "accepted" },
-              }),
-          },
-        ]);
+        setSuccessPayload({ type: "accepted", order: buildSummary(null) });
       } else {
         showAppAlert("Order rejected", "The order has been rejected.");
       }
@@ -564,21 +561,20 @@ export default function PartnerOrderDetailScreen() {
             <MaterialCommunityIcons name="map-marker-outline" size={18} color={UI.teal} />
             <Text style={styles.infoValue}>{fullAddress || "Address not available"}</Text>
           </View>
-          <Pressable
+          <AppCtaButton
+            label="Chat with customer"
             onPress={() =>
               router.push({
                 pathname: "/(partner)/chat/[orderId]",
                 params: { orderId: finalDetail.orderId },
               })
             }
-            style={({ pressed }) => [
-              styles.chatButton,
-              pressed && styles.pressed,
-            ]}
-          >
-            <MaterialCommunityIcons name="chat-processing-outline" size={16} color={UI.teal} />
-            <Text style={styles.chatButtonText}>Chat with customer</Text>
-          </Pressable>
+            variant="outline"
+            size="sm"
+            width="auto"
+            leftIcon="chat-processing-outline"
+            style={styles.chatButton}
+          />
         </View>
 
         <View style={styles.sectionCard}>
@@ -783,19 +779,15 @@ export default function PartnerOrderDetailScreen() {
 
         {isPending ? (
           <View style={styles.actionsRow}>
-            <Pressable
-              onPress={() => void beginAcceptOrder(finalDetail.pickup)}
-              disabled={isConfirming || isRejecting}
-              style={({ pressed }) => [
-                styles.primaryAction,
-                pressed && !(isConfirming || isRejecting) && styles.pressed,
-                (isConfirming || isRejecting) && styles.disabled,
-              ]}
-            >
-              <Text style={styles.primaryActionText}>
-                {isConfirming ? "Accepting..." : "Accept order"}
-              </Text>
-            </Pressable>
+            <View style={styles.actionSlot}>
+              <AppCtaButton
+                label={isConfirming ? "Accepting..." : "Accept order"}
+                onPress={() => void beginAcceptOrder(finalDetail.pickup)}
+                disabled={isConfirming || isRejecting}
+                loading={isConfirming}
+                width="full"
+              />
+            </View>
             <Pressable
               onPress={() => setRejectModalVisible(true)}
               disabled={isConfirming || isRejecting}
@@ -812,32 +804,23 @@ export default function PartnerOrderDetailScreen() {
           </View>
         ) : finalDetail.rawStatus !== "completed" && finalDetail.status !== "rejected" ? (
           <View style={styles.actionsRow}>
-            <Pressable
-              onPress={() => handleOrderAction("ready")}
-              disabled={isConfirming || isRejecting}
-              style={({ pressed }) => [
-                styles.secondaryAction,
-                pressed && !(isConfirming || isRejecting) && styles.pressed,
-                (isConfirming || isRejecting) && styles.disabled,
-              ]}
-            >
-              <Text style={styles.secondaryActionText}>
-                {isConfirming ? "Updating..." : "Mark ready"}
-              </Text>
-            </Pressable>
-            <Pressable
-              onPress={() => handleOrderAction("completed")}
-              disabled={isConfirming || isRejecting}
-              style={({ pressed }) => [
-                styles.primaryAction,
-                pressed && !(isConfirming || isRejecting) && styles.pressed,
-                (isConfirming || isRejecting) && styles.disabled,
-              ]}
-            >
-              <Text style={styles.primaryActionText}>
-                {isConfirming ? "Completing..." : "Complete order"}
-              </Text>
-            </Pressable>
+            <View style={styles.actionSlot}>
+              <AppCtaButton
+                variant="outline"
+                label={isConfirming ? "Updating..." : "Mark ready"}
+                onPress={() => handleOrderAction("ready")}
+                disabled={isConfirming || isRejecting}
+                width="full"
+              />
+            </View>
+            <View style={styles.actionSlot}>
+              <AppCtaButton
+                label={isConfirming ? "Completing..." : "Complete order"}
+                onPress={() => handleOrderAction("completed")}
+                disabled={isConfirming || isRejecting}
+                width="full"
+              />
+            </View>
           </View>
         ) : (
           <View style={styles.footerStatusCard}>
@@ -875,6 +858,7 @@ export default function PartnerOrderDetailScreen() {
         visible={isConfirming && !riderModalVisible}
         message={commonStrings.acceptingOrder}
       />
+      <PartnerOrderSuccessModal payload={successPayload} onClose={() => setSuccessPayload(null)} />
       {rejectModalVisible ? (
         <View style={styles.modalOverlay} pointerEvents="auto" accessibilityViewIsModal>
           <Pressable style={styles.modalBackdrop} onPress={() => setRejectModalVisible(false)} />
@@ -1085,20 +1069,7 @@ const styles = StyleSheet.create({
   chatButton: {
     marginTop: 2,
     alignSelf: "flex-start",
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    borderWidth: 1,
-    borderColor: UI.teal,
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    backgroundColor: UI.card,
-  },
-  chatButtonText: {
-    color: UI.teal,
-    fontSize: fs.descText,
-    fontWeight: "600",
+    minHeight: 38,
   },
   serviceCard: {
     paddingTop: 14,
@@ -1222,41 +1193,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 12,
   },
-  primaryAction: {
-    flex: 1,
-    backgroundColor: UI.teal,
-    borderRadius: 999,
-    paddingVertical: 16,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: UI.teal,
-  },
-  primaryActionText: {
-    color: "#FFFFFF",
-    fontSize: fs.smallText,
-    fontWeight: "700",
-  },
-  secondaryAction: {
-    flex: 1,
-    backgroundColor: UI.card,
-    borderRadius: 999,
-    paddingVertical: 16,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: UI.teal,
-  },
-  secondaryActionText: {
-    color: UI.teal,
-    fontSize: fs.smallText,
-    fontWeight: "700",
-  },
+  actionSlot: { flex: 1, minWidth: 0 },
   rejectAction: {
     flex: 1,
+    height: 48,
     backgroundColor: UI.card,
     borderRadius: 999,
-    paddingVertical: 16,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
