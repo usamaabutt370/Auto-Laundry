@@ -426,65 +426,67 @@ export function CustomerHomeFeed({
           />
         </View>
 
-        <SectionHeader
-          title={s.recentlyVisited}
-          actionLabel={hasMoreRecent ? s.seeAll : undefined}
-          onAction={hasMoreRecent ? onSeeAll : undefined}
-        />
-        {loadingRecent ? (
-          <GradientLoader style={styles.loader} />
-        ) : recentRows.length === 0 ? (
-          <Text style={styles.empty}>{s.emptyRecentlyVisited}</Text>
-        ) : (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.hScroll}
-            contentContainerStyle={styles.nearbyList}
-          >
-            {visibleRecent.map(({ partner, km }, index) => {
-              const badge = BADGES[index % BADGES.length];
-              const badgeLabel =
-                badge.key === "top"
-                  ? s.badgeTopRated
-                  : badge.key === "fast"
-                    ? s.badgeFastService
-                    : s.badgeTrusted;
-              return (
-                <RecommendedCard
-                  key={partner.id}
-                  partner={partner}
-                  cardWidth={nearbyCardWidth}
-                  distanceLabel={
-                    Number.isFinite(km) ? fill(s.kmAway, { km: formatKm(km) }) : "—"
-                  }
-                  badgeLabel={badgeLabel}
-                  badgeColor={badge.bg}
-                  onRemove={() => {
-                    void (async () => {
-                      await removeRecentProviderVisit(partner.id);
-                      setRecentVisits((prev) =>
-                        prev.filter((item) => item.partnerId !== partner.id),
-                      );
-                      setRecentPartners((prev) =>
-                        prev.filter((item) => item.id !== partner.id),
-                      );
-                    })();
-                  }}
-                  onPress={() => onPressPartner(partner)}
-                  strings={s}
-                />
-              );
-            })}
-            {hasMoreRecent ? (
-              <RecentSeeAllCard
-                cardWidth={nearbyCardWidth}
-                label={s.seeAllRecent}
-                onPress={onSeeAll}
-              />
-            ) : null}
-          </ScrollView>
-        )}
+        {loadingRecent || recentRows.length > 0 ? (
+          <>
+            <SectionHeader
+              title={s.recentlyVisited}
+              actionLabel={hasMoreRecent ? s.seeAll : undefined}
+              onAction={hasMoreRecent ? onSeeAll : undefined}
+            />
+            {loadingRecent ? (
+              <GradientLoader style={styles.loader} />
+            ) : (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.hScroll}
+                contentContainerStyle={styles.nearbyList}
+              >
+                {visibleRecent.map(({ partner, km }, index) => {
+                  const badge = BADGES[index % BADGES.length];
+                  const badgeLabel =
+                    badge.key === "top"
+                      ? s.badgeTopRated
+                      : badge.key === "fast"
+                        ? s.badgeFastService
+                        : s.badgeTrusted;
+                  return (
+                    <RecommendedCard
+                      key={partner.id}
+                      partner={partner}
+                      cardWidth={nearbyCardWidth}
+                      distanceLabel={
+                        Number.isFinite(km) ? fill(s.kmAway, { km: formatKm(km) }) : "—"
+                      }
+                      badgeLabel={badgeLabel}
+                      badgeColor={badge.bg}
+                      onRemove={() => {
+                        void (async () => {
+                          await removeRecentProviderVisit(partner.id);
+                          setRecentVisits((prev) =>
+                            prev.filter((item) => item.partnerId !== partner.id),
+                          );
+                          setRecentPartners((prev) =>
+                            prev.filter((item) => item.id !== partner.id),
+                          );
+                        })();
+                      }}
+                      onPress={() => onPressPartner(partner)}
+                      strings={s}
+                    />
+                  );
+                })}
+                {hasMoreRecent ? (
+                  <RecentSeeAllCard
+                    cardWidth={nearbyCardWidth}
+                    label={s.seeAllRecent}
+                    onPress={onSeeAll}
+                  />
+                ) : null}
+              </ScrollView>
+            )}
+          </>
+        ) : null}
 
         <SectionHeader title={s.recommended} actionLabel={s.seeAll} onAction={onSeeAll} />
         {mapData.loadingPartners ? (

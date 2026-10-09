@@ -259,7 +259,11 @@ export function CustomerOrderCard({
             <View
               style={[
                 styles.progressRailFill,
-                { width: `${(activeStep / (PROGRESS_STEPS.length - 1)) * 100}%` },
+                // Rail sits between first/last dots (left/right 10% → 80% span).
+                // Cap fill to that span so completed stops on the last mark.
+                {
+                  width: `${(activeStep / (PROGRESS_STEPS.length - 1)) * 80}%`,
+                },
               ]}
             />
           ) : null}
