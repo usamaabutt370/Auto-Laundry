@@ -129,7 +129,12 @@ export default function LoginScreen() {
       });
 
       if (signInError) {
-        showAuthError("Sign in failed", signInError.message);
+        showAuthError(
+          "Sign in failed",
+          /invalid login credentials/i.test(signInError.message)
+            ? "The phone number or password is incorrect. Please try again."
+            : signInError.message,
+        );
         return;
       }
 

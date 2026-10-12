@@ -288,7 +288,7 @@ export default function PartnerProfileMenu() {
 							</View>
 						</View>
 					) : null}
-					<ProfileRow
+					{/* <ProfileRow
 						icon="chart-bar"
 						iconColor="#16A34A"
 						tint="#ECFDF3"
@@ -308,8 +308,8 @@ export default function PartnerProfileMenu() {
 								params: { filter: "completed" },
 							})
 						}
-					/>
-					<ProfileRow
+					/> */}
+					{/* <ProfileRow
 						icon="tag-outline"
 						iconColor="#7C3AED"
 						tint="#F5F3FF"
@@ -317,7 +317,7 @@ export default function PartnerProfileMenu() {
 						subtitle={copy.servicesHint}
 						onPress={() => router.push("/(partner)/settings")}
 						isLast
-					/>
+					/> */}
 				</View>
 
 				<View style={styles.card}>

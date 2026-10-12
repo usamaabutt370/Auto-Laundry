@@ -131,9 +131,6 @@ export default function PartnerOrderScreen() {
   const paramFilter = typeof params.filter === "string" ? params.filter : undefined;
   const initialFilter = filterFromParam(paramFilter);
   const [orderFilter, setOrderFilter] = useState<OrderFilter>(initialFilter);
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [filterMenuOpen, setFilterMenuOpen] = useState(false);
   const insets = useSafeAreaInsets();
   const tabBarInset = getTabBarBottomInset(Math.max(insets.bottom, 8));
   const [orders, setOrders] = useState<PartnerOrderListItem[]>([]);
@@ -225,23 +222,13 @@ export default function PartnerOrderScreen() {
     }),
     [listedOrders],
   );
-  const filteredOrders = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
-    return listedOrders.filter((order) => {
-      if (orderFilter !== "all" && orderBucket(order.rawStatus) !== orderFilter) return false;
-      if (!query) return true;
-      const haystack = [
-        order.orderRef,
-        order.customerName,
-        order.primaryServiceLabel,
-        order.servicesSummary,
-        order.addressPreview,
-      ]
-        .join(" ")
-        .toLowerCase();
-      return haystack.includes(query);
-    });
-  }, [listedOrders, orderFilter, searchQuery]);
+  const filteredOrders = useMemo(
+    () =>
+      orderFilter === "all"
+        ? listedOrders
+        : listedOrders.filter((order) => orderBucket(order.rawStatus) === orderFilter),
+    [listedOrders, orderFilter],
+  );
 
   const handleOrderAction = useCallback(
     async (
@@ -481,54 +468,7 @@ export default function PartnerOrderScreen() {
             <Text style={styles.title}>{s.title}</Text>
             <Text style={styles.subtitle}>{s.listSubtitle}</Text>
           </View>
-          <Pressable
-            onPress={() => {
-              setSearchOpen((open) => !open);
-              setFilterMenuOpen(false);
-            }}
-            style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
-            accessibilityRole="button"
-            accessibilityLabel={s.searchA11y}
-          >
-            <MaterialCommunityIcons name="magnify" size={22} color={UI.text} />
-          </Pressable>
-          <Pressable
-            onPress={() => setFilterMenuOpen((open) => !open)}
-            style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
-            accessibilityRole="button"
-            accessibilityLabel={s.filterA11y}
-          >
-            <MaterialCommunityIcons name="tune-variant" size={20} color={UI.text} />
-          </Pressable>
         </View>
-        {searchOpen ? (
-          <TextInput
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            placeholder={s.searchPlaceholder}
-            placeholderTextColor={UI.muted}
-            style={styles.searchInput}
-            autoFocus
-          />
-        ) : null}
-        {filterMenuOpen ? (
-          <View style={styles.filterMenu}>
-            {(Object.keys(chipMeta) as OrderFilter[]).map((key) => (
-              <Pressable
-                key={key}
-                onPress={() => {
-                  setOrderFilter(key);
-                  setFilterMenuOpen(false);
-                }}
-                style={styles.filterMenuItem}
-              >
-                <Text style={styles.filterMenuText}>
-                  {chipMeta[key].label} ({counts[key]})
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-        ) : null}
       </SafeAreaView>
 
       <ScrollView
@@ -781,39 +721,6 @@ const styles = StyleSheet.create({
   headerText: { flex: 1 },
   title: { fontSize: 28, fontWeight: "800", color: UI.text },
   subtitle: { marginTop: 2, fontSize: fs.descText, color: UI.muted },
-  iconBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
-    backgroundColor: UI.card,
-    borderWidth: 1,
-    borderColor: "#EEF2F6",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  searchInput: {
-    marginHorizontal: H_PAD,
-    marginTop: 10,
-    backgroundColor: UI.card,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: UI.chipBorder,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    color: UI.text,
-    fontSize: fs.descText,
-  },
-  filterMenu: {
-    marginHorizontal: H_PAD,
-    marginTop: 8,
-    backgroundColor: UI.card,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: UI.chipBorder,
-    overflow: "hidden",
-  },
-  filterMenuItem: { paddingHorizontal: 14, paddingVertical: 12 },
-  filterMenuText: { fontSize: fs.descText, fontWeight: "600", color: UI.text },
   chip: {
     flexDirection: "row",
     alignItems: "center",

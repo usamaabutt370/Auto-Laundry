@@ -1,8 +1,8 @@
-import { theme } from "@/constants/theme";
-import { Pressable, StyleSheet, View } from "react-native";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { ThemedText } from "./themed-text";
-import { ThemedView } from "./themed-view";
+import { AppCtaButton } from "@/components/ui/cta-button";
+import { UI } from "@/constants/theme";
 
 type AuthErrorModalProps = {
   visible: boolean;
@@ -26,18 +26,28 @@ export function AuthErrorModal({
     <View style={styles.host} pointerEvents="box-none">
       <View style={styles.overlay}>
         <Pressable style={styles.backdrop} onPress={onClose} accessibilityRole="button" />
-        <ThemedView style={styles.card}>
-          <ThemedText style={styles.title}>{title}</ThemedText>
-          <ThemedText style={styles.message}>{message}</ThemedText>
+        <View style={styles.card} accessibilityViewIsModal>
           <Pressable
             onPress={onClose}
-            style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}
+            hitSlop={12}
+            style={styles.closeBtn}
             accessibilityRole="button"
-            accessibilityLabel={actionLabel}
+            accessibilityLabel="Close"
           >
-            <ThemedText style={styles.buttonText}>{actionLabel}</ThemedText>
+            <MaterialCommunityIcons name="close" size={20} color={UI.muted} />
           </Pressable>
-        </ThemedView>
+
+          <View style={styles.iconRing}>
+            <View style={styles.iconWell}>
+              <MaterialCommunityIcons name="alert-circle-outline" size={32} color={UI.red} />
+            </View>
+          </View>
+
+          <Text style={styles.title}>{title}</Text>
+          <Text style={styles.message}>{message}</Text>
+
+          <AppCtaButton label={actionLabel} onPress={onClose} width="full" />
+        </View>
       </View>
     </View>
   );
@@ -53,51 +63,72 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: 24,
+    paddingHorizontal: 28,
   },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(5, 14, 25, 0.62)",
+    backgroundColor: UI.overlay,
   },
   card: {
     width: "100%",
-    maxWidth: 360,
+    maxWidth: 340,
+    backgroundColor: UI.card,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: UI.chipBorder,
+    paddingTop: 28,
+    paddingBottom: 20,
+    paddingHorizontal: 22,
+    alignItems: "center",
+    shadowColor: UI.shadowStrong,
+    shadowOpacity: 1,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 12 },
+    elevation: 12,
+  },
+  closeBtn: {
+    position: "absolute",
+    top: 14,
+    right: 14,
+    width: 32,
+    height: 32,
     borderRadius: 16,
-    paddingHorizontal: 18,
-    paddingVertical: 18,
-    backgroundColor: theme.colors.white,
+    backgroundColor: UI.iconWell,
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 1,
   },
-  title: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: theme.colors.background,
-    marginBottom: 8,
-    backgroundColor: "transparent",
+  iconRing: {
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    backgroundColor: UI.redBg,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
   },
-  message: {
-    fontSize: 14,
-    lineHeight: 20,
-    color: "#334155",
-    backgroundColor: "transparent",
-  },
-  button: {
-    marginTop: 16,
-    alignSelf: "flex-end",
-    height: 38,
-    minWidth: 76,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    backgroundColor: theme.colors.backgroundLight,
+  iconWell: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    backgroundColor: UI.card,
     alignItems: "center",
     justifyContent: "center",
   },
-  buttonPressed: {
-    opacity: 0.85,
+  title: {
+    fontSize: 18,
+    fontFamily: "Poppins-Bold",
+    color: UI.text,
+    textAlign: "center",
+    marginBottom: 6,
   },
-  buttonText: {
+  message: {
     fontSize: 14,
-    fontWeight: "700",
-    color: theme.colors.white,
-    backgroundColor: "transparent",
+    fontFamily: "Poppins-Regular",
+    color: UI.muted,
+    textAlign: "center",
+    lineHeight: 21,
+    marginBottom: 22,
+    paddingHorizontal: 4,
   },
 });

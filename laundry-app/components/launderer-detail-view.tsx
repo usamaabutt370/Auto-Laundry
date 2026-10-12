@@ -59,6 +59,8 @@ import {
 } from "@/lib/service-jobs";
 import { getStrings } from "@/locales";
 import { getDeviceCoordinates } from "@/utils/device-location";
+import { formatMoney } from "@/utils/format-money";
+import { parsePriceDisplay } from "@/utils/parse-price-display";
 import type { Coordinates } from "@/utils/geocoding";
 import { getPartnerHoursRange } from "@/utils/partner-hours";
 import { UI } from "@/constants/theme";
@@ -196,8 +198,6 @@ export function LaundererDetailView({
   const partnerVerified = usePartnerVerified(partnerId);
   const { draft, setPickupDeliveryRequested } = useCustomerOrderDraft();
   const { loading: estimateLoading, estimate } = usePartnerOrderEstimate(partnerId, draft);
-  const fulfillmentTouchedRef = useRef(false);
-
   const load = useCallback(async () => {
     if (!partnerId) {
       setLoading(false);
@@ -257,6 +257,23 @@ export function LaundererDetailView({
   );
 
   const offeredJobs = useMemo(() => offeredJobsFromTypes(serviceTypes), [serviceTypes]);
+
+  const minPriceByJob = useMemo(() => {
+    const jobByCategory: Record<string, ServiceJob> = {
+      "Wash & Fold": "washAndFold",
+      "Dry Cleaning": "dryCleaning",
+      Press: "ironing",
+      Tailoring: "tailoring",
+    };
+    const out: Partial<Record<ServiceJob, number>> = {};
+    for (const row of services) {
+      const job = jobByCategory[(row.category ?? "").trim()];
+      const price = parsePriceDisplay(row.price_display ?? "");
+      if (!job || price == null || price <= 0) continue;
+      if (out[job] == null || price < out[job]!) out[job] = price;
+    }
+    return out;
+  }, [services]);
   const activeJob = jobOverride ?? resolveActiveJob(serviceTypes, intentService);
 
   const businessImageUris = useMemo(
@@ -355,15 +372,14 @@ export function LaundererDetailView({
     }
   };
 
+  const [fulfillmentChosen, setFulfillmentChosen] = useState(
+    () => draft.pickupDeliveryRequested || Boolean(draft.pickup?.dateIso),
+  );
+
   useEffect(() => {
-    if (!profile) return;
-    if (!hasPickup) {
-      setPickupDeliveryRequested(false);
-      return;
-    }
-    if (fulfillmentTouchedRef.current) return;
-    if (prefersPickupDelivery) setPickupDeliveryRequested(true);
-  }, [hasPickup, prefersPickupDelivery, profile, setPickupDeliveryRequested]);
+    if (!profile || hasPickup) return;
+    setPickupDeliveryRequested(false);
+  }, [hasPickup, profile, setPickupDeliveryRequested]);
 
   useEffect(() => {
     didScrollToCollectRef.current = false;
@@ -435,6 +451,7 @@ export function LaundererDetailView({
   );
 
   const pickupEnabled = hasPickup && draft.pickupDeliveryRequested;
+  const dropoffSelected = fulfillmentChosen && !pickupEnabled;
   const hasPickupSchedule = Boolean(
     draft.pickup?.dateIso &&
       draft.pickup?.timeSlotLabel &&
@@ -464,6 +481,11 @@ export function LaundererDetailView({
   const handleContinueOrder = () => {
     if (!orderDraftHasItems(draft)) {
       showAppAlert(s.needItemsTitle, s.needItemsToContinue);
+      return;
+    }
+    if (!fulfillmentChosen) {
+      runScrollToCollect(true);
+      showAppAlert(s.needMethodTitle, s.needMethodToContinue);
       return;
     }
     if (pickupEnabled && !hasPickupSchedule) {
@@ -688,6 +710,7 @@ export function LaundererDetailView({
                         </View>
                       ) : null}
                       <View style={styles.jobCardBody}>
+                        <View style={styles.jobCardCopy}>
                         <Text
                           style={[
                             styles.jobCardTitle,
@@ -701,6 +724,15 @@ export function LaundererDetailView({
                         <Text style={styles.jobCardSub} numberOfLines={2}>
                           {meta.subtitle}
                         </Text>
+                        </View>
+                        {minPriceByJob[job] != null ? (
+                          <View style={styles.jobCardPriceWrap}>
+                            <Text style={styles.jobCardFrom}>{s.fromLabel}</Text>
+                            <Text style={styles.jobCardPrice} numberOfLines={1}>
+                              {formatMoney(estimate.currencyPrefix || "Rs ", minPriceByJob[job]!)}
+                            </Text>
+                          </View>
+                        ) : null}
                       </View>
                     </Pressable>
                   );
@@ -802,7 +834,7 @@ export function LaundererDetailView({
               <Pressable
                 onPress={() => {
                   if (!hasPickup) return;
-                  fulfillmentTouchedRef.current = true;
+                  setFulfillmentChosen(true);
                   setPickupDeliveryRequested(true);
                   openPickupSchedule();
                 }}
@@ -834,18 +866,18 @@ export function LaundererDetailView({
               </Pressable>
               <Pressable
                 onPress={() => {
-                  fulfillmentTouchedRef.current = true;
+                  setFulfillmentChosen(true);
                   setPickupDeliveryRequested(false);
                 }}
                 style={[
                   styles.fulfillmentCard,
-                  !pickupEnabled && styles.fulfillmentCardActive,
+                  dropoffSelected && styles.fulfillmentCardActive,
                 ]}
               >
                 <View style={styles.fulfillmentHead}>
                   <MaterialCommunityIcons name="storefront-outline" size={18} color={UI.purple} />
                   <Text
-                    style={[styles.fulfillmentTitle, !pickupEnabled && styles.fulfillmentTitleActive]}
+                    style={[styles.fulfillmentTitle, dropoffSelected && styles.fulfillmentTitleActive]}
                     numberOfLines={2}
                   >
                     {sBook.dropoffTitle}
@@ -1128,10 +1160,16 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   jobCardBody: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
     paddingHorizontal: 12,
     paddingTop: 10,
     paddingBottom: 12,
   },
+  jobCardCopy: { flex: 1, minWidth: 0 },
+  jobCardPriceWrap: { alignItems: "flex-end" },
+  jobCardFrom: { fontSize: 11, color: UI.muted, fontFamily: "Poppins-Regular" },
   jobCardTitle: {
     fontSize: 13,
     color: UI.text,
@@ -1142,6 +1180,7 @@ const styles = StyleSheet.create({
   },
   jobCardTitleActive: { color: UI.purple },
   jobCardSub: { marginTop: 2, fontSize: 11, color: UI.muted, fontFamily: "Poppins-Regular" },
+  jobCardPrice: { fontSize: 15, color: UI.text, fontFamily: "Poppins-Bold" },
   tabRow: {
     flexDirection: "row",
     marginTop: 20,
