@@ -134,7 +134,7 @@ export function AppAlertProvider({ children }: { children: React.ReactNode }) {
                 style={[styles.actions, inRow ? styles.actionsRow : styles.actionsColumn]}
               >
                 {buttons.map((btn, i) =>
-                  renderButton(btn, `btn-${i}`, { half: inRow, tall: false }),
+                  renderButton(btn, `btn-${i}`, { half: inRow, tall: true }),
                 )}
               </View>
             )}

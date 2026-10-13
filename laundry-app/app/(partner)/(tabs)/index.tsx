@@ -1,3 +1,5 @@
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
@@ -7,7 +9,7 @@ import { AppHeader } from "@/components/app-header";
 import { WebHeaderSpacer } from "@/components/web-header-spacer";
 import { getTabBarBottomInset } from "@/components/bottom-tab-bar";
 import { PartnerHomeDashboard } from "@/components/partner-home-dashboard";
-import { AppButton } from "@/components/ui/button";
+import { AppCtaButton } from "@/components/ui/cta-button";
 import { useAuth } from "@/contexts/auth-context";
 import { useLocale } from "@/contexts/locale-context";
 import { useSuppressWebScreenHeader } from "@/hooks/use-suppress-web-screen-header";
@@ -15,11 +17,9 @@ import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { getStrings } from "@/locales";
 import { StatusBar } from "expo-status-bar";
 
-import { theme, UI } from "@/constants/theme";
+import { gradients, UI } from "@/constants/theme";
 
-const fs = theme.fontSize;
 const H_PAD = 24;
-const CARD_RADIUS = 16;
 
 /**
  * Partner home tab. Approved launderers see the live dashboard.
@@ -90,13 +90,34 @@ export default function PartnerDashboardScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.placeholderCard}>
+          {isRejected ? (
+            <View style={styles.iconRingDanger}>
+              <View style={styles.iconWell}>
+                <MaterialCommunityIcons name="alert-circle-outline" size={32} color={UI.red} />
+              </View>
+            </View>
+          ) : (
+            <LinearGradient
+              colors={[...gradients.glass]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.iconRing}
+            >
+              <View style={styles.iconWell}>
+                <MaterialCommunityIcons
+                  name={isPendingApproval ? "clock-outline" : "storefront-outline"}
+                  size={32}
+                  color={UI.purple}
+                />
+              </View>
+            </LinearGradient>
+          )}
           <Text style={styles.placeholderTitle}>{placeholderTitle}</Text>
           <Text style={styles.placeholderMessage}>{placeholderMessage}</Text>
-          <AppButton
+          <AppCtaButton
             label={placeholderButtonLabel}
             onPress={() => router.push("/(partner)/onboarding")}
-            variant="filled"
-            fullWidth
+            width="full"
             accessibilityLabel={placeholderButtonLabel}
           />
         </View>
@@ -122,24 +143,61 @@ const styles = StyleSheet.create({
   },
   placeholderCard: {
     backgroundColor: UI.card,
-    borderRadius: CARD_RADIUS,
+    borderRadius: 24,
     borderWidth: 1,
     borderColor: UI.chipBorder,
-    padding: 20,
-    marginBottom: 12,
-    gap: 12,
-    width: "50%",
-    minWidth: 280,
+    paddingTop: 28,
+    paddingBottom: 20,
+    paddingHorizontal: 22,
+    marginTop: 8,
+    width: "100%",
+    maxWidth: 400,
     alignSelf: "center",
+    alignItems: "center",
+    shadowColor: UI.shadowStrong,
+    shadowOpacity: 1,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 12 },
+    elevation: 8,
+  },
+  iconRing: {
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+  },
+  iconRingDanger: {
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+    backgroundColor: UI.redBg,
+  },
+  iconWell: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    backgroundColor: UI.card,
+    alignItems: "center",
+    justifyContent: "center",
   },
   placeholderTitle: {
-    fontSize: fs.smallTitle,
-    fontWeight: "700",
+    fontSize: 18,
+    fontFamily: "Poppins-Bold",
     color: UI.text,
+    textAlign: "center",
+    marginBottom: 6,
   },
   placeholderMessage: {
-    fontSize: fs.smallText,
+    fontSize: 14,
+    fontFamily: "Poppins-Regular",
     color: UI.muted,
-    lineHeight: 20,
+    lineHeight: 21,
+    textAlign: "center",
+    marginBottom: 22,
   },
 });

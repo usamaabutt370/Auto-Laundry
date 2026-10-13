@@ -17,7 +17,7 @@ import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { awardWelcomeCredits } from "@/lib/partner-credits";
 import { showAppAlert } from "@/components/app-alert";
 import { AvatarImage } from "@/components/avatar-image";
-import { DeleteAccountButton } from "@/components/delete-account-button";
+import { DeleteAccountButton, DeleteAccountDialogHost } from "@/components/delete-account-button";
 import { getTabBarBottomInset } from "@/components/bottom-tab-bar";
 import { GradientSwitch } from "@/components/ui/gradient-switch";
 import { GradientLoader } from "@/components/ui/gradient-loader";
@@ -176,6 +176,7 @@ export default function PartnerProfileMenu() {
 	const openEditProfile = () => router.push("/(partner)/laundrerinfo");
 
 	return (
+		<DeleteAccountDialogHost>
 		<View style={[styles.container, { paddingTop: isWeb ? 0 : insets.top }]}>
 			<StatusBar style="dark" />
 			{isWeb ? <WebHeaderSpacer /> : null}
@@ -394,6 +395,7 @@ export default function PartnerProfileMenu() {
 				</View>
 			</ScrollView>
 		</View>
+		</DeleteAccountDialogHost>
 	);
 }
 

@@ -31,16 +31,19 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import { showAppAlert } from "@/components/app-alert";
 import { ChatListScrollView } from "@/components/chat/chat-list-scroll-view";
 import { RiderAssignmentMessage } from "@/components/chat/rider-assignment-message";
+import { useConfirmDialog } from "@/components/confirm-dialog";
 import { WebCameraCaptureModal } from "@/components/chat/web-camera-capture-modal";
 import { PartnerNameWithBadge } from "@/components/partner-name-with-badge";
 import { GradientLoader } from "@/components/ui/gradient-loader";
 import { theme, UI } from "@/constants/theme";
 import { useAuth } from "@/contexts/auth-context";
+import { useLocale } from "@/contexts/locale-context";
 import {
   ensureOrderConversation,
   fetchOrderChatHeader,
   deleteConversationMessages,
   fetchConversationMessages,
+  hideMyConversation,
   markConversationRead,
   normalizeChatMessageRow,
   sendConversationMessage,
@@ -49,6 +52,7 @@ import {
   type OrderChatHeaderData,
 } from "@/lib/chat";
 import { supabase } from "@/lib/supabase";
+import { getStrings } from "@/locales";
 import { pickImagesFromDocument } from "@/utils/pick-images";
 
 const fs = theme.fontSize;
@@ -158,6 +162,9 @@ export function OrderChatScreen() {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ orderId?: string; memberName?: string }>();
   const { user, role } = useAuth();
+  const { locale } = useLocale();
+  const chatCopy = getStrings(locale).chat;
+  const { confirm, dialog } = useConfirmDialog();
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -504,6 +511,25 @@ export function OrderChatScreen() {
     });
   }, [orderId, role, router]);
 
+  const onDeleteChat = useCallback(async () => {
+    if (!conversationId || !user?.id) return;
+    const confirmed = await confirm({
+      title: chatCopy.deleteTitle,
+      message: chatCopy.deleteMessage,
+      confirmLabel: chatCopy.deleteAction,
+      cancelLabel: chatCopy.cancel,
+      destructive: true,
+    });
+    if (!confirmed) return;
+    try {
+      await hideMyConversation(conversationId, user.id);
+      router.back();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : chatCopy.deleteError;
+      showAppAlert(chatCopy.deleteError, message);
+    }
+  }, [chatCopy, confirm, conversationId, router, user?.id]);
+
   const onCall = useCallback(() => {
     const phone = header?.phoneNumber?.trim();
     if (!phone) {
@@ -602,6 +628,13 @@ export function OrderChatScreen() {
             </View>
           ) : (
             <View style={styles.headerActions}>
+              <Pressable
+                onPress={() => void onDeleteChat()}
+                style={styles.headerRoundBtn}
+                accessibilityLabel={chatCopy.deleteA11y}
+              >
+                <MaterialCommunityIcons name="delete-outline" size={18} color={UI.red} />
+              </Pressable>
               <Pressable onPress={onCall} style={styles.headerRoundBtn} accessibilityLabel="Call">
                 <MaterialCommunityIcons name="phone-outline" size={18} color={UI.text} />
               </Pressable>
@@ -686,6 +719,7 @@ export function OrderChatScreen() {
                       metadata={sentItem.metadata!}
                       role={role}
                       intro={sentItem.body.trim() || undefined}
+                      orderStatusKey={header?.orderStatusKey}
                     />
                     <Text style={styles.riderAssignmentTime}>
                       {formatClock(sentItem.createdAt)}
@@ -970,6 +1004,7 @@ export function OrderChatScreen() {
           }}
         />
       ) : null}
+      {dialog}
     </View>
   );
 }

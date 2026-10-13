@@ -1,16 +1,45 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { useState } from "react";
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text } from "react-native";
+import { createContext, useContext, useState, type ReactNode } from "react";
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 
+import { showAppAlert } from "@/components/app-alert";
+import { useConfirmDialog } from "@/components/confirm-dialog";
+import { UI } from "@/constants/theme";
 import { useAuth } from "@/contexts/auth-context";
+import { useLocale } from "@/contexts/locale-context";
 import { deleteUserAccount } from "@/lib/account-deletion";
+import { getStrings } from "@/locales";
 
-const DESTRUCTIVE_RED = "#DC2626";
+type ConfirmFn = (options: {
+  title: string;
+  message: string;
+  confirmLabel?: string;
+  cancelLabel?: string;
+  destructive?: boolean;
+}) => Promise<boolean>;
+
+const DeleteAccountConfirmContext = createContext<ConfirmFn | null>(null);
+
+/** Mount around a screen so the delete confirm covers the page, not the button row. */
+export function DeleteAccountDialogHost({ children }: { children: ReactNode }) {
+  const { confirm, dialog } = useConfirmDialog();
+  return (
+    <DeleteAccountConfirmContext.Provider value={confirm}>
+      <View style={styles.host}>
+        {children}
+        {dialog}
+      </View>
+    </DeleteAccountConfirmContext.Provider>
+  );
+}
 
 export function DeleteAccountButton() {
   const router = useRouter();
   const { signOut } = useAuth();
+  const { locale } = useLocale();
+  const copy = getStrings(locale).common.deleteAccount;
+  const confirm = useContext(DeleteAccountConfirmContext);
   const [isDeleting, setIsDeleting] = useState(false);
 
   const goToSignUpAfterDelete = async () => {
@@ -26,68 +55,66 @@ export function DeleteAccountButton() {
     try {
       const result = await deleteUserAccount();
       if (!result.ok) {
-        Alert.alert("Cannot delete account", result.message);
+        showAppAlert(copy.cannotTitle, result.message);
         return;
       }
 
       await goToSignUpAfterDelete();
-
-      Alert.alert("Account deleted", "Your account has been deleted.");
+      showAppAlert(copy.deletedTitle, copy.deletedMessage);
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Something went wrong. Please try again.";
-      Alert.alert("Error", message);
+      const message = err instanceof Error ? err.message : copy.errorFallback;
+      showAppAlert(copy.errorTitle, message);
     } finally {
       setIsDeleting(false);
     }
   };
 
-  const onPress = () => {
-    Alert.alert(
-      "Delete account",
-      "This will permanently delete your account. This action cannot be undone.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: () => {
-            Alert.alert(
-              "Are you sure?",
-              "This action cannot be undone.",
-              [
-                { text: "Cancel", style: "cancel" },
-                { text: "Delete", style: "destructive", onPress: () => void runDelete() },
-              ],
-            );
-          },
-        },
-      ],
-    );
+  const onPress = async () => {
+    if (!confirm) return;
+    const first = await confirm({
+      title: copy.title,
+      message: copy.message,
+      confirmLabel: copy.delete,
+      cancelLabel: copy.cancel,
+      destructive: true,
+    });
+    if (!first) return;
+    const second = await confirm({
+      title: copy.confirmTitle,
+      message: copy.confirmMessage,
+      confirmLabel: copy.delete,
+      cancelLabel: copy.cancel,
+      destructive: true,
+    });
+    if (!second) return;
+    await runDelete();
   };
 
   return (
     <Pressable
-      onPress={onPress}
+      onPress={() => void onPress()}
       disabled={isDeleting}
       style={({ pressed }) => [styles.wrap, pressed && styles.pressed]}
       accessibilityRole="button"
-      accessibilityLabel="Delete account"
+      accessibilityLabel={copy.button}
     >
       <MaterialCommunityIcons name="account-remove-outline" size={16} color="#FFFFFF" />
-      <Text style={styles.label}>Delete Account</Text>
+      <Text style={styles.label}>{copy.button}</Text>
       {isDeleting ? <ActivityIndicator size="small" color="#FFFFFF" /> : null}
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
+  host: {
+    flex: 1,
+  },
   wrap: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    backgroundColor: DESTRUCTIVE_RED,
+    backgroundColor: UI.red,
     borderRadius: 12,
     paddingVertical: 14,
     paddingHorizontal: 16,

@@ -9,6 +9,20 @@ export const en = {
     error: "Something went wrong",
     modal: "Modal",
     goToHome: "Go to home screen",
+    deleteAccount: {
+      button: "Delete Account",
+      title: "Delete account",
+      message: "This will permanently delete your account. This action cannot be undone.",
+      confirmTitle: "Are you sure?",
+      confirmMessage: "This action cannot be undone.",
+      cancel: "Cancel",
+      delete: "Delete",
+      cannotTitle: "Cannot delete account",
+      deletedTitle: "Account deleted",
+      deletedMessage: "Your account has been deleted.",
+      errorTitle: "Error",
+      errorFallback: "Something went wrong. Please try again.",
+    },
   },
 
   auth: {
@@ -1729,6 +1743,12 @@ export const en = {
   },
 
   chat: {
+    deleteTitle: "Delete this chat?",
+    deleteMessage: "This chat will be removed from your list.",
+    deleteAction: "Delete",
+    cancel: "Cancel",
+    deleteError: "Couldn't delete this chat.",
+    deleteA11y: "Delete chat",
     riderAssignment: {
       title: "Rider assigned",
       riderLabel: "Your rider",

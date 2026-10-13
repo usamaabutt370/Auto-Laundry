@@ -17,7 +17,13 @@ type RiderAssignmentMessageProps = {
   metadata: RiderAssignmentMetadata;
   role: UserRole | null;
   intro?: string;
+  orderStatusKey?: string | null;
 };
+
+function orderStillTrackable(statusKey: string | null | undefined): boolean {
+  const key = statusKey?.trim().toLowerCase() ?? "";
+  return key !== "completed" && key !== "cancelled" && key !== "rejected";
+}
 
 function DetailRow({
   icon,
@@ -39,7 +45,12 @@ function DetailRow({
   );
 }
 
-export function RiderAssignmentMessage({ metadata, role, intro }: RiderAssignmentMessageProps) {
+export function RiderAssignmentMessage({
+  metadata,
+  role,
+  intro,
+  orderStatusKey,
+}: RiderAssignmentMessageProps) {
   const router = useRouter();
   const { locale } = useLocale();
   const s = getStrings(locale).chat.riderAssignment;
@@ -99,17 +110,19 @@ export function RiderAssignmentMessage({ metadata, role, intro }: RiderAssignmen
         </View>
       </View>
 
-      <AppCtaButton
-        label={s.trackOrder}
-        onPress={() =>
-          router.push({
-            pathname: trackPath,
-            params: { orderId: metadata.orderId },
-          })
-        }
-        rightIcon="arrow-right"
-        width="full"
-      />
+      {orderStillTrackable(orderStatusKey) ? (
+        <AppCtaButton
+          label={s.trackOrder}
+          onPress={() =>
+            router.push({
+              pathname: trackPath,
+              params: { orderId: metadata.orderId },
+            })
+          }
+          rightIcon="arrow-right"
+          width="full"
+        />
+      ) : null}
     </View>
   );
 }

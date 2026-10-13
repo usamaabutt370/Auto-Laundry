@@ -9,6 +9,20 @@ export const ur = {
     error: "کچھ غلط ہو گیا",
     modal: "موڈل",
     goToHome: "ہوم اسکرین پر جائیں",
+    deleteAccount: {
+      button: "اکاؤنٹ حذف کریں",
+      title: "اکاؤنٹ حذف کریں",
+      message: "یہ آپ کا اکاؤنٹ مستقل طور پر حذف کر دے گا۔ یہ عمل واپس نہیں ہو سکتا۔",
+      confirmTitle: "کیا آپ کو یقین ہے؟",
+      confirmMessage: "یہ عمل واپس نہیں ہو سکتا۔",
+      cancel: "منسوخ",
+      delete: "حذف کریں",
+      cannotTitle: "اکاؤنٹ حذف نہیں ہو سکا",
+      deletedTitle: "اکاؤنٹ حذف ہو گیا",
+      deletedMessage: "آپ کا اکاؤنٹ حذف کر دیا گیا ہے۔",
+      errorTitle: "خرابی",
+      errorFallback: "کچھ غلط ہو گیا۔ براہ کرم دوبارہ کوشش کریں۔",
+    },
   },
 
   auth: {
@@ -1711,6 +1725,12 @@ export const ur = {
   },
 
   chat: {
+    deleteTitle: "یہ چیٹ حذف کریں؟",
+    deleteMessage: "یہ چیٹ آپ کی فہرست سے ہٹ جائے گی۔",
+    deleteAction: "حذف کریں",
+    cancel: "منسوخ",
+    deleteError: "چیٹ حذف نہیں ہو سکی۔",
+    deleteA11y: "چیٹ حذف کریں",
     riderAssignment: {
       title: "رائیڈر تفویض ہو گیا",
       riderLabel: "آپ کا رائیڈر",

@@ -101,6 +101,7 @@ type MessageRow = {
 type ConversationParticipantRow = {
   conversation_id: string;
   last_read_at: string | null;
+  hidden_at?: string | null;
 };
 
 type ConversationHeaderRow = {
@@ -312,7 +313,37 @@ export async function ensureOrderConversation(
     throw new Error(participantError.message);
   }
 
+  await clearConversationHidden(conversationId, userId);
+
   return conversationId;
+}
+
+/** Removes the chat from this user's list. The other person still has it. */
+export async function hideMyConversation(
+  conversationId: string,
+  userId: string,
+): Promise<void> {
+  if (!supabase) throw new Error("Supabase is not configured.");
+
+  const { error } = await supabase
+    .from("chat_conversation_participants")
+    .update({ hidden_at: new Date().toISOString() })
+    .eq("conversation_id", conversationId)
+    .eq("user_id", userId);
+
+  if (error) throw new Error(error.message);
+}
+
+async function clearConversationHidden(conversationId: string, userId: string): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase
+    .from("chat_conversation_participants")
+    .update({ hidden_at: null })
+    .eq("conversation_id", conversationId)
+    .eq("user_id", userId);
+  if (error && !isMissingHiddenAtColumnError(error.message)) {
+    throw new Error(error.message);
+  }
 }
 
 export async function fetchOrderChatHeader(
@@ -436,6 +467,10 @@ function isMissingStructuredChatColumnError(message: string): boolean {
   return lower.includes("message_type") || lower.includes("metadata");
 }
 
+function isMissingHiddenAtColumnError(message: string): boolean {
+  return message.toLowerCase().includes("hidden_at");
+}
+
 export async function fetchConversationMessages(
   conversationId: string,
   limit = 100,
@@ -469,11 +504,20 @@ export async function fetchMyConversations(
 ): Promise<ChatConversationListItem[]> {
   if (!supabase) throw new Error("Supabase is not configured.");
 
-  const { data: participantData, error: participantError } = await supabase
+  const visibleParticipants = await supabase
     .from("chat_conversation_participants")
-    .select("conversation_id,last_read_at")
-    .eq("user_id", userId);
-  if (participantError) throw new Error(participantError.message);
+    .select("conversation_id,last_read_at,hidden_at")
+    .eq("user_id", userId)
+    .is("hidden_at", null);
+  const participantResult =
+    visibleParticipants.error && isMissingHiddenAtColumnError(visibleParticipants.error.message)
+      ? await supabase
+          .from("chat_conversation_participants")
+          .select("conversation_id,last_read_at")
+          .eq("user_id", userId)
+      : visibleParticipants;
+  if (participantResult.error) throw new Error(participantResult.error.message);
+  const participantData = participantResult.data;
 
   const participantRows = (participantData ?? []) as ConversationParticipantRow[];
   const conversationIds = participantRows.map((row) => row.conversation_id);

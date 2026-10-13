@@ -13,7 +13,7 @@ import { StatusBar } from "expo-status-bar";
 import { useRouter, useFocusEffect } from "expo-router";
 import { useIsFocused } from "@react-navigation/native";
 
-import { DeleteAccountButton } from "@/components/delete-account-button";
+import { DeleteAccountButton, DeleteAccountDialogHost } from "@/components/delete-account-button";
 import { AppCtaButton } from "@/components/ui/cta-button";
 import { GradientLoader } from "@/components/ui/gradient-loader";
 import { useAuth } from "@/contexts/auth-context";
@@ -337,6 +337,7 @@ export default function CustomerProfileMenu() {
 	}
 
 	return (
+		<DeleteAccountDialogHost>
 		<View style={styles.container}>
 			<StatusBar style="dark" />
 			<ProfileHeader />
@@ -466,6 +467,7 @@ export default function CustomerProfileMenu() {
 			</ScrollView>
 			{confirmDialog}
 		</View>
+		</DeleteAccountDialogHost>
 	);
 }
 
