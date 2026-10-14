@@ -257,18 +257,6 @@ export default function CustomerProfileMenu() {
 						<Text style={styles.title}>{s.title}</Text>
 						<Text style={styles.subtitle}>{s.subtitle}</Text>
 					</View>
-					{user?.id ? (
-						<View style={styles.headerActions}>
-							<Pressable
-								onPress={() => router.push("/(customer)/settings")}
-								style={styles.iconBtn}
-								accessibilityRole="button"
-								accessibilityLabel={s.settingsA11y}
-							>
-								<MaterialCommunityIcons name="cog-outline" size={20} color={UI.text} />
-							</Pressable>
-						</View>
-					) : null}
 				</View>
 			</View>
 		) : (
@@ -497,20 +485,6 @@ const styles = StyleSheet.create({
 		fontSize: 13,
 		color: UI.muted,
 		fontFamily: "Poppins-Regular",
-	},
-	headerActions: {
-		flexDirection: "row",
-		alignItems: "center",
-		gap: 8,
-		paddingTop: 4,
-	},
-	iconBtn: {
-		width: 40,
-		height: 40,
-		borderRadius: 20,
-		backgroundColor: ICON_WELL,
-		alignItems: "center",
-		justifyContent: "center",
 	},
 	content: { paddingHorizontal: PAD, paddingBottom: 120, gap: 14 },
 	contentWeb: { paddingTop: 0 },

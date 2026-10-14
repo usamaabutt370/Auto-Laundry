@@ -259,15 +259,37 @@ export default function CustomerOrderDetailScreen() {
           <View style={styles.heroCard}>
             <View style={styles.topRow}>
               <Text style={styles.orderRef}>Order #{order.orderRef}</Text>
-              <View
-                style={[
-                  styles.statusPill,
-                  { backgroundColor: statusTone(order.displayStatus).bg },
-                ]}
-              >
-                <Text style={[styles.status, { color: statusTone(order.displayStatus).text }]}>
-                  {statusLabel(order.displayStatus)}
-                </Text>
+              <View style={styles.statusColumn}>
+                {isCustomerOrderRemovable(order.rawStatus) ? (
+                  <Pressable
+                    onPress={() => orderActions.remove(order, handleBack)}
+                    disabled={orderActions.removingId === order.id}
+                    hitSlop={8}
+                    style={({ pressed }) => [
+                      styles.statusDeleteBtn,
+                      pressed && styles.pressed,
+                      orderActions.removingId === order.id && styles.editOrderBtnDisabled,
+                    ]}
+                    accessibilityRole="button"
+                    accessibilityLabel={sActions.deleteOrder}
+                  >
+                    {orderActions.removingId === order.id ? (
+                      <ActivityIndicator size="small" color="#f87171" />
+                    ) : (
+                      <MaterialCommunityIcons name="trash-can-outline" size={16} color="#f87171" />
+                    )}
+                  </Pressable>
+                ) : null}
+                <View
+                  style={[
+                    styles.statusPill,
+                    { backgroundColor: statusTone(order.displayStatus).bg },
+                  ]}
+                >
+                  <Text style={[styles.status, { color: statusTone(order.displayStatus).text }]}>
+                    {statusLabel(order.displayStatus)}
+                  </Text>
+                </View>
               </View>
             </View>
             <PartnerNameWithBadge
@@ -466,48 +488,14 @@ export default function CustomerOrderDetailScreen() {
             </View>
           ) : null}
 
-          {isCustomerOrderRemovable(order.rawStatus) ? (
+          {isCompletedOrder && feedbackChecked && !hasReview ? (
             <View style={styles.finishedActions}>
-              {isCompletedOrder && feedbackChecked && !hasReview ? (
-                <AppCtaButton
-                  label={sReview.leaveReview}
-                  onPress={() => setFeedbackVisible(true)}
-                  leftIcon="star-outline"
-                  width="full"
-                />
-              ) : null}
               <AppCtaButton
-                label={
-                  order.rawStatus === "rejected"
-                    ? sActions.reorderWithNewProvider
-                    : sActions.reorder
-                }
-                onPress={() => orderActions.reorder(order)}
-                loading={orderActions.reorderingId === order.id}
-                leftIcon="refresh"
+                label={sReview.leaveReview}
+                onPress={() => setFeedbackVisible(true)}
+                leftIcon="star-outline"
                 width="full"
               />
-              <Pressable
-                onPress={() => orderActions.remove(order, handleBack)}
-                disabled={orderActions.removingId === order.id}
-                style={({ pressed }) => [
-                  styles.deleteOrderBtn,
-                  styles.finishedDeleteBtn,
-                  pressed && styles.pressed,
-                  orderActions.removingId === order.id && styles.editOrderBtnDisabled,
-                ]}
-              >
-                {orderActions.removingId === order.id ? (
-                  <ActivityIndicator color="#f87171" size="small" />
-                ) : (
-                  <>
-                    <MaterialCommunityIcons name="trash-can-outline" size={18} color="#f87171" />
-                    <Text style={[styles.editOrderBtnText, styles.deleteOrderBtnText]}>
-                      {sActions.deleteOrder}
-                    </Text>
-                  </>
-                )}
-              </Pressable>
             </View>
           ) : null}
 
@@ -631,6 +619,19 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: "Poppins-SemiBold",
     textTransform: "uppercase",
+  },
+  statusColumn: {
+    alignItems: "flex-end",
+    gap: 6,
+    flexShrink: 0,
+  },
+  statusDeleteBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: UI.redBg,
   },
   statusPill: {
     paddingHorizontal: 12,
@@ -776,7 +777,6 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   finishedActions: { gap: 10 },
-  finishedDeleteBtn: { borderRadius: 999, paddingVertical: 12 },
   editOrderBtnText: {
     color: UI.text,
     fontSize: 13,

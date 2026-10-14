@@ -35,7 +35,6 @@ type OrderCardStrings = {
   stepOnTheWay: string;
   stepCompleted: string;
   reviewsCount: string;
-  reorder: string;
   deleteOrder: string;
 };
 
@@ -45,10 +44,8 @@ type CustomerOrderCardProps = {
   onOpenDetail: () => void;
   onTrack: () => void;
   onChat: () => void;
-  /** Finished orders (completed / rejected / cancelled) swap Track for Reorder + Delete. */
-  onReorder?: () => void;
+  /** Finished orders (completed / rejected / cancelled) show a delete icon above the status. */
   onDelete?: () => void;
-  reordering?: boolean;
   deleting?: boolean;
 };
 
@@ -114,9 +111,7 @@ export function CustomerOrderCard({
   onOpenDetail,
   onTrack,
   onChat,
-  onReorder,
   onDelete,
-  reordering = false,
   deleting = false,
 }: CustomerOrderCardProps) {
   const { s: scaleSize, ms, isNarrow } = useResponsiveLayout();
@@ -127,7 +122,6 @@ export function CustomerOrderCard({
     order.rawStatus === "rejected" ||
     order.rawStatus === "cancelled";
   const showTrack = !isFinished && order.displayStatus !== "rejected";
-  const isRejected = order.displayStatus === "rejected" || order.rawStatus === "cancelled";
   const partnerImg = scaleSize(isNarrow ? 44 : 52);
 
   const previewItems = (order.itemPreview.length > 0
@@ -306,12 +300,28 @@ export function CustomerOrderCard({
         </View>
       ) : null}
 
-      {isRejected ? (
+      {isFinished ? (
         <View style={styles.actionsRow}>
+          <View style={styles.actionSlot}>
+            <AppCtaButton
+              label={s.chatProvider}
+              onPress={() => {
+                onChat();
+              }}
+              width="full"
+              variant="outline"
+              size="sm"
+              leftIcon="chat-processing-outline"
+              style={styles.actionBtn}
+            />
+          </View>
           {onDelete ? (
             <View style={styles.actionSlot}>
               <Pressable
-                onPress={onDelete}
+                onPress={(event) => {
+                  event.stopPropagation?.();
+                  onDelete();
+                }}
                 disabled={deleting}
                 style={({ pressed }) => [
                   styles.deletePill,
@@ -331,76 +341,33 @@ export function CustomerOrderCard({
               </Pressable>
             </View>
           ) : null}
-          {onReorder ? (
-            <View style={styles.actionSlot}>
-              <AppCtaButton
-                label={s.reorder}
-                onPress={onReorder}
-                loading={reordering}
-                width="full"
-                size="sm"
-                leftIcon="refresh"
-                style={styles.actionBtn}
-              />
-            </View>
-          ) : null}
         </View>
       ) : (
-      <View style={styles.actionsRow}>
-        {isFinished && onDelete ? (
-          <Pressable
-            onPress={onDelete}
-            disabled={deleting}
-            hitSlop={4}
-            style={({ pressed }) => [
-              styles.deleteBtn,
-              (pressed || deleting) && styles.pressed,
-            ]}
-            accessibilityRole="button"
-            accessibilityLabel={s.deleteOrder}
-          >
-            {deleting ? (
-              <ActivityIndicator size="small" color={UI.red} />
-            ) : (
-              <MaterialCommunityIcons name="trash-can-outline" size={18} color={UI.red} />
-            )}
-          </Pressable>
-        ) : null}
-        <AppCtaButton
-          label={s.chatProvider}
-          onPress={() => {
-            onChat();
-          }}
-          width={showTrack || (isFinished && onReorder) ? 48 : "full"}
-          variant="outline"
-          size="sm"
-          leftIcon="chat-processing-outline"
-          style={styles.actionBtn}
-        />
-        {showTrack ? (
+        <View style={styles.actionsRow}>
           <AppCtaButton
-            label={s.trackOrder}
+            label={s.chatProvider}
             onPress={() => {
-              onTrack();
+              onChat();
             }}
-            width={52}
+            width={showTrack ? 48 : "full"}
+            variant="outline"
             size="sm"
-            rightIcon="arrow-right"
+            leftIcon="chat-processing-outline"
             style={styles.actionBtn}
           />
-        ) : null}
-        {isFinished && onReorder ? (
-          <AppCtaButton
-            label={s.reorder}
-            onPress={onReorder}
-            loading={reordering}
-            width={52}
-            size="sm"
-            leftIcon="refresh"
-            style={styles.actionBtn}
-          />
-        ) : null}
-      </View>
+          {showTrack ? (
+            <AppCtaButton
+              label={s.trackOrder}
+              onPress={() => {
+                onTrack();
+              }}
+              width={52}
+              size="sm"
+              rightIcon="arrow-right"
+              style={styles.actionBtn}
+            />
+          ) : null}
+        </View>
       )}
     </Pressable>
   );
@@ -584,10 +551,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
   },
+  actionSlot: { flex: 1, minWidth: 0 },
   actionBtn: {
     minHeight: 40,
   },
-  actionSlot: { flex: 1, minWidth: 0 },
   deletePill: {
     width: "100%",
     minHeight: 40,
@@ -601,12 +568,4 @@ const styles = StyleSheet.create({
     backgroundColor: UI.card,
   },
   deletePillText: { fontSize: 12, fontFamily: "Poppins-SemiBold", color: UI.red },
-  deleteBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: UI.redBg,
-  },
 });

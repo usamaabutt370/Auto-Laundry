@@ -1,9 +1,10 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
+import { LinearGradient } from "expo-linear-gradient";
 import type { ComponentProps } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { UI } from "@/constants/theme";
+import { gradients, UI } from "@/constants/theme";
 import type { PartnerOrderListItem, PartnerOrderStatus } from "@/lib/partner-orders";
 import { imageForServiceItem } from "@/lib/service-item-images";
 import type { getStrings } from "@/locales";
@@ -180,18 +181,32 @@ export function PartnerOrderListCard({
       {isActive ? (
         <View style={styles.progressRow}>
           <Progress status={order.rawStatus} copy={copy} />
-          <Pressable onPress={onPress} style={({ pressed }) => [styles.detailsBtn, pressed && styles.pressed]}>
-            <Text style={styles.detailsText}>{copy.viewDetails}</Text>
-            <MaterialCommunityIcons name="chevron-right" size={16} color="#FFFFFF" />
+          <Pressable onPress={onPress} style={({ pressed }) => [pressed && styles.pressed]}>
+            <LinearGradient
+              colors={[...gradients.cta]}
+              start={{ x: 0, y: 0.5 }}
+              end={{ x: 1, y: 0.5 }}
+              style={styles.detailsBtn}
+            >
+              <Text style={styles.detailsText}>{copy.viewDetails}</Text>
+              <MaterialCommunityIcons name="chevron-right" size={16} color="#FFFFFF" />
+            </LinearGradient>
           </Pressable>
         </View>
       ) : null}
 
       {isCompleted ? (
         <View style={styles.completedActions}>
-          <Pressable onPress={onPress} style={({ pressed }) => [styles.detailsBtn, pressed && styles.pressed]}>
-            <Text style={styles.detailsText}>{copy.viewDetails}</Text>
-            <MaterialCommunityIcons name="chevron-right" size={16} color="#FFFFFF" />
+          <Pressable onPress={onPress} style={({ pressed }) => [pressed && styles.pressed]}>
+            <LinearGradient
+              colors={[...gradients.cta]}
+              start={{ x: 0, y: 0.5 }}
+              end={{ x: 1, y: 0.5 }}
+              style={styles.detailsBtn}
+            >
+              <Text style={styles.detailsText}>{copy.viewDetails}</Text>
+              <MaterialCommunityIcons name="chevron-right" size={16} color="#FFFFFF" />
+            </LinearGradient>
           </Pressable>
         </View>
       ) : null}
@@ -321,7 +336,6 @@ const styles = StyleSheet.create({
   detailsBtn: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#2563EB",
     borderRadius: 12,
     paddingLeft: 12,
     paddingRight: 6,

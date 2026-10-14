@@ -12,7 +12,6 @@ import {
   Text,
   View,
 } from "react-native";
-import { Swipeable } from "react-native-gesture-handler";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AppHeader } from "@/components/app-header";
@@ -371,8 +370,7 @@ export default function CustomerOrderScreen() {
             >
               {filteredOrders.map((order) => {
                 const removable = isCustomerOrderRemovable(order.rawStatus);
-                const deleteOrder = () => orderActions.remove(order, () => void refresh());
-                const card = (
+                return (
                 <CustomerOrderCard
                   key={order.id}
                   order={order}
@@ -399,16 +397,13 @@ export default function CustomerOrderScreen() {
                     stepOnTheWay: s.stepOnTheWay,
                     stepCompleted: s.stepCompleted,
                     reviewsCount: s.reviewsCount,
-                    reorder: s.orderActions.reorder,
                     deleteOrder: s.orderActions.delete,
                   }}
-                  onReorder={() => void orderActions.reorder(order)}
                   onDelete={
-                    isWeb || order.displayStatus === "rejected" || order.rawStatus === "cancelled"
-                      ? deleteOrder
+                    removable
+                      ? () => orderActions.remove(order, () => void refresh())
                       : undefined
                   }
-                  reordering={orderActions.reorderingId === order.id}
                   deleting={orderActions.removingId === order.id}
                   onOpenDetail={() =>
                     router.push({
@@ -429,29 +424,6 @@ export default function CustomerOrderScreen() {
                     })
                   }
                 />
-                );
-                if (!removable || isWeb) return card;
-                return (
-                  <Swipeable
-                    key={order.id}
-                    friction={2}
-                    overshootRight={false}
-                    renderRightActions={() => (
-                      <View style={styles.swipeActions}>
-                        <Pressable
-                          accessibilityRole="button"
-                          accessibilityLabel={s.orderActions.deleteOrder}
-                          onPress={deleteOrder}
-                          style={({ pressed }) => [styles.swipeDeleteBtn, pressed && styles.swipePressed]}
-                        >
-                          <MaterialCommunityIcons name="trash-can-outline" size={26} color="#FFFFFF" />
-                          <Text style={styles.swipeDeleteText}>{s.orderActions.delete}</Text>
-                        </Pressable>
-                      </View>
-                    )}
-                  >
-                    {card}
-                  </Swipeable>
                 );
               })}
             </ScrollView>
@@ -484,27 +456,6 @@ export default function CustomerOrderScreen() {
 }
 
 const styles = StyleSheet.create({
-  swipeActions: {
-    justifyContent: "center",
-    marginVertical: 2,
-    paddingLeft: 10,
-  },
-  swipeDeleteBtn: {
-    flex: 1,
-    backgroundColor: "#b91c1c",
-    borderRadius: 16,
-    justifyContent: "center",
-    alignItems: "center",
-    width: 92,
-    paddingVertical: 12,
-    gap: 4,
-  },
-  swipeDeleteText: {
-    color: "#FFFFFF",
-    fontSize: 11,
-    fontFamily: "Poppins-SemiBold",
-  },
-  swipePressed: { opacity: 0.85 },
   container: {
     flex: 1,
     backgroundColor: UI.bg,
@@ -554,7 +505,7 @@ const styles = StyleSheet.create({
   filterChipText: {
     fontSize: 12,
     fontFamily: "Poppins-SemiBold",
-    color: UI.purpleDeep,
+    color: UI.text,
     textAlign: "center",
   },
   filterChipTextSelected: {
