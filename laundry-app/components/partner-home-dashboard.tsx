@@ -11,28 +11,28 @@ import {
   TextInput,
   View,
 } from "react-native";
-import Svg, { Circle, Path } from "react-native-svg";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { showAppAlert } from "@/components/app-alert";
 import { BlockingLoader } from "@/components/blocking-loader";
 import { getTabBarBottomInset } from "@/components/bottom-tab-bar";
 import {
-  DashboardPeriodSelector,
-  type DashboardPeriod,
-} from "@/components/dashboard-period-selector";
-import {
   alertIfInsufficientCreditsError,
   ensurePartnerCreditsForAccept,
 } from "@/components/partner-insufficient-credits-alert";
 import { PartnerOrderSuccessModal, type PartnerOrderSuccessPayload } from "@/components/partner-order-success-modal";
 import { PartnerRiderPickerModal } from "@/components/partner-rider-picker-modal";
+import { StarRating } from "@/components/star-rating";
 import { WebHeaderSpacer } from "@/components/web-header-spacer";
 import { theme, UI } from "@/constants/theme";
 import { useAuth } from "@/contexts/auth-context";
 import { useLocale } from "@/contexts/locale-context";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { useSuppressWebScreenHeader } from "@/hooks/use-suppress-web-screen-header";
+import {
+  fetchPartnerDashboardFeedback,
+  type PartnerDashboardFeedback,
+} from "@/lib/partner-dashboard-feedback";
 import {
   derivePartnerHomeView,
   fetchPartnerHomeSnapshot,
@@ -51,13 +51,6 @@ const fs = theme.fontSize;
 const H_PAD = 16;
 
 type IconName = ComponentProps<typeof MaterialCommunityIcons>["name"];
-
-const SERVICE_COLORS: Record<HomeServiceKey, { color: string; tint: string; icon: IconName }> = {
-  washAndFold: { color: "#3B82F6", tint: "#EFF6FF", icon: "washing-machine" },
-  press: { color: "#22C55E", tint: "#ECFDF3", icon: "iron" },
-  dryCleaning: { color: "#F59E0B", tint: "#FFF7ED", icon: "hanger" },
-  tailoring: { color: "#8B5CF6", tint: "#F5F3FF", icon: "content-cut" },
-};
 
 const REJECTION_OPTIONS = [
   "Items not serviceable",
@@ -98,21 +91,6 @@ function formatAgo(
   const hours = Math.floor(mins / 60);
   if (hours < 24) return copy.hoursAgo.replace("{{count}}", String(hours));
   return copy.daysAgo.replace("{{count}}", String(Math.floor(hours / 24)));
-}
-
-function polar(cx: number, cy: number, radius: number, angleDeg: number) {
-  const rad = ((angleDeg - 90) * Math.PI) / 180;
-  return {
-    x: cx + radius * Math.cos(rad),
-    y: cy + radius * Math.sin(rad),
-  };
-}
-
-function arcPath(cx: number, cy: number, radius: number, startAngle: number, endAngle: number) {
-  const start = polar(cx, cy, radius, startAngle);
-  const end = polar(cx, cy, radius, endAngle);
-  const large = endAngle - startAngle > 180 ? 1 : 0;
-  return `M ${start.x} ${start.y} A ${radius} ${radius} 0 ${large} 1 ${end.x} ${end.y}`;
 }
 
 function startOfLocalDay(date: Date): Date {
@@ -267,71 +245,6 @@ function PerformanceDatePicker({
   );
 }
 
-function ServiceDonut({
-  segments,
-}: {
-  segments: { color: string; value: number }[];
-}) {
-  const size = 132;
-  const stroke = 16;
-  const radius = (size - stroke) / 2;
-  const center = size / 2;
-  const drawn = segments.filter((segment) => segment.value > 0);
-  const total = drawn.reduce((sum, segment) => sum + segment.value, 0);
-  const gap = drawn.length > 1 ? 8 : 0;
-
-  let angle = 0;
-  const paths = drawn.map((segment) => {
-    const sweep = total > 0 ? (segment.value / total) * 360 : 0;
-    const start = angle + gap / 2;
-    const end = angle + sweep - gap / 2;
-    angle += sweep;
-    if (sweep >= 359.5) {
-      return { color: segment.color, full: true as const, d: "" };
-    }
-    return {
-      color: segment.color,
-      full: false as const,
-      d: arcPath(center, center, radius, start, Math.max(start + 1, end)),
-    };
-  });
-
-  return (
-    <Svg width={size} height={size}>
-      <Circle
-        cx={center}
-        cy={center}
-        r={radius}
-        stroke="#EEF2F6"
-        strokeWidth={stroke}
-        fill="none"
-      />
-      {paths.map((path, index) =>
-        path.full ? (
-          <Circle
-            key={index}
-            cx={center}
-            cy={center}
-            r={radius}
-            stroke={path.color}
-            strokeWidth={stroke}
-            fill="none"
-          />
-        ) : (
-          <Path
-            key={index}
-            d={path.d}
-            stroke={path.color}
-            strokeWidth={stroke}
-            strokeLinecap="round"
-            fill="none"
-          />
-        ),
-      )}
-    </Svg>
-  );
-}
-
 export function PartnerHomeDashboard() {
   const router = useRouter();
   const { user } = useAuth();
@@ -361,10 +274,10 @@ export function PartnerHomeDashboard() {
   const { isWeb } = useResponsiveLayout();
   useSuppressWebScreenHeader();
 
-  const [period, setPeriod] = useState<DashboardPeriod>("week");
   const [performanceDate, setPerformanceDate] = useState(() => startOfLocalDay(new Date()));
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [snapshot, setSnapshot] = useState<PartnerHomeSnapshot | null>(null);
+  const [feedback, setFeedback] = useState<PartnerDashboardFeedback | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -383,12 +296,17 @@ export function PartnerHomeDashboard() {
   const load = useCallback(async () => {
     if (!user?.id) {
       setSnapshot(null);
+      setFeedback(null);
       setIsLoading(false);
       return;
     }
     try {
-      const next = await fetchPartnerHomeSnapshot(user.id, copy.customerFallback);
+      const [next, nextFeedback] = await Promise.all([
+        fetchPartnerHomeSnapshot(user.id, copy.customerFallback),
+        fetchPartnerDashboardFeedback(user.id, copy.customerFallback),
+      ]);
       setSnapshot(next);
+      setFeedback(nextFeedback);
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : copy.loadError);
@@ -405,8 +323,13 @@ export function PartnerHomeDashboard() {
 
   const view: PartnerHomeView | null = useMemo(() => {
     if (!snapshot) return null;
-    return derivePartnerHomeView(snapshot, period, new Date(), performanceDate);
-  }, [performanceDate, period, snapshot]);
+    return derivePartnerHomeView(snapshot, "week", new Date(), performanceDate);
+  }, [performanceDate, snapshot]);
+
+  const featuredReview = useMemo(() => {
+    if (!feedback?.recent.length) return null;
+    return feedback.recent.find((review) => review.message.trim().length > 0) ?? feedback.recent[0];
+  }, [feedback]);
 
   const serviceLabel = useCallback(
     (key: HomeServiceKey | null, extra: number) => {
@@ -703,9 +626,12 @@ export function PartnerHomeDashboard() {
                   {businessName}
                 </Text>
                 {view?.addressLine ? (
-                  <Text style={styles.address} numberOfLines={1}>
-                    {view.addressLine}
-                  </Text>
+                  <View style={styles.addressRow}>
+                    <MaterialCommunityIcons name="map-marker" size={14} color="#2563EB" />
+                    <Text style={styles.address} numberOfLines={1}>
+                      {view.addressLine}
+                    </Text>
+                  </View>
                 ) : null}
               </View>
             </View>
@@ -775,7 +701,6 @@ export function PartnerHomeDashboard() {
                       iconColor="#7C3AED"
                       value={formatMoney(view.earningsToday)}
                       label={isPerformanceToday ? copy.todaysEarnings : copy.earnings}
-                      onPress={() => router.push("/(partner)/earnings-history")}
                     />
                   </View>
                 </View>
@@ -783,66 +708,89 @@ export function PartnerHomeDashboard() {
 
                 <View style={styles.card}>
                   <View style={styles.sectionHead}>
-                    <Text style={styles.sectionTitle}>{copy.ordersByService}</Text>
-                    <DashboardPeriodSelector
-                      value={period}
-                      onValueChange={setPeriod}
-                      labels={{
-                        week: copy.periodThisWeek,
-                        month: copy.periodThisMonth,
-                        year: copy.periodThisYear,
-                      }}
-                      style={styles.periodTrigger}
-                    />
+                    <Text style={styles.sectionTitle}>{copy.customerFeedback}</Text>
+                    <Pressable
+                      onPress={() => router.push("/(partner)/business-detail")}
+                      hitSlop={8}
+                      accessibilityRole="button"
+                      accessibilityLabel={copy.viewAll}
+                    >
+                      <Text style={styles.viewAll}>
+                        {copy.viewAll} <Text style={styles.viewAllChevron}>›</Text>
+                      </Text>
+                    </Pressable>
                   </View>
-                  {view.mixTotal === 0 ? (
-                    <Text style={styles.emptyText}>{copy.noServiceOrders}</Text>
+
+                  {!feedback || feedback.reviewCount === 0 ? (
+                    <Text style={styles.emptyText}>{copy.noReviewsYet}</Text>
                   ) : (
-                    <View style={styles.mixRow}>
-                      <View style={styles.donutWrap}>
-                        <ServiceDonut
-                          segments={view.mix
-                            .filter((row) => row.count > 0)
-                            .map((row) => ({
-                              color: SERVICE_COLORS[row.key].color,
-                              value: row.count,
-                            }))}
-                        />
-                        <View style={styles.donutCenter} pointerEvents="none">
-                          <Text style={styles.donutTotal}>{view.mixTotal}</Text>
-                          <Text style={styles.donutCaption}>{copy.totalOrders}</Text>
+                    <>
+                      <View style={styles.ratingSummary}>
+                        <View style={styles.ratingScoreCol}>
+                          <View style={styles.ratingScoreRow}>
+                            <Text style={styles.ratingScore}>
+                              {(feedback.avgRating ?? 0).toFixed(1)}
+                            </Text>
+                            <MaterialCommunityIcons name="star" size={28} color="#F5B301" />
+                          </View>
+                          <Text style={styles.ratingMeta}>
+                            {feedback.reviewCount === 1
+                              ? copy.basedOnReviewsOne
+                              : copy.basedOnReviews.replace(
+                                  "{{count}}",
+                                  String(feedback.reviewCount),
+                                )}
+                          </Text>
+                        </View>
+                        <View style={styles.ratingBars}>
+                          {feedback.distribution.map((row) => (
+                            <View key={row.stars} style={styles.ratingBarRow}>
+                              <Text style={styles.ratingBarLabel}>{row.stars}</Text>
+                              <MaterialCommunityIcons name="star" size={12} color="#F5B301" />
+                              <View style={styles.ratingBarTrack}>
+                                <View
+                                  style={[
+                                    styles.ratingBarFill,
+                                    { width: `${Math.max(0, Math.min(100, row.percent))}%` },
+                                  ]}
+                                />
+                              </View>
+                              <Text style={styles.ratingBarPercent}>{row.percent}%</Text>
+                            </View>
+                          ))}
                         </View>
                       </View>
-                      <View style={styles.legend}>
-                        {view.mix.map((row) => {
-                          const meta = SERVICE_COLORS[row.key];
-                          const name =
-                            row.key === "washAndFold"
-                              ? copy.washFold
-                              : row.key === "press"
-                                ? copy.ironing
-                                : row.key === "dryCleaning"
-                                  ? copy.dryCleaning
-                                  : copy.tailoring;
-                          const countLabel =
-                            row.count === 1
-                              ? copy.orderCountOne
-                              : copy.orderCount.replace("{{count}}", String(row.count));
-                          return (
-                            <View key={row.key} style={styles.legendRow}>
-                              <View style={[styles.legendIcon, { backgroundColor: meta.tint }]}>
-                                <MaterialCommunityIcons name={meta.icon} size={14} color={meta.color} />
-                              </View>
-                              <View style={[styles.legendDot, { backgroundColor: meta.color }]} />
-                              <Text style={styles.legendName} numberOfLines={1}>
-                                {name}
+
+                      {featuredReview ? (
+                        <View style={styles.reviewCard}>
+                          <View style={styles.reviewHeader}>
+                            <View style={styles.reviewAvatar}>
+                              <Text style={styles.reviewAvatarText}>
+                                {featuredReview.customerInitial}
                               </Text>
-                              <Text style={styles.legendCount}>{countLabel}</Text>
                             </View>
-                          );
-                        })}
-                      </View>
-                    </View>
+                            <View style={styles.reviewMeta}>
+                              <Text style={styles.reviewName} numberOfLines={1}>
+                                {featuredReview.customerName}
+                              </Text>
+                              <View style={styles.reviewStarsRow}>
+                                <StarRating value={featuredReview.rating} size={14} />
+                                {featuredReview.createdAt ? (
+                                  <Text style={styles.reviewAgo}>
+                                    {formatAgo(featuredReview.createdAt, copy)}
+                                  </Text>
+                                ) : null}
+                              </View>
+                            </View>
+                          </View>
+                          {featuredReview.message ? (
+                            <Text style={styles.reviewMessage}>
+                              “{featuredReview.message}”
+                            </Text>
+                          ) : null}
+                        </View>
+                      ) : null}
+                    </>
                   )}
                 </View>
 
@@ -1016,23 +964,35 @@ function StatCard({
   iconColor: string;
   value: string;
   label: string;
-  onPress: () => void;
+  onPress?: () => void;
 }) {
+  const content = (
+    <>
+      <View style={[styles.statIcon, { backgroundColor: `${iconColor}22` }]}>
+        <MaterialCommunityIcons name={icon} size={20} color={iconColor} />
+      </View>
+      <View style={styles.statTextCol}>
+        <Text style={styles.statValue} numberOfLines={1} adjustsFontSizeToFit>
+          {value}
+        </Text>
+        <Text style={styles.statLabel} numberOfLines={2}>
+          {label}
+        </Text>
+      </View>
+    </>
+  );
+
+  if (!onPress) {
+    return <View style={[styles.statCard, { backgroundColor: tint }]}>{content}</View>;
+  }
+
   return (
     <Pressable
       onPress={onPress}
       style={({ pressed }) => [styles.statCard, { backgroundColor: tint }, pressed && styles.pressed]}
+      accessibilityRole="button"
     >
-      <View style={styles.statIcon}>
-        <MaterialCommunityIcons name={icon} size={18} color={iconColor} />
-      </View>
-      <MaterialCommunityIcons name="chevron-right" size={18} color="#C5CDD8" style={styles.statChevron} />
-      <Text style={styles.statValue} numberOfLines={1} adjustsFontSizeToFit>
-        {value}
-      </Text>
-      <Text style={styles.statLabel} numberOfLines={2}>
-        {label}
-      </Text>
+      {content}
     </Pressable>
   );
 }
@@ -1201,7 +1161,8 @@ const styles = StyleSheet.create({
   headerText: { flex: 1, minWidth: 0 },
   greeting: { fontSize: fs.descText, color: UI.muted },
   businessName: { fontSize: fs.smallTitle, fontWeight: "700", color: "#1E3A8A" },
-  address: { fontSize: fs.xxSmallText, color: UI.muted, marginTop: 1 },
+  addressRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 },
+  address: { flex: 1, fontSize: fs.xxSmallText, color: UI.muted },
   sectionHead: {
     flexDirection: "row",
     alignItems: "center",
@@ -1224,21 +1185,24 @@ const styles = StyleSheet.create({
   statRow: { flexDirection: "row", gap: 10 },
   statCard: {
     flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
     borderRadius: 16,
-    padding: 12,
-    minHeight: 108,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    minHeight: 88,
   },
   statIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.72)",
   },
-  statChevron: { position: "absolute", top: 14, right: 8 },
-  statValue: { marginTop: 10, fontSize: 22, fontWeight: "700", color: UI.text },
-  statLabel: { marginTop: 2, fontSize: fs.xxSmallText, color: UI.muted, fontWeight: "600" },
+  statTextCol: { flex: 1, minWidth: 0, gap: 2 },
+  statValue: { fontSize: 22, fontWeight: "700", color: "#1E3A8A", lineHeight: 26 },
+  statLabel: { fontSize: fs.xxSmallText, color: UI.muted, fontWeight: "600" },
   card: {
     backgroundColor: UI.card,
     borderRadius: 18,
@@ -1246,30 +1210,67 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#EEF2F6",
   },
-  periodTrigger: {
-    minWidth: 0,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    backgroundColor: "#F3F4F6",
-    borderWidth: 0,
+  ratingSummary: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 16,
+    marginBottom: 12,
   },
-  mixRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  donutWrap: { width: 132, height: 132, alignItems: "center", justifyContent: "center" },
-  donutCenter: { position: "absolute", alignItems: "center", width: 72 },
-  donutTotal: { fontSize: 26, fontWeight: "800", color: UI.text },
-  donutCaption: { fontSize: 10, color: UI.muted, fontWeight: "600", textAlign: "center" },
-  legend: { flex: 1, gap: 10, minWidth: 0 },
-  legendRow: { flexDirection: "row", alignItems: "center", gap: 4 },
-  legendIcon: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+  ratingScoreCol: { width: 96, gap: 4 },
+  ratingScoreRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  ratingScore: { fontSize: 36, fontWeight: "800", color: "#1E3A8A", lineHeight: 40 },
+  ratingMeta: { fontSize: 11, color: UI.muted, lineHeight: 15 },
+  ratingBars: { flex: 1, gap: 6, minWidth: 0 },
+  ratingBarRow: { flexDirection: "row", alignItems: "center", gap: 4 },
+  ratingBarLabel: {
+    width: 10,
+    fontSize: 11,
+    fontWeight: "700",
+    color: UI.text,
+    textAlign: "right",
+  },
+  ratingBarTrack: {
+    flex: 1,
+    height: 8,
+    borderRadius: 999,
+    backgroundColor: "#E8EEF5",
+    overflow: "hidden",
+  },
+  ratingBarFill: {
+    height: "100%",
+    borderRadius: 999,
+    backgroundColor: "#2563EB",
+  },
+  ratingBarPercent: {
+    width: 32,
+    fontSize: 11,
+    color: UI.muted,
+    fontWeight: "600",
+    textAlign: "right",
+  },
+  reviewCard: {
+    backgroundColor: "#F8FAFC",
+    borderRadius: 14,
+    padding: 12,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: "#EEF2F6",
+  },
+  reviewHeader: { flexDirection: "row", alignItems: "center", gap: 10 },
+  reviewAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#DBEAFE",
     alignItems: "center",
     justifyContent: "center",
   },
-  legendDot: { width: 7, height: 7, borderRadius: 4 },
-  legendName: { flex: 1, fontSize: 12, fontWeight: "600", color: UI.text },
-  legendCount: { fontSize: 11, color: UI.muted, textAlign: "right" },
+  reviewAvatarText: { fontSize: 16, fontWeight: "700", color: "#1E3A8A" },
+  reviewMeta: { flex: 1, minWidth: 0, gap: 2 },
+  reviewName: { fontSize: 14, fontWeight: "700", color: "#1E3A8A" },
+  reviewStarsRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  reviewAgo: { fontSize: 11, color: UI.muted, fontWeight: "500" },
+  reviewMessage: { fontSize: 13, color: UI.muted, lineHeight: 19 },
   titleWithBadge: { flexDirection: "row", alignItems: "center", gap: 8, flexShrink: 1 },
   countBadge: {
     minWidth: 20,
