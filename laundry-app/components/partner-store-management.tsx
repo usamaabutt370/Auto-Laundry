@@ -444,13 +444,13 @@ export function PartnerStoreManagement({ onEditDetails }: { onEditDetails: () =>
               <Text style={styles.sectionHint}>{copy.servicesHint}</Text>
             </View>
             <Pressable
-              onPress={() => setPickerOpen(true)}
-              style={({ pressed }) => [styles.addBtn, pressed && styles.pressed]}
+              onPress={() => router.push("/(partner)/settings")}
+              style={({ pressed }) => [styles.editPill, pressed && styles.pressed]}
               accessibilityRole="button"
-              accessibilityLabel={copy.addNewService}
+              accessibilityLabel={copy.edit}
             >
-              <MaterialCommunityIcons name="plus" size={14} color="#2563EB" />
-              <Text style={styles.addBtnText}>{copy.addNewService}</Text>
+              <MaterialCommunityIcons name="pencil-outline" size={14} color="#2563EB" />
+              <Text style={styles.editPillText}>{copy.edit}</Text>
             </Pressable>
           </View>
           {serviceRows.map((row, index) => {
@@ -460,15 +460,12 @@ export function PartnerStoreManagement({ onEditDetails }: { onEditDetails: () =>
                 ? copy.addPrices
                 : fill(row.count === 1 ? copy.item : copy.items, { count: row.count });
             return (
-              <Pressable
+              <View
                 key={row.key}
-                onPress={() => openService(row.key)}
-                style={({ pressed }) => [
+                style={[
                   styles.serviceRow,
                   index < serviceRows.length - 1 && styles.rowDivider,
-                  pressed && styles.pressed,
                 ]}
-                accessibilityRole="button"
                 accessibilityLabel={serviceLabel(row.key)}
               >
                 <View style={[styles.detailIcon, { backgroundColor: visual.tint }]}>
@@ -481,8 +478,7 @@ export function PartnerStoreManagement({ onEditDetails }: { onEditDetails: () =>
                 <Text style={styles.priceText}>
                   {row.amount == null ? copy.notSet : fill(copy.fromPrice, { amount: formatAmount(row.amount) })}
                 </Text>
-                <MaterialCommunityIcons name="chevron-right" size={18} color="#C5CDD8" />
-              </Pressable>
+              </View>
             );
           })}
         </View>

@@ -13,7 +13,7 @@ import { StatusBar } from "expo-status-bar";
 import { useRouter, useFocusEffect } from "expo-router";
 import { useIsFocused } from "@react-navigation/native";
 
-import { DeleteAccountButton } from "@/components/delete-account-button";
+import { DeleteAccountButton, DeleteAccountDialogHost } from "@/components/delete-account-button";
 import { AppCtaButton } from "@/components/ui/cta-button";
 import { GradientLoader } from "@/components/ui/gradient-loader";
 import { useAuth } from "@/contexts/auth-context";
@@ -257,18 +257,6 @@ export default function CustomerProfileMenu() {
 						<Text style={styles.title}>{s.title}</Text>
 						<Text style={styles.subtitle}>{s.subtitle}</Text>
 					</View>
-					{user?.id ? (
-						<View style={styles.headerActions}>
-							<Pressable
-								onPress={() => router.push("/(customer)/settings")}
-								style={styles.iconBtn}
-								accessibilityRole="button"
-								accessibilityLabel={s.settingsA11y}
-							>
-								<MaterialCommunityIcons name="cog-outline" size={20} color={UI.text} />
-							</Pressable>
-						</View>
-					) : null}
 				</View>
 			</View>
 		) : (
@@ -337,6 +325,7 @@ export default function CustomerProfileMenu() {
 	}
 
 	return (
+		<DeleteAccountDialogHost>
 		<View style={styles.container}>
 			<StatusBar style="dark" />
 			<ProfileHeader />
@@ -466,12 +455,13 @@ export default function CustomerProfileMenu() {
 			</ScrollView>
 			{confirmDialog}
 		</View>
+		</DeleteAccountDialogHost>
 	);
 }
 
 const styles = StyleSheet.create({
-	container: { flex: 1, backgroundColor: "#FFFFFF" },
-	safeArea: { backgroundColor: "#FFFFFF" },
+	container: { flex: 1, backgroundColor: UI.bg },
+	safeArea: { backgroundColor: UI.bg },
 	header: {
 		paddingHorizontal: PAD,
 		paddingTop: 4,
@@ -495,20 +485,6 @@ const styles = StyleSheet.create({
 		fontSize: 13,
 		color: UI.muted,
 		fontFamily: "Poppins-Regular",
-	},
-	headerActions: {
-		flexDirection: "row",
-		alignItems: "center",
-		gap: 8,
-		paddingTop: 4,
-	},
-	iconBtn: {
-		width: 40,
-		height: 40,
-		borderRadius: 20,
-		backgroundColor: ICON_WELL,
-		alignItems: "center",
-		justifyContent: "center",
 	},
 	content: { paddingHorizontal: PAD, paddingBottom: 120, gap: 14 },
 	contentWeb: { paddingTop: 0 },

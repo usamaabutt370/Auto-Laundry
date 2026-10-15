@@ -17,7 +17,7 @@ import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { awardWelcomeCredits } from "@/lib/partner-credits";
 import { showAppAlert } from "@/components/app-alert";
 import { AvatarImage } from "@/components/avatar-image";
-import { DeleteAccountButton } from "@/components/delete-account-button";
+import { DeleteAccountButton, DeleteAccountDialogHost } from "@/components/delete-account-button";
 import { getTabBarBottomInset } from "@/components/bottom-tab-bar";
 import { GradientSwitch } from "@/components/ui/gradient-switch";
 import { GradientLoader } from "@/components/ui/gradient-loader";
@@ -39,7 +39,8 @@ export default function PartnerProfileMenu() {
 	const { locale } = useLocale();
 	const copy = getStrings(locale).partner.profileScreen;
 	const signOutCopy = getStrings(locale).customer.profileTab;
-	const { user, signOut, refreshRole } = useAuth();
+	const { user, signOut, refreshRole, partnerApprovalStatus } = useAuth();
+	const isKycComplete = partnerApprovalStatus === "approved";
 	const { isWeb } = useResponsiveLayout();
 	const isFocused = useIsFocused();
 	const insets = useSafeAreaInsets();
@@ -176,6 +177,7 @@ export default function PartnerProfileMenu() {
 	const openEditProfile = () => router.push("/(partner)/laundrerinfo");
 
 	return (
+		<DeleteAccountDialogHost>
 		<View style={[styles.container, { paddingTop: isWeb ? 0 : insets.top }]}>
 			<StatusBar style="dark" />
 			{isWeb ? <WebHeaderSpacer /> : null}
@@ -192,37 +194,23 @@ export default function PartnerProfileMenu() {
 						<Text style={styles.headerTitle}>{copy.title}</Text>
 						<Text style={styles.headerSubtitle}>{copy.subtitle}</Text>
 					</View>
-					<Pressable
-						onPress={() => router.push("/(customer)/settings")}
-						style={({ pressed }) => [styles.gearBtn, pressed && styles.pressed]}
-						accessibilityRole="button"
-						accessibilityLabel={copy.settingsA11y}
-					>
-						<MaterialCommunityIcons name="cog-outline" size={22} color={UI.text} />
-					</Pressable>
 				</View>
 
 				<View style={styles.card}>
-					<View style={styles.profileRow}>
-						<Pressable onPress={openEditProfile} style={styles.avatarWrap} accessibilityRole="button" accessibilityLabel={copy.editPhotoA11y}>
+					<Pressable
+						onPress={openEditProfile}
+						style={({ pressed }) => [styles.profileRow, pressed && styles.pressed]}
+						accessibilityRole="button"
+						accessibilityLabel={copy.editProfile}
+					>
+						<View style={styles.avatarWrap}>
 							<AvatarImage uri={avatarUri} name={displayName} size={72} style={styles.avatar} />
 							<View style={styles.cameraBadge}>
 								<MaterialCommunityIcons name="camera" size={12} color="#FFFFFF" />
 							</View>
-						</Pressable>
+						</View>
 						<View style={styles.profileBody}>
-							<View style={styles.nameRow}>
-								<Text style={styles.name} numberOfLines={1}>{displayName}</Text>
-								<Pressable
-									onPress={openEditProfile}
-									style={({ pressed }) => [styles.editBtn, pressed && styles.pressed]}
-									accessibilityRole="button"
-									accessibilityLabel={copy.editProfile}
-								>
-									<MaterialCommunityIcons name="pencil-outline" size={14} color="#2563EB" />
-									<Text style={styles.editBtnText}>{copy.editProfile}</Text>
-								</Pressable>
-							</View>
+							<Text style={styles.name} numberOfLines={1}>{displayName}</Text>
 							{displayPhone ? (
 								<View style={styles.contactRow}>
 									<MaterialCommunityIcons name="phone-outline" size={14} color="#2563EB" />
@@ -236,7 +224,8 @@ export default function PartnerProfileMenu() {
 								</View>
 							) : null}
 						</View>
-					</View>
+						<MaterialCommunityIcons name="chevron-right" size={22} color="#60A5FA" />
+					</Pressable>
 				</View>
 
 				<Pressable
@@ -262,68 +251,70 @@ export default function PartnerProfileMenu() {
 					</LinearGradient>
 				</Pressable>
 
-				<View style={styles.card}>
-					<Text style={styles.sectionTitle}>{copy.business}</Text>
-					<Text style={styles.sectionSubtitle}>{copy.businessHint}</Text>
-					{creditBalance !== null ? (
-						<View style={styles.creditRow}>
-							<View style={[styles.iconWell, { backgroundColor: "#FEF3C7" }]}>
-								<MaterialCommunityIcons name="wallet-outline" size={20} color="#D97706" />
+				{isKycComplete ? (
+					<View style={styles.card}>
+						<Text style={styles.sectionTitle}>{copy.business}</Text>
+						<Text style={styles.sectionSubtitle}>{copy.businessHint}</Text>
+						{creditBalance !== null ? (
+							<View style={styles.creditRow}>
+								<View style={[styles.iconWell, { backgroundColor: "#FEF3C7" }]}>
+									<MaterialCommunityIcons name="wallet-outline" size={20} color="#D97706" />
+								</View>
+								<View style={styles.rowBody}>
+									<Text style={styles.rowTitle}>{creditBalance.toLocaleString()} {copy.credits}</Text>
+									<Text style={styles.rowSubtitle}>{copy.creditsHint}</Text>
+									<Pressable
+										onPress={() =>
+											Linking.openURL(buildWhatsAppUrl(displayName, creditBalance)).catch(() =>
+												showAppAlert("Error", copy.whatsappError),
+											)
+										}
+										style={({ pressed }) => [styles.buyBtn, pressed && styles.pressed]}
+										accessibilityRole="button"
+										accessibilityLabel={copy.buyMore}
+									>
+										<Text style={styles.buyBtnText}>{copy.buyMore}</Text>
+									</Pressable>
+								</View>
 							</View>
-							<View style={styles.rowBody}>
-								<Text style={styles.rowTitle}>{creditBalance.toLocaleString()} {copy.credits}</Text>
-								<Text style={styles.rowSubtitle}>{copy.creditsHint}</Text>
-								<Pressable
-									onPress={() =>
-										Linking.openURL(buildWhatsAppUrl(displayName, creditBalance)).catch(() =>
-											showAppAlert("Error", copy.whatsappError),
-										)
-									}
-									style={({ pressed }) => [styles.buyBtn, pressed && styles.pressed]}
-									accessibilityRole="button"
-									accessibilityLabel={copy.buyMore}
-								>
-									<Text style={styles.buyBtnText}>{copy.buyMore}</Text>
-								</Pressable>
-							</View>
-						</View>
-					) : null}
-					<ProfileRow
-						icon="chart-bar"
-						iconColor="#16A34A"
-						tint="#ECFDF3"
-						title={copy.earnings}
-						subtitle={copy.earningsHint}
-						onPress={() => router.push("/(partner)/earnings-history")}
-					/>
-					<ProfileRow
-						icon="clipboard-text-outline"
-						iconColor="#F59E0B"
-						tint="#FFF7ED"
-						title={copy.orderHistory}
-						subtitle={copy.orderHistoryHint}
-						onPress={() =>
-							router.navigate({
-								pathname: "/(partner)/(tabs)/order",
-								params: { filter: "completed" },
-							})
-						}
-					/>
-					<ProfileRow
-						icon="tag-outline"
-						iconColor="#7C3AED"
-						tint="#F5F3FF"
-						title={copy.services}
-						subtitle={copy.servicesHint}
-						onPress={() => router.push("/(partner)/settings")}
-						isLast
-					/>
-				</View>
+						) : null}
+						{/* <ProfileRow
+							icon="chart-bar"
+							iconColor="#16A34A"
+							tint="#ECFDF3"
+							title={copy.earnings}
+							subtitle={copy.earningsHint}
+							onPress={() => router.push("/(partner)/earnings-history")}
+						/>
+						<ProfileRow
+							icon="clipboard-text-outline"
+							iconColor="#F59E0B"
+							tint="#FFF7ED"
+							title={copy.orderHistory}
+							subtitle={copy.orderHistoryHint}
+							onPress={() =>
+								router.navigate({
+									pathname: "/(partner)/(tabs)/order",
+									params: { filter: "completed" },
+								})
+							}
+						/> */}
+						{/* <ProfileRow
+							icon="tag-outline"
+							iconColor="#7C3AED"
+							tint="#F5F3FF"
+							title={copy.services}
+							subtitle={copy.servicesHint}
+							onPress={() => router.push("/(partner)/settings")}
+							isLast
+						/> */}
+					</View>
+				) : null}
 
 				<View style={styles.card}>
 					<Text style={styles.sectionTitle}>{copy.account}</Text>
 					<Text style={styles.sectionSubtitle}>{copy.accountHint}</Text>
-					<ProfileRow
+					{/* <ProfileRow
 						icon="bell-outline"
 						iconColor="#E11D48"
 						tint="#FFF1F2"
@@ -338,7 +329,7 @@ export default function PartnerProfileMenu() {
 						title={copy.settings}
 						subtitle={copy.settingsHint}
 						onPress={() => router.push("/(customer)/settings")}
-					/>
+					/> */}
 					<ProfileRow
 						icon="help-circle-outline"
 						iconColor="#7C3AED"
@@ -365,35 +356,36 @@ export default function PartnerProfileMenu() {
 					</View>
 				</View>
 
-				<Pressable
-					style={({ pressed }) => [styles.logoutBtn, pressed && styles.pressed]}
-					onPress={() => {
-						showAppAlert(signOutCopy.signOutConfirmTitle, signOutCopy.signOutConfirmMessage, [
-							{ text: signOutCopy.cancel, style: "cancel" },
-							{
-								text: signOutCopy.signOut,
-								style: "destructive",
-								onPress: async () => {
-									await signOut();
-									runAfterModalTeardown(() => {
-										if (router.canDismiss && router.canDismiss()) {
-											router.dismissAll && router.dismissAll();
-										}
-										router.replace("/(customer)");
-									});
+				<View style={styles.accountActionsRow}>
+					<Pressable
+						style={({ pressed }) => [styles.logoutBtn, pressed && styles.pressed]}
+						onPress={() => {
+							showAppAlert(signOutCopy.signOutConfirmTitle, signOutCopy.signOutConfirmMessage, [
+								{ text: signOutCopy.cancel, style: "cancel" },
+								{
+									text: signOutCopy.signOut,
+									style: "destructive",
+									onPress: async () => {
+										await signOut();
+										runAfterModalTeardown(() => {
+											if (router.canDismiss && router.canDismiss()) {
+												router.dismissAll && router.dismissAll();
+											}
+											router.replace("/(customer)");
+										});
+									},
 								},
-							},
-						]);
-					}}
-				>
-					<MaterialCommunityIcons name="logout" size={18} color="#E11D48" />
-					<Text style={styles.logoutLabel}>{copy.logout}</Text>
-				</Pressable>
-				<View style={styles.deleteWrap}>
+							]);
+						}}
+					>
+						<MaterialCommunityIcons name="logout" size={18} color="#E11D48" />
+						<Text style={styles.logoutLabel}>{copy.logout}</Text>
+					</Pressable>
 					<DeleteAccountButton />
 				</View>
 			</ScrollView>
 		</View>
+		</DeleteAccountDialogHost>
 	);
 }
 
@@ -444,19 +436,6 @@ const styles = StyleSheet.create({
 	headerText: { flex: 1, paddingRight: 12 },
 	headerTitle: { fontSize: 28, fontWeight: "800", color: NAVY, letterSpacing: -0.4 },
 	headerSubtitle: { marginTop: 2, fontSize: 13, color: MUTED, fontWeight: "500" },
-	gearBtn: {
-		width: 44,
-		height: 44,
-		borderRadius: 14,
-		backgroundColor: "#FFFFFF",
-		alignItems: "center",
-		justifyContent: "center",
-		shadowColor: NAVY,
-		shadowOpacity: 0.08,
-		shadowRadius: 10,
-		shadowOffset: { width: 0, height: 3 },
-		elevation: 2,
-	},
 	card: {
 		backgroundColor: "#FFFFFF",
 		borderRadius: 22,
@@ -486,18 +465,7 @@ const styles = StyleSheet.create({
 		justifyContent: "center",
 	},
 	profileBody: { flex: 1, minWidth: 0 },
-	nameRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-	name: { flex: 1, fontSize: 18, fontWeight: "800", color: NAVY },
-	editBtn: {
-		flexDirection: "row",
-		alignItems: "center",
-		gap: 4,
-		backgroundColor: "#E8F1FF",
-		borderRadius: 12,
-		paddingHorizontal: 10,
-		paddingVertical: 7,
-	},
-	editBtnText: { color: "#2563EB", fontSize: 12, fontWeight: "700" },
+	name: { fontSize: 18, fontWeight: "800", color: NAVY },
 	contactRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 4 },
 	addressRow: { alignItems: "flex-start" },
 	addressIcon: { marginTop: 2 },
@@ -551,16 +519,24 @@ const styles = StyleSheet.create({
 		borderTopWidth: StyleSheet.hairlineWidth,
 		borderTopColor: "#EEF2F6",
 	},
+	accountActionsRow: {
+		flexDirection: "row",
+		alignItems: "center",
+		gap: 12,
+	},
 	logoutBtn: {
+		flex: 1,
 		flexDirection: "row",
 		alignItems: "center",
 		justifyContent: "center",
 		gap: 8,
-		backgroundColor: "#FDECEC",
+		backgroundColor: "transparent",
+		borderWidth: 1.5,
+		borderColor: "#E11D48",
 		borderRadius: 16,
-		paddingVertical: 16,
+		paddingVertical: 14,
+		paddingHorizontal: 12,
 	},
-	logoutLabel: { color: "#E11D48", fontSize: 16, fontWeight: "800" },
-	deleteWrap: {},
+	logoutLabel: { color: "#E11D48", fontSize: 15, fontWeight: "800" },
 	pressed: { opacity: 0.75 },
 });

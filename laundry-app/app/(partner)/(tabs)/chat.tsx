@@ -11,8 +11,11 @@ import {
   Text,
   View,
 } from "react-native";
+import { Swipeable } from "react-native-gesture-handler";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { showAppAlert } from "@/components/app-alert";
+import { useConfirmDialog } from "@/components/confirm-dialog";
 import { WebHeaderSpacer } from "@/components/web-header-spacer";
 import { GradientLoader, APP_LOADER_TINT } from "@/components/ui/gradient-loader";
 import { UI } from "@/constants/theme";
@@ -20,7 +23,7 @@ import { useLocale } from "@/contexts/locale-context";
 import { useAuth } from "@/contexts/auth-context";
 import { useSuppressWebScreenHeader } from "@/hooks/use-suppress-web-screen-header";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
-import { fetchMyConversations, type ChatConversationListItem } from "@/lib/chat";
+import { fetchMyConversations, hideMyConversation, type ChatConversationListItem } from "@/lib/chat";
 import { getStrings } from "@/locales";
 import { supabase } from "@/lib/supabase";
 
@@ -109,6 +112,8 @@ export default function PartnerChatScreen() {
   useSuppressWebScreenHeader();
   const { locale } = useLocale();
   const s = getStrings(locale).partner.chatTab;
+  const chatCopy = getStrings(locale).chat;
+  const { confirm, dialog } = useConfirmDialog();
   const [items, setItems] = useState<ChatConversationListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -166,6 +171,28 @@ export default function PartnerChatScreen() {
       void supabase.removeChannel(channel);
     };
   }, [user?.id]);
+
+  const onDeleteChat = useCallback(
+    async (item: ChatConversationListItem) => {
+      if (!user?.id) return;
+      const confirmed = await confirm({
+        title: chatCopy.deleteTitle,
+        message: chatCopy.deleteMessage,
+        confirmLabel: chatCopy.deleteAction,
+        cancelLabel: chatCopy.cancel,
+        destructive: true,
+      });
+      if (!confirmed) return;
+      try {
+        await hideMyConversation(item.conversationId, user.id);
+        setItems((prev) => prev.filter((row) => row.conversationId !== item.conversationId));
+      } catch (err) {
+        const message = err instanceof Error ? err.message : chatCopy.deleteError;
+        showAppAlert(chatCopy.deleteError, message);
+      }
+    },
+    [chatCopy, confirm, user?.id],
+  );
 
   const onRefresh = useCallback(() => {
     void (async () => {
@@ -239,9 +266,8 @@ export default function PartnerChatScreen() {
         >
           {items.map((item) => {
             const status = statusPresentation(item.orderStatusKey, s);
-            return (
+            const row = (
               <Pressable
-                key={item.conversationId}
                 onPress={() =>
                   router.push({
                     pathname: "/(partner)/chat/[orderId]",
@@ -283,20 +309,70 @@ export default function PartnerChatScreen() {
                 </View>
               </Pressable>
             );
+            if (isWeb) {
+              return <View key={item.conversationId}>{row}</View>;
+            }
+            return (
+              <Swipeable
+                key={item.conversationId}
+                friction={2}
+                overshootRight={false}
+                renderRightActions={() => (
+                  <View style={styles.swipeActions}>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={chatCopy.deleteA11y}
+                      onPress={() => void onDeleteChat(item)}
+                      style={({ pressed }) => [
+                        styles.swipeDeleteBtn,
+                        pressed && styles.swipePressed,
+                      ]}
+                    >
+                      <MaterialCommunityIcons name="trash-can-outline" size={26} color="#FFFFFF" />
+                      <Text style={styles.swipeDeleteText}>{chatCopy.deleteAction}</Text>
+                    </Pressable>
+                  </View>
+                )}
+              >
+                {row}
+              </Swipeable>
+            );
           })}
         </ScrollView>
       )}
+      {dialog}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  swipeActions: {
+    justifyContent: "center",
+    marginVertical: 2,
+    paddingLeft: 10,
+  },
+  swipeDeleteBtn: {
+    flex: 1,
+    backgroundColor: "#b91c1c",
+    borderRadius: 16,
+    justifyContent: "center",
+    alignItems: "center",
+    width: 92,
+    paddingVertical: 12,
+    gap: 4,
+  },
+  swipeDeleteText: {
+    color: "#FFFFFF",
+    fontSize: 11,
+    fontFamily: "Poppins-SemiBold",
+  },
+  swipePressed: { opacity: 0.85 },
   container: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: UI.bg,
   },
   safeArea: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: UI.bg,
   },
   header: {
     paddingHorizontal: PAD,

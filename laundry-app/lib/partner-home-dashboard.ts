@@ -42,9 +42,16 @@ export type PartnerHomeView = {
   addressLine: string;
   photoUrl: string | null;
   newOrders: number;
+  /** Daily activity: open active that day + completed that day (not live queue only). */
   activeCount: number;
   completedToday: number;
   earningsToday: number;
+  /** Selected day minus previous day (signed count). */
+  newOrdersDelta: number;
+  activeCountDelta: number;
+  completedDelta: number;
+  /** Percent change vs previous day (signed). Null when both days have zero earnings. */
+  earningsPercentDelta: number | null;
   mix: PartnerHomeMixRow[];
   mixTotal: number;
   actionOrders: PartnerHomeOrder[];
@@ -166,8 +173,23 @@ function endOfLocalDay(date: Date): number {
   return end.getTime();
 }
 
-/** Orders still in progress on that calendar day, using the latest status timestamp. */
-function countActiveOnDay(orders: PartnerHomeOrder[], day: Date, today: Date): number {
+function startOfLocalDay(date: Date): Date {
+  const next = new Date(date);
+  next.setHours(0, 0, 0, 0);
+  return next;
+}
+
+function previousLocalDay(day: Date): Date {
+  const prev = startOfLocalDay(day);
+  prev.setDate(prev.getDate() - 1);
+  return prev;
+}
+
+/**
+ * Orders still open in the active pipeline on that calendar day
+ * (live snapshot for today; reconstructed for past days).
+ */
+function countOpenActiveOnDay(orders: PartnerHomeOrder[], day: Date, today: Date): number {
   if (isSameLocalDay(day, today)) {
     return orders.filter((order) => ACTIVE_STATUSES.has(order.rawStatus)).length;
   }
@@ -180,6 +202,37 @@ function countActiveOnDay(orders: PartnerHomeOrder[], day: Date, today: Date): n
     const updated = parseDate(order.updatedAtIso);
     return updated != null && updated.getTime() > end;
   }).length;
+}
+
+/**
+ * Daily active activity for the performance card: orders that were in
+ * active work on that day (still open that day + completed that day).
+ * Completing orders does not zero the count.
+ */
+function countActiveActivityOnDay(orders: PartnerHomeOrder[], day: Date, today: Date): number {
+  return countOpenActiveOnDay(orders, day, today) + completedOrdersOnDay(orders, day).length;
+}
+
+function countNewOrdersOnDay(orders: PartnerHomeOrder[], day: Date): number {
+  return orders.filter((order) => {
+    if (order.rawStatus === "cancelled" || order.rawStatus === "rejected") return false;
+    const when = parseDate(order.timelineIso);
+    return when != null && isSameLocalDay(when, day);
+  }).length;
+}
+
+function completedOrdersOnDay(orders: PartnerHomeOrder[], day: Date): PartnerHomeOrder[] {
+  return orders.filter((order) => {
+    if (order.rawStatus !== "completed") return false;
+    const when = parseDate(order.updatedAtIso ?? order.timelineIso);
+    return when != null && isSameLocalDay(when, day);
+  });
+}
+
+function earningsPercentDelta(today: number, yesterday: number): number | null {
+  if (today === 0 && yesterday === 0) return 0;
+  if (yesterday === 0) return today > 0 ? 100 : 0;
+  return Math.round(((today - yesterday) / yesterday) * 100);
 }
 
 export function derivePartnerHomeView(
@@ -206,19 +259,17 @@ export function derivePartnerHomeView(
     percent: mixPercents[index],
   }));
 
-  const newOrders = snapshot.orders.filter((order) => {
-    if (order.rawStatus === "cancelled" || order.rawStatus === "rejected") return false;
-    const when = parseDate(order.timelineIso);
-    return when != null && isSameLocalDay(when, performanceDay);
-  }).length;
+  const previousDay = previousLocalDay(performanceDay);
+  const newOrders = countNewOrdersOnDay(snapshot.orders, performanceDay);
+  const newOrdersPrev = countNewOrdersOnDay(snapshot.orders, previousDay);
+  const completedTodayOrders = completedOrdersOnDay(snapshot.orders, performanceDay);
+  const completedPrevOrders = completedOrdersOnDay(snapshot.orders, previousDay);
+  const activeCount = countActiveActivityOnDay(snapshot.orders, performanceDay, now);
+  const activeCountPrev = countActiveActivityOnDay(snapshot.orders, previousDay, now);
+  const earningsToday = completedTodayOrders.reduce((sum, order) => sum + order.amount, 0);
+  const earningsPrev = completedPrevOrders.reduce((sum, order) => sum + order.amount, 0);
 
   const activeOrdersAll = snapshot.orders.filter((order) => ACTIVE_STATUSES.has(order.rawStatus));
-  const completedTodayOrders = snapshot.orders.filter((order) => {
-    if (order.rawStatus !== "completed") return false;
-    const when = parseDate(order.updatedAtIso ?? order.timelineIso);
-    return when != null && isSameLocalDay(when, performanceDay);
-  });
-
   const actionOrdersAll = snapshot.orders.filter((order) => order.rawStatus === "submitted");
 
   return {
@@ -226,9 +277,13 @@ export function derivePartnerHomeView(
     addressLine: snapshot.addressLine,
     photoUrl: snapshot.photoUrl,
     newOrders,
-    activeCount: countActiveOnDay(snapshot.orders, performanceDay, now),
+    activeCount,
     completedToday: completedTodayOrders.length,
-    earningsToday: completedTodayOrders.reduce((sum, order) => sum + order.amount, 0),
+    earningsToday,
+    newOrdersDelta: newOrders - newOrdersPrev,
+    activeCountDelta: activeCount - activeCountPrev,
+    completedDelta: completedTodayOrders.length - completedPrevOrders.length,
+    earningsPercentDelta: earningsPercentDelta(earningsToday, earningsPrev),
     mix,
     mixTotal: mixCounts.reduce((sum, count) => sum + count, 0),
     actionOrders: actionOrdersAll.slice(0, PREVIEW_LIMIT),

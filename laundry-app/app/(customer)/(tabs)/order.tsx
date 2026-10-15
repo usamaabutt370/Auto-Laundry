@@ -5,37 +5,40 @@ import { StatusBar } from "expo-status-bar";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { showAppAlert } from "@/components/app-alert";
-import { AppHeader } from "@/components/app-header";
 import { CustomerOrderCard } from "@/components/customer-order-card";
 import { GuestSignInPrompt } from "@/components/guest-sign-in-prompt";
+import { OrderCompletedCelebration } from "@/components/order-completed-celebration";
+import { OrderReviewSheet } from "@/components/order-review-sheet";
 import { WebHeaderSpacer } from "@/components/web-header-spacer";
 import { GradientLoader, APP_LOADER_TINT } from "@/components/ui/gradient-loader";
 import { useAuth } from "@/contexts/auth-context";
 import { useLocale } from "@/contexts/locale-context";
+import { useCustomerOrderActions } from "@/hooks/use-customer-order-actions";
 import { useCustomerOrders } from "@/hooks/use-customer-orders";
 import { useSuppressWebScreenHeader } from "@/hooks/use-suppress-web-screen-header";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import {
   findOrdersMissingFeedback,
+  isCustomerOrderRemovable,
   submitCustomerOrderFeedback,
-  type CustomerOrderFeedbackType,
   type CustomerOrderListItem,
 } from "@/lib/customer-orders";
+import {
+  getCelebratedOrderIds,
+  isRecentlyCompleted,
+  markOrdersCelebrated,
+} from "@/lib/celebrated-orders";
 import { getStrings } from "@/locales";
+import { runAfterModalTeardown } from "@/utils/run-after-modal-teardown";
 import { gradients, theme, UI } from "@/constants/theme";
 
 const fs = theme.fontSize;
@@ -68,16 +71,17 @@ export default function CustomerOrderScreen() {
   const s = getStrings(locale).customer.ordersTab;
   const { orders, loading, error, refresh } = useCustomerOrders(user?.id);
   const { isWeb } = useResponsiveLayout();
+  const orderActions = useCustomerOrderActions();
   useSuppressWebScreenHeader();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [feedbackVisible, setFeedbackVisible] = useState(false);
   const [feedbackOrderId, setFeedbackOrderId] = useState<string | null>(null);
   const [, setTriggerUpdate] = useState(0); // For forcing re-render when module var changes
-  const [rating, setRating] = useState(0);
-  const [feedbackType, setFeedbackType] = useState<CustomerOrderFeedbackType>("feedback");
-  const [feedbackMessage, setFeedbackMessage] = useState("");
-  const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
   const [filter, setFilter] = useState<OrderFilter>("all");
+  const [celebrationOrders, setCelebrationOrders] = useState<CustomerOrderListItem[]>([]);
+  const [celebrationReviewableIds, setCelebrationReviewableIds] = useState<Set<string>>(
+    () => new Set(),
+  );
 
   const filterCounts = useMemo(() => {
     let active = 0;
@@ -123,23 +127,31 @@ export default function CustomerOrderScreen() {
 
   useEffect(() => {
     if (!isFocused || !user?.id || orders.length === 0) return;
-    if (feedbackVisible || feedbackOrderId) return;
+    if (feedbackVisible || feedbackOrderId || celebrationOrders.length > 0) return;
 
-    const completed = orders.filter(
-      (order) =>
-        order.displayStatus === "completed" && !sessionDismissedOrderIds.includes(order.id),
-    );
+    const completed = orders.filter((order) => order.displayStatus === "completed");
     if (completed.length === 0) return;
 
     let cancelled = false;
     void (async () => {
       try {
+        const celebrated = await getCelebratedOrderIds(user.id);
+        const fresh = completed.filter(
+          (order) => !celebrated.has(order.id) && isRecentlyCompleted(order.updatedAt),
+        );
         const missing = await findOrdersMissingFeedback(
           user.id,
           completed.map((order) => order.id),
         );
-        if (cancelled || missing.size === 0) return;
-        const target = completed.find((order) => missing.has(order.id));
+        if (cancelled) return;
+        if (fresh.length > 0) {
+          setCelebrationReviewableIds(missing);
+          setCelebrationOrders(fresh);
+          return;
+        }
+        const target = completed.find(
+          (order) => missing.has(order.id) && !sessionDismissedOrderIds.includes(order.id),
+        );
         if (!target) return;
         setFeedbackOrderId(target.id);
         setFeedbackVisible(true);
@@ -151,7 +163,50 @@ export default function CustomerOrderScreen() {
     return () => {
       cancelled = true;
     };
-  }, [orders, user?.id, feedbackVisible, feedbackOrderId, isFocused]);
+  }, [orders, user?.id, feedbackVisible, feedbackOrderId, isFocused, celebrationOrders.length]);
+
+  const finishCelebration = useCallback(() => {
+    const ids = celebrationOrders.map((order) => order.id);
+    ids.forEach((id) => {
+      if (!sessionDismissedOrderIds.includes(id)) sessionDismissedOrderIds.push(id);
+    });
+    if (user?.id) void markOrdersCelebrated(user.id, ids);
+    setCelebrationOrders([]);
+  }, [celebrationOrders, user?.id]);
+
+  const celebrationLeaveReview = useCallback(
+    (order: CustomerOrderListItem) => {
+      finishCelebration();
+      runAfterModalTeardown(() => {
+        setFeedbackOrderId(order.id);
+        setFeedbackVisible(true);
+      });
+    },
+    [finishCelebration],
+  );
+
+  const celebrationViewDetails = useCallback(
+    (order: CustomerOrderListItem) => {
+      finishCelebration();
+      runAfterModalTeardown(() => {
+        router.push({ pathname: "/(customer)/order-detail", params: { orderId: order.id } });
+      });
+    },
+    [finishCelebration, router],
+  );
+
+  const celebrationViewProvider = useCallback(
+    (order: CustomerOrderListItem) => {
+      finishCelebration();
+      runAfterModalTeardown(() => {
+        router.push({
+          pathname: "/(customer)/launderer-detail",
+          params: { id: order.partnerId, name: order.partnerName, mode: order.fulfillmentMode },
+        });
+      });
+    },
+    [finishCelebration, router],
+  );
 
   const feedbackOrder =
     feedbackOrderId != null ? orders.find((order) => order.id === feedbackOrderId) ?? null : null;
@@ -159,9 +214,6 @@ export default function CustomerOrderScreen() {
   const closeFeedback = useCallback(() => {
     setFeedbackVisible(false);
     setFeedbackOrderId(null);
-    setRating(0);
-    setFeedbackType("feedback");
-    setFeedbackMessage("");
   }, []);
 
   const dismissAllFeedback = useCallback(() => {
@@ -177,56 +229,36 @@ export default function CustomerOrderScreen() {
     closeFeedback();
   }, [orders, closeFeedback]);
 
-  const submitFeedback = useCallback(async () => {
-    if (!user?.id || !feedbackOrder) return;
-    if (rating < 1) {
-      showAppAlert("Rating required", "Please select a star rating.");
-      return;
-    }
-    if (!feedbackMessage.trim()) {
-      showAppAlert("Feedback required", "Please add your feedback before submitting.");
-      return;
-    }
-
-    try {
-      setIsSubmittingFeedback(true);
+  const submitFeedback = useCallback(
+    async ({ rating, message }: { rating: number; message: string }) => {
+      if (!user?.id || !feedbackOrder) return;
       await submitCustomerOrderFeedback({
         orderId: feedbackOrder.id,
         customerId: user.id,
         partnerId: feedbackOrder.partnerId,
         rating,
-        feedbackType,
-        message: feedbackMessage.trim(),
+        feedbackType: "feedback",
+        message,
       });
-      // After success, dismiss just this one (it's already in DB now anyway)
       if (!sessionDismissedOrderIds.includes(feedbackOrder.id)) {
         sessionDismissedOrderIds.push(feedbackOrder.id);
       }
       setTriggerUpdate((n) => n + 1);
-      closeFeedback();
-      showAppAlert("Thanks!", "Your review has been submitted.");
-    } catch (e) {
-      showAppAlert(
-        "Unable to submit feedback",
-        e instanceof Error ? e.message : "Please try again.",
-      );
-    } finally {
-      setIsSubmittingFeedback(false);
-    }
-  }, [closeFeedback, feedbackMessage, feedbackOrder, feedbackType, rating, user?.id]);
+    },
+    [feedbackOrder, user?.id],
+  );
 
   return (
     <View style={styles.container}>
       <StatusBar style="dark" />
       {!isWeb ? (
         <SafeAreaView style={styles.safeTop} edges={["top"]}>
-          <AppHeader
-            appearance="light"
-            title={s.title}
-            subtitle={user?.id ? s.liveHint : null}
-            titleAlign="left"
-            titleStyle={styles.screenTitle}
-          />
+          <View style={styles.header}>
+            <View style={styles.headerCopy}>
+              <Text style={styles.title}>{s.title}</Text>
+              <Text style={styles.subtitle}>{s.liveHint}</Text>
+            </View>
+          </View>
         </SafeAreaView>
       ) : (
         <WebHeaderSpacer />
@@ -334,7 +366,9 @@ export default function CustomerOrderScreen() {
                 />
               }
             >
-              {filteredOrders.map((order) => (
+              {filteredOrders.map((order) => {
+                const removable = isCustomerOrderRemovable(order.rawStatus);
+                return (
                 <CustomerOrderCard
                   key={order.id}
                   order={order}
@@ -361,7 +395,14 @@ export default function CustomerOrderScreen() {
                     stepOnTheWay: s.stepOnTheWay,
                     stepCompleted: s.stepCompleted,
                     reviewsCount: s.reviewsCount,
+                    deleteOrder: s.orderActions.delete,
                   }}
+                  onDelete={
+                    removable
+                      ? () => orderActions.remove(order, () => void refresh())
+                      : undefined
+                  }
+                  deleting={orderActions.removingId === order.id}
                   onOpenDetail={() =>
                     router.push({
                       pathname: "/(customer)/order-detail",
@@ -381,102 +422,32 @@ export default function CustomerOrderScreen() {
                     })
                   }
                 />
-              ))}
+                );
+              })}
             </ScrollView>
           )}
         </>
       )}
-      {feedbackVisible ? (
-      <Modal
-        visible
-        transparent
-        animationType="fade"
-        onRequestClose={dismissAllFeedback}
-      >
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          style={styles.modalOverlay}
-        >
-          <Pressable style={styles.modalBackdrop} onPress={dismissAllFeedback} />
-          <View style={styles.feedbackModalCard}>
-            <Text style={styles.feedbackTitle}>Rate your completed order</Text>
-            <Text style={styles.feedbackSubtitle}>
-              {feedbackOrder
-                ? `Order #${feedbackOrder.orderRef} with ${feedbackOrder.partnerName}`
-                : "Share your experience with this service."}
-            </Text>
-            <View style={styles.starRow}>
-              {[1, 2, 3, 4, 5].map((value) => (
-                <Pressable key={value} onPress={() => setRating(value)} style={styles.starBtn}>
-                  <MaterialCommunityIcons
-                    name={value <= rating ? "star" : "star-outline"}
-                    size={30}
-                    color={value <= rating ? "#F5B301" : UI.muted}
-                  />
-                </Pressable>
-              ))}
-            </View>
-            <View style={styles.feedbackTypeRow}>
-              {(
-                [
-                  { id: "feedback", label: "Feedback" },
-                  { id: "complaint", label: "Complaint" },
-                  { id: "suggestion", label: "Suggestion" },
-                ] as const
-              ).map((opt) => {
-                const selected = feedbackType === opt.id;
-                return (
-                  <Pressable
-                    key={opt.id}
-                    onPress={() => setFeedbackType(opt.id)}
-                    style={[
-                      styles.feedbackTypeChip,
-                      selected && styles.feedbackTypeChipSelected,
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.feedbackTypeText,
-                        selected && styles.feedbackTypeTextSelected,
-                      ]}
-                    >
-                      {opt.label}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-            <TextInput
-              value={feedbackMessage}
-              onChangeText={setFeedbackMessage}
-              placeholder="Tell us what went well, or share your complaint..."
-              placeholderTextColor={UI.muted}
-              multiline
-              maxLength={700}
-              style={styles.feedbackInput}
-              textAlignVertical="top"
-            />
-            <View style={styles.feedbackActionsRow}>
-              <Pressable
-                onPress={dismissAllFeedback}
-                style={[styles.feedbackCancelBtn, isSubmittingFeedback && styles.disabled]}
-                disabled={isSubmittingFeedback}
-              >
-                <Text style={styles.feedbackCancelText}>Later</Text>
-              </Pressable>
-              <Pressable
-                onPress={() => void submitFeedback()}
-                style={[styles.feedbackSubmitBtn, isSubmittingFeedback && styles.disabled]}
-                disabled={isSubmittingFeedback}
-              >
-                <Text style={styles.feedbackSubmitText}>
-                  {isSubmittingFeedback ? "Submitting..." : "Submit"}
-                </Text>
-              </Pressable>
-            </View>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
+      {celebrationOrders.length > 0 ? (
+        <OrderCompletedCelebration
+          orders={celebrationOrders}
+          reviewableOrderIds={celebrationReviewableIds}
+          strings={s.orderCompleted}
+          onClose={finishCelebration}
+          onLeaveReview={celebrationLeaveReview}
+          onViewDetails={celebrationViewDetails}
+          onViewProvider={celebrationViewProvider}
+        />
+      ) : null}
+      {feedbackVisible && feedbackOrder ? (
+        <OrderReviewSheet
+          key={feedbackOrder.id}
+          partner={feedbackOrder}
+          strings={s.review}
+          onSubmit={submitFeedback}
+          onDismiss={dismissAllFeedback}
+          onDone={closeFeedback}
+        />
       ) : null}
     </View>
   );
@@ -490,11 +461,24 @@ const styles = StyleSheet.create({
   safeTop: {
     backgroundColor: UI.bg,
   },
-  screenTitle: {
+  header: {
+    paddingHorizontal: PAD,
+    paddingTop: 4,
+    paddingBottom: 12,
+  },
+  headerCopy: {
+    gap: 2,
+  },
+  title: {
     fontSize: 28,
     lineHeight: 34,
+    color: UI.text,
     fontFamily: "Poppins-Bold",
-    fontWeight: "700",
+  },
+  subtitle: {
+    fontSize: 13,
+    color: UI.muted,
+    fontFamily: "Poppins-Regular",
   },
   filterScroll: {
     flexGrow: 0,
@@ -532,7 +516,7 @@ const styles = StyleSheet.create({
   filterChipText: {
     fontSize: 12,
     fontFamily: "Poppins-SemiBold",
-    color: UI.purpleDeep,
+    color: UI.text,
     textAlign: "center",
   },
   filterChipTextSelected: {
@@ -591,121 +575,5 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.85,
-  },
-  modalOverlay: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: PAD,
-  },
-  modalBackdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(17, 24, 39, 0.45)",
-  },
-  feedbackModalCard: {
-    width: "100%",
-    backgroundColor: UI.card,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: UI.chipBorder,
-    padding: 16,
-  },
-  feedbackTitle: {
-    color: UI.text,
-    fontSize: fs.smallTitle,
-    fontFamily: "Poppins-Bold",
-    fontWeight: "700",
-  },
-  feedbackSubtitle: {
-    marginTop: 4,
-    color: UI.muted,
-    fontSize: fs.descText,
-    fontFamily: "Poppins-Regular",
-    marginBottom: 12,
-  },
-  starRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 12,
-    paddingHorizontal: 6,
-  },
-  starBtn: {
-    padding: 4,
-  },
-  feedbackTypeRow: {
-    flexDirection: "row",
-    gap: 8,
-    marginBottom: 12,
-  },
-  feedbackTypeChip: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: UI.chipBorder,
-    borderRadius: 999,
-    paddingVertical: 8,
-    alignItems: "center",
-    backgroundColor: UI.iconWell,
-  },
-  feedbackTypeChipSelected: {
-    borderColor: UI.teal,
-    backgroundColor: UI.openBg,
-  },
-  feedbackTypeText: {
-    color: UI.muted,
-    fontSize: fs.xxSmallText,
-    fontFamily: "Poppins-Bold",
-    fontWeight: "700",
-  },
-  feedbackTypeTextSelected: {
-    color: UI.openText,
-  },
-  feedbackInput: {
-    minHeight: 120,
-    borderWidth: 1,
-    borderColor: UI.chipBorder,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    color: UI.text,
-    fontSize: fs.descText,
-    fontFamily: "Poppins-Regular",
-    marginBottom: 12,
-    backgroundColor: UI.bg,
-  },
-  feedbackActionsRow: {
-    flexDirection: "row",
-    gap: 10,
-  },
-  feedbackCancelBtn: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: UI.chipBorder,
-    borderRadius: 999,
-    paddingVertical: 12,
-    alignItems: "center",
-    backgroundColor: UI.card,
-  },
-  feedbackCancelText: {
-    color: UI.text,
-    fontSize: fs.descText,
-    fontFamily: "Poppins-Bold",
-    fontWeight: "700",
-  },
-  feedbackSubmitBtn: {
-    flex: 1,
-    backgroundColor: UI.teal,
-    borderRadius: 999,
-    paddingVertical: 12,
-    alignItems: "center",
-  },
-  feedbackSubmitText: {
-    color: "#FFFFFF",
-    fontSize: fs.descText,
-    fontFamily: "Poppins-Bold",
-    fontWeight: "700",
-  },
-  disabled: {
-    opacity: 0.55,
   },
 });

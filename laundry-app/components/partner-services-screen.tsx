@@ -1,5 +1,6 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
+import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
@@ -8,9 +9,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { assets } from "@/assets/assets";
 import { showAppAlert } from "@/components/app-alert";
 import { PartnerHeader } from "@/components/partner-header";
-import { AppButton } from "@/components/ui/button";
 import { AppCtaButton } from "@/components/ui/cta-button";
-import { theme, UI } from "@/constants/theme";
+import { gradients, UI } from "@/constants/theme";
 import { useAuth } from "@/contexts/auth-context";
 import { useLocale } from "@/contexts/locale-context";
 import { useMerchantServices, type ServicePricing } from "@/contexts/merchant-services-context";
@@ -22,9 +22,6 @@ import { validatePickupRiderRequirements } from "@/lib/partner-pickup-rider-requ
 import { fetchPartnerRiders } from "@/lib/partner-riders";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { allowDecimalOnly } from "@/utils/input-filter";
-
-const c = theme.colors;
-const fs = theme.fontSize;
 
 const SERVICE_KEYS = ["washAndFold", "dryCleaning", "tailoring", "press"] as const;
 type ServiceKey = (typeof SERVICE_KEYS)[number];
@@ -619,26 +616,27 @@ export function PartnerServicesScreen({ mode }: PartnerServicesScreenProps) {
             style={styles.modalCard}
             onPress={(e) => e.stopPropagation()}
           >
-            <View style={styles.modalIconWrap}>
-              <MaterialCommunityIcons
-                name="clock-outline"
-                size={22}
-                color="#FFFFFF"
-              />
-            </View>
+            <LinearGradient
+              colors={[...gradients.glass]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.modalIconRing}
+            >
+              <View style={styles.modalIconWell}>
+                <MaterialCommunityIcons name="clock-outline" size={32} color={UI.purple} />
+              </View>
+            </LinearGradient>
             <Text style={styles.modalTitle}>{dashboardStrings.pendingTitle}</Text>
             <Text style={styles.modalMessage}>
               {dashboardStrings.pendingMessage}
             </Text>
-            <AppButton
+            <AppCtaButton
               label={dashboardStrings.pendingContinueButton}
               onPress={() => {
                 setSuccessModalVisible(false);
                 router.replace("/(partner)");
               }}
-              variant="filled"
-              fullWidth
-              style={styles.modalButton}
+              width="full"
               accessibilityLabel={dashboardStrings.pendingContinueButton}
             />
           </Pressable>
@@ -866,47 +864,58 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: c.modalOverlay,
+    backgroundColor: UI.overlay,
     justifyContent: "center",
     alignItems: "center",
-    padding: 24,
+    paddingHorizontal: 28,
   },
   modalCard: {
     width: "100%",
-    maxWidth: 400,
-    backgroundColor: c.blue900,
-    borderRadius: 18,
+    maxWidth: 340,
+    backgroundColor: UI.card,
+    borderRadius: 24,
     borderWidth: 1,
-    borderColor: c.modalBorder,
-    paddingHorizontal: 20,
-    paddingTop: 22,
-    paddingBottom: 28,
+    borderColor: UI.chipBorder,
+    paddingTop: 28,
+    paddingBottom: 20,
+    paddingHorizontal: 22,
+    alignItems: "center",
+    shadowColor: UI.shadowStrong,
+    shadowOpacity: 1,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 12 },
+    elevation: 12,
   },
-  modalIconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+  modalIconRing: {
+    width: 84,
+    height: 84,
+    borderRadius: 42,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: c.blue500,
-    alignSelf: "center",
-    marginBottom: 14,
+    marginBottom: 16,
+  },
+  modalIconWell: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    backgroundColor: UI.card,
+    alignItems: "center",
+    justifyContent: "center",
   },
   modalTitle: {
-    fontSize: fs.titleMedium,
-    fontWeight: "700",
-    color: c.white,
-    marginBottom: 10,
+    fontSize: 18,
+    fontFamily: "Poppins-Bold",
+    color: UI.text,
+    marginBottom: 6,
     textAlign: "center",
   },
   modalMessage: {
-    fontSize: fs.smallText,
-    color: c.blue500,
+    fontSize: 14,
+    fontFamily: "Poppins-Regular",
+    color: UI.muted,
     lineHeight: 21,
     textAlign: "center",
-  },
-  modalButton: {
-    marginTop: 20,
-    marginBottom: 6,
+    marginBottom: 22,
+    paddingHorizontal: 4,
   },
 });

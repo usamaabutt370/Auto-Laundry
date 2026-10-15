@@ -1,6 +1,10 @@
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { useCallback, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { UI } from "@/constants/theme";
+
+import { AppCtaButton } from "@/components/ui/cta-button";
+import { gradients, UI } from "@/constants/theme";
 
 export type ConfirmDialogOptions = {
   title: string;
@@ -23,32 +27,72 @@ type ConfirmDialogViewProps = {
 function ConfirmDialogView({ pending, onClose }: ConfirmDialogViewProps) {
   if (!pending) return null;
 
+  const destructive = Boolean(pending.destructive);
+
   return (
     <View style={styles.overlay} pointerEvents="auto" accessibilityViewIsModal>
       <Pressable style={styles.backdrop} onPress={() => onClose(false)} accessibilityRole="button" />
       <View style={styles.card}>
+        <Pressable
+          onPress={() => onClose(false)}
+          hitSlop={12}
+          style={styles.closeBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Close"
+        >
+          <MaterialCommunityIcons name="close" size={20} color={UI.muted} />
+        </Pressable>
+
+        {destructive ? (
+          <View style={[styles.iconRing, styles.iconRingDanger]}>
+            <View style={styles.iconWell}>
+              <MaterialCommunityIcons name="alert-outline" size={32} color={UI.red} />
+            </View>
+          </View>
+        ) : (
+          <LinearGradient
+            colors={[...gradients.glass]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.iconRing}
+          >
+            <View style={styles.iconWell}>
+              <MaterialCommunityIcons name="help-circle-outline" size={32} color={UI.purple} />
+            </View>
+          </LinearGradient>
+        )}
+
         <Text style={styles.title}>{pending.title}</Text>
         <Text style={styles.message}>{pending.message}</Text>
+
         <View style={styles.actions}>
-          <Pressable
-            onPress={() => onClose(false)}
-            style={({ pressed }) => [styles.btn, styles.cancelBtn, pressed && styles.pressed]}
-          >
-            <Text style={styles.cancelText}>{pending.cancelLabel ?? "Cancel"}</Text>
-          </Pressable>
-          <Pressable
-            onPress={() => onClose(true)}
-            style={({ pressed }) => [
-              styles.btn,
-              pending.destructive ? styles.destructiveBtn : styles.confirmBtn,
-              pressed && styles.pressed,
-            ]}
-          >
-            <Text style={[
-              styles.confirmText,
-              pending.destructive && styles.destructiveText,
-            ]}>{pending.confirmLabel ?? "OK"}</Text>
-          </Pressable>
+          <View style={styles.actionSlot}>
+            <AppCtaButton
+              variant="outline"
+              label={pending.cancelLabel ?? "Cancel"}
+              onPress={() => onClose(false)}
+              width="full"
+            />
+          </View>
+          <View style={styles.actionSlot}>
+            {destructive ? (
+              <Pressable
+                onPress={() => onClose(true)}
+                style={({ pressed }) => [styles.destructiveBtn, pressed && styles.pressed]}
+                accessibilityRole="button"
+              >
+                <Text style={styles.destructiveText} numberOfLines={1}>
+                  {pending.confirmLabel ?? "OK"}
+                </Text>
+              </Pressable>
+            ) : (
+              <AppCtaButton
+                label={pending.confirmLabel ?? "OK"}
+                onPress={() => onClose(true)}
+                width="full"
+              />
+            )}
+          </View>
         </View>
       </View>
     </View>
@@ -88,77 +132,93 @@ const styles = StyleSheet.create({
     elevation: 10000,
     alignItems: "center",
     justifyContent: "center",
-    padding: 24,
+    paddingHorizontal: 28,
   },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(17, 24, 39, 0.45)",
+    backgroundColor: UI.overlay,
   },
   card: {
     width: "100%",
-    maxWidth: 400,
+    maxWidth: 360,
     backgroundColor: UI.card,
-    borderRadius: 20,
-    padding: 24,
+    borderRadius: 24,
     borderWidth: 1,
     borderColor: UI.chipBorder,
+    paddingTop: 28,
+    paddingBottom: 20,
+    paddingHorizontal: 22,
+    alignItems: "center",
     zIndex: 1,
-    shadowColor: "rgba(17, 24, 39, 0.12)",
-    shadowOffset: { width: 0, height: 8 },
+    shadowColor: UI.shadowStrong,
     shadowOpacity: 1,
-    shadowRadius: 16,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 12 },
+    elevation: 12,
+  },
+  closeBtn: {
+    position: "absolute",
+    top: 14,
+    right: 14,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: UI.iconWell,
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 1,
+  },
+  iconRing: {
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+  },
+  iconRingDanger: { backgroundColor: UI.redBg },
+  iconWell: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    backgroundColor: UI.card,
+    alignItems: "center",
+    justifyContent: "center",
   },
   title: {
     fontSize: 18,
     fontFamily: "Poppins-Bold",
-    fontWeight: "700",
     color: UI.text,
-    marginBottom: 8,
+    textAlign: "center",
+    marginBottom: 6,
   },
   message: {
-    fontSize: 15,
+    fontSize: 14,
     fontFamily: "Poppins-Regular",
     color: UI.muted,
-    lineHeight: 22,
-    marginBottom: 24,
+    textAlign: "center",
+    lineHeight: 21,
+    marginBottom: 22,
+    paddingHorizontal: 4,
   },
   actions: {
+    width: "100%",
     flexDirection: "row",
-    justifyContent: "flex-end",
-    gap: 12,
+    gap: 10,
   },
-  btn: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 999,
-    minWidth: 88,
-    alignItems: "center",
-  },
-  cancelBtn: {
-    backgroundColor: UI.bg,
-    borderWidth: 1,
-    borderColor: UI.chipBorder,
-  },
-  confirmBtn: {
-    backgroundColor: UI.teal,
-  },
+  actionSlot: { flex: 1, minWidth: 0 },
   destructiveBtn: {
+    height: 48,
+    borderRadius: 24,
     backgroundColor: UI.red,
-  },
-  cancelText: {
-    color: UI.text,
-    fontSize: 15,
-    fontFamily: "Poppins-SemiBold",
-    fontWeight: "600",
-  },
-  confirmText: {
-    color: "#FFFFFF",
-    fontSize: 15,
-    fontFamily: "Poppins-Bold",
-    fontWeight: "700",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 12,
   },
   destructiveText: {
     color: "#FFFFFF",
+    fontSize: 13,
+    fontFamily: "Poppins-SemiBold",
   },
   pressed: {
     opacity: 0.8,

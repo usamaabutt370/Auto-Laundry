@@ -33,7 +33,9 @@ import {
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { useSuppressWebScreenHeader } from "@/hooks/use-suppress-web-screen-header";
 import { PartnerRiderPickerModal } from "@/components/partner-rider-picker-modal";
-import { theme, UI } from "@/constants/theme";
+import { LinearGradient } from "expo-linear-gradient";
+
+import { gradients, theme, UI } from "@/constants/theme";
 import { useAuth } from "@/contexts/auth-context";
 import { useLocale } from "@/contexts/locale-context";
 import {
@@ -73,6 +75,32 @@ function orderBucket(status: PartnerOrderListItem["rawStatus"]): OrderFilter | n
   return null;
 }
 
+function acceptedSummary(
+  order: PartnerOrderListItem | undefined,
+  riderName?: string | null,
+): PartnerOrderSuccessPayload {
+  if (!order) return { type: "accepted" };
+  return {
+    type: "accepted",
+    order: {
+      id: order.id,
+      orderRef: order.orderRef,
+      customerName: order.customerName,
+      avatarUrl: order.avatarUrl,
+      address: order.addressPreview,
+      serviceLabel:
+        order.extraServiceCount > 0
+          ? `${order.primaryServiceLabel} +${order.extraServiceCount}`
+          : order.primaryServiceLabel || order.servicesSummary,
+      itemCount: order.itemCount,
+      totalLabel: order.estimatedTotalLabel,
+      pickupWhen: order.pickupWhen,
+      deliveryWhen: order.deliveryWhen,
+      riderName,
+    },
+  };
+}
+
 export default function PartnerOrderScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ filter?: string }>();
@@ -105,9 +133,6 @@ export default function PartnerOrderScreen() {
   const paramFilter = typeof params.filter === "string" ? params.filter : undefined;
   const initialFilter = filterFromParam(paramFilter);
   const [orderFilter, setOrderFilter] = useState<OrderFilter>(initialFilter);
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [filterMenuOpen, setFilterMenuOpen] = useState(false);
   const insets = useSafeAreaInsets();
   const tabBarInset = getTabBarBottomInset(Math.max(insets.bottom, 8));
   const [orders, setOrders] = useState<PartnerOrderListItem[]>([]);
@@ -128,6 +153,8 @@ export default function PartnerOrderScreen() {
   const [loadingRiders, setLoadingRiders] = useState(false);
   const [selectedRiderId, setSelectedRiderId] = useState<string | null>(null);
   const [successPayload, setSuccessPayload] = useState<PartnerOrderSuccessPayload | null>(null);
+  const ordersRef = useRef<PartnerOrderListItem[]>([]);
+  ordersRef.current = orders;
 
   const loadOrders = useCallback(async (showLoader = true) => {
     try {
@@ -197,23 +224,13 @@ export default function PartnerOrderScreen() {
     }),
     [listedOrders],
   );
-  const filteredOrders = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
-    return listedOrders.filter((order) => {
-      if (orderFilter !== "all" && orderBucket(order.rawStatus) !== orderFilter) return false;
-      if (!query) return true;
-      const haystack = [
-        order.orderRef,
-        order.customerName,
-        order.primaryServiceLabel,
-        order.servicesSummary,
-        order.addressPreview,
-      ]
-        .join(" ")
-        .toLowerCase();
-      return haystack.includes(query);
-    });
-  }, [listedOrders, orderFilter, searchQuery]);
+  const filteredOrders = useMemo(
+    () =>
+      orderFilter === "all"
+        ? listedOrders
+        : listedOrders.filter((order) => orderBucket(order.rawStatus) === orderFilter),
+    [listedOrders, orderFilter],
+  );
 
   const handleOrderAction = useCallback(
     async (
@@ -238,7 +255,7 @@ export default function PartnerOrderScreen() {
         // Clear blocking overlay before opening another Modal (success / alert).
         setActionOrderId(null);
         if (status === "accepted") {
-          setSuccessPayload({ type: "accepted" });
+          setSuccessPayload(acceptedSummary(ordersRef.current.find((o) => o.id === orderId)));
         } else {
           showAppAlert("Order rejected", "The order has been rejected.");
         }
@@ -349,7 +366,12 @@ export default function PartnerOrderScreen() {
       setPendingAcceptOrderId(null);
       setSelectedRiderId(null);
       setActionOrderId(null);
-      setSuccessPayload({ type: "accepted" });
+      setSuccessPayload(
+        acceptedSummary(
+          ordersRef.current.find((o) => o.id === pendingAcceptOrderId),
+          partnerRiders.find((r) => r.id === selectedRiderId)?.name,
+        ),
+      );
     } catch (error) {
       setActionOrderId(null);
       if (
@@ -368,6 +390,7 @@ export default function PartnerOrderScreen() {
   }, [
     insufficientCreditsCopy,
     partnerDisplayName,
+    partnerRiders,
     pendingAcceptOrderId,
     s.selectRiderRequired,
     selectedRiderId,
@@ -428,12 +451,12 @@ export default function PartnerOrderScreen() {
     [confirm, custStrings.cancel, custStrings.deleteAction, custStrings.deleteError, custStrings.deleteMessage, custStrings.deleteTitle],
   );
 
-  const chipMeta: Record<OrderFilter, { label: string; idle: string; active: string }> = {
-    all: { label: s.chipAll, idle: "#F3F4F6", active: "#2563EB" },
-    new: { label: s.chipNew, idle: "#FFF4EC", active: "#F59E0B" },
-    active: { label: s.chipActive, idle: "#ECFDF3", active: "#16A34A" },
-    completed: { label: s.chipCompleted, idle: "#ECFDF5", active: "#059669" },
-  };
+  const filterTabs: { id: OrderFilter; label: string; count: number }[] = [
+    { id: "all", label: s.chipAll, count: counts.all },
+    { id: "new", label: s.chipNew, count: counts.new },
+    { id: "active", label: s.chipActive, count: counts.active },
+    { id: "completed", label: s.chipCompleted, count: counts.completed },
+  ];
   const localeTag = locale === "ur" ? "ur-PK" : "en-GB";
 
   return (
@@ -442,57 +465,12 @@ export default function PartnerOrderScreen() {
       {dialog}
       <SafeAreaView edges={isWeb ? [] : ["top"]} style={styles.safeArea}>
         {isWeb ? <WebHeaderSpacer /> : null}
-        <View style={styles.header}>
-          <View style={styles.headerText}>
-            <Text style={styles.title}>{s.title}</Text>
-            <Text style={styles.subtitle}>{s.listSubtitle}</Text>
-          </View>
-          <Pressable
-            onPress={() => {
-              setSearchOpen((open) => !open);
-              setFilterMenuOpen(false);
-            }}
-            style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
-            accessibilityRole="button"
-            accessibilityLabel={s.searchA11y}
-          >
-            <MaterialCommunityIcons name="magnify" size={22} color={UI.text} />
-          </Pressable>
-          <Pressable
-            onPress={() => setFilterMenuOpen((open) => !open)}
-            style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
-            accessibilityRole="button"
-            accessibilityLabel={s.filterA11y}
-          >
-            <MaterialCommunityIcons name="tune-variant" size={20} color={UI.text} />
-          </Pressable>
-        </View>
-        {searchOpen ? (
-          <TextInput
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            placeholder={s.searchPlaceholder}
-            placeholderTextColor={UI.muted}
-            style={styles.searchInput}
-            autoFocus
-          />
-        ) : null}
-        {filterMenuOpen ? (
-          <View style={styles.filterMenu}>
-            {(Object.keys(chipMeta) as OrderFilter[]).map((key) => (
-              <Pressable
-                key={key}
-                onPress={() => {
-                  setOrderFilter(key);
-                  setFilterMenuOpen(false);
-                }}
-                style={styles.filterMenuItem}
-              >
-                <Text style={styles.filterMenuText}>
-                  {chipMeta[key].label} ({counts[key]})
-                </Text>
-              </Pressable>
-            ))}
+        {!isWeb ? (
+          <View style={styles.header}>
+            <View style={styles.headerCopy}>
+              <Text style={styles.title}>{s.title}</Text>
+              <Text style={styles.subtitle}>{s.listSubtitle}</Text>
+            </View>
           </View>
         ) : null}
       </SafeAreaView>
@@ -503,26 +481,32 @@ export default function PartnerOrderScreen() {
         style={styles.filterScroll}
         contentContainerStyle={styles.filterRow}
       >
-        {(Object.keys(chipMeta) as OrderFilter[]).map((key) => {
-          const selected = orderFilter === key;
-          const meta = chipMeta[key];
+        {filterTabs.map((tab) => {
+          const selected = orderFilter === tab.id;
+          const label = `${tab.label} (${tab.count})`;
           return (
             <Pressable
-              key={key}
-              onPress={() => setOrderFilter(key)}
-              style={[
-                styles.chip,
-                { backgroundColor: selected ? meta.active : meta.idle },
-              ]}
+              key={tab.id}
+              onPress={() => setOrderFilter(tab.id)}
+              style={[styles.filterChipWrap, selected && styles.filterChipWrapSelected]}
               accessibilityRole="button"
               accessibilityState={{ selected }}
+              accessibilityLabel={label}
             >
-              <Text style={[styles.chipLabel, selected && styles.chipLabelSelected]}>{meta.label}</Text>
-              <View style={[styles.chipCount, selected && styles.chipCountSelected]}>
-                <Text style={[styles.chipCountText, selected && styles.chipCountTextSelected]}>
-                  {counts[key]}
-                </Text>
-              </View>
+              {selected ? (
+                <LinearGradient
+                  colors={[...gradients.cta]}
+                  start={{ x: 0, y: 0.5 }}
+                  end={{ x: 1, y: 0.5 }}
+                  style={styles.filterChip}
+                >
+                  <Text style={styles.filterChipTextSelected}>{label}</Text>
+                </LinearGradient>
+              ) : (
+                <View style={styles.filterChip}>
+                  <Text style={styles.filterChipText}>{label}</Text>
+                </View>
+              )}
             </Pressable>
           );
         })}
@@ -634,6 +618,10 @@ export default function PartnerOrderScreen() {
       <PartnerOrderSuccessModal
         payload={successPayload}
         onClose={() => setSuccessPayload(null)}
+        onViewDetails={(orderId) => {
+          setSuccessPayload(null);
+          router.push({ pathname: "/(partner)/order-detail", params: { orderId } });
+        }}
       />
       <PartnerRiderPickerModal
         visible={riderModalVisible}
@@ -730,75 +718,28 @@ const styles = StyleSheet.create({
     backgroundColor: UI.bg,
   },
   safeArea: {
-    paddingBottom: 4,
+    backgroundColor: UI.bg,
     zIndex: 2,
   },
   header: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    paddingHorizontal: H_PAD,
+    paddingHorizontal: 16,
     paddingTop: 4,
+    paddingBottom: 12,
   },
-  headerText: { flex: 1 },
-  title: { fontSize: 28, fontWeight: "800", color: UI.text },
-  subtitle: { marginTop: 2, fontSize: fs.descText, color: UI.muted },
-  iconBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
-    backgroundColor: UI.card,
-    borderWidth: 1,
-    borderColor: "#EEF2F6",
-    alignItems: "center",
-    justifyContent: "center",
+  headerCopy: {
+    gap: 2,
   },
-  searchInput: {
-    marginHorizontal: H_PAD,
-    marginTop: 10,
-    backgroundColor: UI.card,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: UI.chipBorder,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+  title: {
+    fontSize: 28,
+    lineHeight: 34,
     color: UI.text,
-    fontSize: fs.descText,
+    fontFamily: "Poppins-Bold",
   },
-  filterMenu: {
-    marginHorizontal: H_PAD,
-    marginTop: 8,
-    backgroundColor: UI.card,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: UI.chipBorder,
-    overflow: "hidden",
+  subtitle: {
+    fontSize: 13,
+    color: UI.muted,
+    fontFamily: "Poppins-Regular",
   },
-  filterMenuItem: { paddingHorizontal: 14, paddingVertical: 12 },
-  filterMenuText: { fontSize: fs.descText, fontWeight: "600", color: UI.text },
-  chip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    borderRadius: 999,
-    paddingLeft: 14,
-    paddingRight: 6,
-    paddingVertical: 6,
-  },
-  chipLabel: { fontSize: 14, fontWeight: "700", color: UI.text },
-  chipLabelSelected: { color: "#FFFFFF" },
-  chipCount: {
-    minWidth: 22,
-    height: 22,
-    borderRadius: 11,
-    paddingHorizontal: 6,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.7)",
-  },
-  chipCountSelected: { backgroundColor: "rgba(255,255,255,0.25)" },
-  chipCountText: { fontSize: 12, fontWeight: "800", color: UI.text },
-  chipCountTextSelected: { color: "#FFFFFF" },
   pressed: { opacity: 0.85 },
   filterScroll: {
     flexGrow: 0,
@@ -817,32 +758,40 @@ const styles = StyleSheet.create({
     width: "100%",
     marginBottom: 12,
   },
-  filterChipPress: {
+  filterChipWrap: {
+    flexGrow: 0,
+    flexShrink: 0,
     borderRadius: 999,
     overflow: "hidden",
+    backgroundColor: "#F3F0FF",
+    shadowColor: UI.shadow,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  filterChipWrapSelected: {
+    backgroundColor: "transparent",
   },
   filterChip: {
-    height: 28,
-    paddingHorizontal: 12,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: "transparent",
+    minHeight: 28,
     alignItems: "center",
     justifyContent: "center",
-  },
-  filterChipIdle: {
-    borderColor: UI.chipBorder,
-    backgroundColor: UI.card,
+    paddingHorizontal: 14,
+    paddingVertical: 5,
+    borderRadius: 999,
   },
   filterChipText: {
     fontSize: 12,
-    lineHeight: 16,
-    fontWeight: "500",
-    color: UI.muted,
+    fontFamily: "Poppins-SemiBold",
+    color: UI.text,
+    textAlign: "center",
   },
   filterChipTextSelected: {
+    fontSize: 12,
+    fontFamily: "Poppins-SemiBold",
     color: "#FFFFFF",
-    fontWeight: "600",
+    textAlign: "center",
   },
   scroll: {
     flex: 1,

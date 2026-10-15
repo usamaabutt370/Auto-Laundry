@@ -1,7 +1,7 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { useMemo } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { PartnerNameWithBadge } from "@/components/partner-name-with-badge";
 import { AppCtaButton } from "@/components/ui/cta-button";
@@ -35,6 +35,7 @@ type OrderCardStrings = {
   stepOnTheWay: string;
   stepCompleted: string;
   reviewsCount: string;
+  deleteOrder: string;
 };
 
 type CustomerOrderCardProps = {
@@ -43,6 +44,9 @@ type CustomerOrderCardProps = {
   onOpenDetail: () => void;
   onTrack: () => void;
   onChat: () => void;
+  /** Finished orders (completed / rejected / cancelled) show a delete icon above the status. */
+  onDelete?: () => void;
+  deleting?: boolean;
 };
 
 const PROGRESS_STEPS = [
@@ -107,11 +111,17 @@ export function CustomerOrderCard({
   onOpenDetail,
   onTrack,
   onChat,
+  onDelete,
+  deleting = false,
 }: CustomerOrderCardProps) {
   const { s: scaleSize, ms, isNarrow } = useResponsiveLayout();
   const status = useMemo(() => statusCopy(order, s), [order, s]);
   const activeStep = progressIndex(order.rawStatus);
-  const showTrack = order.displayStatus !== "rejected";
+  const isFinished =
+    order.rawStatus === "completed" ||
+    order.rawStatus === "rejected" ||
+    order.rawStatus === "cancelled";
+  const showTrack = !isFinished && order.displayStatus !== "rejected";
   const partnerImg = scaleSize(isNarrow ? 44 : 52);
 
   const previewItems = (order.itemPreview.length > 0
@@ -290,31 +300,75 @@ export function CustomerOrderCard({
         </View>
       ) : null}
 
-      <View style={styles.actionsRow}>
-        <AppCtaButton
-          label={s.chatProvider}
-          onPress={() => {
-            onChat();
-          }}
-          width={showTrack ? 48 : "full"}
-          variant="outline"
-          size="sm"
-          leftIcon="chat-processing-outline"
-          style={styles.actionBtn}
-        />
-        {showTrack ? (
+      {isFinished ? (
+        <View style={styles.actionsRow}>
+          <View style={styles.actionSlot}>
+            <AppCtaButton
+              label={s.chatProvider}
+              onPress={() => {
+                onChat();
+              }}
+              width="full"
+              variant="outline"
+              size="sm"
+              leftIcon="chat-processing-outline"
+              style={styles.actionBtn}
+            />
+          </View>
+          {onDelete ? (
+            <View style={styles.actionSlot}>
+              <Pressable
+                onPress={(event) => {
+                  event.stopPropagation?.();
+                  onDelete();
+                }}
+                disabled={deleting}
+                style={({ pressed }) => [
+                  styles.deletePill,
+                  (pressed || deleting) && styles.pressed,
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel={s.deleteOrder}
+              >
+                {deleting ? (
+                  <ActivityIndicator size="small" color={UI.red} />
+                ) : (
+                  <>
+                    <MaterialCommunityIcons name="trash-can-outline" size={14} color={UI.red} />
+                    <Text style={styles.deletePillText}>{s.deleteOrder}</Text>
+                  </>
+                )}
+              </Pressable>
+            </View>
+          ) : null}
+        </View>
+      ) : (
+        <View style={styles.actionsRow}>
           <AppCtaButton
-            label={s.trackOrder}
+            label={s.chatProvider}
             onPress={() => {
-              onTrack();
+              onChat();
             }}
-            width={52}
+            width={showTrack ? 48 : "full"}
+            variant="outline"
             size="sm"
-            rightIcon="arrow-right"
+            leftIcon="chat-processing-outline"
             style={styles.actionBtn}
           />
-        ) : null}
-      </View>
+          {showTrack ? (
+            <AppCtaButton
+              label={s.trackOrder}
+              onPress={() => {
+                onTrack();
+              }}
+              width={52}
+              size="sm"
+              rightIcon="arrow-right"
+              style={styles.actionBtn}
+            />
+          ) : null}
+        </View>
+      )}
     </Pressable>
   );
 }
@@ -497,7 +551,21 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
   },
+  actionSlot: { flex: 1, minWidth: 0 },
   actionBtn: {
     minHeight: 40,
   },
+  deletePill: {
+    width: "100%",
+    minHeight: 40,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    borderRadius: 999,
+    borderWidth: 1.5,
+    borderColor: UI.red,
+    backgroundColor: UI.card,
+  },
+  deletePillText: { fontSize: 12, fontFamily: "Poppins-SemiBold", color: UI.red },
 });
