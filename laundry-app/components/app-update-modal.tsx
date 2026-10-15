@@ -1,7 +1,7 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import Svg, { Path, Rect } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -64,7 +64,7 @@ function GridOutlineIcon() {
 function PhoneHero() {
   return (
     <Image
-      source={require("@/assets/images/app-update-hero.png")}
+      source={require("@/assets/images/app-update-hero-clear.png")}
       style={styles.heroArt}
       contentFit="contain"
       accessibilityLabel="Tap2Laundry new version"
@@ -76,6 +76,8 @@ export function AppUpdateModal({ prompt, onUpdate, onLater }: Props) {
   const { locale } = useLocale();
   const copy = getStrings(locale).common.appUpdate;
   const insets = useSafeAreaInsets();
+  const { height } = useWindowDimensions();
+  const sheetHeight = Math.round(height * 0.9);
   const visible = prompt != null;
   const isForce = prompt?.kind === "force";
 
@@ -86,74 +88,85 @@ export function AppUpdateModal({ prompt, onUpdate, onLater }: Props) {
   return (
     <Modal
       visible={visible}
+      transparent
       animationType="fade"
       statusBarTranslucent
       onRequestClose={isForce ? undefined : onLater}
     >
-      <View style={[styles.screen, { paddingTop: insets.top + 8, paddingBottom: Math.max(insets.bottom, 16) }]}>
-        <View style={styles.blobTop} />
-        <View style={styles.blobBottom} />
-
-        <ScrollView
-          contentContainerStyle={styles.content}
-          showsVerticalScrollIndicator={false}
-          bounces={false}
-        >
-          <PhoneHero />
-
-          <Text style={styles.title}>{title}</Text>
-          <Text style={styles.subtitle}>{subtitle}</Text>
-          <Text style={styles.message}>{message}</Text>
-
-          <View style={styles.features}>
-            <View style={styles.feature}>
-              <View style={[styles.featureIcon, { backgroundColor: "#E7F8EF" }]}>
-                <SparklePlusIcon />
-              </View>
-              <Text style={styles.featureLabel}>{copy.betterExperience}</Text>
-            </View>
-            <View style={styles.feature}>
-              <View style={[styles.featureIcon, { backgroundColor: "#F3EEFF" }]}>
-                <BoltOutlineIcon />
-              </View>
-              <Text style={styles.featureLabel}>{copy.fasterReliable}</Text>
-            </View>
-            <View style={styles.feature}>
-              <View style={[styles.featureIcon, { backgroundColor: "#FFF4E8" }]}>
-                <GridOutlineIcon />
-              </View>
-              <Text style={styles.featureLabel}>{copy.newFeatures}</Text>
-            </View>
+      <View style={styles.backdrop}>
+        <Pressable
+          style={styles.dismiss}
+          onPress={isForce ? undefined : onLater}
+          disabled={isForce}
+          accessibilityRole="button"
+        />
+        <View style={[styles.sheet, { height: sheetHeight }]}>
+          <View style={styles.handleWrap}>
+            <View style={styles.handle} />
           </View>
-        </ScrollView>
+          <View style={styles.blobTop} />
+          <View style={styles.blobBottom} />
 
-        <View style={styles.footer}>
-          <Pressable
-            onPress={onUpdate}
-            style={({ pressed }) => [styles.updateWrap, pressed && styles.pressed]}
-            accessibilityRole="button"
-            accessibilityLabel={copy.updateNow}
+          <ScrollView
+            style={styles.scroll}
+            contentContainerStyle={styles.content}
+            showsVerticalScrollIndicator={false}
+            bounces={false}
           >
-            <LinearGradient
-              colors={["#38BDF8", "#6366F1", "#8B5CF6"]}
-              start={{ x: 0, y: 0.5 }}
-              end={{ x: 1, y: 0.5 }}
-              style={styles.updateBtn}
-            >
-              <Text style={styles.updateText}>{copy.updateNow}</Text>
-              <MaterialCommunityIcons name="arrow-right" size={20} color="#FFFFFF" />
-            </LinearGradient>
-          </Pressable>
-          {!isForce ? (
+            <PhoneHero />
+            <Text style={styles.title}>{title}</Text>
+            <Text style={styles.subtitle}>{subtitle}</Text>
+            <Text style={styles.message}>{message}</Text>
+            <View style={styles.features}>
+              <View style={styles.feature}>
+                <View style={[styles.featureIcon, { backgroundColor: "#E7F8EF" }]}>
+                  <SparklePlusIcon />
+                </View>
+                <Text style={styles.featureLabel}>{copy.betterExperience}</Text>
+              </View>
+              <View style={styles.feature}>
+                <View style={[styles.featureIcon, { backgroundColor: "#F3EEFF" }]}>
+                  <BoltOutlineIcon />
+                </View>
+                <Text style={styles.featureLabel}>{copy.fasterReliable}</Text>
+              </View>
+              <View style={styles.feature}>
+                <View style={[styles.featureIcon, { backgroundColor: "#FFF4E8" }]}>
+                  <GridOutlineIcon />
+                </View>
+                <Text style={styles.featureLabel}>{copy.newFeatures}</Text>
+              </View>
+            </View>
+          </ScrollView>
+
+          <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 12) }]}>
             <Pressable
-              onPress={onLater}
-              style={({ pressed }) => [styles.laterBtn, pressed && styles.pressed]}
+              onPress={onUpdate}
+              style={({ pressed }) => [styles.updateWrap, pressed && styles.pressed]}
               accessibilityRole="button"
-              accessibilityLabel={copy.later}
+              accessibilityLabel={copy.updateNow}
             >
-              <Text style={styles.laterText}>{copy.later}</Text>
+              <LinearGradient
+                colors={["#38BDF8", "#6366F1", "#8B5CF6"]}
+                start={{ x: 0, y: 0.5 }}
+                end={{ x: 1, y: 0.5 }}
+                style={styles.updateBtn}
+              >
+                <Text style={styles.updateText}>{copy.updateNow}</Text>
+                <MaterialCommunityIcons name="arrow-right" size={20} color="#FFFFFF" />
+              </LinearGradient>
             </Pressable>
-          ) : null}
+            {!isForce ? (
+              <Pressable
+                onPress={onLater}
+                style={({ pressed }) => [styles.laterBtn, pressed && styles.pressed]}
+                accessibilityRole="button"
+                accessibilityLabel={copy.later}
+              >
+                <Text style={styles.laterText}>{copy.later}</Text>
+              </Pressable>
+            ) : null}
+          </View>
         </View>
       </View>
     </Modal>
@@ -161,10 +174,20 @@ export function AppUpdateModal({ prompt, onUpdate, onLater }: Props) {
 }
 
 const styles = StyleSheet.create({
-  screen: {
+  backdrop: {
     flex: 1,
-    backgroundColor: "#F7F9FF",
+    justifyContent: "flex-end",
+    backgroundColor: "rgba(15, 23, 42, 0.45)",
   },
+  dismiss: { flex: 1 },
+  sheet: {
+    backgroundColor: "#F7F9FF",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    overflow: "hidden",
+  },
+  handleWrap: { alignItems: "center", paddingTop: 8, paddingBottom: 2, zIndex: 1 },
+  handle: { width: 36, height: 4, borderRadius: 2, backgroundColor: "#D1D5DB" },
   blobTop: {
     position: "absolute",
     top: -80,
@@ -183,16 +206,18 @@ const styles = StyleSheet.create({
     borderRadius: 120,
     backgroundColor: "rgba(196, 181, 253, 0.22)",
   },
+  scroll: { flex: 1 },
   content: {
     alignItems: "center",
     paddingHorizontal: 24,
-    paddingBottom: 12,
+    paddingTop: 40,
   },
   heroArt: {
     width: "100%",
-    height: 320,
+    height: 240,
     marginTop: 4,
     marginBottom: 4,
+    backgroundColor: "transparent",
   },
   title: {
     marginTop: 4,
