@@ -1310,6 +1310,7 @@ export const ur = {
         completedOrders: "مکمل آرڈرز",
         todaysEarnings: "آج کی آمدنی",
         earnings: "آمدنی",
+        vsYesterday: "کل کے مقابلے",
         chooseDay: "دن منتخب کریں",
         today: "آج",
         ordersByService: "سروس کے لحاظ سے آرڈرز",

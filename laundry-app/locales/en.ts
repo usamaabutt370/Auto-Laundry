@@ -1321,6 +1321,7 @@ export const en = {
         completedOrders: "Completed Orders",
         todaysEarnings: "Today's Earnings",
         earnings: "Earnings",
+        vsYesterday: "vs yesterday",
         chooseDay: "Choose a day",
         today: "Today",
         ordersByService: "Orders by Service",

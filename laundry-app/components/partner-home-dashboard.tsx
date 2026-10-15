@@ -675,6 +675,7 @@ export function PartnerHomeDashboard() {
                       iconColor="#3B82F6"
                       value={String(view.newOrders)}
                       label={copy.newOrders}
+                      trend={formatCountTrend(view.newOrdersDelta, copy.vsYesterday)}
                       onPress={() => openOrders("pending")}
                     />
                     <StatCard
@@ -683,6 +684,7 @@ export function PartnerHomeDashboard() {
                       iconColor="#F59E0B"
                       value={String(view.activeCount)}
                       label={copy.activeOrders}
+                      trend={formatCountTrend(view.activeCountDelta, copy.vsYesterday)}
                       onPress={() => openOrders("accepted")}
                     />
                   </View>
@@ -693,6 +695,7 @@ export function PartnerHomeDashboard() {
                       iconColor="#16A34A"
                       value={String(view.completedToday)}
                       label={copy.completedOrders}
+                      trend={formatCountTrend(view.completedDelta, copy.vsYesterday)}
                       onPress={() => openOrders("completed")}
                     />
                     <StatCard
@@ -701,6 +704,7 @@ export function PartnerHomeDashboard() {
                       iconColor="#7C3AED"
                       value={formatMoney(view.earningsToday)}
                       label={isPerformanceToday ? copy.todaysEarnings : copy.earnings}
+                      trend={formatPercentTrend(view.earningsPercentDelta, copy.vsYesterday)}
                     />
                   </View>
                 </View>
@@ -951,12 +955,55 @@ export function PartnerHomeDashboard() {
   );
 }
 
+type StatTrend = {
+  direction: "up" | "down" | "flat";
+  label: string;
+};
+
+function formatCountTrend(delta: number, vsYesterday: string): StatTrend {
+  const signed = delta > 0 ? `+${delta}` : String(delta);
+  return {
+    direction: delta > 0 ? "up" : delta < 0 ? "down" : "flat",
+    label: `${signed} ${vsYesterday}`,
+  };
+}
+
+function formatPercentTrend(delta: number | null, vsYesterday: string): StatTrend | undefined {
+  if (delta == null) return undefined;
+  const signed = delta > 0 ? `+${delta}` : String(delta);
+  return {
+    direction: delta > 0 ? "up" : delta < 0 ? "down" : "flat",
+    label: `${signed}% ${vsYesterday}`,
+  };
+}
+
+function StatTrendRow({ trend }: { trend: StatTrend }) {
+  const isUp = trend.direction === "up";
+  const isDown = trend.direction === "down";
+  const color = isUp ? "#16A34A" : isDown ? "#DC2626" : UI.muted;
+  return (
+    <View style={styles.statTrendRow}>
+      <View style={[styles.statTrendBadge, { backgroundColor: color }]}>
+        <MaterialCommunityIcons
+          name={isUp ? "arrow-up" : isDown ? "arrow-down" : "minus"}
+          size={10}
+          color="#FFFFFF"
+        />
+      </View>
+      <Text style={[styles.statTrendText, { color }]} numberOfLines={1}>
+        {trend.label}
+      </Text>
+    </View>
+  );
+}
+
 function StatCard({
   tint,
   icon,
   iconColor,
   value,
   label,
+  trend,
   onPress,
 }: {
   tint: string;
@@ -964,6 +1011,7 @@ function StatCard({
   iconColor: string;
   value: string;
   label: string;
+  trend?: StatTrend;
   onPress?: () => void;
 }) {
   const content = (
@@ -978,6 +1026,7 @@ function StatCard({
         <Text style={styles.statLabel} numberOfLines={2}>
           {label}
         </Text>
+        {trend ? <StatTrendRow trend={trend} /> : null}
       </View>
     </>
   );
@@ -1203,6 +1252,15 @@ const styles = StyleSheet.create({
   statTextCol: { flex: 1, minWidth: 0, gap: 2 },
   statValue: { fontSize: 22, fontWeight: "700", color: "#1E3A8A", lineHeight: 26 },
   statLabel: { fontSize: fs.xxSmallText, color: UI.muted, fontWeight: "600" },
+  statTrendRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 },
+  statTrendBadge: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  statTrendText: { flex: 1, fontSize: 10, fontWeight: "600" },
   card: {
     backgroundColor: UI.card,
     borderRadius: 18,
