@@ -465,12 +465,14 @@ export default function PartnerOrderScreen() {
       {dialog}
       <SafeAreaView edges={isWeb ? [] : ["top"]} style={styles.safeArea}>
         {isWeb ? <WebHeaderSpacer /> : null}
-        <View style={styles.header}>
-          <View style={styles.headerText}>
-            <Text style={styles.title}>{s.title}</Text>
-            <Text style={styles.subtitle}>{s.listSubtitle}</Text>
+        {!isWeb ? (
+          <View style={styles.header}>
+            <View style={styles.headerCopy}>
+              <Text style={styles.title}>{s.title}</Text>
+              <Text style={styles.subtitle}>{s.listSubtitle}</Text>
+            </View>
           </View>
-        </View>
+        ) : null}
       </SafeAreaView>
 
       <ScrollView
@@ -716,19 +718,28 @@ const styles = StyleSheet.create({
     backgroundColor: UI.bg,
   },
   safeArea: {
-    paddingBottom: 4,
+    backgroundColor: UI.bg,
     zIndex: 2,
   },
   header: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    paddingHorizontal: H_PAD,
+    paddingHorizontal: 16,
     paddingTop: 4,
+    paddingBottom: 12,
   },
-  headerText: { flex: 1 },
-  title: { fontSize: 28, fontWeight: "800", color: UI.text },
-  subtitle: { marginTop: 2, fontSize: fs.descText, color: UI.muted },
+  headerCopy: {
+    gap: 2,
+  },
+  title: {
+    fontSize: 28,
+    lineHeight: 34,
+    color: UI.text,
+    fontFamily: "Poppins-Bold",
+  },
+  subtitle: {
+    fontSize: 13,
+    color: UI.muted,
+    fontFamily: "Poppins-Regular",
+  },
   pressed: { opacity: 0.85 },
   filterScroll: {
     flexGrow: 0,

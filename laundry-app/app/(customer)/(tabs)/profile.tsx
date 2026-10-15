@@ -460,8 +460,8 @@ export default function CustomerProfileMenu() {
 }
 
 const styles = StyleSheet.create({
-	container: { flex: 1, backgroundColor: "#FFFFFF" },
-	safeArea: { backgroundColor: "#FFFFFF" },
+	container: { flex: 1, backgroundColor: UI.bg },
+	safeArea: { backgroundColor: UI.bg },
 	header: {
 		paddingHorizontal: PAD,
 		paddingTop: 4,

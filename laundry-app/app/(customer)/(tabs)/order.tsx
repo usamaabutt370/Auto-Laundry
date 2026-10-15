@@ -14,7 +14,6 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { AppHeader } from "@/components/app-header";
 import { CustomerOrderCard } from "@/components/customer-order-card";
 import { GuestSignInPrompt } from "@/components/guest-sign-in-prompt";
 import { OrderCompletedCelebration } from "@/components/order-completed-celebration";
@@ -254,13 +253,12 @@ export default function CustomerOrderScreen() {
       <StatusBar style="dark" />
       {!isWeb ? (
         <SafeAreaView style={styles.safeTop} edges={["top"]}>
-          <AppHeader
-            appearance="light"
-            title={s.title}
-            subtitle={user?.id ? s.liveHint : null}
-            titleAlign="left"
-            titleStyle={styles.screenTitle}
-          />
+          <View style={styles.header}>
+            <View style={styles.headerCopy}>
+              <Text style={styles.title}>{s.title}</Text>
+              <Text style={styles.subtitle}>{s.liveHint}</Text>
+            </View>
+          </View>
         </SafeAreaView>
       ) : (
         <WebHeaderSpacer />
@@ -463,11 +461,24 @@ const styles = StyleSheet.create({
   safeTop: {
     backgroundColor: UI.bg,
   },
-  screenTitle: {
+  header: {
+    paddingHorizontal: PAD,
+    paddingTop: 4,
+    paddingBottom: 12,
+  },
+  headerCopy: {
+    gap: 2,
+  },
+  title: {
     fontSize: 28,
     lineHeight: 34,
+    color: UI.text,
     fontFamily: "Poppins-Bold",
-    fontWeight: "700",
+  },
+  subtitle: {
+    fontSize: 13,
+    color: UI.muted,
+    fontFamily: "Poppins-Regular",
   },
   filterScroll: {
     flexGrow: 0,

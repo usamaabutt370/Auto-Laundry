@@ -407,10 +407,10 @@ const styles = StyleSheet.create({
   swipePressed: { opacity: 0.85 },
   container: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: UI.bg,
   },
   safeArea: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: UI.bg,
   },
   header: {
     paddingHorizontal: PAD,
