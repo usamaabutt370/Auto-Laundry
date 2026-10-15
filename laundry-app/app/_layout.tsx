@@ -10,6 +10,7 @@ import { useFonts } from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
 import { AppAlertProvider } from "@/components/app-alert";
+import { AppUpdateGate } from "@/components/app-update-gate";
 import { FcmNotificationRouter } from "@/components/chat/fcm-notification-router";
 import { LaundererShareLinkListener } from "@/components/launderer-share-link-listener";
 import { WebAppShell } from "@/components/web-shells";
@@ -17,7 +18,7 @@ import { strings } from "@/constants/strings";
 import { AuthProvider } from "@/contexts/auth-context";
 import { CustomerOrderDraftProvider } from "@/contexts/customer-order-draft-context";
 import { LocaleProvider } from "@/contexts/locale-context";
-import { theme } from "@/constants/theme";
+import { UI } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 SplashScreen.preventAutoHideAsync();
 
@@ -42,7 +43,7 @@ export default function RootLayout() {
   if (!fontsLoaded) return null;
 
   return (
-    <GestureHandlerRootView style={{ flex: 1, backgroundColor: theme.colors.background }}>
+    <GestureHandlerRootView style={{ flex: 1, backgroundColor: UI.bg }}>
       <KeyboardProvider>
         <AuthProvider>
           <LocaleProvider>
@@ -51,9 +52,11 @@ export default function RootLayout() {
             <WebAppShell>
               <FcmNotificationRouter />
               <LaundererShareLinkListener />
+              <AppUpdateGate />
               <Stack
                 screenOptions={{
                   headerShown: false,
+                  contentStyle: { backgroundColor: UI.bg },
                   ...(Platform.OS === "web"
                     ? { header: () => null, title: "", headerTitle: "" }
                     : {}),
