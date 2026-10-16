@@ -6,6 +6,7 @@ import { appStoreUrl, playStoreUrl } from "@/lib/launderer-share-link";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
 const DISMISS_KEY_PREFIX = "app_update_dismissed:";
+const SOFT_UPDATE_REMINDER_MS = 24 * 60 * 60 * 1000;
 
 export type AppUpdateKind = "force" | "soft";
 
@@ -76,10 +77,13 @@ export function resolveStoreUrl(config: AppUpdateConfig): string {
   return config.androidStoreUrl?.trim() || config.iosStoreUrl?.trim() || playStoreUrl() || "";
 }
 
-async function wasSoftUpdateDismissed(latestVersion: string): Promise<boolean> {
+/** True when Later was tapped for this version and 24 hours have not passed. */
+async function isSoftUpdateSnoozed(latestVersion: string): Promise<boolean> {
   try {
     const value = await AsyncStorage.getItem(`${DISMISS_KEY_PREFIX}${latestVersion}`);
-    return value === "1";
+    const dismissedAt = Number(value);
+    if (!Number.isFinite(dismissedAt) || dismissedAt <= 0) return false;
+    return Date.now() - dismissedAt < SOFT_UPDATE_REMINDER_MS;
   } catch {
     return false;
   }
@@ -87,7 +91,7 @@ async function wasSoftUpdateDismissed(latestVersion: string): Promise<boolean> {
 
 export async function dismissSoftUpdate(latestVersion: string): Promise<void> {
   try {
-    await AsyncStorage.setItem(`${DISMISS_KEY_PREFIX}${latestVersion}`, "1");
+    await AsyncStorage.setItem(`${DISMISS_KEY_PREFIX}${latestVersion}`, String(Date.now()));
   } catch {
     // ignore storage failures
   }
@@ -134,7 +138,7 @@ export async function evaluateAppUpdatePrompt(): Promise<AppUpdatePrompt | null>
   }
 
   if (compareVersions(installedVersion, config.latestVersion) < 0) {
-    if (await wasSoftUpdateDismissed(config.latestVersion)) return null;
+    if (await isSoftUpdateSnoozed(config.latestVersion)) return null;
     return { kind: "soft", config, installedVersion, storeUrl };
   }
 
