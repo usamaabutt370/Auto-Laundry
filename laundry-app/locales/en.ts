@@ -9,6 +9,18 @@ export const en = {
     error: "Something went wrong",
     modal: "Modal",
     goToHome: "Go to home screen",
+    appUpdate: {
+      title: "New version\navailable",
+      subtitle: "We've made Tap2Laundry better.",
+      message: "Please update to the latest version to continue using the app.",
+      betterExperience: "Better experience",
+      fasterReliable: "Faster &\nmore reliable",
+      newFeatures: "New features\n& improvements",
+      newVersion: "New Version",
+      brand: "Tap2Laundry",
+      updateNow: "Update Now",
+      later: "Later",
+    },
     deleteAccount: {
       button: "Delete Account",
       title: "Delete account",

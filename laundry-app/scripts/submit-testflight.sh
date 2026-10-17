@@ -165,21 +165,29 @@ if [[ "$MODE" == "build" ]]; then
   echo "Creating a production iOS store build, then submitting it to TestFlight."
   if [[ ${#EXTRA[@]} -gt 0 ]]; then
     "${EAS[@]}" build --platform ios --profile production --non-interactive
-    exec "${EAS[@]}" submit --platform ios --profile production --latest --non-interactive "${EXTRA[@]}"
+    "${EAS[@]}" submit --platform ios --profile production --latest --non-interactive "${EXTRA[@]}"
+  else
+    "${EAS[@]}" build --platform ios --profile production --auto-submit --non-interactive
   fi
-  exec "${EAS[@]}" build --platform ios --profile production --auto-submit --non-interactive
-fi
-
-SUBMIT=("${EAS[@]}" submit --platform ios --profile production --non-interactive)
-if [[ -n "$BUILD_ID" ]]; then
-  echo "Submitting EAS build ${BUILD_ID} to TestFlight."
-  SUBMIT+=(--id "$BUILD_ID")
-elif [[ -n "$IPA_PATH" ]]; then
-  echo "Submitting ${IPA_PATH} to TestFlight."
-  SUBMIT+=(--path "$IPA_PATH")
 else
-  echo "Submitting the latest finished iOS build to TestFlight."
-  SUBMIT+=(--latest)
+  SUBMIT=("${EAS[@]}" submit --platform ios --profile production --non-interactive)
+  if [[ -n "$BUILD_ID" ]]; then
+    echo "Submitting EAS build ${BUILD_ID} to TestFlight."
+    SUBMIT+=(--id "$BUILD_ID")
+  elif [[ -n "$IPA_PATH" ]]; then
+    echo "Submitting ${IPA_PATH} to TestFlight."
+    SUBMIT+=(--path "$IPA_PATH")
+  else
+    echo "Submitting the latest finished iOS build to TestFlight."
+    SUBMIT+=(--latest)
+  fi
+  "${SUBMIT[@]}" "${EXTRA[@]}"
 fi
 
-exec "${SUBMIT[@]}" "${EXTRA[@]}"
+# The installed app only notices a new build after this row changes.
+# Apple's public version listing does not include TestFlight builds.
+if ! node ./scripts/publish-app-version.cjs; then
+  echo "TestFlight upload succeeded, but the update sheet was not armed." >&2
+  echo "Add SUPABASE_SERVICE_ROLE_KEY to .env and run: node ./scripts/publish-app-version.cjs" >&2
+  exit 1
+fi

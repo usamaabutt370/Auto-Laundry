@@ -20,6 +20,7 @@ export type PartnerDashboardFeedback = {
   reviewCount: number;
   distribution: PartnerFeedbackDistribution[];
   recent: PartnerDashboardReview[];
+  reviews: PartnerDashboardReview[];
 };
 
 type FeedbackRow = {
@@ -61,6 +62,7 @@ export async function fetchPartnerDashboardFeedback(
     reviewCount: 0,
     distribution: emptyDistribution(),
     recent: [],
+    reviews: [],
   };
 
   if (!isSupabaseConfigured() || !supabase || !partnerId) return empty;
@@ -72,8 +74,7 @@ export async function fetchPartnerDashboardFeedback(
       .select("id, rating, message, created_at, customer_id")
       .eq("partner_id", partnerId)
       .eq("feedback_type", "feedback")
-      .order("created_at", { ascending: false })
-      .limit(50),
+      .order("created_at", { ascending: false }),
   ]);
 
   const ratingRow = ((statsResult.data ?? []) as Array<{
@@ -103,7 +104,7 @@ export async function fetchPartnerDashboardFeedback(
     };
   });
 
-  const customerIds = Array.from(new Set(rows.slice(0, 5).map((row) => row.customer_id).filter(Boolean)));
+  const customerIds = Array.from(new Set(rows.map((row) => row.customer_id).filter(Boolean)));
   const profilesById = new Map<string, ProfileRow>();
   if (customerIds.length > 0) {
     const { data: profiles } = await supabase
@@ -115,7 +116,7 @@ export async function fetchPartnerDashboardFeedback(
     }
   }
 
-  const recent: PartnerDashboardReview[] = rows.slice(0, 5).map((row) => {
+  const reviews: PartnerDashboardReview[] = rows.map((row) => {
     const name = personName(profilesById.get(row.customer_id), customerFallback);
     return {
       id: row.id,
@@ -131,6 +132,7 @@ export async function fetchPartnerDashboardFeedback(
     avgRating,
     reviewCount,
     distribution,
-    recent,
+    recent: reviews.slice(0, 5),
+    reviews,
   };
 }

@@ -9,6 +9,18 @@ export const ur = {
     error: "کچھ غلط ہو گیا",
     modal: "موڈل",
     goToHome: "ہوم اسکرین پر جائیں",
+    appUpdate: {
+      title: "نیا ورژن\nدستیاب ہے",
+      subtitle: "ہم نے Tap2Laundry کو بہتر بنایا ہے۔",
+      message: "ایپ استعمال جاری رکھنے کے لیے براہ کرم تازہ ترین ورژن پر اپڈیٹ کریں۔",
+      betterExperience: "بہتر تجربہ",
+      fasterReliable: "تیز اور\nزیادہ قابل اعتماد",
+      newFeatures: "نئی خصوصیات\nاور بہتری",
+      newVersion: "نیا ورژن",
+      brand: "Tap2Laundry",
+      updateNow: "ابھی اپڈیٹ کریں",
+      later: "بعد میں",
+    },
     deleteAccount: {
       button: "اکاؤنٹ حذف کریں",
       title: "اکاؤنٹ حذف کریں",

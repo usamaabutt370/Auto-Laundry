@@ -714,7 +714,7 @@ export function PartnerHomeDashboard() {
                   <View style={styles.sectionHead}>
                     <Text style={styles.sectionTitle}>{copy.customerFeedback}</Text>
                     <Pressable
-                      onPress={() => router.push("/(partner)/business-detail")}
+                      onPress={() => router.push("/(partner)/customer-feedback")}
                       hitSlop={8}
                       accessibilityRole="button"
                       accessibilityLabel={copy.viewAll}

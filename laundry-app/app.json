@@ -22,7 +22,7 @@
       "supportsTablet": false,
       "requireFullScreen": true,
       "bundleIdentifier": "com.autolaundry.app",
-      "buildNumber": "20",
+      "buildNumber": "1",
       "icon": "./assets/icons/appstore.png",
       "entitlements": {
         "aps-environment": "production"
