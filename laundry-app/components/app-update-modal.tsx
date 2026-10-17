@@ -1,11 +1,10 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
-import { Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import Svg, { Path, Rect } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { UI } from "@/constants/theme";
 import { useLocale } from "@/contexts/locale-context";
 import type { AppUpdatePrompt } from "@/lib/app-update";
 import { getStrings } from "@/locales";
@@ -13,7 +12,6 @@ import { getStrings } from "@/locales";
 type Props = {
   prompt: AppUpdatePrompt | null;
   onUpdate: () => void;
-  onLater: () => void;
 };
 
 const NAVY = "#1B2559";
@@ -72,101 +70,79 @@ function PhoneHero() {
   );
 }
 
-export function AppUpdateModal({ prompt, onUpdate, onLater }: Props) {
+export function AppUpdateModal({ prompt, onUpdate }: Props) {
   const { locale } = useLocale();
   const copy = getStrings(locale).common.appUpdate;
   const insets = useSafeAreaInsets();
-  const { height } = useWindowDimensions();
-  const sheetHeight = Math.round(height * 0.9);
   const visible = prompt != null;
-  const isForce = prompt?.kind === "force";
 
   const title = prompt?.config.title?.trim() || copy.title;
   const subtitle = copy.subtitle;
   const message = prompt?.config.message?.trim() || copy.message;
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      statusBarTranslucent
-      onRequestClose={isForce ? undefined : onLater}
-    >
-      <View style={styles.backdrop}>
-        <Pressable
-          style={styles.dismiss}
-          onPress={isForce ? undefined : onLater}
-          disabled={isForce}
-          accessibilityRole="button"
-        />
-        <View style={[styles.sheet, { height: sheetHeight }]}>
-          <View style={styles.handleWrap}>
-            <View style={styles.handle} />
-          </View>
-          <View style={styles.blobTop} />
-          <View style={styles.blobBottom} />
+    <Modal visible={visible} animationType="fade" statusBarTranslucent>
+      <View
+        style={[
+          styles.screen,
+          {
+            paddingTop: insets.top + 52,
+            paddingBottom: Math.max(insets.bottom, 12),
+          },
+        ]}
+      >
+        <View style={styles.blobTop} />
+        <View style={styles.blobBottom} />
 
-          <ScrollView
-            style={styles.scroll}
-            contentContainerStyle={styles.content}
-            showsVerticalScrollIndicator={false}
-            bounces={false}
-          >
-            <PhoneHero />
-            <Text style={styles.title}>{title}</Text>
-            <Text style={styles.subtitle}>{subtitle}</Text>
-            <Text style={styles.message}>{message}</Text>
-            <View style={styles.features}>
-              <View style={styles.feature}>
-                <View style={[styles.featureIcon, { backgroundColor: "#E7F8EF" }]}>
-                  <SparklePlusIcon />
-                </View>
-                <Text style={styles.featureLabel}>{copy.betterExperience}</Text>
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+          bounces={false}
+        >
+          <PhoneHero />
+          <Text style={styles.title}>{title}</Text>
+          <Text style={styles.subtitle}>{subtitle}</Text>
+          <Text style={styles.message}>{message}</Text>
+          <View style={styles.features}>
+            <View style={styles.feature}>
+              <View style={[styles.featureIcon, { backgroundColor: "#E7F8EF" }]}>
+                <SparklePlusIcon />
               </View>
-              <View style={styles.feature}>
-                <View style={[styles.featureIcon, { backgroundColor: "#F3EEFF" }]}>
-                  <BoltOutlineIcon />
-                </View>
-                <Text style={styles.featureLabel}>{copy.fasterReliable}</Text>
-              </View>
-              <View style={styles.feature}>
-                <View style={[styles.featureIcon, { backgroundColor: "#FFF4E8" }]}>
-                  <GridOutlineIcon />
-                </View>
-                <Text style={styles.featureLabel}>{copy.newFeatures}</Text>
-              </View>
+              <Text style={styles.featureLabel}>{copy.betterExperience}</Text>
             </View>
-          </ScrollView>
-
-          <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 12) }]}>
-            <Pressable
-              onPress={onUpdate}
-              style={({ pressed }) => [styles.updateWrap, pressed && styles.pressed]}
-              accessibilityRole="button"
-              accessibilityLabel={copy.updateNow}
-            >
-              <LinearGradient
-                colors={["#38BDF8", "#6366F1", "#8B5CF6"]}
-                start={{ x: 0, y: 0.5 }}
-                end={{ x: 1, y: 0.5 }}
-                style={styles.updateBtn}
-              >
-                <Text style={styles.updateText}>{copy.updateNow}</Text>
-                <MaterialCommunityIcons name="arrow-right" size={20} color="#FFFFFF" />
-              </LinearGradient>
-            </Pressable>
-            {!isForce ? (
-              <Pressable
-                onPress={onLater}
-                style={({ pressed }) => [styles.laterBtn, pressed && styles.pressed]}
-                accessibilityRole="button"
-                accessibilityLabel={copy.later}
-              >
-                <Text style={styles.laterText}>{copy.later}</Text>
-              </Pressable>
-            ) : null}
+            <View style={styles.feature}>
+              <View style={[styles.featureIcon, { backgroundColor: "#F3EEFF" }]}>
+                <BoltOutlineIcon />
+              </View>
+              <Text style={styles.featureLabel}>{copy.fasterReliable}</Text>
+            </View>
+            <View style={styles.feature}>
+              <View style={[styles.featureIcon, { backgroundColor: "#FFF4E8" }]}>
+                <GridOutlineIcon />
+              </View>
+              <Text style={styles.featureLabel}>{copy.newFeatures}</Text>
+            </View>
           </View>
+        </ScrollView>
+
+        <View style={styles.footer}>
+          <Pressable
+            onPress={onUpdate}
+            style={({ pressed }) => [styles.updateWrap, pressed && styles.pressed]}
+            accessibilityRole="button"
+            accessibilityLabel={copy.updateNow}
+          >
+            <LinearGradient
+              colors={["#38BDF8", "#6366F1", "#8B5CF6"]}
+              start={{ x: 0, y: 0.5 }}
+              end={{ x: 1, y: 0.5 }}
+              style={styles.updateBtn}
+            >
+              <Text style={styles.updateText}>{copy.updateNow}</Text>
+              <MaterialCommunityIcons name="arrow-right" size={20} color="#FFFFFF" />
+            </LinearGradient>
+          </Pressable>
         </View>
       </View>
     </Modal>
@@ -174,20 +150,10 @@ export function AppUpdateModal({ prompt, onUpdate, onLater }: Props) {
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
+  screen: {
     flex: 1,
-    justifyContent: "flex-end",
-    backgroundColor: "rgba(15, 23, 42, 0.45)",
-  },
-  dismiss: { flex: 1 },
-  sheet: {
     backgroundColor: "#F7F9FF",
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    overflow: "hidden",
   },
-  handleWrap: { alignItems: "center", paddingTop: 8, paddingBottom: 2, zIndex: 1 },
-  handle: { width: 36, height: 4, borderRadius: 2, backgroundColor: "#D1D5DB" },
   blobTop: {
     position: "absolute",
     top: -80,
@@ -208,9 +174,11 @@ const styles = StyleSheet.create({
   },
   scroll: { flex: 1 },
   content: {
+    flexGrow: 1,
     alignItems: "center",
     paddingHorizontal: 24,
-    paddingTop: 40,
+    paddingTop: 12,
+    paddingBottom: 16,
   },
   heroArt: {
     width: "100%",
@@ -272,7 +240,6 @@ const styles = StyleSheet.create({
   footer: {
     paddingHorizontal: 24,
     paddingTop: 8,
-    gap: 8,
   },
   updateWrap: {
     borderRadius: 16,
@@ -290,16 +257,6 @@ const styles = StyleSheet.create({
     fontFamily: "Poppins-Bold",
     fontSize: 16,
     color: "#FFFFFF",
-  },
-  laterBtn: {
-    alignSelf: "center",
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-  },
-  laterText: {
-    fontFamily: "Poppins-SemiBold",
-    fontSize: 14,
-    color: UI.muted,
   },
   pressed: { opacity: 0.88 },
 });

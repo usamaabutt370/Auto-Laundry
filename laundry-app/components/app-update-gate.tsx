@@ -3,7 +3,6 @@ import { AppState, type AppStateStatus, Platform } from "react-native";
 
 import { AppUpdateModal } from "@/components/app-update-modal";
 import {
-  dismissSoftUpdate,
   evaluateAppUpdatePrompt,
   openAppStore,
   type AppUpdatePrompt,
@@ -13,7 +12,7 @@ const RECHECK_COOLDOWN_MS = 60_000;
 
 /**
  * Checks remote app update config on launch and when returning to foreground.
- * Shows a soft (dismissible) or force (blocking) store update modal.
+ * Shows a blocking store update modal until the installed version matches latest.
  */
 export function AppUpdateGate() {
   const [prompt, setPrompt] = useState<AppUpdatePrompt | null>(null);
@@ -54,12 +53,5 @@ export function AppUpdateGate() {
     void openAppStore(prompt.storeUrl);
   }, [prompt]);
 
-  const handleLater = useCallback(() => {
-    if (!prompt || prompt.kind === "force") return;
-    const version = prompt.config.latestVersion;
-    void dismissSoftUpdate(version);
-    setPrompt(null);
-  }, [prompt]);
-
-  return <AppUpdateModal prompt={prompt} onUpdate={handleUpdate} onLater={handleLater} />;
+  return <AppUpdateModal prompt={prompt} onUpdate={handleUpdate} />;
 }

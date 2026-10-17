@@ -1,18 +1,11 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import Constants from "expo-constants";
 import { Linking, Platform } from "react-native";
 
 import { appStoreUrl, playStoreUrl } from "@/lib/launderer-share-link";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
-const DISMISS_KEY_PREFIX = "app_update_dismissed:";
-const SOFT_UPDATE_REMINDER_MS = 24 * 60 * 60 * 1000;
-
-export type AppUpdateKind = "force" | "soft";
-
 export type AppUpdateConfig = {
   latestVersion: string;
-  minSupportedVersion: string;
   title: string | null;
   message: string | null;
   iosStoreUrl: string | null;
@@ -20,7 +13,6 @@ export type AppUpdateConfig = {
 };
 
 export type AppUpdatePrompt = {
-  kind: AppUpdateKind;
   config: AppUpdateConfig;
   installedVersion: string;
   storeUrl: string;
@@ -28,7 +20,6 @@ export type AppUpdatePrompt = {
 
 type ConfigRow = {
   latest_version: string;
-  min_supported_version: string;
   title: string | null;
   message: string | null;
   ios_store_url: string | null;
@@ -77,34 +68,12 @@ export function resolveStoreUrl(config: AppUpdateConfig): string {
   return config.androidStoreUrl?.trim() || config.iosStoreUrl?.trim() || playStoreUrl() || "";
 }
 
-/** True when Later was tapped for this version and 24 hours have not passed. */
-async function isSoftUpdateSnoozed(latestVersion: string): Promise<boolean> {
-  try {
-    const value = await AsyncStorage.getItem(`${DISMISS_KEY_PREFIX}${latestVersion}`);
-    const dismissedAt = Number(value);
-    if (!Number.isFinite(dismissedAt) || dismissedAt <= 0) return false;
-    return Date.now() - dismissedAt < SOFT_UPDATE_REMINDER_MS;
-  } catch {
-    return false;
-  }
-}
-
-export async function dismissSoftUpdate(latestVersion: string): Promise<void> {
-  try {
-    await AsyncStorage.setItem(`${DISMISS_KEY_PREFIX}${latestVersion}`, String(Date.now()));
-  } catch {
-    // ignore storage failures
-  }
-}
-
 export async function fetchAppUpdateConfig(): Promise<AppUpdateConfig | null> {
   if (!isSupabaseConfigured() || !supabase) return null;
 
   const { data, error } = await supabase
     .from("app_update_config")
-    .select(
-      "latest_version,min_supported_version,title,message,ios_store_url,android_store_url",
-    )
+    .select("latest_version,title,message,ios_store_url,android_store_url")
     .eq("enabled", true)
     .order("updated_at", { ascending: false })
     .limit(1)
@@ -115,7 +84,6 @@ export async function fetchAppUpdateConfig(): Promise<AppUpdateConfig | null> {
   const row = data as ConfigRow;
   return {
     latestVersion: row.latest_version.trim(),
-    minSupportedVersion: row.min_supported_version.trim(),
     title: row.title?.trim() || null,
     message: row.message?.trim() || null,
     iosStoreUrl: row.ios_store_url?.trim() || null,
@@ -123,23 +91,19 @@ export async function fetchAppUpdateConfig(): Promise<AppUpdateConfig | null> {
   };
 }
 
+/** Blocks the app when the installed version is behind Supabase latest_version. */
 export async function evaluateAppUpdatePrompt(): Promise<AppUpdatePrompt | null> {
   if (Platform.OS === "web") return null;
 
   const config = await fetchAppUpdateConfig();
-  if (!config?.latestVersion || !config.minSupportedVersion) return null;
+  if (!config?.latestVersion) return null;
 
   const installedVersion = getInstalledAppVersion();
   const storeUrl = resolveStoreUrl(config);
   if (!storeUrl) return null;
 
-  if (compareVersions(installedVersion, config.minSupportedVersion) < 0) {
-    return { kind: "force", config, installedVersion, storeUrl };
-  }
-
   if (compareVersions(installedVersion, config.latestVersion) < 0) {
-    if (await isSoftUpdateSnoozed(config.latestVersion)) return null;
-    return { kind: "soft", config, installedVersion, storeUrl };
+    return { config, installedVersion, storeUrl };
   }
 
   return null;
