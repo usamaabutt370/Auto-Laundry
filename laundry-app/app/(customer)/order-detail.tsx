@@ -3,23 +3,23 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { showAppAlert } from "@/components/app-alert";
 import { CustomerTrustBanner } from "@/components/customer-trust-banner";
 import { PartnerNameWithBadge } from "@/components/partner-name-with-badge";
+import { OrderReviewSheet } from "@/components/order-review-sheet";
 import { ReportOrderProblemModal } from "@/components/report-order-problem-modal";
+import { AppCtaButton } from "@/components/ui/cta-button";
+import { GradientLoader } from "@/components/ui/gradient-loader";
 import { useAuth } from "@/contexts/auth-context";
 import { useLocale } from "@/contexts/locale-context";
+import { useCustomerOrderActions } from "@/hooks/use-customer-order-actions";
 import { getStrings } from "@/locales";
 import { useCustomerOrderDraft } from "@/contexts/customer-order-draft-context";
 import { fetchCustomerOrderForEdit } from "@/lib/customer-order-edit";
@@ -28,30 +28,13 @@ import {
   hasCustomerOrderFeedback,
   submitCustomerOrderFeedback,
   deleteCustomerOrder,
-  type CustomerOrderFeedbackType,
+  isCustomerOrderRemovable,
   type CustomerOrderDetailData,
   type CustomerOrderDisplayStatus,
 } from "@/lib/customer-orders";
 import { hasCustomerOrderDispute } from "@/lib/order-disputes";
+import { UI } from "@/constants/theme";
 
-const UI = {
-  bg: "#F7F8FA",
-  card: "#FFFFFF",
-  text: "#111827",
-  muted: "#6B7280",
-  teal: "#12B886",
-  purple: "#5B4DFF",
-  backBg: "#EEF2F6",
-  iconWell: "#F3F4F6",
-  openBg: "#ECFDF5",
-  openText: "#047857",
-  chipBorder: "#E5E7EB",
-  shadow: "rgba(17, 24, 39, 0.08)",
-  amber: "#D97706",
-  amberBg: "#FEF3C7",
-  red: "#B91C1C",
-  redBg: "#FEE2E2",
-};
 const PAD = 16;
 const CARD_RADIUS = 16;
 
@@ -75,16 +58,16 @@ export default function CustomerOrderDetailScreen() {
   const { locale } = useLocale();
   const sDetail = getStrings(locale).customer.orderDetail;
   const sReport = getStrings(locale).customer.reportProblem;
+  const sActions = getStrings(locale).customer.ordersTab.orderActions;
+  const sReview = getStrings(locale).customer.ordersTab.review;
+  const orderActions = useCustomerOrderActions();
   const params = useLocalSearchParams<{ orderId?: string }>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [order, setOrder] = useState<CustomerOrderDetailData | null>(null);
   const [feedbackVisible, setFeedbackVisible] = useState(false);
   const [feedbackChecked, setFeedbackChecked] = useState(false);
-  const [rating, setRating] = useState(0);
-  const [feedbackType, setFeedbackType] = useState<CustomerOrderFeedbackType>("feedback");
-  const [feedbackMessage, setFeedbackMessage] = useState("");
-  const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
+  const [hasReview, setHasReview] = useState(false);
   const [isLoadingEdit, setIsLoadingEdit] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [reportVisible, setReportVisible] = useState(false);
@@ -156,6 +139,7 @@ export default function CustomerOrderDetailScreen() {
         const alreadySubmitted = await hasCustomerOrderFeedback(user.id, order.id);
         if (cancelled) return;
         setFeedbackChecked(true);
+        setHasReview(alreadySubmitted);
         if (!alreadySubmitted) {
           setFeedbackVisible(true);
         }
@@ -218,41 +202,21 @@ export default function CustomerOrderDetailScreen() {
     }
   };
 
-  const handleSubmitFeedback = async () => {
+  const handleSubmitFeedback = async ({ rating, message }: { rating: number; message: string }) => {
     if (!user?.id || !order) return;
-    if (rating < 1) {
-      showAppAlert("Rating required", "Please rate the service before submitting.");
-      return;
-    }
-    if (!feedbackMessage.trim()) {
-      showAppAlert("Feedback required", "Please write a short feedback or complaint.");
-      return;
-    }
-
-    try {
-      setIsSubmittingFeedback(true);
-      await submitCustomerOrderFeedback({
-        orderId: order.id,
-        customerId: user.id,
-        partnerId: order.partnerId,
-        rating,
-        feedbackType,
-        message: feedbackMessage.trim(),
-      });
-      setFeedbackVisible(false);
-      setFeedbackChecked(true);
-      setFeedbackMessage("");
-      setRating(0);
-      showAppAlert("Thank you!", "Your feedback has been submitted.");
-    } catch (e) {
-      showAppAlert(
-        "Unable to submit feedback",
-        e instanceof Error ? e.message : "Please try again.",
-      );
-    } finally {
-      setIsSubmittingFeedback(false);
-    }
+    await submitCustomerOrderFeedback({
+      orderId: order.id,
+      customerId: user.id,
+      partnerId: order.partnerId,
+      rating,
+      feedbackType: "feedback",
+      message,
+    });
+    setHasReview(true);
   };
+
+  const isCompletedOrder = order?.displayStatus === "completed";
+  const isActiveOrder = order != null && order.displayStatus !== "rejected" && !isCompletedOrder;
 
   return (
     <View style={styles.container}>
@@ -275,7 +239,7 @@ export default function CustomerOrderDetailScreen() {
 
       {loading ? (
         <View style={styles.center}>
-          <ActivityIndicator color={UI.teal} />
+          <GradientLoader />
         </View>
       ) : error ? (
         <View style={styles.center}>
@@ -295,15 +259,37 @@ export default function CustomerOrderDetailScreen() {
           <View style={styles.heroCard}>
             <View style={styles.topRow}>
               <Text style={styles.orderRef}>Order #{order.orderRef}</Text>
-              <View
-                style={[
-                  styles.statusPill,
-                  { backgroundColor: statusTone(order.displayStatus).bg },
-                ]}
-              >
-                <Text style={[styles.status, { color: statusTone(order.displayStatus).text }]}>
-                  {statusLabel(order.displayStatus)}
-                </Text>
+              <View style={styles.statusColumn}>
+                {isCustomerOrderRemovable(order.rawStatus) ? (
+                  <Pressable
+                    onPress={() => orderActions.remove(order, handleBack)}
+                    disabled={orderActions.removingId === order.id}
+                    hitSlop={8}
+                    style={({ pressed }) => [
+                      styles.statusDeleteBtn,
+                      pressed && styles.pressed,
+                      orderActions.removingId === order.id && styles.editOrderBtnDisabled,
+                    ]}
+                    accessibilityRole="button"
+                    accessibilityLabel={sActions.deleteOrder}
+                  >
+                    {orderActions.removingId === order.id ? (
+                      <ActivityIndicator size="small" color="#f87171" />
+                    ) : (
+                      <MaterialCommunityIcons name="trash-can-outline" size={16} color="#f87171" />
+                    )}
+                  </Pressable>
+                ) : null}
+                <View
+                  style={[
+                    styles.statusPill,
+                    { backgroundColor: statusTone(order.displayStatus).bg },
+                  ]}
+                >
+                  <Text style={[styles.status, { color: statusTone(order.displayStatus).text }]}>
+                    {statusLabel(order.displayStatus)}
+                  </Text>
+                </View>
               </View>
             </View>
             <PartnerNameWithBadge
@@ -332,7 +318,22 @@ export default function CustomerOrderDetailScreen() {
             </View>
           </View>
 
-          {order.displayStatus !== "rejected" ? (
+          {isActiveOrder ? (
+            <AppCtaButton
+              label={sDetail.trackOrder}
+              onPress={() =>
+                router.push({
+                  pathname: "/(customer)/track-order",
+                  params: { orderId: order.id },
+                })
+              }
+              width="full"
+              rightIcon="arrow-right"
+              accessibilityLabel={sDetail.trackOrder}
+            />
+          ) : null}
+
+          {isActiveOrder ? (
             <CustomerTrustBanner appearance="light" verified={order.partnerVerified} />
           ) : null}
 
@@ -355,6 +356,7 @@ export default function CustomerOrderDetailScreen() {
               <MaterialCommunityIcons name="map-marker-outline" size={16} color={UI.purple} />
               <Text style={styles.detailValue}>{order.partnerAddress}</Text>
             </View>
+            {isActiveOrder ? (
             <View style={styles.partnerActionsRow}>
               <Pressable
                 onPress={() =>
@@ -368,7 +370,7 @@ export default function CustomerOrderDetailScreen() {
                 <MaterialCommunityIcons name="chat-processing-outline" size={15} color={UI.teal} />
                 <Text style={styles.chatButtonText}>Chat with partner</Text>
               </Pressable>
-              {order.displayStatus !== "rejected" ? (
+              {isActiveOrder ? (
                 <Pressable
                   onPress={() => setReportVisible(true)}
                   style={({ pressed }) => [styles.reportButton, pressed && styles.pressed]}
@@ -384,6 +386,7 @@ export default function CustomerOrderDetailScreen() {
                 </Pressable>
               ) : null}
             </View>
+            ) : null}
 
             <View style={styles.sectionDivider} />
 
@@ -395,6 +398,15 @@ export default function CustomerOrderDetailScreen() {
                 <Text style={styles.detailValue}>{order.pickupSchedule}</Text>
               </View>
             </View>
+            {order.fulfillmentMode === "pickupDelivery" && order.customerPickupAddress ? (
+              <View style={styles.detailRow}>
+                <MaterialCommunityIcons name="map-marker-outline" size={16} color={UI.purple} />
+                <View style={styles.flex1}>
+                  <Text style={styles.detailMeta}>{sDetail.pickupFrom}</Text>
+                  <Text style={styles.detailValue}>{order.customerPickupAddress}</Text>
+                </View>
+              </View>
+            ) : null}
             <View style={styles.detailRow}>
               <MaterialCommunityIcons name="package-variant-closed" size={16} color={UI.purple} />
               <View style={styles.flex1}>
@@ -476,6 +488,17 @@ export default function CustomerOrderDetailScreen() {
             </View>
           ) : null}
 
+          {isCompletedOrder && feedbackChecked && !hasReview ? (
+            <View style={styles.finishedActions}>
+              <AppCtaButton
+                label={sReview.leaveReview}
+                onPress={() => setFeedbackVisible(true)}
+                leftIcon="star-outline"
+                width="full"
+              />
+            </View>
+          ) : null}
+
           {order.displayStatus === "pending" && order.rawStatus === "submitted" ? (
             <View style={styles.detailCard}>
               <Text style={styles.secLabel}>Actions</Text>
@@ -503,98 +526,13 @@ export default function CustomerOrderDetailScreen() {
         </>
       )}
       {order?.displayStatus === "completed" && feedbackChecked && feedbackVisible ? (
-        <Modal
-          visible
-          transparent
-          animationType="fade"
-          onRequestClose={() => setFeedbackVisible(false)}
-        >
-          <KeyboardAvoidingView
-            behavior={Platform.OS === "ios" ? "padding" : "height"}
-            style={styles.modalOverlay}
-          >
-            <Pressable style={styles.modalBackdrop} onPress={() => setFeedbackVisible(false)} />
-            <View style={styles.feedbackModalCard}>
-              <Text style={styles.feedbackTitle}>How was your laundry service?</Text>
-              <Text style={styles.feedbackSubtitle}>
-                Rate this completed order and share your feedback.
-              </Text>
-              <View style={styles.starRow}>
-                {[1, 2, 3, 4, 5].map((value) => (
-                  <Pressable
-                    key={value}
-                    onPress={() => setRating(value)}
-                    style={({ pressed }) => [styles.starBtn, pressed && styles.pressed]}
-                  >
-                    <MaterialCommunityIcons
-                      name={value <= rating ? "star" : "star-outline"}
-                      size={30}
-                      color={value <= rating ? "#FBBF24" : "#D1D5DB"}
-                    />
-                  </Pressable>
-                ))}
-              </View>
-              <View style={styles.feedbackTypeRow}>
-                {(
-                  [
-                    { id: "feedback", label: "Feedback" },
-                    { id: "complaint", label: "Complaint" },
-                    { id: "suggestion", label: "Suggestion" },
-                  ] as const
-                ).map((typeOption) => {
-                  const selected = feedbackType === typeOption.id;
-                  return (
-                    <Pressable
-                      key={typeOption.id}
-                      onPress={() => setFeedbackType(typeOption.id)}
-                      style={[
-                        styles.feedbackTypeChip,
-                        selected && styles.feedbackTypeChipSelected,
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.feedbackTypeText,
-                          selected && styles.feedbackTypeTextSelected,
-                        ]}
-                      >
-                        {typeOption.label}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-              <TextInput
-                value={feedbackMessage}
-                onChangeText={setFeedbackMessage}
-                placeholder="Tell us what went well, or what needs to improve..."
-                placeholderTextColor={UI.muted}
-                multiline
-                style={styles.feedbackInput}
-                textAlignVertical="top"
-                maxLength={700}
-              />
-              <View style={styles.feedbackActionsRow}>
-                <Pressable
-                  onPress={() => setFeedbackVisible(false)}
-                  style={[styles.feedbackCancelBtn, isSubmittingFeedback && styles.disabled]}
-                  disabled={isSubmittingFeedback}
-                >
-                  <Text style={styles.feedbackCancelText}>Later</Text>
-                </Pressable>
-                <Pressable
-                  onPress={() => void handleSubmitFeedback()}
-                  style={[styles.feedbackSubmitBtn, isSubmittingFeedback && styles.disabled]}
-                  disabled={isSubmittingFeedback}
-                >
-                  <Text style={styles.feedbackSubmitText}>
-                    {isSubmittingFeedback ? "Submitting..." : "Submit"}
-                  </Text>
-                </Pressable>
-              </View>
-            </View>
-          </KeyboardAvoidingView>
-        </Modal>
+        <OrderReviewSheet
+          partner={order}
+          strings={sReview}
+          onSubmit={handleSubmitFeedback}
+          onDismiss={() => setFeedbackVisible(false)}
+          onDone={() => setFeedbackVisible(false)}
+        />
       ) : null}
       {order && user?.id && order.displayStatus !== "rejected" ? (
         <ReportOrderProblemModal
@@ -681,6 +619,19 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: "Poppins-SemiBold",
     textTransform: "uppercase",
+  },
+  statusColumn: {
+    alignItems: "flex-end",
+    gap: 6,
+    flexShrink: 0,
+  },
+  statusDeleteBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: UI.redBg,
   },
   statusPill: {
     paddingHorizontal: 12,
@@ -825,6 +776,7 @@ const styles = StyleSheet.create({
   editOrderBtnDisabled: {
     opacity: 0.6,
   },
+  finishedActions: { gap: 10 },
   editOrderBtnText: {
     color: UI.text,
     fontSize: 13,
@@ -904,118 +856,6 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.85,
-  },
-  modalOverlay: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: PAD,
-  },
-  modalBackdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(17, 24, 39, 0.45)",
-  },
-  feedbackModalCard: {
-    width: "100%",
-    backgroundColor: UI.card,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: UI.chipBorder,
-    padding: 16,
-  },
-  feedbackTitle: {
-    color: UI.text,
-    fontSize: 18,
-    fontFamily: "Poppins-Bold",
-  },
-  feedbackSubtitle: {
-    marginTop: 4,
-    color: UI.muted,
-    fontSize: 13,
-    fontFamily: "Poppins-Regular",
-    marginBottom: 12,
-  },
-  starRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 12,
-    paddingHorizontal: 6,
-  },
-  starBtn: {
-    padding: 4,
-  },
-  feedbackTypeRow: {
-    flexDirection: "row",
-    gap: 8,
-    marginBottom: 12,
-  },
-  feedbackTypeChip: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: UI.chipBorder,
-    borderRadius: 999,
-    paddingVertical: 8,
-    alignItems: "center",
-    backgroundColor: UI.iconWell,
-  },
-  feedbackTypeChipSelected: {
-    borderColor: UI.teal,
-    backgroundColor: UI.openBg,
-  },
-  feedbackTypeText: {
-    color: UI.muted,
-    fontSize: 11,
-    fontFamily: "Poppins-SemiBold",
-  },
-  feedbackTypeTextSelected: {
-    color: UI.openText,
-  },
-  feedbackInput: {
-    minHeight: 120,
-    borderWidth: 1,
-    borderColor: UI.chipBorder,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    color: UI.text,
-    fontSize: 13,
-    fontFamily: "Poppins-Regular",
-    marginBottom: 12,
-    backgroundColor: UI.bg,
-  },
-  feedbackActionsRow: {
-    flexDirection: "row",
-    gap: 10,
-  },
-  feedbackCancelBtn: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: UI.chipBorder,
-    borderRadius: 999,
-    paddingVertical: 12,
-    alignItems: "center",
-    backgroundColor: UI.iconWell,
-  },
-  feedbackCancelText: {
-    color: UI.text,
-    fontSize: 13,
-    fontFamily: "Poppins-Bold",
-  },
-  feedbackSubmitBtn: {
-    flex: 1,
-    backgroundColor: UI.teal,
-    borderRadius: 999,
-    paddingVertical: 12,
-    alignItems: "center",
-  },
-  feedbackSubmitText: {
-    color: "#FFFFFF",
-    fontSize: 13,
-    fontFamily: "Poppins-Bold",
-  },
-  disabled: {
-    opacity: 0.55,
   },
   payRow: {
     flexDirection: "row",

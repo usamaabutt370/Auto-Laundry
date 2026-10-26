@@ -1,5 +1,5 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import {
   LayoutAnimation,
   Platform,
@@ -15,6 +15,7 @@ import { useLocale } from "@/contexts/locale-context";
 import type { OrderEstimateResult } from "@/lib/customer-order-estimate";
 import { getStrings } from "@/locales";
 import { formatMoney } from "@/utils/format-money";
+import { UI } from "@/constants/theme";
 
 if (
   Platform.OS === "android" &&
@@ -23,19 +24,14 @@ if (
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-const UI = {
-  text: "#111827",
-  muted: "#6B7280",
-  purple: "#5B4DFF",
-  chipBorder: "#E5E7EB",
-};
-
 type Props = {
   estimate: OrderEstimateResult;
   loading?: boolean;
+  /** Optional trailing control (e.g. Continue) shown beside the estimated total. */
+  action?: ReactNode;
 };
 
-export function OrderSelectionSummary({ estimate, loading = false }: Props) {
+export function OrderSelectionSummary({ estimate, loading = false, action }: Props) {
   const { locale } = useLocale();
   const s = getStrings(locale).customer.liveEstimate;
   const [open, setOpen] = useState(false);
@@ -56,9 +52,13 @@ export function OrderSelectionSummary({ estimate, loading = false }: Props) {
           contentContainerStyle={styles.breakdown}
           nestedScrollEnabled
         >
+          <View style={styles.breakdownHeader}>
+            <Text style={styles.breakdownTitle}>{s.breakdownTitle}</Text>
+            <Text style={styles.breakdownSubtitle}>{s.breakdownSubtitle}</Text>
+          </View>
           {estimate.lines.map((line) => (
             <View key={line.key} style={styles.breakdownRow}>
-              <Text style={styles.breakdownLabel} numberOfLines={1}>
+              <Text style={styles.breakdownLabel} numberOfLines={2}>
                 {line.title}
                 {line.qtyLabel ? ` · ${line.qtyLabel}` : ""}
               </Text>
@@ -69,50 +69,93 @@ export function OrderSelectionSummary({ estimate, loading = false }: Props) {
           ))}
         </ScrollView>
       ) : null}
-      <Pressable
-        onPress={() => {
-          if (!hasLines) return;
-          LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-          setOpen((value) => !value);
-        }}
-        style={styles.totalBtn}
-        accessibilityRole="button"
-        accessibilityLabel={open ? s.hideBreakdown : s.viewBreakdown}
-      >
-        <Text style={styles.totalLabel}>{s.estimatedLabel}</Text>
-        <View style={styles.totalValueRow}>
-          <Text style={styles.totalValue}>{loading ? "…" : totalDisplay}</Text>
-          {hasLines ? (
-            <MaterialCommunityIcons
-              name={open ? "chevron-up" : "chevron-down"}
-              size={18}
-              color={UI.muted}
-            />
+      <View style={styles.totalRow}>
+        <Pressable
+          onPress={() => {
+            if (!hasLines) return;
+            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+            setOpen((value) => !value);
+          }}
+          style={styles.totalBtn}
+          accessibilityRole="button"
+          accessibilityLabel={open ? s.hideBreakdown : s.viewBreakdown}
+        >
+          <Text style={styles.totalLabel}>{s.estimatedLabel}</Text>
+          <View style={styles.totalValueRow}>
+            <Text style={styles.totalValue}>{loading ? "…" : totalDisplay}</Text>
+            {hasLines ? (
+              <MaterialCommunityIcons
+                name={open ? "chevron-up" : "chevron-down"}
+                size={18}
+                color={UI.muted}
+              />
+            ) : null}
+          </View>
+          {!hasLines && !loading ? (
+            <Text style={styles.emptyHint}>{s.emptySelection}</Text>
           ) : null}
-        </View>
-        {!hasLines && !loading ? (
-          <Text style={styles.emptyHint}>{s.emptySelection}</Text>
-        ) : null}
-      </Pressable>
+        </Pressable>
+        {action ? <View style={styles.actionSlot}>{action}</View> : null}
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   wrap: { gap: 8, alignSelf: "stretch" },
-  totalBtn: { minWidth: 0 },
+  totalRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  totalBtn: { flex: 1, minWidth: 0, paddingLeft: 4 },
+  actionSlot: { width: "58%", flexShrink: 0 },
   totalLabel: { fontSize: 11, color: UI.muted, fontFamily: "Poppins-Medium" },
   totalValueRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 },
   totalValue: { fontSize: 20, color: UI.text, fontFamily: "Poppins-Bold" },
   emptyHint: { marginTop: 2, fontSize: 11, color: UI.muted, fontFamily: "Poppins-Regular" },
-  breakdownScroll: { maxHeight: 160 },
-  breakdown: {
-    paddingBottom: 4,
-    gap: 6,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: UI.chipBorder,
+  breakdownScroll: {
+    maxHeight: 220,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    backgroundColor: UI.card,
+    borderWidth: 1,
+    borderColor: UI.chipBorder,
+    borderBottomWidth: 0,
+    overflow: "hidden",
   },
-  breakdownRow: { flexDirection: "row", justifyContent: "space-between", gap: 12 },
-  breakdownLabel: { flex: 1, fontSize: 12, color: UI.muted, fontFamily: "Poppins-Regular" },
+  breakdown: {
+    paddingHorizontal: 12,
+    paddingTop: 12,
+    paddingBottom: 8,
+  },
+  breakdownHeader: {
+    marginBottom: 6,
+    paddingBottom: 8,
+  },
+  breakdownTitle: {
+    fontSize: 16,
+    color: UI.text,
+    fontFamily: "Poppins-Bold",
+  },
+  breakdownSubtitle: {
+    marginTop: 2,
+    fontSize: 12,
+    color: UI.muted,
+    fontFamily: "Poppins-Regular",
+  },
+  breakdownRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 8,
+  },
+  breakdownLabel: {
+    flex: 1,
+    fontSize: 12,
+    color: UI.text,
+    fontFamily: "Poppins-Regular",
+  },
   breakdownValue: { fontSize: 12, color: UI.text, fontFamily: "Poppins-SemiBold" },
 });

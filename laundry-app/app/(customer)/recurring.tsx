@@ -8,17 +8,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { strings } from "@/constants/strings";
 import { goBackToCustomerHome } from "@/utils/customer-navigation";
 import { Spacer } from "@/components";
-
-const UI = {
-  bg: "#F7F8FA",
-  card: "#FFFFFF",
-  text: "#111827",
-  muted: "#6B7280",
-  teal: "#12B886",
-  chipBorder: "#E5E7EB",
-  openBg: "#ECFDF5",
-  openText: "#047857",
-};
+import { UI } from "@/constants/theme";
 
 type RecurringOptionId = "weekly" | "biWeekly" | "threeWeeks" | "monthly";
 

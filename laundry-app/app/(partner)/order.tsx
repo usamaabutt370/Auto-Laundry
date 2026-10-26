@@ -1,10 +1,9 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useFocusEffect, useLocalSearchParams, useRouter, useNavigation } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 
 import { StatusBar } from "expo-status-bar";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -13,14 +12,19 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Swipeable } from "react-native-gesture-handler";
 
 import { showAppAlert } from "@/components/app-alert";
-import { AppHeader } from "@/components/app-header";
 import { WebHeaderSpacer } from "@/components/web-header-spacer";
 import { BlockingLoader } from "@/components/blocking-loader";
-import { OrderCard } from "@/components/order-card";
+import { getTabBarBottomInset } from "@/components/bottom-tab-bar";
+import {
+  alertIfInsufficientCreditsError,
+  ensurePartnerCreditsForAccept,
+} from "@/components/partner-insufficient-credits-alert";
+import { PartnerOrderListCard } from "@/components/partner-order-list-card";
+import { GradientLoader, APP_LOADER_TINT } from "@/components/ui/gradient-loader";
 import { useConfirmDialog } from "@/components/confirm-dialog";
 import {
   PartnerOrderSuccessModal,
@@ -29,7 +33,9 @@ import {
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { useSuppressWebScreenHeader } from "@/hooks/use-suppress-web-screen-header";
 import { PartnerRiderPickerModal } from "@/components/partner-rider-picker-modal";
-import { theme } from "@/constants/theme";
+import { LinearGradient } from "expo-linear-gradient";
+
+import { gradients, theme, UI } from "@/constants/theme";
 import { useAuth } from "@/contexts/auth-context";
 import { useLocale } from "@/contexts/locale-context";
 import {
@@ -42,16 +48,6 @@ import { fetchPartnerRiders, type PartnerRider } from "@/lib/partner-riders";
 import { supabase } from "@/lib/supabase";
 import { getStrings } from "@/locales";
 
-const UI = {
-  bg: "#F7F8FA",
-  card: "#FFFFFF",
-  text: "#111827",
-  muted: "#6B7280",
-  teal: "#12B886",
-  chipBorder: "#E5E7EB",
-  mint: "#ECFDF5",
-  red: "#DC2626",
-};
 const fs = theme.fontSize;
 const H_PAD = 24;
 const REJECTION_OPTIONS = [
@@ -63,26 +59,82 @@ const REJECTION_OPTIONS = [
 ] as const;
 type RejectionOption = (typeof REJECTION_OPTIONS)[number];
 
-type OrderFilter = "pending" | "accepted" | "completed" | "rejected";
+type OrderFilter = "all" | "new" | "active" | "completed";
+
+function filterFromParam(value?: string): OrderFilter {
+  if (value === "pending" || value === "new") return "new";
+  if (value === "accepted" || value === "active") return "active";
+  if (value === "completed") return "completed";
+  return "all";
+}
+
+function orderBucket(status: PartnerOrderListItem["rawStatus"]): OrderFilter | null {
+  if (status === "submitted") return "new";
+  if (status === "accepted" || status === "in_progress" || status === "ready") return "active";
+  if (status === "completed") return "completed";
+  return null;
+}
+
+function acceptedSummary(
+  order: PartnerOrderListItem | undefined,
+  riderName?: string | null,
+): PartnerOrderSuccessPayload {
+  if (!order) return { type: "accepted" };
+  return {
+    type: "accepted",
+    order: {
+      id: order.id,
+      orderRef: order.orderRef,
+      customerName: order.customerName,
+      avatarUrl: order.avatarUrl,
+      address: order.addressPreview,
+      serviceLabel:
+        order.extraServiceCount > 0
+          ? `${order.primaryServiceLabel} +${order.extraServiceCount}`
+          : order.primaryServiceLabel || order.servicesSummary,
+      itemCount: order.itemCount,
+      totalLabel: order.estimatedTotalLabel,
+      pickupWhen: order.pickupWhen,
+      deliveryWhen: order.deliveryWhen,
+      riderName,
+    },
+  };
+}
 
 export default function PartnerOrderScreen() {
   const router = useRouter();
-  const navigation = useNavigation();
-  const canGoBack = navigation.canGoBack();
   const params = useLocalSearchParams<{ filter?: string }>();
   const { locale } = useLocale();
   const { user } = useAuth();
   const s = getStrings(locale).partner.order;
   const commonStrings = getStrings(locale).common;
+  const profileCopy = getStrings(locale).partner.profileScreen;
+  const insufficientCreditsCopy = useMemo(
+    () => ({
+      title: s.insufficientCreditsTitle,
+      message: s.insufficientCreditsMessage,
+      recharge: s.insufficientCreditsRecharge,
+      cancel: s.insufficientCreditsCancel,
+      whatsappError: profileCopy.whatsappError,
+    }),
+    [
+      profileCopy.whatsappError,
+      s.insufficientCreditsCancel,
+      s.insufficientCreditsMessage,
+      s.insufficientCreditsRecharge,
+      s.insufficientCreditsTitle,
+    ],
+  );
+  const partnerDisplayName =
+    typeof user?.user_metadata?.full_name === "string" && user.user_metadata.full_name.trim()
+      ? user.user_metadata.full_name.trim()
+      : "Partner";
 
-  const initialFilter =
-    params.filter === "accepted" ||
-    params.filter === "completed" ||
-    params.filter === "rejected" ||
-    params.filter === "pending"
-      ? params.filter
-      : "pending";
+  const paramFilter = typeof params.filter === "string" ? params.filter : undefined;
+  const initialFilter = filterFromParam(paramFilter);
   const [orderFilter, setOrderFilter] = useState<OrderFilter>(initialFilter);
+  const insets = useSafeAreaInsets();
+  const tabBarInset = getTabBarBottomInset(Math.max(insets.bottom, 8));
   const [orders, setOrders] = useState<PartnerOrderListItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -101,41 +153,8 @@ export default function PartnerOrderScreen() {
   const [loadingRiders, setLoadingRiders] = useState(false);
   const [selectedRiderId, setSelectedRiderId] = useState<string | null>(null);
   const [successPayload, setSuccessPayload] = useState<PartnerOrderSuccessPayload | null>(null);
-
-  const filterLabels: Record<OrderFilter, string> = {
-    pending: "Pending",
-    accepted: "Accepted",
-    completed: "Completed",
-    rejected: "Rejected",
-  };
-
-  const filterChips = (Object.keys(filterLabels) as OrderFilter[]).map((key) => {
-    const selected = orderFilter === key;
-    return (
-      <Pressable
-        key={key}
-        onPress={() => setOrderFilter(key)}
-        style={({ pressed }) => [
-          styles.filterChip,
-          selected && styles.filterChipSelected,
-          pressed && styles.pressed,
-        ]}
-        accessibilityRole="button"
-        accessibilityState={{ selected }}
-        accessibilityLabel={`${filterLabels[key]} orders`}
-      >
-        <Text
-          style={[
-            styles.filterChipText,
-            selected && styles.filterChipTextSelected,
-          ]}
-          numberOfLines={1}
-        >
-          {filterLabels[key]}
-        </Text>
-      </Pressable>
-    );
-  });
+  const ordersRef = useRef<PartnerOrderListItem[]>([]);
+  ordersRef.current = orders;
 
   const loadOrders = useCallback(async (showLoader = true) => {
     try {
@@ -192,23 +211,26 @@ export default function PartnerOrderScreen() {
     }
   }, [loadOrders]);
 
-  const filteredOrders = orders.filter((order) => {
-    if (orderFilter === "pending") {
-      return order.rawStatus === "submitted";
-    }
-    if (orderFilter === "accepted") {
-      return (
-        order.rawStatus === "accepted" ||
-        order.rawStatus === "in_progress" ||
-        order.rawStatus === "ready"
-      );
-    }
-    if (orderFilter === "completed") {
-      return order.rawStatus === "completed";
-    }
-    // rejected
-    return order.rawStatus === "rejected" || order.rawStatus === "cancelled";
-  });
+  const listedOrders = useMemo(
+    () => orders.filter((order) => orderBucket(order.rawStatus) != null),
+    [orders],
+  );
+  const counts = useMemo(
+    () => ({
+      all: listedOrders.length,
+      new: listedOrders.filter((order) => orderBucket(order.rawStatus) === "new").length,
+      active: listedOrders.filter((order) => orderBucket(order.rawStatus) === "active").length,
+      completed: listedOrders.filter((order) => orderBucket(order.rawStatus) === "completed").length,
+    }),
+    [listedOrders],
+  );
+  const filteredOrders = useMemo(
+    () =>
+      orderFilter === "all"
+        ? listedOrders
+        : listedOrders.filter((order) => orderBucket(order.rawStatus) === orderFilter),
+    [listedOrders, orderFilter],
+  );
 
   const handleOrderAction = useCallback(
     async (
@@ -233,23 +255,47 @@ export default function PartnerOrderScreen() {
         // Clear blocking overlay before opening another Modal (success / alert).
         setActionOrderId(null);
         if (status === "accepted") {
-          setSuccessPayload({ type: "accepted" });
+          setSuccessPayload(acceptedSummary(ordersRef.current.find((o) => o.id === orderId)));
         } else {
           showAppAlert("Order rejected", "The order has been rejected.");
         }
       } catch (error) {
         setActionOrderId(null);
+        if (
+          status === "accepted" &&
+          alertIfInsufficientCreditsError(error, {
+            copy: insufficientCreditsCopy,
+            partnerName: partnerDisplayName,
+          })
+        ) {
+          return;
+        }
         showAppAlert(
           `Unable to ${status === "accepted" ? "accept" : "reject"} order`,
           error instanceof Error ? error.message : "Please try again.",
         );
       }
     },
-    [],
+    [insufficientCreditsCopy, partnerDisplayName],
   );
 
   const openAcceptFlow = useCallback(
     async (order: PartnerOrderListItem) => {
+      try {
+        const allowed = await ensurePartnerCreditsForAccept({
+          orderAmount: order.amount,
+          partnerName: partnerDisplayName,
+          copy: insufficientCreditsCopy,
+        });
+        if (!allowed) return;
+      } catch (error) {
+        showAppAlert(
+          "Unable to accept order",
+          error instanceof Error ? error.message : "Please try again.",
+        );
+        return;
+      }
+
       if (!partnerOrderNeedsRider(order)) {
         void handleOrderAction(order.id, "accepted");
         return;
@@ -283,6 +329,8 @@ export default function PartnerOrderScreen() {
     },
     [
       handleOrderAction,
+      insufficientCreditsCopy,
+      partnerDisplayName,
       s.noRidersMessage,
       s.noRidersTitle,
       user?.id,
@@ -318,15 +366,36 @@ export default function PartnerOrderScreen() {
       setPendingAcceptOrderId(null);
       setSelectedRiderId(null);
       setActionOrderId(null);
-      setSuccessPayload({ type: "accepted" });
+      setSuccessPayload(
+        acceptedSummary(
+          ordersRef.current.find((o) => o.id === pendingAcceptOrderId),
+          partnerRiders.find((r) => r.id === selectedRiderId)?.name,
+        ),
+      );
     } catch (error) {
       setActionOrderId(null);
+      if (
+        alertIfInsufficientCreditsError(error, {
+          copy: insufficientCreditsCopy,
+          partnerName: partnerDisplayName,
+        })
+      ) {
+        return;
+      }
       showAppAlert(
         "Unable to accept order",
         error instanceof Error ? error.message : "Please try again.",
       );
     }
-  }, [pendingAcceptOrderId, s.acceptSuccess, s.selectRiderRequired, selectedRiderId, user?.id]);
+  }, [
+    insufficientCreditsCopy,
+    partnerDisplayName,
+    partnerRiders,
+    pendingAcceptOrderId,
+    s.selectRiderRequired,
+    selectedRiderId,
+    user?.id,
+  ]);
 
   const openRejectModal = useCallback((orderId: string) => {
     setPendingRejectOrderId(orderId);
@@ -355,36 +424,6 @@ export default function PartnerOrderScreen() {
     });
   }, [handleOrderAction, otherRejectionReason, pendingRejectOrderId, selectedRejectionOption]);
 
-  const handleCompleteOrder = useCallback(async (orderId: string) => {
-    try {
-      setActionOrderId(orderId);
-      const result = await partnerUpdateOrderStatus(orderId, "completed");
-      setOrders((prev) =>
-        prev.map((order) =>
-          order.id === orderId
-            ? {
-                ...order,
-                status: "completed",
-                rawStatus: result.status,
-              }
-            : order,
-        ),
-      );
-      setActionOrderId(null);
-      setSuccessPayload({
-        type: "completed",
-        charged: result.charged,
-        balance: result.balance,
-      });
-    } catch (error) {
-      setActionOrderId(null);
-      showAppAlert(
-        "Unable to complete order",
-        error instanceof Error ? error.message : "Please try again.",
-      );
-    }
-  }, []);
-
   const confirmDelete = useCallback(
     async (orderId: string) => {
       const ok = await confirm({
@@ -412,44 +451,77 @@ export default function PartnerOrderScreen() {
     [confirm, custStrings.cancel, custStrings.deleteAction, custStrings.deleteError, custStrings.deleteMessage, custStrings.deleteTitle],
   );
 
+  const filterTabs: { id: OrderFilter; label: string; count: number }[] = [
+    { id: "all", label: s.chipAll, count: counts.all },
+    { id: "new", label: s.chipNew, count: counts.new },
+    { id: "active", label: s.chipActive, count: counts.active },
+    { id: "completed", label: s.chipCompleted, count: counts.completed },
+  ];
+  const localeTag = locale === "ur" ? "ur-PK" : "en-GB";
+
   return (
     <View style={styles.container}>
       <StatusBar style="dark" />
       {dialog}
-      {!isWeb ? (
-        <SafeAreaView edges={["top"]} style={styles.safeArea}>
-          <AppHeader
-            appearance="light"
-            title={s.title}
-          />
-        </SafeAreaView>
-      ) : (
-        <WebHeaderSpacer />
-      )}
+      <SafeAreaView edges={isWeb ? [] : ["top"]} style={styles.safeArea}>
+        {isWeb ? <WebHeaderSpacer /> : null}
+        {!isWeb ? (
+          <View style={styles.header}>
+            <View style={styles.headerCopy}>
+              <Text style={styles.title}>{s.title}</Text>
+              <Text style={styles.subtitle}>{s.listSubtitle}</Text>
+            </View>
+          </View>
+        ) : null}
+      </SafeAreaView>
 
-      {isWeb ? (
-        <View style={[styles.filterRow, styles.filterRowWeb]}>{filterChips}</View>
-      ) : (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.filterScroll}
-          contentContainerStyle={styles.filterRow}
-        >
-          {filterChips}
-        </ScrollView>
-      )}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.filterScroll}
+        contentContainerStyle={styles.filterRow}
+      >
+        {filterTabs.map((tab) => {
+          const selected = orderFilter === tab.id;
+          const label = `${tab.label} (${tab.count})`;
+          return (
+            <Pressable
+              key={tab.id}
+              onPress={() => setOrderFilter(tab.id)}
+              style={[styles.filterChipWrap, selected && styles.filterChipWrapSelected]}
+              accessibilityRole="button"
+              accessibilityState={{ selected }}
+              accessibilityLabel={label}
+            >
+              {selected ? (
+                <LinearGradient
+                  colors={[...gradients.cta]}
+                  start={{ x: 0, y: 0.5 }}
+                  end={{ x: 1, y: 0.5 }}
+                  style={styles.filterChip}
+                >
+                  <Text style={styles.filterChipTextSelected}>{label}</Text>
+                </LinearGradient>
+              ) : (
+                <View style={styles.filterChip}>
+                  <Text style={styles.filterChipText}>{label}</Text>
+                </View>
+              )}
+            </Pressable>
+          );
+        })}
+      </ScrollView>
 
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: tabBarInset + 24 }]}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
             refreshing={isRefreshing}
             onRefresh={() => void handleRefresh()}
-            tintColor={UI.teal}
-            colors={[UI.teal]}
+            tintColor={APP_LOADER_TINT}
+            colors={[APP_LOADER_TINT]}
             progressBackgroundColor={UI.card}
             progressViewOffset={8}
           />
@@ -457,7 +529,7 @@ export default function PartnerOrderScreen() {
       >
         {isLoading && !isRefreshing ? (
           <View style={styles.emptyWrap}>
-            <ActivityIndicator color={UI.teal} />
+            <GradientLoader />
             <Text style={styles.emptyText}>Loading orders...</Text>
           </View>
         ) : filteredOrders.length === 0 ? (
@@ -466,43 +538,18 @@ export default function PartnerOrderScreen() {
           </View>
         ) : (
           filteredOrders.map((order) => {
-            const detailRows = [
-              { label: s.cardEstTotal, value: order.estimatedTotalLabel },
-              ...(order.servicesSummary
-                ? [{ label: s.cardServices, value: order.servicesSummary }]
-                : []),
-              ...(order.addressPreview
-                ? [{ label: s.cardAddress, value: order.addressPreview }]
-                : []),
-            ];
-            const canComplete =
-              order.rawStatus === "accepted" ||
-              order.rawStatus === "in_progress" ||
-              order.rawStatus === "ready";
-
             const orderCard = (
-              <OrderCard
-                customerName={order.customerName}
-                initial={order.initial}
-                subtitle={order.subtitle}
-                rightIcon={order.rightIcon ?? "none"}
-                statusLabel={order.status}
-                detailRows={detailRows}
-                onAccept={
-                  order.status === "pending"
-                    ? () => void openAcceptFlow(order)
-                    : undefined
-                }
-                onReject={
-                  order.status === "pending"
-                    ? () => openRejectModal(order.id)
-                    : undefined
-                }
-                onComplete={
-                  canComplete ? () => handleCompleteOrder(order.id) : undefined
-                }
-                completeLabel={s.completeOrder}
+              <PartnerOrderListCard
+                order={order}
+                copy={s}
+                localeTag={localeTag}
                 actionsDisabled={actionOrderId === order.id}
+                onAccept={
+                  order.rawStatus === "submitted" ? () => void openAcceptFlow(order) : undefined
+                }
+                onDecline={
+                  order.rawStatus === "submitted" ? () => openRejectModal(order.id) : undefined
+                }
                 onPress={() =>
                   router.push({
                     pathname: "/(partner)/order-detail",
@@ -571,6 +618,10 @@ export default function PartnerOrderScreen() {
       <PartnerOrderSuccessModal
         payload={successPayload}
         onClose={() => setSuccessPayload(null)}
+        onViewDetails={(orderId) => {
+          setSuccessPayload(null);
+          router.push({ pathname: "/(partner)/order-detail", params: { orderId } });
+        }}
       />
       <PartnerRiderPickerModal
         visible={riderModalVisible}
@@ -667,7 +718,27 @@ const styles = StyleSheet.create({
     backgroundColor: UI.bg,
   },
   safeArea: {
-    paddingBottom: 8,
+    backgroundColor: UI.bg,
+    zIndex: 2,
+  },
+  header: {
+    paddingHorizontal: 16,
+    paddingTop: 4,
+    paddingBottom: 12,
+  },
+  headerCopy: {
+    gap: 2,
+  },
+  title: {
+    fontSize: 28,
+    lineHeight: 34,
+    color: UI.text,
+    fontFamily: "Poppins-Bold",
+  },
+  subtitle: {
+    fontSize: 13,
+    color: UI.muted,
+    fontFamily: "Poppins-Regular",
   },
   pressed: { opacity: 0.85 },
   filterScroll: {
@@ -687,26 +758,40 @@ const styles = StyleSheet.create({
     width: "100%",
     marginBottom: 12,
   },
-  filterChip: {
-    paddingVertical: 8,
-    paddingHorizontal: 14,
+  filterChipWrap: {
+    flexGrow: 0,
+    flexShrink: 0,
     borderRadius: 999,
-    borderWidth: 1,
-    borderColor: UI.chipBorder,
-    backgroundColor: UI.card,
+    overflow: "hidden",
+    backgroundColor: "#F3F0FF",
+    shadowColor: UI.shadow,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 2,
+    elevation: 1,
   },
-  filterChipSelected: {
-    backgroundColor: UI.teal,
-    borderColor: UI.teal,
+  filterChipWrapSelected: {
+    backgroundColor: "transparent",
+  },
+  filterChip: {
+    minHeight: 28,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 14,
+    paddingVertical: 5,
+    borderRadius: 999,
   },
   filterChipText: {
-    fontSize: fs.descText,
-    fontWeight: "500",
-    color: UI.muted,
+    fontSize: 12,
+    fontFamily: "Poppins-SemiBold",
+    color: UI.text,
+    textAlign: "center",
   },
   filterChipTextSelected: {
+    fontSize: 12,
+    fontFamily: "Poppins-SemiBold",
     color: "#FFFFFF",
-    fontWeight: "600",
+    textAlign: "center",
   },
   scroll: {
     flex: 1,

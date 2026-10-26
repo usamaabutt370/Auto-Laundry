@@ -102,8 +102,20 @@ type Value = {
   setPickupSchedule: (slot: CustomerOrderDraft["pickup"]) => void;
   setDeliverySchedule: (slot: CustomerOrderDraft["delivery"]) => void;
   loadDraftForEdit: (draft: CustomerOrderDraft, orderId: string) => void;
+  /** Start a new order prefilled from a past one (reorder). */
+  loadDraftForReorder: (draft: CustomerOrderDraft) => void;
+  /** Rejected order: keep its items and apply them to whichever provider is picked next. */
+  startReorderWithNewProvider: (draft: CustomerOrderDraft, source: ReorderSource) => void;
+  reorderSource: ReorderSource | null;
   clearEditingOrder: () => void;
   resetDraft: () => void;
+};
+
+export type ReorderSource = {
+  orderId: string;
+  orderRef: string;
+  /** Rejected source orders are deleted once the new order is placed; completed ones stay. */
+  replaceOnSubmit: boolean;
 };
 
 const Ctx = createContext<Value | null>(null);
@@ -115,8 +127,10 @@ export function CustomerOrderDraftProvider({
 }) {
   const [draft, setDraft] = useState<CustomerOrderDraft>(emptyDraft);
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
+  const [reorderSource, setReorderSource] = useState<ReorderSource | null>(null);
   const draftRef = useRef(draft);
   const editingOrderIdRef = useRef<string | null>(null);
+  const reorderTemplateRef = useRef<CustomerOrderDraft | null>(null);
   draftRef.current = draft;
   editingOrderIdRef.current = editingOrderId;
 
@@ -131,6 +145,10 @@ export function CustomerOrderDraftProvider({
     setDraft((p) => {
       if (p.partnerId === partnerId) {
         return { ...p, partnerName };
+      }
+      const template = reorderTemplateRef.current;
+      if (template) {
+        return { ...template, partnerId, partnerName };
       }
       return {
         ...p,
@@ -272,11 +290,31 @@ export function CustomerOrderDraftProvider({
     setEditingOrderId(orderId);
   }, []);
 
+  const loadDraftForReorder = useCallback((nextDraft: CustomerOrderDraft) => {
+    reorderTemplateRef.current = null;
+    setReorderSource(null);
+    setDraft(nextDraft);
+    setEditingOrderId(null);
+  }, []);
+
+  const startReorderWithNewProvider = useCallback(
+    (nextDraft: CustomerOrderDraft, source: ReorderSource) => {
+      const template = { ...nextDraft, partnerId: null, partnerName: null };
+      reorderTemplateRef.current = template;
+      setReorderSource(source);
+      setDraft(template);
+      setEditingOrderId(null);
+    },
+    [],
+  );
+
   const clearEditingOrder = useCallback(() => {
     setEditingOrderId(null);
   }, []);
 
   const resetDraft = useCallback(() => {
+    reorderTemplateRef.current = null;
+    setReorderSource(null);
     setDraft(emptyDraft());
     setEditingOrderId(null);
   }, []);
@@ -299,6 +337,9 @@ export function CustomerOrderDraftProvider({
       setPickupSchedule,
       setDeliverySchedule,
       loadDraftForEdit,
+      loadDraftForReorder,
+      startReorderWithNewProvider,
+      reorderSource,
       clearEditingOrder,
       resetDraft,
     }),
@@ -319,6 +360,9 @@ export function CustomerOrderDraftProvider({
       setPickupSchedule,
       setDeliverySchedule,
       loadDraftForEdit,
+      loadDraftForReorder,
+      startReorderWithNewProvider,
+      reorderSource,
       clearEditingOrder,
       resetDraft,
     ],

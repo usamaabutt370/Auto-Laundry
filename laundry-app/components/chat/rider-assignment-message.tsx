@@ -1,31 +1,29 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 
 import { PartnerNameWithBadge } from "@/components/partner-name-with-badge";
-import { theme } from "@/constants/theme";
+import { AppCtaButton } from "@/components/ui/cta-button";
+import { theme, UI } from "@/constants/theme";
 import { useLocale } from "@/contexts/locale-context";
 import type { RiderAssignmentMetadata } from "@/lib/chat";
 import { getStrings } from "@/locales";
 import type { UserRole } from "@/types/user";
 
-const UI = {
-  bg: "#F7F8FA",
-  card: "#FFFFFF",
-  text: "#111827",
-  muted: "#6B7280",
-  teal: "#12B886",
-  chipBorder: "#E5E7EB",
-  mint: "#ECFDF5",
-};
 const fs = theme.fontSize;
 
 type RiderAssignmentMessageProps = {
   metadata: RiderAssignmentMetadata;
   role: UserRole | null;
   intro?: string;
+  orderStatusKey?: string | null;
 };
+
+function orderStillTrackable(statusKey: string | null | undefined): boolean {
+  const key = statusKey?.trim().toLowerCase() ?? "";
+  return key !== "completed" && key !== "cancelled" && key !== "rejected";
+}
 
 function DetailRow({
   icon,
@@ -47,7 +45,12 @@ function DetailRow({
   );
 }
 
-export function RiderAssignmentMessage({ metadata, role, intro }: RiderAssignmentMessageProps) {
+export function RiderAssignmentMessage({
+  metadata,
+  role,
+  intro,
+  orderStatusKey,
+}: RiderAssignmentMessageProps) {
   const router = useRouter();
   const { locale } = useLocale();
   const s = getStrings(locale).chat.riderAssignment;
@@ -107,17 +110,19 @@ export function RiderAssignmentMessage({ metadata, role, intro }: RiderAssignmen
         </View>
       </View>
 
-      <Pressable
-        onPress={() =>
-          router.push({
-            pathname: trackPath,
-            params: { orderId: metadata.orderId },
-          })
-        }
-        style={({ pressed }) => [styles.trackBtn, pressed && styles.pressed]}
-      >
-        <Text style={styles.trackBtnText}>{s.trackOrder}</Text>
-      </Pressable>
+      {orderStillTrackable(orderStatusKey) ? (
+        <AppCtaButton
+          label={s.trackOrder}
+          onPress={() =>
+            router.push({
+              pathname: trackPath,
+              params: { orderId: metadata.orderId },
+            })
+          }
+          rightIcon="arrow-right"
+          width="full"
+        />
+      ) : null}
     </View>
   );
 }
@@ -261,23 +266,5 @@ const styles = StyleSheet.create({
     fontSize: fs.smallText,
     fontWeight: "700",
     color: UI.text,
-  },
-  trackBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    backgroundColor: UI.teal,
-    borderRadius: 999,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-  },
-  trackBtnText: {
-    fontSize: fs.smallText,
-    fontWeight: "700",
-    color: "#FFFFFF",
-  },
-  pressed: {
-    opacity: 0.85,
   },
 });

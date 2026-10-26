@@ -6,6 +6,7 @@ import {
   MapHtmlSurface,
   type MapHtmlSurfaceHandle,
 } from "@/components/map-html-surface";
+import { UI } from "@/constants/theme";
 import type { WebViewMessageEvent } from "react-native-webview";
 import {
   type CustomerMapMarker,
@@ -87,7 +88,7 @@ export function CustomerHomeMap({
       width: 44px; height: 44px; border-radius: 50%;
       overflow: hidden; position: relative; flex-shrink: 0;
       border: 2px solid #FFFFFF; box-sizing: border-box;
-      background: #12B886;
+      background: ${UI.teal};
       box-shadow: 0 5px 12px rgba(17, 24, 39, 0.28);
       transform: translateZ(0);
       -webkit-clip-path: circle(50%);
@@ -95,7 +96,7 @@ export function CustomerHomeMap({
       -webkit-mask-image: radial-gradient(closest-side, #000 99%, transparent);
       mask-image: radial-gradient(closest-side, #000 99%, transparent);
     }
-    .partner-marker-head.pickupDelivery { background: #5B4DFF; }
+    .partner-marker-head.pickupDelivery { background: ${UI.purple}; }
     /* Marker photo — kept for later; price is shown instead.
     .leaflet-container .partner-marker img.partner-photo,
     .partner-marker img.partner-photo {
@@ -143,7 +144,7 @@ export function CustomerHomeMap({
     }
     .cluster-bubble {
       width: 40px; height: 40px; border-radius: 20px;
-      background: #12B886; border: 3px solid #FFFFFF; color: #FFFFFF;
+      background: ${UI.teal}; border: 3px solid #FFFFFF; color: #FFFFFF;
       font: 700 13px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       display: flex; align-items: center; justify-content: center;
       box-shadow: 0 6px 16px rgba(18, 184, 134, 0.38);
@@ -188,7 +189,7 @@ export function CustomerHomeMap({
       border-radius: 21px !important;
       border: 1px solid #E5E7EB !important;
       background: #FFFFFF !important;
-      color: #12B886 !important;
+      color: ${UI.teal} !important;
       font-size: 22px !important;
       font-weight: 600 !important;
       text-indent: 0 !important;

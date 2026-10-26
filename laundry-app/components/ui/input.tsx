@@ -1,4 +1,4 @@
-import { theme } from "@/constants/theme";
+import { theme, UI } from "@/constants/theme";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useState } from "react";
 import {
@@ -79,14 +79,14 @@ export function Input({
   const [isFocused, setIsFocused] = useState(false);
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const light = appearance === "light";
-  const resolvedBg = backgroundColor ?? (light ? "#FFFFFF" : theme.colors.blue900);
-  const resolvedBorder = borderColor ?? (light ? "#E5E7EB" : theme.colors.outline);
-  const resolvedFocus = light ? "#12B886" : focusUnderlineColor;
-  const resolvedText = textColor ?? (light ? "#111827" : theme.colors.white);
+  const resolvedBg = backgroundColor ?? (light ? UI.card : theme.colors.blue900);
+  const resolvedBorder = borderColor ?? (light ? UI.chipBorder : theme.colors.outline);
+  const resolvedFocus = light ? UI.teal : focusUnderlineColor;
+  const resolvedText = textColor ?? (light ? UI.text : theme.colors.white);
   const resolvedPlaceholder =
-    placeholderTextColor ?? (light ? "#6B7280" : "rgba(255,255,255,0.7)");
+    placeholderTextColor ?? (light ? UI.muted : "rgba(255,255,255,0.7)");
   const resolvedPasswordIcon =
-    passwordIconColor ?? (light ? "#6B7280" : "rgba(255,255,255,0.8)");
+    passwordIconColor ?? (light ? UI.muted : "rgba(255,255,255,0.8)");
 
   const isPhone = variant === "phone";
   const keyboardType = isPhone ? "phone-pad" : rest.keyboardType;
@@ -112,6 +112,7 @@ export function Input({
       <View
         style={[
           styles.inputRow,
+          light && styles.inputRowLight,
           {
             backgroundColor: resolvedBg,
             borderColor: isFocused ? resolvedFocus : resolvedBorder,
@@ -120,18 +121,20 @@ export function Input({
         ]}
       >
         {isPhone && (
-          <View style={styles.phonePrefix}>
+          <View style={[styles.phonePrefix, light && styles.phonePrefixLight]}>
             <CountryCodePicker
               appearance={appearance}
               selectedCca2={selectedCca2}
               selectedCallingCode={selectedCallingCode}
               onSelect={onCountrySelect || (() => {})}
             />
+            {light ? <View style={styles.phoneDivider} /> : null}
           </View>
         )}
         <TextInput
           style={[
             styles.input,
+            light && styles.inputLight,
             {
               color: resolvedText,
             },
@@ -188,11 +191,21 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     paddingHorizontal: 12,
   },
+  inputRowLight: {
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    backgroundColor: UI.card,
+  },
   input: {
     flex: 1,
     height: 52,
     fontSize: 16,
     paddingHorizontal: 8,
+  },
+  inputLight: {
+    fontSize: 15,
+    fontFamily: "Poppins-Regular",
+    paddingHorizontal: 10,
   },
   inputDisabled: {
     opacity: 0.6,
@@ -215,5 +228,16 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingRight: 4,
+  },
+  phonePrefixLight: {
+    alignSelf: "stretch",
+    paddingRight: 0,
+  },
+  phoneDivider: {
+    width: StyleSheet.hairlineWidth * 2,
+    alignSelf: "stretch",
+    marginVertical: 10,
+    marginLeft: 8,
+    backgroundColor: UI.chipBorder,
   },
 });

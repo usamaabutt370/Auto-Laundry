@@ -23,7 +23,7 @@ const SERVICES = [
     image: assets.images.top_facilities,
     tag: "Expert Hands",
     title: "Ironing & Care",
-    description: "Crisp, wrinkle-free results from skilled Laundry Captains who take pride in every garment.",
+    description: "Crisp, wrinkle-free results from skilled Service Providers who take pride in every garment.",
   },
 ];
 

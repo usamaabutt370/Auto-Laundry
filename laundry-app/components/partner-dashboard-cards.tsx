@@ -2,18 +2,8 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import type { ReactNode } from "react";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 
-import { theme } from "@/constants/theme";
+import { theme, UI } from "@/constants/theme";
 
-const UI = {
-  bg: "#F7F8FA",
-  card: "#FFFFFF",
-  text: "#111827",
-  muted: "#6B7280",
-  teal: "#12B886",
-  chipBorder: "#E5E7EB",
-  iconWell: "#ECFDF5",
-  mint: "#ECFDF5",
-};
 const fs = theme.fontSize;
 const CARD_RADIUS = 20;
 const shadow = theme.shadow ?? {};

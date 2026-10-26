@@ -1,0 +1,11 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "M954UVKM42.com.autolaundry.app",
+        "paths": ["/l/*"]
+      }
+    ]
+  }
+}

@@ -1,0 +1,150 @@
+-- Block order acceptance when the partner has no credits (or not enough
+-- to cover the eventual completion charge for this order).
+
+create or replace function public.partner_update_order_status(
+  p_order_id uuid,
+  p_new_status text,
+  p_charge_rate_pct integer default 10,
+  p_rejection_reason_option text default null,
+  p_rejection_reason_details text default null,
+  p_assigned_rider_id uuid default null
+)
+returns table (
+  status text,
+  charged integer,
+  balance integer
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_partner_id uuid;
+  v_allowed boolean;
+  v_charged integer := 0;
+  v_balance integer := 0;
+  v_order_amount numeric(12, 2) := 0;
+  v_required integer := 0;
+  v_rider_name text;
+  v_rider_phone text;
+  v_rider_photo text;
+begin
+  v_partner_id := auth.uid();
+  if v_partner_id is null then
+    raise exception 'Not authenticated';
+  end if;
+
+  v_allowed := p_new_status in ('accepted', 'rejected', 'in_progress', 'ready', 'completed', 'cancelled');
+  if not v_allowed then
+    raise exception 'Invalid status transition target';
+  end if;
+
+  if p_new_status = 'accepted' and p_assigned_rider_id is not null then
+    select r.name, r.phone, r.photo_url
+    into v_rider_name, v_rider_phone, v_rider_photo
+    from public.partner_riders r
+    where r.id = p_assigned_rider_id
+      and r.partner_id = v_partner_id;
+
+    if not found then
+      raise exception 'Rider not found or does not belong to partner';
+    end if;
+  end if;
+
+  if p_new_status = 'accepted' then
+    insert into public.partner_credit_accounts (partner_id)
+    values (v_partner_id)
+    on conflict (partner_id) do nothing;
+
+    select a.balance
+    into v_balance
+    from public.partner_credit_accounts a
+    where a.partner_id = v_partner_id
+    for update;
+
+    select coalesce(o.estimated_total, o.estimated_partial_total, 0)
+    into v_order_amount
+    from public.customer_orders o
+    where o.id = p_order_id
+      and o.partner_id = v_partner_id;
+
+    if not found then
+      raise exception 'Order not found or not assigned to partner';
+    end if;
+
+    if v_order_amount > 0 then
+      if p_charge_rate_pct <= 0 then
+        raise exception 'Rate percent must be greater than zero';
+      end if;
+      v_required := greatest(
+        1,
+        ceil((v_order_amount * p_charge_rate_pct) / 100.0)::integer
+      );
+    else
+      v_required := 0;
+    end if;
+
+    if coalesce(v_balance, 0) <= 0
+       or (v_required > 0 and coalesce(v_balance, 0) < v_required) then
+      raise exception 'Insufficient credits';
+    end if;
+  end if;
+
+  if p_new_status = 'completed' then
+    select c.charged, c.balance
+    into v_charged, v_balance
+    from public.charge_partner_credits_for_order(p_order_id, p_charge_rate_pct) c;
+  end if;
+
+  update public.customer_orders o
+  set
+    status = p_new_status,
+    rejection_reason_option = case
+      when p_new_status = 'rejected'
+        then nullif(trim(coalesce(p_rejection_reason_option, '')), '')
+      else null
+    end,
+    rejection_reason_details = case
+      when p_new_status = 'rejected'
+        then nullif(trim(coalesce(p_rejection_reason_details, '')), '')
+      else null
+    end,
+    assigned_rider_id = case
+      when p_new_status = 'accepted' and p_assigned_rider_id is not null
+        then p_assigned_rider_id
+      else o.assigned_rider_id
+    end,
+    assigned_rider_name = case
+      when p_new_status = 'accepted' and p_assigned_rider_id is not null
+        then v_rider_name
+      else o.assigned_rider_name
+    end,
+    assigned_rider_phone = case
+      when p_new_status = 'accepted' and p_assigned_rider_id is not null
+        then v_rider_phone
+      else o.assigned_rider_phone
+    end,
+    assigned_rider_photo_url = case
+      when p_new_status = 'accepted' and p_assigned_rider_id is not null
+        then v_rider_photo
+      else o.assigned_rider_photo_url
+    end
+  where o.id = p_order_id
+    and o.partner_id = v_partner_id;
+
+  if not found then
+    raise exception 'Order not found or not assigned to partner';
+  end if;
+
+  if p_new_status <> 'completed' then
+    select a.balance into v_balance
+    from public.partner_credit_accounts a
+    where a.partner_id = v_partner_id;
+  end if;
+
+  return query select p_new_status, v_charged, coalesce(v_balance, 0);
+end;
+$$;
+
+revoke all on function public.partner_update_order_status(uuid, text, integer, text, text, uuid) from public;
+grant execute on function public.partner_update_order_status(uuid, text, integer, text, text, uuid) to authenticated;

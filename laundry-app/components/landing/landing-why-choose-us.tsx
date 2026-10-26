@@ -13,7 +13,7 @@ const REASONS = [
   {
     number: "02",
     title: "Trusted, Vetted Housewives",
-    description: "Every Laundry Captain is verified before taking your order.",
+    description: "Every Service Provider is verified before taking your order.",
   },
   {
     number: "03",

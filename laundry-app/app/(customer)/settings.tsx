@@ -17,15 +17,8 @@ import { strings } from "@/constants/strings";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { useSuppressWebScreenHeader } from "@/hooks/use-suppress-web-screen-header";
 import { goBackToCustomerHome } from "@/utils/customer-navigation";
+import { UI } from "@/constants/theme";
 
-const UI = {
-  bg: "#F7F8FA",
-  card: "#FFFFFF",
-  text: "#111827",
-  muted: "#6B7280",
-  teal: "#12B886",
-  chipBorder: "#E5E7EB",
-};
 const CARD_BG = UI.card;
 const TOGGLE_ON = UI.teal;
 

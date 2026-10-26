@@ -17,13 +17,43 @@ export default function CustomerLayout() {
         <Stack.Screen name="index" />
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="recurring" />
-        <Stack.Screen name="settings" />
-        <Stack.Screen name="contact-support" />
-        <Stack.Screen name="faq" />
-        <Stack.Screen name="edit-profile" />
+        <Stack.Screen name="settings" options={{ animation: "none" }} />
+        <Stack.Screen name="contact-support" options={{ animation: "none" }} />
+        <Stack.Screen name="faq" options={{ animation: "none" }} />
+        <Stack.Screen name="edit-profile" options={{ animation: "none" }} />
+        <Stack.Screen name="addresses" options={{ animation: "none" }} />
+        <Stack.Screen
+          name="address-edit"
+          options={{
+            presentation: "transparentModal",
+            animation: "fade",
+            gestureEnabled: true,
+            headerShown: false,
+            contentStyle: { backgroundColor: "transparent" },
+          }}
+        />
         <Stack.Screen name="pickup-services" />
-        <Stack.Screen name="pick-launderer" />
-        <Stack.Screen name="launderer-detail" />
+        <Stack.Screen
+          name="pick-launderer"
+          options={({ route }) =>
+            (route.params as { from?: string } | undefined)?.from === "profile"
+              ? { animation: "none" }
+              : {}
+          }
+        />
+        <Stack.Screen
+          name="launderer-detail"
+          options={({ route }) =>
+            (route.params as { presentation?: string } | undefined)?.presentation === "modal"
+              ? {
+                  presentation: "modal",
+                  animation: "slide_from_bottom",
+                  gestureEnabled: true,
+                  headerShown: false,
+                }
+              : {}
+          }
+        />
         <Stack.Screen
           name="book-service"
           options={{
@@ -43,23 +73,43 @@ export default function CustomerLayout() {
         <Stack.Screen
           name="schedule-pickup"
           options={{
-            presentation: "modal",
+            presentation: "transparentModal",
             animation: "slide_from_bottom",
             gestureEnabled: true,
             headerShown: false,
+            contentStyle: { backgroundColor: "transparent" },
           }}
         />
         <Stack.Screen name="schedule-delivery" />
         <Stack.Screen
           name="order-summary"
           options={{
-            presentation: "modal",
+            presentation: "transparentModal",
             animation: "slide_from_bottom",
             gestureEnabled: true,
             headerShown: false,
+            contentStyle: { backgroundColor: "transparent" },
+          }}
+        />
+        <Stack.Screen
+          name="order-confirmation"
+          options={{
+            presentation: "transparentModal",
+            animation: "slide_from_bottom",
+            gestureEnabled: false,
+            headerShown: false,
+            contentStyle: { backgroundColor: "transparent" },
           }}
         />
         <Stack.Screen name="order-detail" />
+        <Stack.Screen
+          name="track-order"
+          options={{
+            // Allow pushing over order-confirmation so Back returns to that modal.
+            animation: "slide_from_right",
+            headerShown: false,
+          }}
+        />
         <Stack.Screen name="chat/[orderId]" />
       </Stack>
     </WebAreaShell>

@@ -1,5 +1,5 @@
 import { Image } from "expo-image";
-import { StyleSheet, Text, View } from "react-native";
+import { Platform, StyleSheet, Text, View } from "react-native";
 import { theme } from "@/constants/theme";
 
 const c = theme.colors;
@@ -36,11 +36,11 @@ export function AvatarImage({ uri, name, size = 80, style }: Props) {
             styles.initialsText,
             {
               fontSize,
-              lineHeight: fontSize,
-              width: size,
-              textAlign: "center",
+              // Poppins sits slightly high; nudge down so glyphs look centered in the circle.
+              marginTop: Platform.OS === "ios" ? 1 : 0,
             },
           ]}
+          allowFontScaling={false}
         >
           {initials}
         </Text>
@@ -69,6 +69,7 @@ const styles = StyleSheet.create({
     fontFamily: "Poppins-Bold",
     fontWeight: "700",
     includeFontPadding: false,
+    textAlign: "center",
     textAlignVertical: "center",
   },
 });

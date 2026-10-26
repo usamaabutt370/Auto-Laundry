@@ -1,11 +1,11 @@
-import { Image } from "expo-image";
-import { Pressable, StyleSheet, Text, View } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { assets } from "@/assets/assets";
-import { theme } from "@/constants/theme";
-
-const c = theme.colors;
+import { AppCtaButton } from "@/components/ui/cta-button";
+import { useLocale } from "@/contexts/locale-context";
+import { gradients, UI } from "@/constants/theme";
+import { getStrings } from "@/locales";
 
 type SignInRequiredModalProps = {
   visible: boolean;
@@ -24,54 +24,49 @@ export function SignInRequiredModal({
   onSignIn,
   onSignUp,
 }: SignInRequiredModalProps) {
+  const { locale } = useLocale();
+  const s = getStrings(locale).customer.orderSummary;
+
   if (!visible) return null;
 
   return (
     <View style={styles.root} pointerEvents="box-none">
-      <Pressable style={styles.backdrop} onPress={onClose}>
-        <Pressable style={styles.card} onPress={(e) => e.stopPropagation()}>
-          <Pressable
-            onPress={onClose}
-            hitSlop={12}
-            style={styles.closeBtn}
-            accessibilityRole="button"
-            accessibilityLabel="Close"
-          >
-            <MaterialCommunityIcons name="close" size={22} color={c.themeGray} />
-          </Pressable>
-
-          <Image
-            source={assets.icons.app_icon}
-            style={styles.logo}
-            contentFit="contain"
-            accessibilityLabel="Tap2Laundry"
-          />
-
-          <View style={styles.messageBlock}>
-            <Text style={styles.message}>Please sign in to submit the</Text>
-            <Text style={styles.message}>order</Text>
-          </View>
-
-          <View style={styles.actions}>
-            <Pressable
-              onPress={onSignIn}
-              style={({ pressed }) => [styles.actionBtn, pressed && styles.pressed]}
-              accessibilityRole="button"
-              accessibilityLabel="Sign in"
-            >
-              <Text style={styles.actionLabel}>Sign in</Text>
-            </Pressable>
-            <Pressable
-              onPress={onSignUp}
-              style={({ pressed }) => [styles.actionBtn, pressed && styles.pressed]}
-              accessibilityRole="button"
-              accessibilityLabel="Sign up"
-            >
-              <Text style={styles.actionLabel}>Sign up</Text>
-            </Pressable>
-          </View>
+      <Pressable style={styles.backdrop} onPress={onClose} accessibilityRole="button" />
+      <View style={styles.card} accessibilityViewIsModal>
+        <Pressable
+          onPress={onClose}
+          hitSlop={12}
+          style={styles.closeBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Close"
+        >
+          <MaterialCommunityIcons name="close" size={20} color={UI.muted} />
         </Pressable>
-      </Pressable>
+
+        <LinearGradient
+          colors={[...gradients.glass]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.iconRing}
+        >
+          <View style={styles.iconWell}>
+            <MaterialCommunityIcons name="account-lock-outline" size={32} color={UI.purple} />
+          </View>
+        </LinearGradient>
+
+        <Text style={styles.title}>{s.signInRequiredTitle}</Text>
+        <Text style={styles.message}>{s.signInRequiredMessage}</Text>
+
+        <View style={styles.actions}>
+          <AppCtaButton label={s.signIn} onPress={onSignIn} width="full" />
+          <AppCtaButton
+            label={s.signUp}
+            onPress={onSignUp}
+            variant="outline"
+            width="full"
+          />
+        </View>
+      </View>
     </View>
   );
 }
@@ -81,67 +76,77 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     zIndex: 1000,
     elevation: 1000,
-  },
-  backdrop: {
-    flex: 1,
-    backgroundColor: c.sheetBackdrop,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 28,
   },
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: UI.overlay,
+  },
   card: {
     width: "100%",
     maxWidth: 340,
-    backgroundColor: c.white,
-    borderRadius: 28,
+    backgroundColor: UI.card,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: UI.chipBorder,
     paddingTop: 28,
-    paddingBottom: 22,
+    paddingBottom: 20,
     paddingHorizontal: 22,
     alignItems: "center",
-    ...theme.shadow,
+    shadowColor: UI.shadowStrong,
+    shadowOpacity: 1,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 12 },
+    elevation: 12,
   },
   closeBtn: {
     position: "absolute",
     top: 14,
     right: 14,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: UI.iconWell,
+    alignItems: "center",
+    justifyContent: "center",
     zIndex: 1,
   },
-  logo: {
-    width: 88,
-    height: 88,
-    marginBottom: 16,
-    borderRadius: 20,
-  },
-  messageBlock: {
+  iconRing: {
+    width: 84,
+    height: 84,
+    borderRadius: 42,
     alignItems: "center",
-    marginBottom: 22,
+    justifyContent: "center",
+    marginBottom: 16,
   },
-  message: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: c.themeBlack,
-    textAlign: "center",
-    lineHeight: 26,
-  },
-  actions: {
-    flexDirection: "row",
-    gap: 12,
-    width: "100%",
-  },
-  actionBtn: {
-    flex: 1,
-    backgroundColor: c.backgroundDark,
-    borderRadius: 999,
-    paddingVertical: 14,
+  iconWell: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    backgroundColor: UI.card,
     alignItems: "center",
     justifyContent: "center",
   },
-  actionLabel: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: c.white,
+  title: {
+    fontSize: 18,
+    fontFamily: "Poppins-Bold",
+    color: UI.text,
+    textAlign: "center",
+    marginBottom: 6,
   },
-  pressed: {
-    opacity: 0.85,
+  message: {
+    fontSize: 14,
+    fontFamily: "Poppins-Regular",
+    color: UI.muted,
+    textAlign: "center",
+    lineHeight: 21,
+    marginBottom: 22,
+    paddingHorizontal: 4,
+  },
+  actions: {
+    width: "100%",
+    gap: 10,
   },
 });

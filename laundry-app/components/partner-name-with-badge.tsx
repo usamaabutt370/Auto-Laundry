@@ -21,12 +21,25 @@ export function PartnerNameWithBadge({
   badgeSize = 12,
   badgeColor,
 }: PartnerNameWithBadgeProps) {
+  // Keep the badge on the first line when the name wraps; nudge it down so it
+  // sits optically in the middle of that line rather than the absolute top edge.
+  const badgeTop = Math.max(0, Math.round(badgeSize * 0.2));
+
   return (
     <View style={[styles.row, containerStyle]}>
-      <Text style={[styles.name, nameStyle]} numberOfLines={numberOfLines}>
+      <Text
+        style={[styles.name, nameStyle]}
+        {...(numberOfLines > 0 ? { numberOfLines } : {})}
+      >
         {name}
       </Text>
-      {verified ? <PartnerVerifiedBadge size={badgeSize} color={badgeColor} /> : null}
+      {verified ? (
+        <PartnerVerifiedBadge
+          size={badgeSize}
+          color={badgeColor}
+          style={{ marginTop: badgeTop }}
+        />
+      ) : null}
     </View>
   );
 }
@@ -34,7 +47,7 @@ export function PartnerNameWithBadge({
 const styles = StyleSheet.create({
   row: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     gap: 4,
     flexShrink: 1,
   },

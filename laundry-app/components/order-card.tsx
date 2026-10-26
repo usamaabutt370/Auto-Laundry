@@ -1,21 +1,9 @@
 import type { ComponentProps } from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 
-import { theme } from "@/constants/theme";
+import { AppCtaButton } from "@/components/ui/cta-button";
+import { theme, UI } from "@/constants/theme";
 
-const UI = {
-  card: "#FFFFFF",
-  text: "#111827",
-  muted: "#6B7280",
-  teal: "#12B886",
-  chipBorder: "#E5E7EB",
-  mint: "#ECFDF5",
-  mintText: "#047857",
-  amber: "#D97706",
-  amberBg: "#FEF3C7",
-  red: "#DC2626",
-  redBg: "#FEE2E2",
-};
 const fs = theme.fontSize;
 
 const CARD_RADIUS = 16;
@@ -162,48 +150,33 @@ export function OrderCard({
           ]}
         >
           {onAccept ? (
-            <Pressable
+            <AppCtaButton
+              label="Accept"
               onPress={onAccept}
+              width="half"
               disabled={actionsDisabled}
-              style={({ pressed }) => [
-                styles.actionButton,
-                styles.acceptButton,
-                pressed && !actionsDisabled && styles.pressed,
-                actionsDisabled && styles.actionDisabled,
-              ]}
-            >
-              <Text style={styles.actionText}>Accept</Text>
-            </Pressable>
+            />
           ) : null}
           {onReject ? (
             <Pressable
               onPress={onReject}
               disabled={actionsDisabled}
               style={({ pressed }) => [
-                styles.actionButton,
                 styles.rejectButton,
                 pressed && !actionsDisabled && styles.pressed,
                 actionsDisabled && styles.actionDisabled,
               ]}
             >
-              <Text style={[styles.actionText, styles.rejectActionText]}>
-                Reject
-              </Text>
+              <Text style={styles.rejectActionText}>Reject</Text>
             </Pressable>
           ) : null}
           {onComplete ? (
-            <Pressable
+            <AppCtaButton
+              label={completeLabel}
               onPress={onComplete}
+              width={onReject || onAccept ? "half" : "full"}
               disabled={actionsDisabled}
-              style={({ pressed }) => [
-                styles.actionButton,
-                styles.acceptButton,
-                pressed && !actionsDisabled && styles.pressed,
-                actionsDisabled && styles.actionDisabled,
-              ]}
-            >
-              <Text style={styles.actionText}>{completeLabel}</Text>
-            </Pressable>
+            />
           ) : null}
         </View>
       ) : null}
@@ -383,32 +356,22 @@ const styles = StyleSheet.create({
   statusPillTextCompleted: {
     color: UI.mintText,
   },
-  actionButton: {
+  rejectButton: {
     flex: 1,
     minWidth: 0,
-    paddingVertical: 6,
-    borderRadius: 999,
-    borderWidth: 1,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 1.5,
+    backgroundColor: UI.card,
+    borderColor: UI.red,
     alignItems: "center",
     justifyContent: "center",
   },
-  acceptButton: {
-    backgroundColor: UI.teal,
-    borderColor: UI.teal,
-  },
-  rejectButton: {
-    backgroundColor: UI.card,
-    borderColor: UI.red,
-  },
-  actionText: {
-    color: "#FFFFFF",
-    fontSize: fs.descText,
-    fontWeight: "600",
-  },
   rejectActionText: {
     color: UI.red,
-    fontSize: fs.descText,
-    fontWeight: "600",
+    fontSize: 13,
+    fontFamily: "Poppins-Bold",
+    fontWeight: "700",
   },
   actionDisabled: {
     opacity: 0.5,

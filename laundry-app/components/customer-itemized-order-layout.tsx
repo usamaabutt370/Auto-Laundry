@@ -1,12 +1,10 @@
 import type { ReactNode } from "react";
 import type { StyleProp, ViewStyle } from "react-native";
+import { Platform, StyleSheet, View } from "react-native";
 import {
   KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  View,
-} from "react-native";
+  KeyboardAwareScrollView,
+} from "react-native-keyboard-controller";
 import { initialWindowMetrics, useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { theme } from "@/constants/theme";
@@ -16,6 +14,9 @@ export const CUSTOMER_ORDER_NOTES_MAX_HEIGHT = 120;
 
 /** Shared horizontal inset for sticky footer (estimate bar + Save align). */
 export const CUSTOMER_ORDER_FOOTER_PAD = 20;
+
+/** Space reserved for sticky footer when scrolling a focused input into view. */
+const FOOTER_SCROLL_OFFSET = 120;
 
 const c = theme.colors;
 
@@ -47,6 +48,7 @@ type Props = {
 /**
  * Scrollable service-order body with a footer pinned above the keyboard.
  * Android uses app.json `softwareKeyboardLayoutMode: "resize"`; iOS uses padding.
+ * Uses react-native-keyboard-controller so transparent modals (e.g. book-service) lift correctly.
  */
 export function CustomerItemizedOrderLayout({
   children,
@@ -65,17 +67,20 @@ export function CustomerItemizedOrderLayout({
     <KeyboardAvoidingView
       style={styles.keyboardView}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
+      automaticOffset
     >
       <View style={styles.body}>
-        <ScrollView
+        <KeyboardAwareScrollView
           style={styles.scroll}
           contentContainerStyle={[styles.scrollContent, scrollContentStyle]}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
           showsVerticalScrollIndicator={false}
+          bottomOffset={FOOTER_SCROLL_OFFSET}
+          extraKeyboardSpace={8}
         >
           {children}
-        </ScrollView>
+        </KeyboardAwareScrollView>
         <View
           style={[
             styles.footer,
@@ -100,10 +105,11 @@ const styles = StyleSheet.create({
     backgroundColor: c.background,
     borderTopWidth: 1,
     borderTopColor: "rgba(255,255,255,0.06)",
+    paddingTop: 12,
     paddingHorizontal: CUSTOMER_ORDER_FOOTER_PAD,
   },
   footerLight: {
-    backgroundColor: "#F7F8FA",
+    backgroundColor: "#FFFFFF",
     borderTopColor: "#E5E7EB",
   },
 });

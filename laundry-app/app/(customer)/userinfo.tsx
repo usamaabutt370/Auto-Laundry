@@ -200,8 +200,8 @@ export default function UserInfo() {
         if (isFirstTimeBecomingLaunderer) {
           setRoleSwitchValue(true);
           const confirmed = await confirm({
-            title: "Become a Laundry Captain",
-            message: "Are you sure you want to become a Laundry Captain? You will be asked to provide your business details.",
+            title: "Become a Service Provider",
+            message: "Are you sure you want to become a Service Provider? You will be asked to provide your business details.",
             confirmLabel: "Confirm",
             cancelLabel: "Cancel",
           });
@@ -302,7 +302,7 @@ export default function UserInfo() {
 
             <View style={styles.roleCard}>
               <Pressable style={({ pressed }) => [styles.roleRow, pressed && styles.pressed]} onPress={() => !isUpdatingRole && handleRoleToggle(!isPartnerSwitchOn)}>
-                <Text style={styles.roleLabel}>Become a Laundry Captain</Text>
+                <Text style={styles.roleLabel}>Become a Service Provider</Text>
                 <View style={styles.switchWrap}>
                   {isUpdatingRole ? (
                     <ActivityIndicator color={c.white} size="small" />
@@ -319,7 +319,7 @@ export default function UserInfo() {
                 </View>
               </Pressable>
               <Text style={styles.roleHint}>
-                Offer laundry services and manage orders as a Laundry Captain.
+                Offer laundry services and manage orders as a Service Provider.
               </Text>
             </View>
           </View>

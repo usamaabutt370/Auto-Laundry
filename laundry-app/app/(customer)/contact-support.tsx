@@ -14,20 +14,14 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { LinearGradient } from "expo-linear-gradient";
+
 import { showAppAlert } from "@/components/app-alert";
 import { AppHeader } from "@/components/app-header";
 import { strings } from "@/constants/strings";
 import { openWhatsApp } from "@/lib/whatsapp";
 import { goBackToCustomerHome } from "@/utils/customer-navigation";
-
-const UI = {
-  bg: "#F7F8FA",
-  card: "#FFFFFF",
-  text: "#111827",
-  muted: "#6B7280",
-  teal: "#12B886",
-  chipBorder: "#E5E7EB",
-};
+import { gradients, UI } from "@/constants/theme";
 
 export default function ContactSupportScreen() {
   const router = useRouter();
@@ -91,7 +85,14 @@ export default function ContactSupportScreen() {
               pressed && styles.sendBtnPressed,
             ]}
           >
-            <Text style={styles.sendBtnText}>{s.send}</Text>
+            <LinearGradient
+              colors={[...gradients.brand]}
+              start={{ x: 0, y: 0.5 }}
+              end={{ x: 1, y: 0.5 }}
+              style={styles.sendBtnFill}
+            >
+              <Text style={styles.sendBtnText}>{s.send}</Text>
+            </LinearGradient>
           </Pressable>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -136,10 +137,12 @@ const styles = StyleSheet.create({
   sendBtn: {
     borderRadius: 25,
     marginTop: 24,
+    overflow: "hidden",
+  },
+  sendBtnFill: {
     paddingVertical: 16,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: UI.teal,
   },
   sendBtnPressed: {
     opacity: 0.9,

@@ -10,6 +10,18 @@ const root = path.dirname(require.resolve("./app.json"));
 const androidGs = path.join(root, "google-services.json");
 const iosGs = path.join(root, "GoogleService-Info.plist");
 
+function shareLinkHost() {
+  const origin = (process.env.EXPO_PUBLIC_SHARE_LINK_ORIGIN ?? "").trim();
+  if (!origin) return "";
+  try {
+    return new URL(origin).host;
+  } catch {
+    return "";
+  }
+}
+
+const shareHost = shareLinkHost();
+
 const firebasePlugins = [
   "@react-native-firebase/app",
   "@react-native-firebase/messaging",
@@ -45,6 +57,18 @@ module.exports = {
     android: {
       ...appJson.expo.android,
       ...(fs.existsSync(androidGs) ? { googleServicesFile: "./google-services.json" } : {}),
+      ...(shareHost
+        ? {
+            intentFilters: [
+              {
+                action: "VIEW",
+                autoVerify: true,
+                data: [{ scheme: "https", host: shareHost, pathPrefix: "/l" }],
+                category: ["BROWSABLE", "DEFAULT"],
+              },
+            ],
+          }
+        : {}),
     },
     ios: {
       ...appJson.expo.ios,
@@ -53,6 +77,7 @@ module.exports = {
         ITSAppUsesNonExemptEncryption: false,
       },
       ...(fs.existsSync(iosGs) ? { googleServicesFile: "./GoogleService-Info.plist" } : {}),
+      ...(shareHost ? { associatedDomains: [`applinks:${shareHost}`] } : {}),
     },
     extra: {
       ...(typeof appJson.expo.extra === "object" && appJson.expo.extra !== null

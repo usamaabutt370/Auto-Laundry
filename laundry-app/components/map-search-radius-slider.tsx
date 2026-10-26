@@ -7,7 +7,7 @@ import {
   View,
 } from "react-native";
 
-import { theme } from "@/constants/theme";
+import { theme, UI } from "@/constants/theme";
 
 const c = theme.colors;
 const THUMB_SIZE = 24;
@@ -184,7 +184,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.35)",
   },
   trackLineLight: {
-    backgroundColor: "#E5E7EB",
+    backgroundColor: UI.chipBorder,
   },
   fill: {
     position: "absolute",
@@ -195,7 +195,7 @@ const styles = StyleSheet.create({
     backgroundColor: c.blue600,
   },
   fillLight: {
-    backgroundColor: "#12B886",
+    backgroundColor: UI.teal,
   },
   thumb: {
     position: "absolute",
@@ -206,9 +206,9 @@ const styles = StyleSheet.create({
     backgroundColor: c.white,
   },
   thumbLight: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: UI.card,
     borderWidth: 2,
-    borderColor: "#12B886",
+    borderColor: UI.teal,
   },
   labels: {
     flexDirection: "row",
@@ -221,7 +221,7 @@ const styles = StyleSheet.create({
     opacity: 0.9,
   },
   labelLight: {
-    color: "#6B7280",
+    color: UI.muted,
     opacity: 1,
   },
 });

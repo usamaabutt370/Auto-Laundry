@@ -11,7 +11,9 @@ import {
   StyleSheet,
   Text,
   View,
+  type StyleProp,
   type TextStyle,
+  type ViewStyle,
 } from "react-native";
 import Animated, {
   Easing,
@@ -23,11 +25,7 @@ import Animated, {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { GlassTabBarBackground } from "@/components/glass-tab-bar-background";
-
-const PILL_GRADIENT = [
-  "rgba(74, 58, 255, 0.30)",
-  "rgba(18, 184, 134, 0.30)",
-] as const;
+import { gradients } from "@/constants/theme";
 
 export const TAB_BAR_HEIGHT = 64;
 export const TAB_BAR_FLOAT_MARGIN = 16;
@@ -130,7 +128,7 @@ function GlassTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
           {pillReady ? (
             <Animated.View pointerEvents="none" style={[styles.pill, pillStyle]}>
               <LinearGradient
-                colors={[...PILL_GRADIENT]}
+                colors={[...gradients.glass]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.pillFill}
@@ -214,6 +212,11 @@ function GlassTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
 }
 
 function renderGlassTabBar(props: BottomTabBarProps) {
+  const focusedRoute = props.state.routes[props.state.index];
+  const focusedStyle = StyleSheet.flatten(
+    props.descriptors[focusedRoute.key]?.options.tabBarStyle as StyleProp<ViewStyle>,
+  );
+  if (focusedStyle?.display === "none") return null;
   return <GlassTabBar {...props} />;
 }
 

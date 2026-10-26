@@ -29,16 +29,8 @@ import { prepareImageForUpload } from "@/utils/read-local-image-bytes";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
 import type { CountryCode } from "libphonenumber-js";
 import { Input } from "@/components";
-
-const UI = {
-  bg: "#F7F8FA",
-  card: "#FFFFFF",
-  text: "#111827",
-  muted: "#6B7280",
-  teal: "#12B886",
-  chipBorder: "#E5E7EB",
-  iconWell: "#F3F4F6",
-};
+import { GradientLoader } from "@/components/ui/gradient-loader";
+import { gradients, UI } from "@/constants/theme";
 
 const AVATAR_BUCKET = "avatars";
 const AVATAR_PATH_PREFIX = "avatar"; // file will be avatar.jpg or avatar.png
@@ -435,7 +427,7 @@ export default function EditProfileScreen() {
       <SafeAreaView style={styles.container} edges={["top"]}>
         <StatusBar style="dark" />
         <View style={styles.loadingWrap}>
-          <ActivityIndicator color={UI.teal} size="small" />
+          <GradientLoader size="small" />
         </View>
       </SafeAreaView>
     );
@@ -517,7 +509,7 @@ export default function EditProfileScreen() {
               ) : (
                 <View style={styles.avatarPlaceholder}>
                   {uploadingImage ? (
-                    <ActivityIndicator color={UI.teal} size="small" />
+                    <GradientLoader size="small" />
                   ) : (
                     <>
                       <MaterialCommunityIcons
@@ -675,7 +667,7 @@ export default function EditProfileScreen() {
               disabled={saving}
             >
               <LinearGradient
-                colors={["#4A3AFF", "#12B886"]}
+                colors={[...gradients.brand]}
                 start={{ x: 0, y: 0.5 }}
                 end={{ x: 1, y: 0.5 }}
                 style={styles.saveBtn}
@@ -755,7 +747,7 @@ export default function EditProfileScreen() {
               disabled={saving}
             >
               <LinearGradient
-                colors={["#4A3AFF", "#12B886"]}
+                colors={[...gradients.brand]}
                 start={{ x: 0, y: 0.5 }}
                 end={{ x: 1, y: 0.5 }}
                 style={styles.saveBtn}

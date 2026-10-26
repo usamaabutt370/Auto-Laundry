@@ -185,6 +185,38 @@ export async function fetchMapPartners(): Promise<{
   return { data: await attachDiscoveryExtras(rows), error: null };
 }
 
+/** Partners by explicit IDs (e.g. customer favourites), any fulfillment mode. */
+export async function fetchPartnersByIds(partnerIds: string[]): Promise<{
+  data: PartnerPublicRow[] | null;
+  error: string | null;
+}> {
+  if (!isSupabaseConfigured() || !supabase) {
+    return { data: [], error: null };
+  }
+  const ids = [...new Set(partnerIds.filter((id) => typeof id === "string" && id.length > 0))];
+  if (ids.length === 0) {
+    return { data: [], error: null };
+  }
+
+  const { data, error } = await supabase
+    .from("partner_profiles")
+    .select(
+      "id, business_name, phone_number, available_time, address, latitude, longitude, image_url, business_images, updated_at, pickup_delivery_amount",
+    )
+    .in("id", ids)
+    .order("business_name", { ascending: true });
+
+  if (error) {
+    return { data: null, error: error.message };
+  }
+
+  const rows = (data ?? [])
+    .map((row) => toMapMarker(row as PartnerPublicRow & { pickup_delivery_amount?: string | null }))
+    .filter((row): row is PartnerMapMarkerRow => row != null);
+
+  return { data: await attachDiscoveryExtras(rows), error: null };
+}
+
 export function partnerOffersPickupDelivery(
   profile:
     | Pick<PartnerDetailRow, "pickup_delivery_enabled" | "pickup_delivery_amount">

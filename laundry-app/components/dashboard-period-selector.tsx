@@ -10,18 +10,10 @@ import {
   type ViewStyle,
 } from "react-native";
 
-import { theme } from "@/constants/theme";
+import { theme, UI } from "@/constants/theme";
 import { useLocale } from "@/contexts/locale-context";
 import { getStrings } from "@/locales";
 
-const UI = {
-  card: "#FFFFFF",
-  text: "#111827",
-  muted: "#6B7280",
-  teal: "#12B886",
-  chipBorder: "#E5E7EB",
-  mint: "#ECFDF5",
-};
 const fs = theme.fontSize;
 
 export type DashboardPeriod = "week" | "month" | "year";
@@ -30,6 +22,8 @@ export interface DashboardPeriodSelectorProps {
   value: DashboardPeriod;
   onValueChange: (period: DashboardPeriod) => void;
   style?: ViewStyle;
+  /** Overrides the default Week / Month / Year labels. */
+  labels?: Partial<Record<DashboardPeriod, string>>;
 }
 
 const PERIODS: DashboardPeriod[] = ["week", "month", "year"];
@@ -42,15 +36,16 @@ export function DashboardPeriodSelector({
   value,
   onValueChange,
   style: customStyle,
+  labels: labelOverrides,
 }: DashboardPeriodSelectorProps) {
   const { locale } = useLocale();
   const s = getStrings(locale).partner.dashboard;
   const [visible, setVisible] = useState(false);
 
   const labels: Record<DashboardPeriod, string> = {
-    week: s.week,
-    month: s.month,
-    year: s.year,
+    week: labelOverrides?.week ?? s.week,
+    month: labelOverrides?.month ?? s.month,
+    year: labelOverrides?.year ?? s.year,
   };
 
   const handleSelect = (next: DashboardPeriod) => {

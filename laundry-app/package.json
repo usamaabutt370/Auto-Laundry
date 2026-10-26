@@ -1,7 +1,7 @@
 {
   "name": "laundry-app",
   "main": "expo-router/entry",
-  "version": "1.0.0",
+  "version": "1.1.1",
   "engines": {
     "node": ">=24.0.0 <26"
   },
@@ -20,7 +20,9 @@
     "supabase:deploy:chat-push": "npx supabase functions deploy chat-message-push --no-verify-jwt",
     "supabase:deploy:functions": "npx supabase functions deploy chat-message-push --no-verify-jwt",
     "supabase:secret:firebase": "node scripts/set-firebase-service-account-secret.cjs",
-    "build:android:production": "eas build --profile production --platform android"
+    "build:android:production": "eas build --profile production --platform android",
+    "build:ios:testflight": "bash ./scripts/submit-testflight.sh --build",
+    "submit:ios:testflight": "bash ./scripts/submit-testflight.sh"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",

@@ -27,15 +27,15 @@ export function LandingBecomeCaptain() {
             <Text style={styles.headingAccent}>Real Income</Text>
           </Text>
           <Text style={styles.subtitle}>
-            Join hundreds of Laundry Captains earning from home — on your own schedule, from your own kitchen.
+            Join hundreds of Service Providers earning from home — on your own schedule, from your own kitchen.
           </Text>
           <Pressable
             style={({ pressed }) => [styles.btn, pressed && styles.pressed]}
             onPress={() => router.push("/(auth)/welcome")}
             accessibilityRole="button"
-            accessibilityLabel="Become a Laundry Captain"
+            accessibilityLabel="Become a Service Provider"
           >
-            <Text style={styles.btnText}>Become a Laundry Captain</Text>
+            <Text style={styles.btnText}>Become a Service Provider</Text>
             <MaterialCommunityIcons name="arrow-right" size={18} color={c.white} />
           </Pressable>
         </View>

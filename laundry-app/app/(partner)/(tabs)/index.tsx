@@ -1,87 +1,46 @@
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect, useRouter } from "expo-router";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AppHeader } from "@/components/app-header";
 import { WebHeaderSpacer } from "@/components/web-header-spacer";
 import { getTabBarBottomInset } from "@/components/bottom-tab-bar";
-import {
-  PartnerDashboardHero,
-  PartnerPanelCard,
-  PartnerServiceOverviewCard,
-} from "@/components/partner-dashboard-cards";
-import { AppButton } from "@/components/ui/button";
-import {
-  type DashboardPeriod,
-} from "@/components/dashboard-period-selector";
-import { DashboardChart } from "@/components/dashboard-chart";
+import { PartnerHomeDashboard } from "@/components/partner-home-dashboard";
+import { AppCtaButton } from "@/components/ui/cta-button";
 import { useAuth } from "@/contexts/auth-context";
 import { useLocale } from "@/contexts/locale-context";
-import { useLaundererDashboard } from "@/hooks/use-launderer-dashboard";
 import { useSuppressWebScreenHeader } from "@/hooks/use-suppress-web-screen-header";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
-import { formatDashboardPeriodRange } from "@/lib/dashboard-period-bounds";
 import { getStrings } from "@/locales";
 import { StatusBar } from "expo-status-bar";
 
-import { theme } from "@/constants/theme";
+import { gradients, UI } from "@/constants/theme";
 
-const UI = {
-  bg: "#F7F8FA",
-  card: "#FFFFFF",
-  text: "#111827",
-  muted: "#6B7280",
-  teal: "#12B886",
-  purple: "#4A3AFF",
-  chipBorder: "#E5E7EB",
-};
-const fs = theme.fontSize;
 const H_PAD = 24;
-const CARD_RADIUS = 16;
-
-function formatMoney(value: number): string {
-  const rounded = Math.round(value);
-  const formatted = new Intl.NumberFormat("en-US", {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(rounded);
-  return `Rs ${formatted}`;
-}
 
 /**
- * Partner dashboard tab: shown as the home tab with bottom navigation.
+ * Partner home tab. Approved launderers see the live dashboard.
+ * Everyone else sees the onboarding / KYC placeholder.
  */
 export default function PartnerDashboardScreen() {
   const router = useRouter();
   const { partnerApprovalStatus, partnerRejectionReason, refreshPartnerApproval } = useAuth();
   const { locale } = useLocale();
   const s = getStrings(locale).partner.dashboard;
-  const [period, setPeriod] = useState<DashboardPeriod>("week");
   const insets = useSafeAreaInsets();
   const tabBarInset = getTabBarBottomInset(Math.max(insets.bottom, 8));
   const { isWeb } = useResponsiveLayout();
   useSuppressWebScreenHeader();
 
-  const periodRangeLabel = useMemo(
-    () =>
-      formatDashboardPeriodRange(
-        period,
-        new Date(),
-        locale === "ur" ? "ur-PK" : "en-US",
-      ),
-    [period, locale],
-  );
-
   const isApproved = partnerApprovalStatus === "approved";
-  const { data, refresh } = useLaundererDashboard(isApproved, period);
-  const earningsTotalForPeriod = data.earningsChartValues.reduce((sum, value) => sum + value, 0);
 
   useFocusEffect(
     useCallback(() => {
       void refreshPartnerApproval();
-      if (isApproved) void refresh();
-    }, [isApproved, refresh, refreshPartnerApproval]),
+    }, [refreshPartnerApproval]),
   );
 
   const showOnboardingPlaceholder = !isApproved;
@@ -105,6 +64,15 @@ export default function PartnerDashboardScreen() {
       ? s.rejectedButton
       : s.placeholderButton;
 
+  if (!showOnboardingPlaceholder) {
+    return (
+      <View style={styles.container}>
+        <StatusBar style="dark" />
+        <PartnerHomeDashboard />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <StatusBar style="dark" />
@@ -121,94 +89,38 @@ export default function PartnerDashboardScreen() {
         contentContainerStyle={[styles.content, { paddingBottom: tabBarInset + 16 }]}
         showsVerticalScrollIndicator={false}
       >
-        {showOnboardingPlaceholder ? (
-          <View style={styles.placeholderCard}>
-            <Text style={styles.placeholderTitle}>{placeholderTitle}</Text>
-            <Text style={styles.placeholderMessage}>{placeholderMessage}</Text>
-            <AppButton
-              label={placeholderButtonLabel}
-              onPress={() => router.push("/(partner)/onboarding")}
-              variant="filled"
-              fullWidth
-              accessibilityLabel={placeholderButtonLabel}
-            />
-          </View>
-        ) : null}
-        {!showOnboardingPlaceholder ? (
-          <>
-            <PartnerDashboardHero
-              totalIncomeLabel={s.totalIncome}
-              totalIncomeFormatted={formatMoney(data.totalIncome)}
-              periodEarningsLabel={s.periodEarningsTotal}
-              periodEarningsFormatted={formatMoney(earningsTotalForPeriod)}
-              periodFilterLabel={
-                period === "week" ? s.week : period === "month" ? s.month : s.year
-              }
-              totalIncomeAmount={data.totalIncome}
-              periodEarningsAmount={earningsTotalForPeriod}
-              periodRangeLabel={periodRangeLabel}
-              completedOrdersLabel={s.heroCompletedOrders}
-              completedOrdersCount={data.completedOrdersInPeriod}
-              avgPerOrderLabel={s.heroAvgPerOrder}
-              avgPerOrderFormatted={
-                data.completedOrdersInPeriod > 0
-                  ? formatMoney(
-                      Math.round(data.totalIncome / data.completedOrdersInPeriod),
-                    )
-                  : "—"
-              }
-            />
-
-            <Text style={styles.sectionTitle}>{s.pipelineSectionTitle}</Text>
-            <View style={styles.pipelineRow}>
-              <View style={styles.pipelineCardWrap}>
-                <PartnerServiceOverviewCard
-                  compact
-                  title={s.dropOff}
-                  icon="storefront-outline"
-                  accent={UI.teal}
-                  totalActive={data.dropOff.total}
-                  activeOrdersCaption={s.activeOrdersCaption}
-                  onPress={() =>
-                    router.push({
-                      pathname: "/(partner)/dashboard-orders",
-                      params: { kind: "dropoff" },
-                    })
-                  }
-                />
-              </View>
-              <View style={styles.pipelineCardWrap}>
-                <PartnerServiceOverviewCard
-                  compact
-                  title={s.delivery}
-                  icon="truck-fast-outline"
-                  accent={UI.purple}
-                  totalActive={data.delivery.total}
-                  activeOrdersCaption={s.activeOrdersCaption}
-                  onPress={() =>
-                    router.push({
-                      pathname: "/(partner)/dashboard-orders",
-                      params: { kind: "delivery" },
-                    })
-                  }
-                />
+        <View style={styles.placeholderCard}>
+          {isRejected ? (
+            <View style={styles.iconRingDanger}>
+              <View style={styles.iconWell}>
+                <MaterialCommunityIcons name="alert-circle-outline" size={32} color={UI.red} />
               </View>
             </View>
-
-            <PartnerPanelCard title={s.earningsGraphLabel} icon="chart-bar">
-              <Text style={styles.earningsTotalLabel}>
-                {s.periodEarningsTotal}: {formatMoney(earningsTotalForPeriod)}
-              </Text>
-              <View style={styles.chartWrap}>
-                <DashboardChart
-                  values={data.earningsChartValues}
-                  labels={data.chartLabels}
-                  valueLabelFormatter={formatMoney}
+          ) : (
+            <LinearGradient
+              colors={[...gradients.glass]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.iconRing}
+            >
+              <View style={styles.iconWell}>
+                <MaterialCommunityIcons
+                  name={isPendingApproval ? "clock-outline" : "storefront-outline"}
+                  size={32}
+                  color={UI.purple}
                 />
               </View>
-            </PartnerPanelCard>
-          </>
-        ) : null}
+            </LinearGradient>
+          )}
+          <Text style={styles.placeholderTitle}>{placeholderTitle}</Text>
+          <Text style={styles.placeholderMessage}>{placeholderMessage}</Text>
+          <AppCtaButton
+            label={placeholderButtonLabel}
+            onPress={() => router.push("/(partner)/onboarding")}
+            width="full"
+            accessibilityLabel={placeholderButtonLabel}
+          />
+        </View>
       </ScrollView>
     </View>
   );
@@ -231,51 +143,61 @@ const styles = StyleSheet.create({
   },
   placeholderCard: {
     backgroundColor: UI.card,
-    borderRadius: CARD_RADIUS,
+    borderRadius: 24,
     borderWidth: 1,
     borderColor: UI.chipBorder,
-    padding: 20,
-    marginBottom: 12,
-    gap: 12,
-    width: "50%",
-    minWidth: 280,
+    paddingTop: 28,
+    paddingBottom: 20,
+    paddingHorizontal: 22,
+    marginTop: 8,
+    width: "100%",
+    maxWidth: 400,
     alignSelf: "center",
+    alignItems: "center",
+    shadowColor: UI.shadowStrong,
+    shadowOpacity: 1,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 12 },
+    elevation: 8,
+  },
+  iconRing: {
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+  },
+  iconRingDanger: {
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+    backgroundColor: UI.redBg,
+  },
+  iconWell: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    backgroundColor: UI.card,
+    alignItems: "center",
+    justifyContent: "center",
   },
   placeholderTitle: {
-    fontSize: fs.smallTitle,
-    fontWeight: "700",
+    fontSize: 18,
+    fontFamily: "Poppins-Bold",
     color: UI.text,
+    textAlign: "center",
+    marginBottom: 6,
   },
   placeholderMessage: {
-    fontSize: fs.smallText,
+    fontSize: 14,
+    fontFamily: "Poppins-Regular",
     color: UI.muted,
-    lineHeight: 20,
-  },
-  sectionTitle: {
-    fontSize: fs.smallTitle,
-    fontWeight: "700",
-    color: UI.text,
-    marginBottom: 12,
-    letterSpacing: 0.2,
-  },
-  pipelineRow: {
-    flexDirection: "row",
-    alignItems: "stretch",
-    gap: 10,
-    marginBottom: 20,
-  },
-  pipelineCardWrap: {
-    flex: 1,
-    minWidth: 0,
-  },
-  chartWrap: {
-    marginTop: 4,
-    width: "100%",
-  },
-  earningsTotalLabel: {
-    marginBottom: 8,
-    fontSize: fs.descText,
-    color: UI.muted,
-    fontWeight: "600",
+    lineHeight: 21,
+    textAlign: "center",
+    marginBottom: 22,
   },
 });
