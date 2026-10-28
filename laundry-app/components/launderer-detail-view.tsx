@@ -136,7 +136,6 @@ export function LaundererDetailView({
   const { width: windowWidth } = useWindowDimensions();
   const footerBottomPad = Math.max(insets.bottom, 16);
   const heroHeight = isWeb ? 420 : Math.round(windowWidth * 0.72);
-  const jobCardWidth = Math.round(windowWidth * 0.8);
   const jobImageHeight = isNarrow ? 110 : 128;
 
   const jobMeta: Record<
@@ -198,6 +197,8 @@ export function LaundererDetailView({
   const partnerVerified = usePartnerVerified(partnerId);
   const { draft, setPickupDeliveryRequested } = useCustomerOrderDraft();
   const { loading: estimateLoading, estimate } = usePartnerOrderEstimate(partnerId, draft);
+  // 80% of the detail content width (not the full browser), matching mobile proportions on web.
+  const jobCardWidth = Math.round((heroWidth > 0 ? heroWidth : windowWidth) * 0.8);
   const load = useCallback(async () => {
     if (!partnerId) {
       setLoading(false);

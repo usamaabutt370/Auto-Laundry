@@ -2,7 +2,7 @@ import { useSegments } from "expo-router";
 import type { ReactNode } from "react";
 import { Platform, StyleSheet, View } from "react-native";
 
-import { theme } from "@/constants/theme";
+import { UI } from "@/constants/theme";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 
 type Props = {
@@ -49,7 +49,7 @@ const appStyles = StyleSheet.create({
   webRoot: {
     flex: 1,
     width: "100%",
-    backgroundColor: theme.colors.background,
+    backgroundColor: UI.card,
     ...(Platform.OS === "web"
       ? ({
           minHeight: "100vh",
@@ -64,7 +64,7 @@ const authStyles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     padding: 32,
-    backgroundColor: theme.colors.background,
+    backgroundColor: UI.bg,
   },
   card: {
     width: "100%",
@@ -72,9 +72,9 @@ const authStyles = StyleSheet.create({
     minHeight: 520,
     borderRadius: 20,
     overflow: "hidden",
-    backgroundColor: theme.colors.background,
+    backgroundColor: UI.card,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.15)",
+    borderColor: UI.border,
   },
   cardSignUp: {
     minHeight: 600,

@@ -1,104 +1,137 @@
-import { Image } from "expo-image";
-import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
-import { Linking, Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useState, type ReactNode } from "react";
+import {
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from "react-native";
 
-import { assets } from "@/assets/assets";
-import { theme } from "@/constants/theme";
+import type { LaundererServiceType } from "@/constants/launderers";
+import { UI } from "@/constants/theme";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
-import { trackMetaEvent } from "@/lib/meta-pixel";
 import { LandingContainer } from "./landing-container";
+import { LandingHeroVisual } from "./landing-hero-visual";
+import { LANDING_SEARCH_BAR_SLOT_HEIGHT } from "./landing-search-bar";
 
-const c = theme.colors;
 const NAVBAR_HEIGHT = 72;
-const GOOGLE_PLAY_URL = "https://play.google.com/store/apps/details?id=com.autolaundry.app&hl=en";
 
-/** Top-of-page hero: the customer pitch — gentle, trusted laundry care. */
-export function LandingHero() {
-  const router = useRouter();
-  const { isWebDesktop } = useResponsiveLayout();
-  const { height: windowHeight } = useWindowDimensions();
+export type LandingPopularService = LaundererServiceType | "alterations";
+
+const POPULAR_CHIPS: { label: string; tint: string; service: LandingPopularService }[] = [
+  { label: "Tailoring", tint: UI.dealPink, service: "tailoring" },
+  { label: "Laundry", tint: UI.blue, service: "washAndFold" },
+  { label: "Ironing", tint: UI.amber, service: "press" },
+  { label: "Alterations", tint: UI.purple, service: "alterations" },
+  { label: "Dry Cleaning", tint: "#0EA5E9", service: "dryCleaning" },
+];
+
+/** Popular service chip — hover on web, opens provider selection on press. */
+function PopularChip({
+  label,
+  tint,
+  onPress,
+}: {
+  label: string;
+  tint: string;
+  onPress: () => void;
+}) {
+  const [hovered, setHovered] = useState(false);
+  const [pressed, setPressed] = useState(false);
+  const active = hovered || pressed;
 
   return (
-    <View style={[styles.section, { minHeight: windowHeight - NAVBAR_HEIGHT }]}>
-      <LandingContainer style={isWebDesktop ? styles.rowDesktop : undefined}>
+    <Pressable
+      onPress={onPress}
+      onHoverIn={() => setHovered(true)}
+      onHoverOut={() => setHovered(false)}
+      onPressIn={() => setPressed(true)}
+      onPressOut={() => setPressed(false)}
+      style={[
+        styles.chip,
+        Platform.OS === "web" && styles.chipWeb,
+        active && styles.chipHover,
+        active && { borderColor: tint, shadowColor: tint },
+      ]}
+      accessibilityRole="button"
+      accessibilityLabel={`Browse ${label} providers`}
+    >
+      <Text style={[styles.chipText, active && { color: tint }]}>{label}</Text>
+    </Pressable>
+  );
+}
+
+type Props = {
+  /** Single shared search bar (or spacer while docked above providers). */
+  searchBar: ReactNode;
+  onSelectPopular: (service: LandingPopularService) => void;
+};
+
+/** Marketplace hero — matches the provided design screenshot. */
+export function LandingHero({
+  searchBar,
+  onSelectPopular,
+}: Props) {
+  const { isWebDesktop: desktopMeasured, width: layoutWidth } = useResponsiveLayout();
+  const { height: windowHeight } = useWindowDimensions();
+  // On web reload, width can be 0 for a frame — keep desktop hero so the photo column
+  // does not collapse into a broken stacked layout.
+  const isWebDesktop =
+    desktopMeasured || (Platform.OS === "web" && layoutWidth < 1);
+
+  return (
+    <View
+      style={[
+        styles.section,
+        { minHeight: Math.max(520, Math.min(640, windowHeight - NAVBAR_HEIGHT)) },
+      ]}
+    >
+      <LinearGradient
+        colors={["#EAF3FF", "#F4F8FC", "#FFFFFF"]}
+        locations={[0, 0.45, 1]}
+        start={{ x: 0, y: 0.5 }}
+        end={{ x: 1, y: 0.5 }}
+        style={StyleSheet.absoluteFill}
+      />
+      <View style={[styles.wash, styles.washA]} />
+      <View style={[styles.wash, styles.washB]} />
+
+      <LandingContainer
+        // @ts-expect-error web className — CSS media query keeps desktop row on reload
+        className="landing-hero-row"
+        style={isWebDesktop ? styles.rowDesktop : undefined}
+      >
         <View style={[styles.textCol, isWebDesktop && styles.textColDesktop]}>
-          <View style={styles.eyebrowPill}>
-            <MaterialCommunityIcons name="hand-heart-outline" size={14} color={c.background} />
-            <Text style={styles.eyebrow}>Gentle, Trusted Laundry Care</Text>
-          </View>
-          <Text style={styles.heading}>
-            Clothes Deserve Care,{" "}
-            <Text style={styles.headingAccent}>Not Rough Handling</Text>
-          </Text>
+          <Text style={styles.eyebrow}>LOCAL SERVICES, MADE SIMPLE</Text>
+          <Text style={styles.heading}>Find trusted service providers near you</Text>
           <Text style={styles.subtitle}>
-            Trusted housewives wash and fold your clothes with the care
-            they&apos;d give their own family&apos;s laundry.
+            Tailoring, Laundry, Ironing and more — all in one place. Compare, contact and get it
+            done, your way.
           </Text>
 
-          {/* App download offer */}
-          <View style={styles.downloadCard}>
-            <View style={styles.offerBadge}>
-              <Text style={styles.offerBadgeText}>LIMITED OFFER</Text>
-            </View>
-            <Text style={styles.offerHeading}>
-              🎉 Get <Text style={styles.offerAccent}>20% off</Text> your first order
-            </Text>
-            <Text style={styles.offerSub}>
-              Download the app and use code <Text style={styles.offerCode}>FIRST20</Text> at checkout.
-            </Text>
-            <View style={styles.downloadRow}>
-              <Pressable
-                style={({ pressed }) => [pressed && styles.pressed]}
-                onPress={() => trackMetaEvent("ClickAppStore")}
-                accessibilityRole="link"
-                accessibilityLabel="Download on the App Store"
-              >
-                <LinearGradient
-                  colors={["#1c1c1e", "#2c2c2e"]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.storeBadge}
-                >
-                  <MaterialCommunityIcons name="apple" size={26} color={c.white} />
-                  <View>
-                    <Text style={styles.badgeSmall}>Download on the</Text>
-                    <Text style={styles.badgeBig}>App Store</Text>
-                  </View>
-                </LinearGradient>
-              </Pressable>
+          <View style={styles.searchSlot}>{searchBar}</View>
 
-              <Pressable
-                style={({ pressed }) => [pressed && styles.pressed]}
-                onPress={() => {
-                  trackMetaEvent("ClickPlayStore");
-                  Linking.openURL(GOOGLE_PLAY_URL);
-                }}
-                accessibilityRole="link"
-                accessibilityLabel="Get it on Google Play"
-              >
-                <LinearGradient
-                  colors={["#1c1c1e", "#2c2c2e"]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.storeBadge}
-                >
-                  <MaterialCommunityIcons name="google-play" size={22} color={c.white} />
-                  <View>
-                    <Text style={styles.badgeSmall}>Get it on</Text>
-                    <Text style={styles.badgeBig}>Google Play</Text>
-                  </View>
-                </LinearGradient>
-              </Pressable>
-            </View>
+          <View style={styles.chipRow}>
+            <Text style={styles.popularLabel}>Popular:</Text>
+            {POPULAR_CHIPS.map((chip) => (
+              <PopularChip
+                key={chip.label}
+                label={chip.label}
+                tint={chip.tint}
+                onPress={() => onSelectPopular(chip.service)}
+              />
+            ))}
           </View>
         </View>
 
-        <View style={[styles.imageCol, isWebDesktop && styles.imageColDesktop]}>
-          <View style={styles.imageBlobWrap}>
-            <Image source={assets.hero.laundryCare} style={styles.image} contentFit="cover" />
-          </View>
+        <View
+          // @ts-expect-error web className — reserves fixed photo column width
+          className="landing-hero-image-col"
+          style={[styles.imageCol, isWebDesktop && styles.imageColDesktop]}
+        >
+          <LandingHeroVisual />
         </View>
       </LandingContainer>
     </View>
@@ -108,166 +141,139 @@ export function LandingHero() {
 const styles = StyleSheet.create({
   section: {
     paddingHorizontal: 24,
-    paddingVertical: 48,
-    backgroundColor: c.themeWhite,
-    overflow: "hidden",
+    paddingVertical: 40,
+    overflow: "visible",
     justifyContent: "center",
+    position: "relative",
+  },
+  wash: {
+    position: "absolute",
+    borderRadius: 999,
+    backgroundColor: "rgba(191, 219, 254, 0.35)",
+  },
+  washA: {
+    width: 320,
+    height: 320,
+    left: -140,
+    top: -80,
+  },
+  washB: {
+    width: 220,
+    height: 220,
+    left: 40,
+    bottom: -90,
+    backgroundColor: "rgba(224, 231, 255, 0.4)",
   },
   rowDesktop: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 24,
-    gap: 40,
+    gap: 36,
   },
   textCol: {
     backgroundColor: "transparent",
+    zIndex: 1,
+    flexShrink: 1,
   },
   textColDesktop: {
-    flex: 1.05,
-  },
-  eyebrowPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    alignSelf: "flex-start",
-    backgroundColor: c.blue500,
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 999,
-    marginBottom: 16,
+    flexGrow: 1,
+    flexShrink: 1,
+    flexBasis: 480,
+    paddingRight: 8,
+    minWidth: 0,
   },
   eyebrow: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "700",
-    color: c.background,
-    letterSpacing: 0.5,
-    textTransform: "uppercase",
+    letterSpacing: 1.6,
+    color: UI.muted,
+    marginBottom: 14,
   },
   heading: {
-    fontSize: 64,
-    lineHeight: 72,
+    fontSize: 46,
+    lineHeight: 54,
     fontWeight: "800",
-    color: c.themeBlack,
-  },
-  headingAccent: {
-    color: c.background,
+    color: UI.purpleDeep,
+    maxWidth: 520,
+    letterSpacing: -0.6,
   },
   subtitle: {
-    fontSize: 20,
-    lineHeight: 30,
-    color: c.themeBlack,
-    marginTop: 18,
-    maxWidth: 520,
+    fontSize: 16,
+    lineHeight: 26,
+    color: UI.muted,
+    marginTop: 14,
+    maxWidth: 480,
   },
-  subtitleBold: {
-    fontWeight: "800",
-    color: c.themeBlack,
+  searchSlot: {
+    marginTop: 26,
+    minHeight: LANDING_SEARCH_BAR_SLOT_HEIGHT,
+    maxWidth: 580,
+    width: "100%",
   },
-  downloadCard: {
-    marginTop: 28,
-    backgroundColor: c.white,
-    borderRadius: 20,
-    padding: 20,
-    maxWidth: 440,
-    borderWidth: 1,
-    borderColor: "rgba(0,0,0,0.06)",
-    ...theme.shadow,
-  },
-  offerBadge: {
-    alignSelf: "flex-start",
-    backgroundColor: "#fff3cd",
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    marginBottom: 10,
-  },
-  offerBadgeText: {
-    fontSize: 10,
-    fontWeight: "800",
-    color: "#b45309",
-    letterSpacing: 1,
-  },
-  offerHeading: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: c.themeBlack,
-    marginBottom: 6,
-  },
-  offerAccent: {
-    color: "#e67e22",
-    fontWeight: "800",
-  },
-  offerSub: {
-    fontSize: 13,
-    color: c.themeBlack,
-    marginBottom: 16,
-    lineHeight: 19,
-  },
-  offerCode: {
-    fontWeight: "700",
-    color: c.themeBlack,
-    backgroundColor: "#f0f0f0",
-  },
-  downloadRow: {
+  chipRow: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 10,
-  },
-  storeBadge: {
-    flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    paddingHorizontal: 16,
-    paddingVertical: 11,
-    borderRadius: 12,
-    minWidth: 150,
+    marginTop: 18,
+    gap: 8,
   },
-  badgeSmall: {
-    fontSize: 10,
-    color: "rgba(255,255,255,0.7)",
-    fontWeight: "400",
-    lineHeight: 14,
+  popularLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: UI.muted,
+    marginRight: 2,
   },
-  badgeBig: {
-    fontSize: 16,
-    color: c.white,
-    fontWeight: "700",
-    lineHeight: 20,
+  chip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: UI.card,
+    borderWidth: 1,
+    borderColor: UI.chipBorder,
   },
-  customerNudge: {
-    marginTop: 20,
+  chipWeb: {
+    cursor: "pointer",
+    transitionProperty: "transform, box-shadow, border-color, background-color, color",
+    transitionDuration: "220ms",
+    transitionTimingFunction: "cubic-bezier(0.22, 1, 0.36, 1)",
+  } as object,
+  chipHover: {
+    backgroundColor: "#FFFFFF",
+    transform: [{ translateY: -3 }, { scale: 1.06 }],
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.22,
+    shadowRadius: 14,
+    elevation: 5,
+    ...(Platform.OS === "web"
+      ? ({ boxShadow: "0 10px 22px rgba(17, 24, 39, 0.12)" } as object)
+      : null),
   },
-  customerNudgeText: {
-    fontSize: 14,
-    color: c.themeBlack,
-  },
-  customerNudgeLink: {
-    fontWeight: "700",
-    color: c.background,
-  },
-  pressed: {
-    opacity: 0.8,
+  chipText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: UI.text,
+    ...(Platform.OS === "web"
+      ? ({
+          transitionProperty: "color",
+          transitionDuration: "220ms",
+        } as object)
+      : null),
   },
   imageCol: {
     alignItems: "center",
-    marginTop: 40,
-    backgroundColor: "transparent",
+    marginTop: 32,
+    width: "100%",
+    minHeight: 440,
   },
   imageColDesktop: {
-    flex: 0.95,
+    flexGrow: 0,
+    flexShrink: 0,
+    flexBasis: 460,
+    width: 460,
+    minWidth: 460,
+    maxWidth: 460,
+    minHeight: 440,
     marginTop: 0,
-  },
-  imageBlobWrap: {
-    width: "100%",
-    maxWidth: 420,
-    aspectRatio: 0.78,
-    alignItems: "center",
+    alignItems: "flex-end",
     justifyContent: "center",
-    backgroundColor: "transparent",
-  },
-  image: {
-    width: "100%",
-    height: "100%",
-    borderRadius: 24,
   },
 });

@@ -399,3 +399,61 @@ export async function fetchPartnerPublicReviews(
       reviewerInitial: (row.reviewer_initial ?? "C").trim().charAt(0).toUpperCase() || "C",
     }));
 }
+
+export type LandingPublicReview = PartnerPublicReview & {
+  partnerId: string;
+  businessName: string;
+  reviewerName: string;
+  reviewerImageUrl: string | null;
+  locationLabel: string;
+};
+
+/** Recent feedback snippets for the signed-out web landing. */
+export async function fetchLandingPublicReviews(
+  limit = 12,
+): Promise<LandingPublicReview[]> {
+  if (!isSupabaseConfigured() || !supabase) return [];
+  const { data, error } = await supabase.rpc("landing_public_reviews", {
+    p_limit: limit,
+  });
+  if (error) return [];
+  return ((data ?? []) as Array<{
+    id?: string;
+    rating?: number;
+    message?: string | null;
+    created_at?: string;
+    reviewer_initial?: string | null;
+    reviewer_name?: string | null;
+    reviewer_image_url?: string | null;
+    location_label?: string | null;
+    partner_id?: string;
+    business_name?: string | null;
+  }>)
+    .filter(
+      (row) =>
+        typeof row.id === "string" &&
+        typeof row.partner_id === "string" &&
+        (row.message ?? "").trim().length > 0,
+    )
+    .map((row) => {
+      const reviewerInitial =
+        (row.reviewer_initial ?? "C").trim().charAt(0).toUpperCase() || "C";
+      const reviewerName =
+        (row.reviewer_name ?? "").trim() || `Customer ${reviewerInitial}.`;
+      const locationLabel = (row.location_label ?? "").trim() || "Nearby";
+      const businessName =
+        (row.business_name ?? "Local provider").trim() || "Local provider";
+      return {
+        id: row.id as string,
+        rating: Number(row.rating) || 0,
+        message: (row.message ?? "").trim(),
+        createdAt: row.created_at ?? "",
+        reviewerInitial,
+        reviewerName,
+        reviewerImageUrl: (row.reviewer_image_url ?? "").trim() || null,
+        locationLabel,
+        partnerId: row.partner_id as string,
+        businessName,
+      };
+    });
+}

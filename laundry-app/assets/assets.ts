@@ -8,6 +8,7 @@ export const assets = {
   hero: {
     laundryCare: require("./images/heroimage2.jpg"),
     becomeCaptain: require("./images/heroimage.jpg"),
+    landingWomanPhone: require("./images/landing/hero-woman-phone.jpg"),
   },
   icons: {
     app_icon: require("./icons/App-launcher-icon.png"),

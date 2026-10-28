@@ -1,14 +1,19 @@
-import { Image } from "expo-image";
 import { useRouter } from "expo-router";
-import { Pressable, StyleSheet, Text, View } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { assets } from "@/assets/assets";
-import { theme } from "@/constants/theme";
+import { UI } from "@/constants/theme";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { LandingContainer } from "./landing-container";
+import { LandingPartnerCurve } from "./landing-partner-curve";
 
-const c = theme.colors;
+const BENEFITS = [
+  { label: "Reach nearby customers", icon: "map-marker" as const, color: UI.blue },
+  { label: "Showcase your services", icon: "camera-outline" as const, color: UI.dealPink },
+  { label: "Manage enquiries", icon: "message-outline" as const, color: UI.teal },
+  { label: "Grow your business", icon: "chart-line" as const, color: UI.green },
+];
 
 export function LandingBecomeCaptain() {
   const router = useRouter();
@@ -18,30 +23,32 @@ export function LandingBecomeCaptain() {
     <View style={styles.section}>
       <LandingContainer style={isWebDesktop ? styles.rowDesktop : undefined}>
         <View style={[styles.textCol, isWebDesktop && styles.textColDesktop]}>
-          <View style={styles.eyebrowPill}>
-            <MaterialCommunityIcons name="home-heart" size={13} color={c.background} />
-            <Text style={styles.eyebrow}>For Housewives</Text>
-          </View>
-          <Text style={styles.heading}>
-            Are You A Housewife?{"\n"}Turn Spare Time Into{" "}
-            <Text style={styles.headingAccent}>Real Income</Text>
-          </Text>
+          <Text style={styles.heading}>Turn your skills into income</Text>
           <Text style={styles.subtitle}>
-            Join hundreds of Service Providers earning from home — on your own schedule, from your own kitchen.
+            Offer your services to customers near you and grow your business with Tap2Laundry.
           </Text>
           <Pressable
             style={({ pressed }) => [styles.btn, pressed && styles.pressed]}
             onPress={() => router.push("/(auth)/welcome")}
             accessibilityRole="button"
-            accessibilityLabel="Become a Service Provider"
+            accessibilityLabel="Become a Tap2Laundry Partner"
           >
-            <Text style={styles.btnText}>Become a Service Provider</Text>
-            <MaterialCommunityIcons name="arrow-right" size={18} color={c.white} />
+            <Text style={styles.btnText}>Become a Tap2Laundry Partner</Text>
+            <MaterialCommunityIcons name="arrow-right" size={18} color={UI.card} />
           </Pressable>
         </View>
 
+        <View style={[styles.checklist, isWebDesktop && styles.checklistDesktop]}>
+          {BENEFITS.map((item) => (
+            <View key={item.label} style={styles.checkRow}>
+              <MaterialCommunityIcons name={item.icon} size={18} color={item.color} />
+              <Text style={styles.checkText}>{item.label}</Text>
+            </View>
+          ))}
+        </View>
+
         <View style={[styles.imageCol, isWebDesktop && styles.imageColDesktop]}>
-          <Image source={assets.hero.becomeCaptain} style={styles.image} contentFit="cover" />
+          <LandingPartnerCurve source={assets.hero.becomeCaptain} tall={isWebDesktop} />
         </View>
       </LandingContainer>
     </View>
@@ -50,88 +57,83 @@ export function LandingBecomeCaptain() {
 
 const styles = StyleSheet.create({
   section: {
-    backgroundColor: "rgba(20,83,107,0.06)",
-    paddingVertical: 64,
+    backgroundColor: UI.card,
+    paddingVertical: 28,
     paddingHorizontal: 24,
     overflow: "hidden",
   },
   rowDesktop: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 64,
+    gap: 56,
   },
   textCol: {
     backgroundColor: "transparent",
   },
   textColDesktop: {
-    flex: 1.1,
-  },
-  eyebrowPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    alignSelf: "flex-start",
-    backgroundColor: "rgba(20,83,107,0.1)",
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 999,
-    marginBottom: 16,
-  },
-  eyebrow: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: c.background,
-    letterSpacing: 0.5,
-    textTransform: "uppercase",
+    flex: 1.15,
+    maxWidth: 340,
+    marginRight: 24,
   },
   heading: {
-    fontSize: 40,
-    lineHeight: 48,
+    fontSize: 28,
+    lineHeight: 34,
     fontWeight: "800",
-    color: c.themeBlack,
-    marginBottom: 16,
-  },
-  headingAccent: {
-    color: c.background,
+    color: UI.text,
+    marginBottom: 8,
   },
   subtitle: {
-    fontSize: 18,
-    lineHeight: 28,
-    color: c.themeBlack,
-    marginBottom: 28,
-    maxWidth: 480,
+    fontSize: 14,
+    lineHeight: 21,
+    color: UI.muted,
+    marginBottom: 16,
+    maxWidth: 320,
   },
   btn: {
+    alignSelf: "flex-start",
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    alignSelf: "flex-start",
-    paddingHorizontal: 24,
-    paddingVertical: 15,
+    backgroundColor: UI.blue,
+    paddingHorizontal: 18,
+    paddingVertical: 11,
     borderRadius: 999,
-    backgroundColor: c.background,
   },
   btnText: {
-    fontSize: 16,
+    color: UI.card,
     fontWeight: "700",
-    color: c.white,
+    fontSize: 14,
   },
-  pressed: {
-    opacity: 0.8,
+  checklist: {
+    gap: 12,
+    marginTop: 20,
+  },
+  checklistDesktop: {
+    flex: 0.85,
+    marginTop: 0,
+    gap: 14,
+  },
+  checkRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  checkText: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: UI.muted,
   },
   imageCol: {
+    marginTop: 20,
     alignItems: "center",
-    marginTop: 40,
-    backgroundColor: "transparent",
   },
   imageColDesktop: {
-    flex: 0.9,
+    flex: 1,
     marginTop: 0,
+    alignItems: "flex-end",
+    justifyContent: "center",
   },
-  image: {
-    width: "100%",
-    maxWidth: 480,
-    aspectRatio: 1680 / 944,
-    borderRadius: 24,
+  pressed: {
+    opacity: 0.85,
   },
 });

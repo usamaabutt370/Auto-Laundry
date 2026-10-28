@@ -202,6 +202,11 @@ export default function SignUpScreen() {
         router.replace("/(customer)/(tabs)/order");
       } else if (returnTo === "profile") {
         router.replace("/(customer)/(tabs)/profile");
+      } else if (returnTo === "pick-launderer") {
+        router.replace({
+          pathname: "/(customer)/pick-launderer",
+          params: { mode: "pickupDelivery" },
+        });
       } else {
         router.replace("/(customer)");
       }

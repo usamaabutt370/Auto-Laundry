@@ -9,7 +9,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { assets } from "@/assets/assets";
 import { showAppAlert } from "@/components/app-alert";
 import { strings } from "@/constants/strings";
-import { theme } from "@/constants/theme";
+import { UI } from "@/constants/theme";
 import { useAuth } from "@/contexts/auth-context";
 import {
   shouldUseFullWidthWebContent,
@@ -18,7 +18,6 @@ import {
 } from "@/hooks/use-responsive-layout";
 import { runAfterModalTeardown } from "@/utils/run-after-modal-teardown";
 
-const c = theme.colors;
 const SIDEBAR_WIDTH = 240;
 
 type IconName = ComponentProps<typeof MaterialCommunityIcons>["name"];
@@ -168,7 +167,7 @@ export function WebSidebarNav({ brandLabel = "Tap2Laundry", items, footerItems =
         <MaterialCommunityIcons
           name={item.icon}
           size={22}
-          color={active ? c.white : "rgba(255, 255, 255, 0.88)"}
+          color={active ? UI.blue : UI.muted}
         />
         <Text style={[styles.navLabel, active && styles.navLabelActive]}>{item.label}</Text>
       </Pressable>
@@ -207,7 +206,7 @@ export function WebSidebarNav({ brandLabel = "Tap2Laundry", items, footerItems =
           onPress={handleSignOut}
           style={({ pressed }) => [styles.navItem, pressed && styles.pressed]}
         >
-          <MaterialCommunityIcons name="logout" size={22} color="rgba(255, 255, 255, 0.88)" />
+          <MaterialCommunityIcons name="logout" size={22} color={UI.muted} />
           <Text style={styles.navLabel}>{strings.sidebar.signOut}</Text>
         </Pressable>
       </View>
@@ -339,17 +338,18 @@ const panelStyles = StyleSheet.create({
   fill: {
     flex: 1,
     minWidth: 0,
+    backgroundColor: UI.card,
   },
   outer: {
     flex: 1,
     alignItems: "center",
     minWidth: 0,
-    backgroundColor: c.background,
+    backgroundColor: UI.card,
   },
   inner: {
     flex: 1,
     minWidth: 0,
-    backgroundColor: c.background,
+    backgroundColor: UI.card,
     overflow: "hidden",
   },
 });
@@ -359,17 +359,18 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: "row",
     minWidth: 0,
+    backgroundColor: UI.card,
   },
   main: {
     flex: 1,
     minWidth: 0,
-    backgroundColor: c.background,
+    backgroundColor: UI.card,
   },
   sidebar: {
     width: SIDEBAR_WIDTH,
-    backgroundColor: c.blue900,
+    backgroundColor: UI.card,
     borderRightWidth: 1,
-    borderRightColor: "rgba(255, 255, 255, 0.12)",
+    borderRightColor: UI.border,
   },
   brandRow: {
     flexDirection: "row",
@@ -384,7 +385,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   brandText: {
-    color: c.white,
+    color: UI.purpleDeep,
     fontSize: 22,
     fontWeight: "700",
     letterSpacing: 0.3,
@@ -397,7 +398,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: "rgba(255, 255, 255, 0.12)",
+    borderTopColor: UI.border,
     gap: 4,
   },
   navItem: {
@@ -410,15 +411,15 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   navItemActive: {
-    backgroundColor: c.selectionWash,
+    backgroundColor: UI.iconWell,
   },
   navLabel: {
-    color: "rgba(255, 255, 255, 0.88)",
+    color: UI.muted,
     fontSize: 15,
     fontWeight: "500",
   },
   navLabelActive: {
-    color: c.white,
+    color: UI.blue,
     fontWeight: "700",
   },
   pressed: {

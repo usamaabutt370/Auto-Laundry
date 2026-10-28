@@ -1,24 +1,26 @@
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
-import { LinearGradient } from "expo-linear-gradient";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { assets } from "@/assets/assets";
+import { UI } from "@/constants/theme";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { LandingContainer } from "./landing-container";
 
 const NAV_LINKS = [
-  { label: "How It Works", anchor: "how-it-works" },
-  { label: "Services", anchor: "services" },
-  { label: "Earn From Home", anchor: "become-captain" },
+  { label: "Home", anchor: "home" },
+  { label: "For Providers", anchor: "become-captain" },
+  { label: "Help", anchor: "help" },
 ];
 
 type Props = {
   onNavigate?: (anchor: string) => void;
+  cityLabel?: string;
 };
 
-/** Sticky navbar — stays fixed at the top with the same dark gradient always applied. */
-export function LandingHeader({ onNavigate }: Props) {
+/** Sticky white navbar for the web marketplace landing. */
+export function LandingHeader({ onNavigate, cityLabel = "Lahore" }: Props) {
   const router = useRouter();
   const { isWebDesktop, width } = useResponsiveLayout();
   const isCompact = width < 480;
@@ -33,29 +35,20 @@ export function LandingHeader({ onNavigate }: Props) {
 
   return (
     <View style={[styles.bar, isCompact && styles.barCompact]}>
-      <LinearGradient
-        colors={["#14536b", "#3b7f95", "#4aafc9"]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
-        style={StyleSheet.absoluteFill}
-      />
-
       <LandingContainer style={styles.barRow}>
-        {/* Logo — sized as a wordmark: height-driven, width follows aspect ratio. */}
         <Pressable
           onPress={handleLogoPress}
           accessibilityRole="link"
           accessibilityLabel="Tap2Laundry Home"
         >
           <Image
-            source={assets.icons.landing_logo_white}
+            source={assets.icons.landing_logo}
             style={[styles.brandIcon, isCompact && styles.brandIconCompact]}
             contentFit="contain"
           />
         </Pressable>
 
-        {/* Desktop nav links */}
-        {isWebDesktop && (
+        {isWebDesktop ? (
           <View style={styles.nav}>
             {NAV_LINKS.map((link) => (
               <Pressable
@@ -69,29 +62,35 @@ export function LandingHeader({ onNavigate }: Props) {
               </Pressable>
             ))}
           </View>
-        )}
+        ) : null}
 
-        {/* Action button */}
         <View style={[styles.actions, isCompact && styles.actionsCompact]}>
+          {isWebDesktop ? (
+            <View style={styles.cityChip}>
+              <MaterialCommunityIcons name="map-marker" size={16} color={UI.blue} />
+              <Text style={styles.cityText}>{cityLabel}</Text>
+              <MaterialCommunityIcons name="chevron-down" size={16} color={UI.muted} />
+            </View>
+          ) : null}
+
           <Pressable
-            style={({ pressed }) => [pressed && styles.pressed]}
-            onPress={() => router.push("/(auth)/sign-up")}
+            style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
+            onPress={() => onNavigate?.("providers")}
             accessibilityRole="button"
-            accessibilityLabel="Get Started"
+            accessibilityLabel="Search providers"
           >
-            <LinearGradient
-              colors={["#f9c74f", "#f4a124"]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={[styles.signUpBtn, isCompact && styles.btnCompact]}
-            >
-              <Text
-                style={[styles.signUpText, isCompact && styles.btnTextCompact]}
-                numberOfLines={1}
-              >
-                {isCompact ? "Start" : "Get Started"}
-              </Text>
-            </LinearGradient>
+            <MaterialCommunityIcons name="magnify" size={22} color={UI.text} />
+          </Pressable>
+
+          <Pressable
+            style={({ pressed }) => [styles.loginBtn, pressed && styles.pressed]}
+            onPress={() => router.push("/(auth)/login")}
+            accessibilityRole="button"
+            accessibilityLabel="Login or Sign Up"
+          >
+            <Text style={[styles.loginText, isCompact && styles.loginTextCompact]} numberOfLines={1}>
+              {isCompact ? "Login" : "Login / Sign Up"}
+            </Text>
           </Pressable>
         </View>
       </LandingContainer>
@@ -102,31 +101,42 @@ export function LandingHeader({ onNavigate }: Props) {
 const styles = StyleSheet.create({
   bar: {
     paddingHorizontal: 24,
-    // paddingVertical: 10,
+    paddingVertical: 12,
+    backgroundColor: UI.card,
+    borderBottomWidth: 1,
+    borderBottomColor: UI.border,
     zIndex: 10,
+    shadowColor: UI.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 8,
+    elevation: 2,
   },
   barCompact: {
     paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingVertical: 10,
   },
   barRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    gap: 12,
   },
   brandIcon: {
-    height: 70,
+    height: 44,
     aspectRatio: 3,
     flexShrink: 1,
   },
   brandIconCompact: {
-    height: 40,
+    height: 34,
     aspectRatio: 3,
-    flexShrink: 1,
   },
   nav: {
     flexDirection: "row",
+    alignItems: "center",
     gap: 4,
+    flex: 1,
+    justifyContent: "center",
   },
   navBtn: {
     paddingHorizontal: 14,
@@ -134,33 +144,53 @@ const styles = StyleSheet.create({
   },
   navLink: {
     fontSize: 15,
-    fontWeight: "500",
-    letterSpacing: 0.2,
-    color: "#ffffff",
+    fontWeight: "600",
+    color: UI.text,
   },
   actions: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 10,
   },
   actionsCompact: {
     gap: 6,
   },
-  signUpBtn: {
+  cityChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: UI.bg,
+    borderWidth: 1,
+    borderColor: UI.chipBorder,
+  },
+  cityText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: UI.text,
+  },
+  iconBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: UI.bg,
+  },
+  loginBtn: {
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 999,
+    backgroundColor: UI.blue,
   },
-  signUpText: {
-    fontSize: 15,
+  loginText: {
+    fontSize: 14,
     fontWeight: "700",
-    color: "#1a1a1a",
+    color: UI.card,
   },
-  btnCompact: {
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-  },
-  btnTextCompact: {
+  loginTextCompact: {
     fontSize: 12,
   },
   pressed: {

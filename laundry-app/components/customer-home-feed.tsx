@@ -145,11 +145,18 @@ export function CustomerHomeFeed({
 }: Props) {
   const s = strings.customer.home;
   const { width: windowWidth } = useWindowDimensions();
-  const { isNarrow, ms } = useResponsiveLayout();
+  const { isNarrow, ms, isWeb } = useResponsiveLayout();
   const screenPad = isNarrow ? 16 : SCREEN_PAD;
   const categoryCardWidth = (windowWidth - screenPad * 2 - CARD_GAP) / (isNarrow ? 2.05 : 2.2);
   // const recCardWidth = categoryCardWidth; // used by deals section
   const nearbyCardWidth = (windowWidth - screenPad * 2 - CARD_GAP) / (isNarrow ? 1.35 : 1.5);
+  // Mobile uses fixed image heights; on wide web scale them with card width so photos aren't thin strips.
+  const categoryImageHeight = isWeb
+    ? Math.round(Math.min(Math.max(categoryCardWidth * 0.58, 168), 240))
+    : 120;
+  const nearbyImageHeight = isWeb
+    ? Math.round(Math.min(Math.max(nearbyCardWidth * 0.48, 148), 220))
+    : 92;
   const { firstName, avatarUri, isLoggedIn } = useHomeProfile();
   const [locationLabel, setLocationLabel] = useState<string>(s.locationFallback);
   const [favorites, setFavorites] = useState<Record<string, boolean>>({});
@@ -364,6 +371,7 @@ export function CustomerHomeFeed({
             icon="scissors-cutting"
             accent={UI.purple}
             width={categoryCardWidth}
+            imageHeight={categoryImageHeight}
             onPress={() => onPressCategory("tailoring")}
           />
           <CategoryCard
@@ -373,6 +381,7 @@ export function CustomerHomeFeed({
             icon="iron"
             accent={UI.mapGreen}
             width={categoryCardWidth}
+            imageHeight={categoryImageHeight}
             onPress={() => onPressCategory("press")}
           />
           <CategoryCard
@@ -382,6 +391,7 @@ export function CustomerHomeFeed({
             icon="tshirt-crew"
             accent={UI.blue}
             width={categoryCardWidth}
+            imageHeight={categoryImageHeight}
             onPress={() => onPressCategory("washAndFold")}
           />
           <CategoryCard
@@ -391,6 +401,7 @@ export function CustomerHomeFeed({
             icon="hanger"
             accent="#0EA5E9"
             width={categoryCardWidth}
+            imageHeight={categoryImageHeight}
             onPress={() => onPressCategory("dryCleaning")}
           />
 
@@ -455,6 +466,7 @@ export function CustomerHomeFeed({
                       key={partner.id}
                       partner={partner}
                       cardWidth={nearbyCardWidth}
+                      imageHeight={nearbyImageHeight}
                       distanceLabel={
                         Number.isFinite(km) ? fill(s.kmAway, { km: formatKm(km) }) : "—"
                       }
@@ -513,6 +525,7 @@ export function CustomerHomeFeed({
                   key={partner.id}
                   partner={partner}
                   cardWidth={nearbyCardWidth}
+                  imageHeight={nearbyImageHeight}
                   distanceLabel={
                     Number.isFinite(km) ? fill(s.kmAway, { km: formatKm(km) }) : "—"
                   }
@@ -633,6 +646,7 @@ function CategoryCard({
   icon,
   accent,
   width,
+  imageHeight,
   onPress,
 }: {
   title: string;
@@ -641,6 +655,7 @@ function CategoryCard({
   icon: ComponentProps<typeof MaterialCommunityIcons>["name"];
   accent: string;
   width: number;
+  imageHeight: number;
   onPress: () => void;
 }) {
   return (
@@ -649,10 +664,15 @@ function CategoryCard({
         onPress={onPress}
         style={({ pressed }) => [styles.categoryCard, pressed && styles.pressed]}
       >
-        <View style={styles.categoryImageWrap}>
+        <View style={[styles.categoryImageWrap, { height: imageHeight }]}>
           <Image source={image} style={styles.categoryImage} contentFit="cover" />
         </View>
-        <View style={[styles.categoryIcon, { backgroundColor: accent }]}>
+        <View
+          style={[
+            styles.categoryIcon,
+            { backgroundColor: accent, top: imageHeight - 14 },
+          ]}
+        >
           <MaterialCommunityIcons name={icon} size={16} color="#FFFFFF" />
         </View>
         <View style={styles.categoryBody}>
@@ -669,6 +689,7 @@ function CategoryCard({
 function RecommendedCard({
   partner,
   cardWidth,
+  imageHeight,
   distanceLabel,
   badgeLabel,
   badgeColor,
@@ -680,6 +701,7 @@ function RecommendedCard({
 }: {
   partner: PartnerMapMarker;
   cardWidth: number;
+  imageHeight: number;
   distanceLabel: string;
   badgeLabel: string;
   badgeColor: string;
@@ -698,7 +720,7 @@ function RecommendedCard({
         onPress={onPress}
         style={({ pressed }) => [styles.recCard, pressed && styles.pressed]}
       >
-        <View style={styles.recImageWrap}>
+        <View style={[styles.recImageWrap, { height: imageHeight }]}>
           {image ? (
             <Image source={{ uri: image }} style={styles.recImage} contentFit="cover" />
           ) : (
