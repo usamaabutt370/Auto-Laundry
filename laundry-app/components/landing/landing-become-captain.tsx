@@ -76,8 +76,8 @@ const styles = StyleSheet.create({
     marginRight: 24,
   },
   heading: {
-    fontSize: 28,
-    lineHeight: 34,
+    fontSize: 32,
+    lineHeight: 38,
     fontWeight: "800",
     color: UI.text,
     marginBottom: 8,

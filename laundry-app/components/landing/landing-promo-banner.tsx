@@ -133,8 +133,8 @@ const styles = StyleSheet.create({
     maxWidth: "100%",
   },
   title: {
-    fontSize: 28,
-    lineHeight: 34,
+    fontSize: 32,
+    lineHeight: 38,
     fontWeight: "800",
     color: UI.purpleDeep,
     marginBottom: 8,

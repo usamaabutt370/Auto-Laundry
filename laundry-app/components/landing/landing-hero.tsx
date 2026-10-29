@@ -1,5 +1,5 @@
 import { LinearGradient } from "expo-linear-gradient";
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
 import {
   Platform,
   Pressable,
@@ -13,8 +13,8 @@ import type { LaundererServiceType } from "@/constants/launderers";
 import { UI } from "@/constants/theme";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { LandingContainer } from "./landing-container";
+import { LandingHeroReveal } from "./landing-hero-reveal";
 import { LandingHeroVisual } from "./landing-hero-visual";
-import { LANDING_SEARCH_BAR_SLOT_HEIGHT } from "./landing-search-bar";
 
 const NAVBAR_HEIGHT = 72;
 
@@ -64,16 +64,11 @@ function PopularChip({
 }
 
 type Props = {
-  /** Single shared search bar (or spacer while docked above providers). */
-  searchBar: ReactNode;
   onSelectPopular: (service: LandingPopularService) => void;
 };
 
 /** Marketplace hero — matches the provided design screenshot. */
-export function LandingHero({
-  searchBar,
-  onSelectPopular,
-}: Props) {
+export function LandingHero({ onSelectPopular }: Props) {
   const { isWebDesktop: desktopMeasured, width: layoutWidth } = useResponsiveLayout();
   const { height: windowHeight } = useWindowDimensions();
   // On web reload, width can be 0 for a frame — keep desktop hero so the photo column
@@ -104,16 +99,20 @@ export function LandingHero({
         style={isWebDesktop ? styles.rowDesktop : undefined}
       >
         <View style={[styles.textCol, isWebDesktop && styles.textColDesktop]}>
-          <Text style={styles.eyebrow}>LOCAL SERVICES, MADE SIMPLE</Text>
-          <Text style={styles.heading}>Find trusted service providers near you</Text>
-          <Text style={styles.subtitle}>
-            Tailoring, Laundry, Ironing and more — all in one place. Compare, contact and get it
-            done, your way.
-          </Text>
+          <LandingHeroReveal step={1}>
+            <Text style={styles.eyebrow}>LOCAL SERVICES, MADE SIMPLE</Text>
+          </LandingHeroReveal>
+          <LandingHeroReveal step={2}>
+            <Text style={styles.heading}>Find trusted service providers near you</Text>
+          </LandingHeroReveal>
+          <LandingHeroReveal step={3}>
+            <Text style={styles.subtitle}>
+              Tailoring, Laundry, Ironing and more — all in one place. Compare, contact and get it
+              done, your way.
+            </Text>
+          </LandingHeroReveal>
 
-          <View style={styles.searchSlot}>{searchBar}</View>
-
-          <View style={styles.chipRow}>
+          <LandingHeroReveal step={4} style={styles.chipRow}>
             <Text style={styles.popularLabel}>Popular:</Text>
             {POPULAR_CHIPS.map((chip) => (
               <PopularChip
@@ -123,7 +122,7 @@ export function LandingHero({
                 onPress={() => onSelectPopular(chip.service)}
               />
             ))}
-          </View>
+          </LandingHeroReveal>
         </View>
 
         <View
@@ -203,17 +202,11 @@ const styles = StyleSheet.create({
     marginTop: 14,
     maxWidth: 480,
   },
-  searchSlot: {
-    marginTop: 26,
-    minHeight: LANDING_SEARCH_BAR_SLOT_HEIGHT,
-    maxWidth: 580,
-    width: "100%",
-  },
   chipRow: {
     flexDirection: "row",
     flexWrap: "wrap",
     alignItems: "center",
-    marginTop: 18,
+    marginTop: 26,
     gap: 8,
   },
   popularLabel: {

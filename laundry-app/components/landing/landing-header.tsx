@@ -19,6 +19,39 @@ type Props = {
   cityLabel?: string;
 };
 
+/** Web nav link — Liquid morph hover (Prismic / CodePen WbeNvrr). */
+function LiquidNavLink({
+  label,
+  onPress,
+}: {
+  label: string;
+  onPress: () => void;
+}) {
+  if (Platform.OS === "web") {
+    return (
+      <button
+        type="button"
+        className="landing-nav-liquid"
+        aria-label={label}
+        onClick={onPress}
+      >
+        <span className="landing-nav-liquid-label">{label}</span>
+      </button>
+    );
+  }
+
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [styles.navBtn, pressed && styles.pressed]}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+    >
+      <Text style={styles.navLink}>{label}</Text>
+    </Pressable>
+  );
+}
+
 /** Sticky white navbar for the web marketplace landing. */
 export function LandingHeader({ onNavigate, cityLabel = "Lahore" }: Props) {
   const router = useRouter();
@@ -51,15 +84,11 @@ export function LandingHeader({ onNavigate, cityLabel = "Lahore" }: Props) {
         {isWebDesktop ? (
           <View style={styles.nav}>
             {NAV_LINKS.map((link) => (
-              <Pressable
+              <LiquidNavLink
                 key={link.anchor}
+                label={link.label}
                 onPress={() => onNavigate?.(link.anchor)}
-                style={({ pressed }) => [styles.navBtn, pressed && styles.pressed]}
-                accessibilityRole="button"
-                accessibilityLabel={link.label}
-              >
-                <Text style={styles.navLink}>{link.label}</Text>
-              </Pressable>
+              />
             ))}
           </View>
         ) : null}

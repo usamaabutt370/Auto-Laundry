@@ -1,12 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  LayoutChangeEvent,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  TextInput,
-  View,
-} from "react-native";
+import { LayoutChangeEvent, Platform, ScrollView, StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
@@ -16,7 +9,6 @@ import { UI } from "@/constants/theme";
 import { useAuth } from "@/contexts/auth-context";
 import { useLandingProviders } from "@/hooks/use-landing-providers";
 import { LandingBecomeCaptain } from "./landing-become-captain";
-import { LandingContainer } from "./landing-container";
 import { LandingFooter } from "./landing-footer";
 import { LandingHeader } from "./landing-header";
 import { LandingHero, type LandingPopularService } from "./landing-hero";
@@ -26,10 +18,6 @@ import {
   LandingRecentSearches,
   type RecentSearchItem,
 } from "./landing-recent-searches";
-import {
-  LANDING_SEARCH_BAR_SLOT_HEIGHT,
-  LandingSearchBar,
-} from "./landing-search-bar";
 import { LandingServices } from "./landing-services";
 import { LandingTestimonials } from "./landing-testimonials";
 
@@ -42,7 +30,6 @@ function toPickLaundererService(
 }
 
 const RECENT_KEY = "t2l_landing_recent_searches";
-const BLUR_UNDOCK_MS = 180;
 
 function readRecentSearches(): RecentSearchItem[] {
   if (Platform.OS !== "web" || typeof window === "undefined") return [];
@@ -70,32 +57,19 @@ export function LandingPage() {
   const router = useRouter();
   const { isAuthenticated } = useAuth();
   const scrollRef = useRef<ScrollView>(null);
-  const searchInputRef = useRef<TextInput>(null);
   const sectionOffsets = useRef<Record<string, number>>({});
-  const blurTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  /** Ignore blur from unmounting the hero input while relocating it. */
-  const suppressBlurRef = useRef(false);
-  const [query, setQuery] = useState("");
   const [activeService, setActiveService] = useState<
     LaundererServiceType | "alterations" | null
   >(null);
-  const [appliedQuery, setAppliedQuery] = useState("");
-  const [searchDocked, setSearchDocked] = useState(false);
   const [recent, setRecent] = useState<RecentSearchItem[]>([]);
 
-  const { loading, nearby, recommended, filtered } = useLandingProviders({
-    query: appliedQuery,
+  const { loading, nearby, recommended } = useLandingProviders({
+    query: "",
     service: activeService,
   });
 
   useEffect(() => {
     setRecent(readRecentSearches());
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (blurTimerRef.current) clearTimeout(blurTimerRef.current);
-    };
   }, []);
 
   const registerSection = (anchor: string) => (e: LayoutChangeEvent) => {
@@ -144,70 +118,6 @@ export function LandingPage() {
     [persistSearch, router],
   );
 
-  const handleQueryChange = useCallback((value: string) => {
-    setQuery(value);
-    // Live-filter Nearby Providers as the user types.
-    setAppliedQuery(value);
-    // Empty search returns the bar to the hero.
-    if (!value.trim()) {
-      setSearchDocked(false);
-    }
-  }, []);
-
-  const handleSearchFocus = useCallback(() => {
-    if (blurTimerRef.current) {
-      clearTimeout(blurTimerRef.current);
-      blurTimerRef.current = null;
-    }
-    suppressBlurRef.current = true;
-    setSearchDocked(true);
-    // Scroll after layout places the bar above providers.
-    requestAnimationFrame(() => {
-      const y = sectionOffsets.current.providers;
-      if (y != null) {
-        scrollRef.current?.scrollTo({ y: Math.max(0, y - 12), animated: true });
-      }
-      // Docked input autoFocus will fire; allow real outside-clicks after settle.
-      setTimeout(() => {
-        suppressBlurRef.current = false;
-        searchInputRef.current?.focus();
-      }, 80);
-    });
-  }, []);
-
-  const handleSearchBlur = useCallback(() => {
-    if (suppressBlurRef.current) return;
-    if (blurTimerRef.current) clearTimeout(blurTimerRef.current);
-    // Undock only after a real outside click / focus loss — not while relocating.
-    blurTimerRef.current = setTimeout(() => {
-      setSearchDocked(false);
-      blurTimerRef.current = null;
-    }, BLUR_UNDOCK_MS);
-  }, []);
-
-  const runSearch = useCallback(() => {
-    const nextQuery = query.trim();
-    setAppliedQuery(nextQuery);
-    if (!nextQuery) {
-      setSearchDocked(false);
-      return;
-    }
-    persistSearch(nextQuery);
-    if (blurTimerRef.current) {
-      clearTimeout(blurTimerRef.current);
-      blurTimerRef.current = null;
-    }
-    // Keep docked until navigation; do not undock on Search press alone.
-    suppressBlurRef.current = true;
-    router.push({
-      pathname: "/(customer)/pick-launderer",
-      params: {
-        mode: "pickupDelivery",
-        q: nextQuery,
-      },
-    });
-  }, [query, persistSearch, router]);
-
   /** Web See all: login first, then provider selection. */
   const handleSeeAllProviders = useCallback(() => {
     if (isAuthenticated) {
@@ -223,51 +133,19 @@ export function LandingPage() {
     });
   }, [isAuthenticated, router]);
 
-  const searchBar = (
-    <LandingSearchBar
-      ref={searchInputRef}
-      query={query}
-      onQueryChange={handleQueryChange}
-      cityLabel="Lahore"
-      onSearch={runSearch}
-      onFocus={handleSearchFocus}
-      onBlur={handleSearchBlur}
-      autoFocus={searchDocked}
-    />
-  );
-
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       <StatusBar style="dark" />
       <LandingHeader onNavigate={handleNavigate} cityLabel="Lahore" />
-      <ScrollView
-        ref={scrollRef}
-        style={styles.scroll}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
+      <ScrollView ref={scrollRef} style={styles.scroll} showsVerticalScrollIndicator={false}>
         <View onLayout={registerSection("home")}>
-          <LandingHero
-            searchBar={
-              searchDocked ? (
-                <View
-                  style={styles.searchSpacer}
-                  accessibilityElementsHidden
-                  importantForAccessibility="no-hide-descendants"
-                />
-              ) : (
-                searchBar
-              )
-            }
-            onSelectPopular={openProviderSelection}
-          />
+          <LandingHero onSelectPopular={openProviderSelection} />
         </View>
 
         <LandingRecentSearches
           items={recent}
           onSelect={(item) => {
-            setQuery(item.title);
-            setAppliedQuery(item.title);
+            persistSearch(item.title);
             openProviderSelection(null);
           }}
         />
@@ -279,19 +157,11 @@ export function LandingPage() {
         <LandingPromoBanner onExplore={() => openProviderSelection(null)} />
 
         <View onLayout={registerSection("providers")}>
-          {searchDocked ? (
-            <LandingContainer style={styles.dockedSearchWrap}>{searchBar}</LandingContainer>
-          ) : null}
           <LandingProviders
             title="Nearby Providers"
             partners={nearby}
             loading={loading}
             onSeeAll={handleSeeAllProviders}
-            emptyLabel={
-              filtered.length === 0 && !loading
-                ? "No providers match your search. Try another name."
-                : undefined
-            }
           />
           <LandingProviders
             title="Recommended for You"
@@ -322,13 +192,5 @@ const styles = StyleSheet.create({
   },
   scroll: {
     flex: 1,
-  },
-  searchSpacer: {
-    height: LANDING_SEARCH_BAR_SLOT_HEIGHT,
-    width: "100%",
-  },
-  dockedSearchWrap: {
-    paddingTop: 8,
-    paddingBottom: 4,
   },
 });
