@@ -7,6 +7,7 @@ type Props = {
   kind: Kind;
   source: number;
   style: CSSProperties;
+  className?: string;
 };
 
 const radius: Record<Kind, string> = {
@@ -16,9 +17,10 @@ const radius: Record<Kind, string> = {
 };
 
 /** Web-only organic blob photo frame for the promo banner. */
-export function LandingPromoBlob({ kind, source, style }: Props) {
+export function LandingPromoBlob({ kind, source, style, className }: Props) {
   return (
     <div
+      className={className}
       style={{
         position: "absolute",
         overflow: "hidden",

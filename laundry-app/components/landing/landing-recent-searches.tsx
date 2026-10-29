@@ -58,6 +58,7 @@ export function LandingRecentSearches({ items, onSelect }: Props) {
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.row}
+          style={styles.scroller}
         >
           {list.map((item) => (
             <LandingRecentSearchCard key={item.id} item={item} onSelect={onSelect} />
@@ -74,6 +75,7 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 28,
     backgroundColor: UI.card,
+    overflow: "visible",
   },
   title: {
     fontSize: 32,
@@ -81,8 +83,14 @@ const styles = StyleSheet.create({
     color: UI.text,
     marginBottom: 16,
   },
+  scroller: {
+    overflow: "visible",
+  },
   row: {
     gap: 14,
     paddingRight: 8,
+    // Room for hover lift + border so ScrollView doesn't clip the top edge.
+    paddingVertical: 8,
+    overflow: "visible",
   },
 });

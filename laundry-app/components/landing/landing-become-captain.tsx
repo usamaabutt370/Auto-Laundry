@@ -1,12 +1,13 @@
 import { useRouter } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { assets } from "@/assets/assets";
 import { UI } from "@/constants/theme";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { LandingContainer } from "./landing-container";
 import { LandingPartnerCurve } from "./landing-partner-curve";
+import { LandingBecomeCaptain as LandingBecomeCaptainWeb } from "./landing-become-captain-web";
 
 const BENEFITS = [
   { label: "Reach nearby customers", icon: "map-marker" as const, color: UI.blue },
@@ -16,6 +17,13 @@ const BENEFITS = [
 ];
 
 export function LandingBecomeCaptain() {
+  if (Platform.OS === "web") {
+    return <LandingBecomeCaptainWeb />;
+  }
+  return <LandingBecomeCaptainNative />;
+}
+
+function LandingBecomeCaptainNative() {
   const router = useRouter();
   const { isWebDesktop } = useResponsiveLayout();
 
@@ -105,13 +113,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   checklist: {
-    gap: 12,
+    gap: 6,
     marginTop: 20,
   },
   checklistDesktop: {
     flex: 0.85,
     marginTop: 0,
-    gap: 14,
+    gap: 6,
   },
   checkRow: {
     flexDirection: "row",

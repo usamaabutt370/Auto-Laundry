@@ -1,12 +1,13 @@
 import { LinearGradient } from "expo-linear-gradient";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { assets } from "@/assets/assets";
 import { UI } from "@/constants/theme";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { LandingContainer } from "./landing-container";
 import { LandingPromoBlob } from "./landing-promo-blob";
+import { LandingPromoBanner as LandingPromoBannerWeb } from "./landing-promo-banner-web";
 
 type Props = {
   onExplore: () => void;
@@ -17,6 +18,13 @@ type Props = {
  * soft blue→lavender wash, Explore CTA + arrow, dots, organic photo blobs.
  */
 export function LandingPromoBanner({ onExplore }: Props) {
+  if (Platform.OS === "web") {
+    return <LandingPromoBannerWeb onExplore={onExplore} />;
+  }
+  return <LandingPromoBannerNative onExplore={onExplore} />;
+}
+
+function LandingPromoBannerNative({ onExplore }: Props) {
   const { isWebDesktop, width } = useResponsiveLayout();
   const showArt = isWebDesktop || width >= 720;
 

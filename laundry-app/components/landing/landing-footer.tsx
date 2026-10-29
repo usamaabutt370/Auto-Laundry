@@ -1,21 +1,24 @@
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { Linking, Pressable, StyleSheet, Text, View } from "react-native";
+import { Linking, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { assets } from "@/assets/assets";
 import { UI } from "@/constants/theme";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { LandingContainer } from "./landing-container";
+import { LandingFooter as LandingFooterWeb } from "./landing-footer-web";
 
-const FACEBOOK_URL = "https://www.facebook.com/profile.php?id=61591951860013";
+const FACEBOOK_URL = "https://www.facebook.com/p/Tap2Laundry-61591951860013/";
 const GOOGLE_PLAY_URL =
   "https://play.google.com/store/apps/details?id=com.autolaundry.app&hl=en";
-const APP_STORE_URL = "https://apps.apple.com/app/id6755495387";
+const APP_STORE_URL = "https://apps.apple.com/us/app/tap2laundry/id6789571411";
+
+const INSTAGRAM_URL = "https://www.instagram.com/tap2laundry_/";
 
 const SOCIAL = [
   { name: "facebook" as const, url: FACEBOOK_URL, label: "Facebook" },
-  { name: "instagram" as const, url: FACEBOOK_URL, label: "Instagram" },
+  { name: "instagram" as const, url: INSTAGRAM_URL, label: "Instagram" },
   { name: "youtube" as const, url: FACEBOOK_URL, label: "YouTube" },
   { name: "linkedin" as const, url: FACEBOOK_URL, label: "LinkedIn" },
   { name: "whatsapp" as const, url: FACEBOOK_URL, label: "WhatsApp" },
@@ -68,6 +71,13 @@ type Props = {
 
 /** Dark marketplace footer matching the design mock. */
 export function LandingFooter({ onNavigate }: Props) {
+  if (Platform.OS === "web") {
+    return <LandingFooterWeb onNavigate={onNavigate} />;
+  }
+  return <LandingFooterNative onNavigate={onNavigate} />;
+}
+
+function LandingFooterNative({ onNavigate }: Props) {
   const router = useRouter();
   const { isWebDesktop } = useResponsiveLayout();
   const year = new Date().getFullYear();

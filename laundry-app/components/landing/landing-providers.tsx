@@ -15,7 +15,7 @@ type Props = {
   partners: LandingProvider[];
   loading?: boolean;
   emptyLabel?: string;
-  /** Web: See all goes to login / provider selection instead of expanding. */
+  /** See all → pick-launderer (full provider list). */
   onSeeAll?: () => void;
 };
 
@@ -28,7 +28,7 @@ export function LandingProviders({
   onSeeAll,
 }: Props) {
   const router = useRouter();
-  const { isWeb, isWebDesktop, width } = useResponsiveLayout();
+  const { isWebDesktop, width } = useResponsiveLayout();
   const columns = isWebDesktop ? 4 : width >= 700 ? 2 : 1;
   const [expanded, setExpanded] = useState(false);
 
@@ -44,7 +44,7 @@ export function LandingProviders({
           {showSeeAll ? (
             <Pressable
               onPress={() => {
-                if (isWeb && onSeeAll) {
+                if (onSeeAll) {
                   onSeeAll();
                   return;
                 }
@@ -102,6 +102,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 36,
     backgroundColor: UI.card,
+    overflow: "visible",
   },
   header: {
     flexDirection: "row",
@@ -134,10 +135,13 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     alignItems: "stretch",
     gap: 16,
+    overflow: "visible",
+    paddingBottom: 8,
   },
   cell: {
     minWidth: 220,
     display: "flex",
+    overflow: "visible",
   },
   pressed: {
     opacity: 0.8,

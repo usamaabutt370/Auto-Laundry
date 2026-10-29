@@ -103,15 +103,6 @@ export function LandingHeader({ onNavigate, cityLabel = "Lahore" }: Props) {
           ) : null}
 
           <Pressable
-            style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
-            onPress={() => onNavigate?.("providers")}
-            accessibilityRole="button"
-            accessibilityLabel="Search providers"
-          >
-            <MaterialCommunityIcons name="magnify" size={22} color={UI.text} />
-          </Pressable>
-
-          <Pressable
             style={({ pressed }) => [styles.loginBtn, pressed && styles.pressed]}
             onPress={() => router.push("/(auth)/login")}
             accessibilityRole="button"
@@ -199,14 +190,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     color: UI.text,
-  },
-  iconBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: UI.bg,
   },
   loginBtn: {
     paddingHorizontal: 16,

@@ -6,7 +6,6 @@ import { StatusBar } from "expo-status-bar";
 
 import type { LaundererServiceType } from "@/constants/launderers";
 import { UI } from "@/constants/theme";
-import { useAuth } from "@/contexts/auth-context";
 import { useLandingProviders } from "@/hooks/use-landing-providers";
 import { LandingBecomeCaptain } from "./landing-become-captain";
 import { LandingFooter } from "./landing-footer";
@@ -55,7 +54,6 @@ function writeRecentSearches(items: RecentSearchItem[]) {
 /** Marketing / marketplace landing for signed-out web visitors. */
 export function LandingPage() {
   const router = useRouter();
-  const { isAuthenticated } = useAuth();
   const scrollRef = useRef<ScrollView>(null);
   const sectionOffsets = useRef<Record<string, number>>({});
   const [activeService, setActiveService] = useState<
@@ -118,20 +116,10 @@ export function LandingPage() {
     [persistSearch, router],
   );
 
-  /** Web See all: login first, then provider selection. */
+  /** See all → full provider selection (pick launderer) screen. */
   const handleSeeAllProviders = useCallback(() => {
-    if (isAuthenticated) {
-      router.push({
-        pathname: "/(customer)/pick-launderer",
-        params: { mode: "pickupDelivery" },
-      });
-      return;
-    }
-    router.push({
-      pathname: "/(auth)/login",
-      params: { returnTo: "pick-launderer" },
-    });
-  }, [isAuthenticated, router]);
+    openProviderSelection(null);
+  }, [openProviderSelection]);
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>

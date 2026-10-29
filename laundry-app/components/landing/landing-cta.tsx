@@ -6,7 +6,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { theme } from "@/constants/theme";
 
 const c = theme.colors;
-const FACEBOOK_URL = "https://www.facebook.com/profile.php?id=61591951860013";
+const FACEBOOK_URL = "https://www.facebook.com/p/Tap2Laundry-61591951860013/";
 
 /** Bottom-of-page conversion banner. */
 export function LandingCta() {

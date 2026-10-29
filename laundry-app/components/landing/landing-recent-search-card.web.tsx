@@ -82,6 +82,9 @@ export function LandingRecentSearchCard({ item, onSelect }: Props) {
           : "perspective(900px) rotateX(0deg) rotateY(0deg) translateY(0)",
       }}
     >
+      <span className="landing-recent-card-border" aria-hidden>
+        <span className="landing-recent-card-border-spin" />
+      </span>
       <span className="landing-recent-card-thumb-wrap" aria-hidden>
         <span
           className="landing-recent-card-thumb-layer"
